@@ -366,3 +366,5 @@ MigrationBackup/
 FodyWeavers.xsd
 /KudosWiki/wwwroot/Token.txt
 /KudosWiki/wwwroot/ChatToken.txt
+/PersonalWebsite/wwwroot/Token.txt
+/PersonalWebsite/wwwroot/ChatToken.txt
