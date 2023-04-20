@@ -1,0 +1,7 @@
+-Should add a new component to retrieve the commit history of the data vault to create a log.  At least names and dates, but could include changes
+-(In progress) Need a new component, probally a child of mainContent, to display an expanded list of sections for faster navigation
+-Need to work on compatability with smll screens/mobiles.  Current nav menu is broken
+-(Done but needs testing) Look at autologin when first browsing to site
+-Need to optomise code, theres lots of repeated methods/functions, and lots of unessasary calls
+-Generally improve UI and look of the app from feedback
+-Need to do something with the home screen, either add a quick search function or some links etc.

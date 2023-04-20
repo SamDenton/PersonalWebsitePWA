@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>PersonalWebsite</title>
+    <base href="/" />
+    <link href="/css/bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <link href="/css/app.css" rel="stylesheet" />
+    <link href="PersonalWebsite.styles.css" rel="stylesheet" />
+    <link href="manifest.json" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+</head>
+
+<body>
+    <div id="app" class="bg-dark" style="height: 100vh">
+        Loading...
+        <div class="container-fluid bg-dark text-light">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <img src="Kudos_logo.png" alt="Company Logo" height="165" width="272" class="mx-auto d-block img-fluid" />
+                    <h1 class="mt-3">Welcome to the Internal Wiki</h1>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 text-center">
+                    <p>This is the internal wiki for our company. It contains a wealth of information, resources, and documentation that will help you understand and use our products and services.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+    <script src="_content/Microsoft.Authentication.WebAssembly.Msal/AuthenticationService.js"></script>
+    <script src="_content/TinyMCE.Blazor/tinymce-blazor.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="navbar.js"></script>
+    <script src="customRefresh.js"></script>
+    <script src="chatBot.js"></script>
+    <script>navigator.serviceWorker.register('/service-worker.js');</script>
+</body>
+
+</html >

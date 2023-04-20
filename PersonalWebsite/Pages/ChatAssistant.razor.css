@@ -1,0 +1,141 @@
+﻿* {
+    color: #fff;
+}
+
+body {
+    margin:0;
+    padding:0;
+    background-color:#202428;
+}
+
+.container {
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.side-bar {
+    background-color: #202123;
+    width: 244px;
+    height: calc(100vh - 75px);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: 5px;
+}
+
+.main {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /*text-align: center;*/
+    justify-content: space-between;
+    height: calc(100vh - 75px);
+}
+#conversation {
+    width: 100%;
+    height: 80%;
+    z-index: 99;
+    opacity: 75%;
+    overflow-y: scroll;
+    padding: 5px;
+}
+
+    #conversation > p:nth-of-type(even) {
+        text-align: right;
+        background-color: #1c5380;
+        border-radius: 5px;
+    }
+
+    #conversation > p:nth-of-type(odd) {
+        text-align: left;
+        background-color: #0d385b;
+        border-radius: 5px;
+    }
+
+.info {
+    color: rgba( 255, 255, 255, 0.5);
+    font-size: 11px;
+    padding: 10px;
+}
+
+#submit {
+    border-radius: 5px;
+}
+
+input {
+    display: absolute;
+    margin: 0 auto;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.5);
+    width: 100%;
+    font-size: 20px;
+    padding: 12px 15px;
+    border-radius: 5px;
+    box-shadow: rgba(0, 0, 0, 0.05) 0 54px 55px,
+        rgba(0, 0, 0, 0.05) 0 -12px 30px,
+        rgba(0, 0, 0, 0.05) 0 4px 6px,
+        rgba(0, 0, 0, 0.05) 0 12px 13px,
+        rgba(0, 0, 0, 0.09) 0 -3px 55px
+}
+
+input:focus {
+    outline: none;
+}
+
+.bottom-section {
+    position: absolute;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    bottom: 100px;
+    align-items: center;
+}
+
+.input-container {
+    position: relative;
+    width: 100%;
+    max-width: 550px;
+}
+
+.input-container #submit {
+    position: absolute;
+    margin-top: 15px;
+    right: 5px;
+    cursor: pointer;
+    z-index: 999;
+}
+
+button {
+    border: solid 0.5px rgba(255, 255, 255, 0.5);
+    background-color: transparent;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 10px;
+}
+
+.main h1 {
+    position: absolute;
+    font-size: 33px;
+    padding: 200px 0;
+    color: #03223b;
+}
+
+nav {
+    border-top: solid 0.5px rgba(255, 255, 255, 0.5);
+    padding: 10px;
+    margin: 10px;
+}
+
+.history {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    margin: 10px;
+    height: 100%;
+}
+
+.history p {
+    cursor: pointer;
+}

@@ -1,0 +1,170 @@
+﻿@inject NavigationManager navigationManager
+@inject contentHolder contentHolder
+@inject MyStateContainer myStateContainer
+@using System.Net
+@using System.Net.Http;
+@using System.Net.Http.Headers;
+@using Newtonsoft.Json;
+@inject HttpClient Http;
+@inject IJSRuntime JSRuntime;
+
+<div class="nav-container" id="nav-container">
+    <div class="scroll-container" id="scroll-container">
+        <nav class="d-flex flex-column text-light navbar-expand-lg nav-menu" @ref="navMenu" id="nav">
+            @*auto-scroll *@
+            @* Should looks to replace this on mainlayout component *@
+            @*
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarScroll" aria-controls="navbarScroll" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            *@
+            <div class="nav-items-container">
+                @if (contentHolderList != null)
+                {
+                    var count = 0;
+                    @foreach (var typeGroup in contentHolderList
+                                 .OrderBy(c => c.page)
+                                 .ThenBy(c => c.section)
+                                 .ThenBy(c => c.subSection)
+                                 .GroupBy(c => c.page))
+                    {
+                        var type = typeGroup.Key;
+                        <div class="item-fader dropdown-divider"></div>
+                        <div class="p-1 item-fader nav-item px-2 font-weight-bold" @onclick="(() => { Array.Fill(showSubSections!, false); })">
+                            <NavLink class="p-1 nav-link text-muted" href=@($"/{type}/all/all")>
+                                <h2 class="oi oi-list-rich text-muted text-truncate typeText" style="width:100%;"> &nbsp @type</h2>
+                            </NavLink>
+                        </div>
+                        @foreach (var sectionGroup in typeGroup.GroupBy(c => c.section))
+                        {
+                            var localCount = count;
+                            var sectionName = sectionGroup.Key;
+                            <div class="item-fader navSubContainer @(showSubSections![localCount] == true ? "show" : "hide")">
+                                <div class="p-1 item-fader nav-item px-1 font-weight-bold" @onclick="(async () => { Array.Fill(showSubSections!, false, 0, localCount); if (showSubSections[localCount] == false) {showSubSections[localCount] = !showSubSections[localCount];} else {await FadeOut(); await Task.Delay(500); showSubSections[localCount] = !showSubSections[localCount];} Array.Fill(showSubSections, false, localCount+1, showSubSections.Length-localCount-1); StateHasChanged(); Console.WriteLine(showSubSections[localCount]); } )">
+                                    <NavLink class="p-1 nav-link" href=@($"/{type}/{sectionName}/all")>
+                                        <h3 class="oi text-nowrap text-truncate @(showSubSections![localCount] == true ? "oi-caret-bottom" : "oi-caret-right text-muted")" style="width:100%;"><span class="oi @(showSubSections![localCount] == true ? "oi-inner-text" : "oi-inner-text-right")"> &nbsp @sectionName</span> </h3>
+                                    </NavLink>
+                                </div>
+                                @if (showSubSections![localCount])
+                                {
+                                    @foreach (var contentHolder in sectionGroup)
+                                    {
+                                        <div class="item-fader nav-item px-1 fade-in" id="fader">
+                                            @*@(showSubSections[localCount] == true ? "" : "fade-out")*@
+                                            <NavLink class="nav-link text-muted" href=@($"/{type}/{sectionName}/{contentHolder.subSection}")>
+                                                <h5 class="oi oi-minus text-muted text-truncate" aria-hidden="true" style="width:100%;"> &nbsp @contentHolder.subSection </h5>
+                                            </NavLink>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                            count++;
+                        }
+                    }
+                }
+                else
+                {
+                    <div class="item-fader nav-item px-3">
+                        <NavLink class="nav-link text-light text-muted">
+                            <span class="oi oi-list-rich" aria-hidden="true"></span> Loading...
+                        </NavLink>
+                    </div>
+                }
+                <div class="item-fader dropdown-divider"></div>
+                <div class="item-fader nav-item px-3">
+                    <NavLink class="nav-link text-light text-muted" href="/chat" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> ChatBot!
+                    </NavLink>
+                </div>
+                <div class="item-fader dropdown-divider"></div>
+                <div class="item-fader nav-item px-3">
+                    <NavLink class="nav-link text-light text-muted" href="/all" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> All Sections
+                    </NavLink>
+                </div>
+                <div class="item-fader nav-item px-3">
+                    <NavLink class="nav-link text-light text-muted" href="/add" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                        <span class="oi oi-plus" aria-hidden="true"></span> Add New Section
+                    </NavLink>
+                </div>
+            </div>
+        </nav>
+    </div>
+</div>
+@code {
+    private contentHolder[]? contentHolderList;
+
+    private bool[]? showSubSections;
+    private string repoName = "PersonalSiteRepo";
+    private string userName = "SamDenton";
+    private string? token;
+    private ElementReference navMenu;
+    private bool firstRender = true;
+    private int uniqueSectionsCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var getFromTokens = await Http.GetAsync("Token.txt");
+        token = await getFromTokens.Content.ReadAsStringAsync();
+        await GetContentFromGitHubRepo<contentHolder>(userName, repoName, token!);
+        myStateContainer.OnStateChange += RefreshMe;
+        if (contentHolderList != null)
+        {
+            uniqueSectionsCount = contentHolderList.GroupBy(x => x.section).Count();
+        }
+        Array.Resize(ref showSubSections, uniqueSectionsCount);
+        Array.Fill(showSubSections, false);
+        //await JSRuntime.InvokeVoidAsync("scrollNavMenu");
+        if (this.firstRender)
+        {
+            this.firstRender = false;
+            await JSRuntime.InvokeVoidAsync("initScrollingMenu", "#nav-container", "#scroll-container", "#nav");
+        }
+    }
+
+    async Task FadeOut()
+    {
+        await JSRuntime.InvokeVoidAsync("fadeOut");
+    }
+
+    private async void RefreshMe()
+    {
+        await Task.Delay(1000);
+        await GetContentFromGitHubRepo<contentHolder>(userName, repoName, token!);
+        Console.WriteLine("Triggered on navMenu by contentholder " + contentHolderList!.Last().section);
+        StateHasChanged();
+    }
+    @* Retrieve content from GitHub as a JSON string *@
+    public async Task GetContentFromGitHubRepo<T>(string username, string repositoryName, string token)
+    {
+        using (var client = new HttpClient())
+        {
+    @* Initialize the HttpClient object with an authorization header and desired content type *@
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", token);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+            @* Send the GET request to the GitHub API *@
+            var response = await client.GetAsync($"https://api.github.com/repos/{username}/{repositoryName}/contents/data.json");
+            try
+            {
+                @* Read the response content, parse the content and convert it from base64, then de-serialize the content with my custom class *@
+                var content = await response.Content.ReadAsStringAsync();
+                var gitContent = JsonConvert.DeserializeObject<Content>(content);
+                var contentBytes = Convert.FromBase64String(gitContent!.content!);
+                var jsonContent = Encoding.UTF8.GetString(contentBytes);
+                var array = JsonConvert.DeserializeObject<contentHolder[]>(jsonContent);
+                contentHolderList = array;
+                @* Get the sha of the retrieved file *@
+                @* newSHA = gitContent.sha; *@
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error: " + ex.Message + " If this message does not help, its possible the file size is getting too large");
+            }
+        }
+    }
+
+    private void nav(string page, string section, string subSection)
+    {
+        navigationManager.NavigateTo($"/{page}/{section}/{subSection}");
+    }
+}

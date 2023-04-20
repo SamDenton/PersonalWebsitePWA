@@ -1,0 +1,161 @@
+﻿@page "/chat"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@using System.Net.Http.Json
+<AuthorizeView>
+    <Authorized>
+        <div class="container">
+            <section class="side-bar">
+                <button @onclick="SaveConversationAndStartNew" class="newChatBtn">New chat</button>
+                <div class="history">
+                    @foreach (var item in history)
+                    {
+                        <p @onclick="() => LoadConversation(item.Key)">@item.Key</p>
+                    }
+                </div>
+                <nav>
+                    <p>Chat History</p>
+                </nav>
+            </section>
+            <section class="main">
+                <h1>GPTSam</h1>
+                <div id="conversation">
+                    @foreach (var message in currentConversation)
+                    {
+                        if(message.role == "user")
+                        {
+                            <p>@context.User.Identity?.Name: @message.content</p>
+                        }
+                        else if (message.role == "assistant")
+                        {
+                            <p>GPTSam: @message.content</p>
+                        }
+                    }
+                </div>
+                <div class="bottom-section">
+                    <div class="input-container">
+                        <input @bind="inputText" class="inputText" @onkeydown="@(args => HandleKeyPress(args))"  />
+                        <div @onclick="GetMessage" id="submit" class="oi oi-chevron-right"></div>
+                    </div>
+                </div>
+                <p class="info">ChatGPT Mar 4 Version</p>
+            </section>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private string API_KEY;
+    private string inputText = "";
+    private string currentConversationId;
+    private Dictionary<string, List<Message>> history = new Dictionary<string, List<Message>>();
+    private List<Message> currentConversation = new List<Message>();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var getFromTokens = await Http.GetAsync("ChatToken.txt");
+            API_KEY = await getFromTokens.Content.ReadAsStringAsync();
+            currentConversationId = $"Conversation {Guid.NewGuid()}";
+            currentConversation.Add(new Message { role = "system", content = "You are a helpful, polite chatbot assistant built by Kudos Software to assist our customers with issues before they are raised to the support team.  You will only answer questions related to EPoS systems, tills, printers and gift aid.  If other questions are asked, you will reply Sorry, that query is outside my scope, please contact support." });
+        }
+    }
+
+    private async Task GetMessage()
+    {
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", API_KEY);
+
+            currentConversation.Add(new Message { role = "user", content = inputText });
+            var requestBody = new
+            {
+                model = "gpt-3.5-turbo",
+                messages = currentConversation.ToArray(),
+                max_tokens = 100
+            };
+
+            ClearInput();
+
+            request.Content = JsonContent.Create(requestBody);
+            request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+            var response = await Http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            var data = await response.Content.ReadFromJsonAsync<OpenAIResponse>();
+            var outputText = data.choices[0].message.content;
+            currentConversation.Add(new Message { role = "assistant", content = outputText });
+
+            StateHasChanged();
+            Console.WriteLine(outputText);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            currentConversation.Add(new Message { role = "error", content = "OpenAI API unavailable or out of credits" });
+            Console.WriteLine("OpenAI API unavailable or out of credits");
+        }
+    }
+
+    private void ClearInput()
+    {
+        inputText = "";
+    }
+
+    private void SaveConversation()
+    {
+        if (currentConversation.Count > 0)
+        {
+            history[currentConversationId] = new List<Message>(currentConversation);
+            StateHasChanged();
+        }
+    }
+
+    private void SaveConversationAndStartNew()
+    {
+        SaveConversation();
+        currentConversation.Clear();
+        currentConversationId = $"Conversation {Guid.NewGuid()}";
+        currentConversation.Add(new Message { role = "system", content = "You are a helpful, polite chatbot assistant built by Kudos Software to assist our customers with issues before they are raised to the support team.  You will only answer questions related to EPoS systems, tills, printers and gift aid.  If other questions are asked, you will reply Sorry, that query is outside my scope, please contact support." });
+        StateHasChanged();
+    }
+    private void LoadConversation(string conversationName)
+    {
+        SaveConversation();
+
+        if (history.ContainsKey(conversationName))
+        {
+            currentConversationId = conversationName;
+            currentConversation = new List<Message>(history[conversationName]);
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await Task.Delay(10);
+            await GetMessage();
+        }
+    }
+
+    public class OpenAIResponse
+    {
+        public Choice[] choices { get; set; }
+    }
+
+    public class Choice
+    {
+        public Message message { get; set; }
+    }
+
+    public class Message
+    {
+        public string role { get; set; }
+        public string content { get; set; }
+    }
+}

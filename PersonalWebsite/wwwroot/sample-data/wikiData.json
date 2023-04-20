@@ -1,0 +1,44 @@
+[
+  {
+    "page": "Hardware",
+    "section": "Barcode",
+    "subSection": "Zebra / Symbol LS2208 Scanner",
+    "content": "Often shipped without Carriage return line feed after scan enabled. To enable this setting user has to print out the page from the link below and scan the configuration barcode."
+  },
+  {
+    "page": "Hardware",
+    "section": "Barcode",
+    "subSection": "Oxhoo BC322",
+    "content": "Known fault where scanner will restart regularly when scanning making a 3-tone ascending bleep. Requires a new scanner from Oxhoo"
+  },
+  {
+    "page": "Hardware",
+    "section": "PED",
+    "subSection": "Opayo",
+    "content": "To request a swap out, you will need the PED serial number, which can be found on the back of the PED. format is e.g.  s/n: 123456789"
+  },
+  {
+    "page": "Hardware",
+    "section": "Printers",
+    "subSection": "Template Setup",
+    "content": "You can setup templates in a few different ways depending how the printer is connected.  If its using the serial port, the template needs to be constructed with code and styling.  If its a USB connection, you can use the GUI template builder. "
+  },
+  {
+    "page": "Software",
+    "section": "Team Viewer",
+    "subSection": "New Client",
+    "content": "To setup a new client on TV, you do this:"
+  },
+  {
+    "page": "Software",
+    "section": "Team Viewer",
+    "subSection": "New Group",
+    "content": "To setup a new group on TV, you do this:"
+  },
+  {
+    "page": "Misc",
+    "section": "SQL Queries",
+    "subSection": "Query to find out last donor",
+    "content": "Put a query here in a code block"
+  }
+]

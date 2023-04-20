@@ -1,0 +1,72 @@
+﻿@inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<div class="page">
+    <div class="sidebar sidebarController">
+        <div class="overflow-hidden sidebarContainer" style="height: calc(100vh - 56px); margin-top: 56px;">
+            <NavMenu />
+        </div>
+    </div>
+
+    <main class="bg-dark text-light topBlock" style="position: relative">
+        <div class="topLeftBlock">
+            <div class="form-group form-check form-switch" id="navToggle">
+                <label for="sliderToggle" class="form-check-label text-muted">
+                    <input type="checkbox" class="form-check-input" id="sliderToggle"/>
+                    <span class="oi oi-menu form-check-icon icon"></span>
+                </label>
+            </div>
+            <div id="topLeftText">
+                <h4>
+                    <img src="@icon" alt="Company Icon" height="30" width="30" class="mx-2 img-fluid" />Kudos <small class="text-muted @(isChecked == false ? "internalWiki" : "")">Internal Wiki</small>
+                </h4>
+            </div> 
+        </div>
+
+        <div class="top-row px-4 auth bg-dark text-light">
+            <div class="logindisp">
+                <div class="logindispSmall @(isChecked == false ? "" : "justify-content-end")">
+                    <LoginDisplay />
+                </div>
+            </div>
+            @*
+            <a class="website" href="https://www.kudos-software.co.uk" target="_blank">Our Website</a>
+            *@
+        </div>
+
+        <article class="content px-2 bg-dark text-light">
+            @Body
+        </article>
+    </main>
+    <AuthorizeView>
+        <Authorized>
+            <div class="userNameDisp text-muted">
+                @context.User.Identity?.Name
+            </div>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private bool isChecked { get; set; }
+    private string icon = "Kudos_icon.png";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("initNavbar");
+            await JSRuntime.InvokeVoidAsync("customRefresh.preventRefresh");
+            CheckNavigationTypeAsync();
+        }
+    }
+    private async Task CheckNavigationTypeAsync()
+    {
+        var navType = await JSRuntime.InvokeAsync<string>("customRefresh.getNavigationType");
+        if (navType == "reload" || navType == "back_forward")
+        {
+            NavigationManager.NavigateTo("/");
+        }
+    }
+}
