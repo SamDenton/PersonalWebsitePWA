@@ -1,10 +1,7 @@
-# KudosInternalWikiPWA
+# Personal Website
 
-Internal Blazor PWA Wiki
+This project is to display some projects and play around with PWA's and ChatBots
 
-Project build using Blazor WebAssembly, .Net6, using TinyMCE
+Project build using Blazor WebAssembly, .Net6, using TinyMCE and openAI's API
 
-Designed to be an internal Wiki for company info
-
-Should have microsoft authentication at some point
-
+Authenticated with MSAL
