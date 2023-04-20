@@ -19,7 +19,7 @@
             </div>
             <div id="topLeftText">
                 <h4>
-                    <img src="@icon" alt="Company Icon" height="30" width="30" class="mx-2 img-fluid" />Kudos <small class="text-muted @(isChecked == false ? "internalWiki" : "")">Internal Wiki</small>
+                    <img src="@icon" alt="Icon" height="30" width="30" class="mx-2 img-fluid" />Sam's <small class="text-muted @(isChecked == false ? "internalWiki" : "")">Personal Website</small>
                 </h4>
             </div> 
         </div>
@@ -50,7 +50,7 @@
 
 @code {
     private bool isChecked { get; set; }
-    private string icon = "temoLogo.png";
+    private string icon = "tempLogo.png";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
