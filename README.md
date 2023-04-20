@@ -1,4 +1,4 @@
-l# Personal Website
+# Personal Website
 
 This project is to display some projects and play around with PWA's and ChatBots
 
