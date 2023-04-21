@@ -28,6 +28,7 @@
         <div class="col-12 text-center">
             <p>This is the internal wiki for our company. It contains a wealth of information, resources, and documentation that will help you understand and use our products and services.</p>
         </div>
+        <button onclick="GetAuthenticationState()"></button>
     </div>
 </div>
 
@@ -41,7 +42,7 @@
         if (firstRender)
         {
             //Code to execute once
-            await GetAuthenticationState();
+            //await GetAuthenticationState();
         }
         base.OnAfterRender(firstRender);
     }
@@ -52,7 +53,7 @@
         if (user.Identity!.IsAuthenticated)
         {
             var username = user.Identity.Name;
-            Navigation.NavigateTo($"/mainContent");
+            Navigation.NavigateTo($"/");
         }
         else
         {

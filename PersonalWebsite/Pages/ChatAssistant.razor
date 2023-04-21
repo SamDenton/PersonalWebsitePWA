@@ -1,6 +1,7 @@
 ﻿@page "/chat"
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation;
 @using System.Net.Http.Json
 <AuthorizeView>
     <Authorized>
@@ -42,6 +43,15 @@
             </section>
         </div>
     </Authorized>
+    <NotAuthorized>
+        @* If user is not authorized, call RedirectHome *@
+        <p>Please Login to see this content....</p>
+        @if (!context.User.Identity!.IsAuthenticated)
+        {
+            <button class="btn btn-outline-primary mt-2" @onclick="(() => RedirectHome())">Login</button>
+            ;
+        }
+    </NotAuthorized>
 </AuthorizeView>
 
 @code {
@@ -141,6 +151,12 @@
             await Task.Delay(10);
             await GetMessage();
         }
+    }
+
+    @* Currently actually redirects to Microsoft Authentication popup, but might change this to home *@
+    protected private void RedirectHome()
+    {
+        Navigation.NavigateTo($"authentication/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}");
     }
 
     public class OpenAIResponse

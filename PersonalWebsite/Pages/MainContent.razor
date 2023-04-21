@@ -10,7 +10,6 @@
 @inject IJSRuntime JSRuntime
 
 @* Using Authorize View to only load content when user is authenticated.  If not logged in, they should be redirected to a Microsoft authenticator *@
-
 <AuthorizeView>
     <Authorized>
         <PageTitle>Wiki</PageTitle>
@@ -603,10 +602,11 @@
     </Authorized>
     <NotAuthorized> 
         @* If user is not authorized, call RedirectHome *@
-        <p>Please Login to see this Content.  Redirecting...</p>
+        <p>Please Login to see this content....</p>
         @if(!context.User.Identity!.IsAuthenticated)
         {
-            RedirectHome();
+            <button class="btn btn-outline-primary mt-2" @onclick="(() => RedirectHome())">Login</button>
+            ;
         }
     </NotAuthorized>
 </AuthorizeView>
@@ -680,8 +680,9 @@
     {
         if (firstRender)
         {
+            Console.WriteLine("hi");
             //Code to execute once
-            await GetAuthenticationState();
+            //await GetAuthenticationState();
         }
         base.OnAfterRender(firstRender);
     }
@@ -769,6 +770,7 @@
         }
 
     }
+
     @* Currently actually redirects to Microsoft Authentication popup, but might change this to home *@
     protected private void RedirectHome()
     {
