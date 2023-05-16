@@ -606,7 +606,6 @@
         @if(!context.User.Identity!.IsAuthenticated)
         {
             <button class="btn btn-outline-primary mt-2" @onclick="(() => RedirectHome())">Login</button>
-            ;
         }
     </NotAuthorized>
 </AuthorizeView>
