@@ -10,7 +10,7 @@
     /*color: black;*/
     color: #1c5380;
 }
-/*
+    /*
 
 */
     .kudosText .text-muted {
@@ -25,7 +25,7 @@
     color: #1c5380;
     padding-top: 40px;
 }
-/*
+    /*
 
         background-color: #0a0b0b46;
 */
@@ -40,7 +40,7 @@
     margin-top: -10px;
     margin-bottom: 15px;
 }
-/*
+    /*
 
         background-color: #0a0b0b46;
 */
@@ -67,6 +67,23 @@
         padding-top: 0px;
     }
 
+.dotted-lines {
+    position: relative;
+}
+
+    .dotted-lines * {
+        z-index: -1;
+    }
+
+.inlineBTN {
+    position: absolute;
+    padding: .05rem .5rem;
+    font-size: .85rem;
+    right: 0px;
+    top: 0px;
+    z-index: 0;
+}
+
 #searchBar {
     margin-top: -74px;
 }
@@ -75,21 +92,21 @@ input {
     border-color: #6c757d;
 }
 
-input::-webkit-input-placeholder {
-    color: #6c757d;
-}
+    input::-webkit-input-placeholder {
+        color: #6c757d;
+    }
 
-input::-moz-placeholder {
-    color: #6c757d;
-}
+    input::-moz-placeholder {
+        color: #6c757d;
+    }
 
-input:-ms-input-placeholder {
-    color: #6c757d;
-}
+    input:-ms-input-placeholder {
+        color: #6c757d;
+    }
 
-input:-moz-placeholder {
-    color: #6c757d;
-}
+    input:-moz-placeholder {
+        color: #6c757d;
+    }
 
 /* width */
 ::-webkit-scrollbar {

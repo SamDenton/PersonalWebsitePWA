@@ -28,7 +28,6 @@
         <div class="col-12 text-center">
             <p>This is the internal wiki for our company. It contains a wealth of information, resources, and documentation that will help you understand and use our products and services.</p>
         </div>
-        <button onclick="GetAuthenticationState()"></button>
     </div>
 </div>
 
@@ -36,6 +35,11 @@
     [Inject]
     public AuthenticationStateProvider? AuthenticationStateProvider { get; set; }
     private string Logo = "Kudos_logo.png";
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("index.razor initialised");
+    }
 
     protected override async void OnAfterRender(bool firstRender)
     {

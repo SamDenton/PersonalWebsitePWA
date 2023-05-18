@@ -13,7 +13,7 @@
         <div class="topLeftBlock">
             <div class="form-group form-check form-switch" id="navToggle">
                 <label for="sliderToggle" class="form-check-label text-muted">
-                    <input type="checkbox" class="form-check-input" id="sliderToggle"/>
+                    <input type="checkbox" class="form-check-input" id="sliderToggle" />
                     <span class="oi oi-menu form-check-icon icon"></span>
                 </label>
             </div>
@@ -21,7 +21,7 @@
                 <h4>
                     <img src="@icon" alt="Icon" height="30" width="30" class="mx-2 img-fluid" />Sam's <small class="text-muted @(isChecked == false ? "internalWiki" : "")">Personal Website</small>
                 </h4>
-            </div> 
+            </div>
         </div>
 
         <div class="top-row px-4 auth bg-dark text-light">
@@ -42,7 +42,7 @@
     <AuthorizeView>
         <Authorized>
             <div class="userNameDisp text-muted">
-                @context.User.Identity?.Name
+                @context.User.Identity?.Name @versionNo
             </div>
         </Authorized>
     </AuthorizeView>
@@ -51,6 +51,12 @@
 @code {
     private bool isChecked { get; set; }
     private string icon = "tempLogo.png";
+    private string versionNo = "V1.0.1";
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("MainLayout.razor initialised");
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

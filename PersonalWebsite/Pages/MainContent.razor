@@ -10,6 +10,7 @@
 @inject IJSRuntime JSRuntime
 
 @* Using Authorize View to only load content when user is authenticated.  If not logged in, they should be redirected to a Microsoft authenticator *@
+
 <AuthorizeView>
     <Authorized>
         <PageTitle>Wiki</PageTitle>
@@ -19,7 +20,7 @@
                 </div>
                 <div class="col-5">
                     <div class="input-group mb-3 text-light" style="pointer-events: auto;">
-                        <input class="form-control bg-dark text-light" placeholder="Search" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChanged" >
+                        <input class="form-control bg-dark text-light" placeholder="Search" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChanged">
                     </div>
                 </div>
                 <div class="col-4">
@@ -42,7 +43,7 @@
                     }
                     else if (type != "all" && sections != "all" && subSections == "all" && type != "Search" && type != "add")
                     {
-                    <h1 class="kudosTextTop">@type <small class="text-muted">@sections </small></h1>
+                        <h1 class="kudosTextTop">@type <small class="text-muted">@sections </small></h1>
                     }
                     else if (type != "all" && sections == "all" && type != "Search" && type != "add")
                     {
@@ -78,7 +79,7 @@
                             </div>
                             <div class="row">
                                 <div class="col-12 text-center">
-                                   <p>This is a personal site for projects. It's largely an excuse to show off, so I have embedded a few bits from other projects, like a Wiki structure for user content, a ChatBot etc.</p>
+                                    <p>This is a personal site for projects. It's largely an excuse to show off, so I have embedded a few bits from other projects, like a Wiki structure for user content, a ChatBot etc.</p>
                                 </div>
                             </div>
                         </div>
@@ -93,12 +94,16 @@
                             @* @(inline == true ? "" : "") *@
                             <tbody>
                                 @* Pragmatically populate the table using my customer object array *@
-                                @foreach (var contentHolder in contentHolderList)
+                                @foreach (var item in contentHolderList
+                               .OrderBy(x => x.page)
+                               .ThenBy(x => x.section)
+                               .ThenBy(x => x.subSection)
+                               .Select((contentHolder, index) => new { contentHolder, index }))
                                 {
-                                    @if (contentHolder != null)
+                                    @if (item.contentHolder != null)
                                     {
-                                       
-                                        @if (type == contentHolder.page && sections == contentHolder.section && subSections == contentHolder.subSection && contentHolder.page != null && contentHolder.section != null && contentHolder.subSection != null && contentHolder.content != null)
+
+                                        @if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == contentHolderList[item.index].subSection && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
                                         {
                                             if (inline == true)
                                             {
@@ -108,15 +113,16 @@
                                                     @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
                                                     <td>
                                                         <h3 class="kudosTextInline"><small class="text-muted"></small></h3>
-                                                        <div class="dotted-lines" @onfocusout="(() => Save(localCount, username!, localCountAll, false))">
+                                                        <div class="dotted-lines" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
                                                             <Editor Id="@count.ToString()"
-                                                                Inline=true
-                                                                CloudChannel="5"
-                                                                Disable=false
-                                                                Conf="@editorConfInline"
-                                                                ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                                ClassName="counterEditor"
-                                                                @bind-Value=(contentHolder.content) />
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfInline"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
+                                                            <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -126,18 +132,18 @@
                                                 <tr>
                                                     @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
                                                     @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolder.content!))</td>
+                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
                                                     @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
                                                     <td hidden="@(!IsEditing[count])">
                                                         <div class="dotted-lines tinymce-editor">
                                                             <Editor Id="@count.ToString()"
-                                                                Inline=false
-                                                                CloudChannel="5"
-                                                                Disable=false
-                                                                Conf="@editorConf"
-                                                                ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                                ClassName="counterEditor"
-                                                                @bind-Value=(contentHolder.content) />
+                                                Inline=false
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConf"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -147,11 +153,11 @@
                                                 <tr>
                                                     @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
                                                     <td>
-                                                        <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, localCountAll))">Clear</button>
-                                                        <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(localCountAll, username!))">Delete</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, localCountAll))" hidden="@IsEditing[localCount]">Edit</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, localCountAll, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, localCountAll))" hidden="@(!IsEditing[localCount])">Cancel</button>
+                                                        <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
+                                                        <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
                                                     </td>
                                                 </tr>
                                             }
@@ -160,24 +166,24 @@
                                         }
                                         else
                                         {
-                                            if (contentHolder.page == null)
+                                            if (contentHolderList[item.index].page == null)
                                             {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolder.subSection)
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
                                             }
-                                            else if (contentHolder.section == null)
+                                            else if (contentHolderList[item.index].section == null)
                                             {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolder.subSection)
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
                                             }
-                                            else if (contentHolder.subSection == null)
+                                            else if (contentHolderList[item.index].subSection == null)
                                             {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolder.section)
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
                                             }
-                                            else if (contentHolder.content == null)
+                                            else if (contentHolderList[item.index].content == null)
                                             {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolder.subSection)
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
                                             }
                                         }
-                                        @if (type == contentHolder.page && sections == contentHolder.section && subSections == "all" && contentHolder.page != null && contentHolder.section != null && contentHolder.subSection != null && contentHolder.content != null)
+                                        @if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
                                         {
                                             if (inline == true)
                                             {
@@ -186,62 +192,93 @@
                                                 <tr>
                                                     @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
                                                     <td>
-                                                        <h3 class="kudosTextInline"><small><div class="text-muted">@contentHolder.subSection</div></small></h3>
-                                                        <div class="dotted-lines" @onfocusout="(() => Save(localCount, username!, localCountAll, false))">
-                                                        <Editor
-                                                            Id="@count.ToString()"
-                                                            Inline=true
-                                                            CloudChannel="5"
-                                                            Disable=false
-                                                            Conf="@editorConfInline"
-                                                            ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                            ClassName="counterEditor"
-                                                            @bind-Value=(contentHolder.content)
-                                                        /> 
-                                                    </div></td>
+                                                        <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                            <small>
+                                                                <div class="text-muted">
+                                                                    <Editor Id="@($"{count}-2")"
+                                                        Inline=true
+                                                        CloudChannel="5"
+                                                        Disable=false
+                                                        Conf="@editorConfHeaders"
+                                                        ApiKey="@TinyAPIKey"
+                                                        ClassName="counterEditor"
+                                                        @bind-Value=(contentHolderList[item.index].subSection) />
+                                                                </div>
+                                                            </small>
+                                                        </h3>
+                                                        <div class="dotted-lines" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                            <Editor Id="@count.ToString()"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfInline"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
+                                                            <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             }
                                             else
                                             {
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td class="kudosText col-1"><h4>@if (contentHolder.subSection != null && isContentLoaded == true) { @contentHolder.subSection; }</h4></td>
-                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolder.content!))</td>
-                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                    <td hidden="@(!IsEditing[count])"><div class="dotted-lines tinymce-editor">
-                                                        <Editor
-                                                            Id="@count.ToString()"
-                                                            Inline=false
-                                                            CloudChannel="5"
-                                                            Disable=false
-                                                            Conf="@editorConf"
-                                                            ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                            ClassName="counterEditor"
-                                                            @bind-Value=(contentHolder.content)
-                                                        /> 
-                                                        </div></td>
-                                                </tr>
-                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
                                                 var localCount = count;
                                                 var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td class="kudosText col-1">
+                                                        <h4>
+                                                            @if (contentHolderList[item.index].subSection != null && isContentLoaded == true)
+                                                            {
+                                                                <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                                    <Editor Id="@($"{count}-2")"
+                                                    Inline=true
+                                                    CloudChannel="5"
+                                                    Disable=false
+                                                    Conf="@editorConfHeaders"
+                                                    ApiKey="@TinyAPIKey"
+                                                    ClassName="counterEditor"
+                                                    @bind-Value=(contentHolderList[item.index].subSection) />
+                                                                </h3>
+                                                            }
+                                                        </h4>
+                                                    </td>
+                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
+                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
+                                                    <td hidden="@(!IsEditing[count])">
+                                                        <div class="dotted-lines tinymce-editor">
+                                                            <Editor Id="@count.ToString()"
+                                                Inline=false
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConf"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
                                                 <tr>
                                                     <td>
                                                         @*Spacing*@
                                                     </td>
                                                     @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td><button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, localCountAll))">Clear</button>
-                                                    <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(localCountAll, username!))">Delete</button>
-                                                    <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, localCountAll))" hidden="@IsEditing[localCount]">Edit</button>
-                                                    <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, localCountAll, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                    <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, localCountAll))" hidden="@(!IsEditing[localCount])">Cancel</button></td>
+                                                    <td>
+                                                        <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
+                                                        <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
+                                                    </td>
                                                 </tr>
                                             }
                                             @* Increment global count *@
                                             count++;
                                         }
-                                        else if ((type == contentHolder.page && sections == "all" || type == null)
-                                                && contentHolder.page != null && contentHolder.section != null && contentHolder.subSection != null && contentHolder.content != null)
+                                        else if ((type == contentHolderList[item.index].page && sections == "all" || type == null)
+                                        && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
                                         {
                                             @if (type == null)
                                             {
@@ -254,134 +291,224 @@
                                                 <tr>
                                                     @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
                                                     <td>
-                                                        <h3 class="kudosTextInline">@contentHolder.section <small><div class="text-muted">@contentHolder.subSection</div></small></h3>
-                                                        <div class="dotted-lines tinymce-editor" @onfocusout="(() => Save(localCount, username!, localCountAll, false))">
-                                                        <Editor
-                                                            Id="@count.ToString()"
-                                                            Inline=true
-                                                            CloudChannel="5"
-                                                            Disable=false
-                                                            Conf="@editorConfInline"
-                                                            ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                            ClassName="counterEditor"
-                                                            @bind-Value=(contentHolder.content)
-                                                        /> 
-                                                    </div></td>
+                                                        <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                            <Editor Id="@($"{count}-1")"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfHeaders"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].section) />
+                                                            <small>
+                                                                <div class="text-muted">
+                                                                    <Editor Id="@($"{count}-2")"
+                                                        Inline=true
+                                                        CloudChannel="5"
+                                                        Disable=false
+                                                        Conf="@editorConfHeaders"
+                                                        ApiKey="@TinyAPIKey"
+                                                        ClassName="counterEditor"
+                                                        @bind-Value=(contentHolderList[item.index].subSection) />
+                                                                </div>
+                                                            </small>
+                                                        </h3>
+                                                        <div class="dotted-lines tinymce-editor" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                            <Editor Id="@count.ToString()"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfInline"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
+                                                            <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             }
                                             else
                                             {
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td class="kudosText col-1"><h4>@contentHolder.section<br><small><div class="text-muted">@contentHolder.subSection</div></small></h4></td>
-                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolder.content!))</td>
-                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                    <td hidden="@(!IsEditing[count])"><div class="dotted-lines tinymce-editor">
-                                                        <Editor
-                                                            Id="@count.ToString()"
-                                                            Inline=false
-                                                            CloudChannel="5"
-                                                            Disable=false
-                                                            Conf="@editorConf"
-                                                            ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                            ClassName="counterEditor"
-                                                            @bind-Value=(contentHolder.content)
-                                                        /> 
-                                                    </div></td>
-                                                </tr>
-                                                @* Initiate localCount here so button onclick events use the count at create time, not when clicked *@
                                                 var localCount = count;
                                                 var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td class="kudosText col-1">
+                                                        <h4 @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                            <Editor Id="@($"{count}-1")"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfHeaders"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].section) />
+                                                            <br><small>
+                                                                <div class="text-muted">
+                                                                    <Editor Id="@($"{count}-2")"
+                                                        Inline=true
+                                                        CloudChannel="5"
+                                                        Disable=false
+                                                        Conf="@editorConfHeaders"
+                                                        ApiKey="@TinyAPIKey"
+                                                        ClassName="counterEditor"
+                                                        @bind-Value=(contentHolderList[item.index].subSection) />
+                                                                </div>
+                                                            </small>
+                                                        </h4>
+                                                    </td>
+                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
+                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
+                                                    <td hidden="@(!IsEditing[count])">
+                                                        <div class="dotted-lines tinymce-editor">
+                                                            <Editor Id="@count.ToString()"
+                                                Inline=false
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConf"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                @* Initiate localCount here so button onclick events use the count at create time, not when clicked *@
                                                 <tr>
                                                     <td>
                                                         @*Spacing*@
                                                     </td>
                                                     @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td><button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, localCountAll))">Clear</button>
-                                                    <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(localCountAll, username!))">Delete</button>
-                                                    <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, localCountAll))" hidden="@IsEditing[localCount]">Edit</button>
-                                                    <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, localCountAll, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                    <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, localCountAll))" hidden="@(!IsEditing[localCount])">Cancel</button></td>
+                                                    <td>
+                                                        <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
+                                                        <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
+                                                    </td>
                                                 </tr>
                                             }
                                             @* Increment global count *@
                                             count++;
                                         }
-                                        else if (type == "all" && contentHolder.page != null && contentHolder.section != null && contentHolder.subSection != null && contentHolder.content != null)
+                                        else if (type == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
                                         {
-                                            @* There is a way to do this so the sections appear in order.  Maybe if the Type in types foreach was outside the main foreach? *@
-                                            @foreach (var Type in types)
+                                            if (lastPage != contentHolderList[item.index].page)
                                             {
-                                                @if ( contentHolder.page == Type )
-                                                {
-                                                    if (inline == true)
-                                                    {
-                                                        var localCount = count;
-                                                        var localCountAll = countAll;
-                                                        <tr>
-                                                            @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                            <td>
-                                                                <h3 class="kudosTextInline">@contentHolder.section <small><div class="text-muted">@contentHolder.subSection</div></small></h3>
-                                                                <div class="dotted-lines tinymce-editor" @onfocusout="(() => Save(localCount, username!, localCountAll, false))">
-                                                                <Editor
-                                                                    Id="@count.ToString()"
-                                                                    Inline=true
-                                                                    CloudChannel="5"
-                                                                    Disable=false
-                                                                    Conf="@editorConfInline"
-                                                                    ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                                    ClassName="counterEditor"
-                                                                    @bind-Value=(contentHolder.content)
-                                                                /> 
-                                                            </div></td>
-                                                        </tr>
-                                                    }
-                                                    else
-                                                    {
-                                                        <tr>
-                                                            @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                            <td class="kudosText col-1"><h4>@contentHolder.section<br><small><div class="text-muted">@contentHolder.subSection</div></small></h4></td>
-                                                            @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                            <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolder.content!))</td>
-                                                            @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                            <td hidden="@(!IsEditing[count])"><div class="dotted-lines tinymce-editor">
-                                                                <Editor
-                                                                    Id="@count.ToString()"
-                                                                    Inline=false
-                                                                    CloudChannel="5"
-                                                                    Disable=false
-                                                                    Conf="@editorConf"
-                                                                    ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                                    ClassName="counterEditor"
-                                                                    @bind-Value=(contentHolder.content)
-                                                                /> 
-                                                            </div></td>
-                                                        </tr>
-                                                        @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                        var localCount = count;
-                                                        var localCountAll = countAll;
-                                                        <tr>
-                                                            <td>
-                                                                @*Spacing*@
-                                                            </td>
-                                                            @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                            <td><button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, localCountAll))">Clear</button>
-                                                            <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(localCountAll, username!))">Delete</button>
-                                                            <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, localCountAll))" hidden="@IsEditing[localCount]">Edit</button>
-                                                            <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, localCountAll, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                            <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, localCountAll))" hidden="@(!IsEditing[localCount])">Cancel</button></td>
-                                                        </tr>
-                                                    }
-                                                    @* Increment global count *@
-                                                    count++;
-                                                }
+                                                <h1 class="kudosTextInline">@contentHolderList[item.index].page</h1>
+                                                lastPage = contentHolderList[item.index].page;
                                             }
+                                            if (inline == true)
+                                            {
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td>
+                                                        <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                            <Editor Id="@($"{count}-1")"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfHeaders"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].section) />
+                                                            <small>
+                                                                <div class="text-muted">
+                                                                    <Editor Id="@($"{count}-2")"
+                                                        Inline=true
+                                                        CloudChannel="5"
+                                                        Disable=false
+                                                        Conf="@editorConfHeaders"
+                                                        ApiKey="@TinyAPIKey"
+                                                        ClassName="counterEditor"
+                                                        @bind-Value=(contentHolderList[item.index].subSection) />
+                                                                </div>
+                                                            </small>
+                                                        </h3>
+                                                        <div class="dotted-lines tinymce-editor" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                            <Editor Id="@($"{count}-3")"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfInline"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
+                                                            <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            else
+                                            {
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td class="kudosText col-1">
+                                                        <h4 @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                            <Editor Id="@($"{count}-1")"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfHeaders"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].section) />
+                                                            <br><small>
+                                                                <div class="text-muted">
+                                                                    <Editor Id="@($"{count}-2")"
+                                                        Inline=true
+                                                        CloudChannel="5"
+                                                        Disable=false
+                                                        Conf="@editorConfHeaders"
+                                                        ApiKey="@TinyAPIKey"
+                                                        ClassName="counterEditor"
+                                                        @bind-Value=(contentHolderList[item.index].subSection) />
+                                                                </div>
+                                                            </small>
+                                                        </h4>
+                                                    </td>
+                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
+                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
+                                                    <td hidden="@(!IsEditing[count])">
+                                                        <div class="dotted-lines tinymce-editor">
+                                                            <Editor Id="@count.ToString()"
+                                                Inline=false
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConf"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
+                                                <tr>
+                                                    <td>
+                                                        @*Spacing*@
+                                                    </td>
+                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
+                                                    <td>
+                                                        <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
+                                                        <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
+                                                        <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            @* Increment global count *@
+                                            count++;
                                         }
-                                        else if (type == "Search" && contentHolder.page != null && contentHolder.section != null && contentHolder.subSection != null && contentHolder.content != null)
+                                        else if (type == "Search" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
                                         {
                                             int hasMatch = 0;
-                                            if (contentHolder.section!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)  ||  contentHolder.subSection!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolder.content!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                                            if (contentHolderList[item.index].section!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].subSection!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].content!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
                                             {
                                                 hasMatch++;
                                                 if (inline == true)
@@ -391,55 +518,100 @@
                                                     <tr>
                                                         @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
                                                         <td>
-                                                            <h3 class="kudosTextInline">@contentHolder.section <small><div class="text-muted">@contentHolder.subSection</div></small></h3>
-                                                            <div class="dotted-lines tinymce-editor" @onfocusout="(() => Save(localCount, username!, localCountAll, false))">
+                                                            <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                                <Editor Id="@($"{count}-1")"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfHeaders"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].section) />
+                                                                <small>
+                                                                    <div class="text-muted">
+                                                                        <Editor Id="@($"{count}-2")"
+                                                        Inline=true
+                                                        CloudChannel="5"
+                                                        Disable=false
+                                                        Conf="@editorConfHeaders"
+                                                        ApiKey="@TinyAPIKey"
+                                                        ClassName="counterEditor"
+                                                        @bind-Value=(contentHolderList[item.index].subSection) />
+                                                                    </div>
+                                                                </small>
+                                                            </h3>
+                                                            <div class="dotted-lines tinymce-editor" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
                                                                 <Editor Id="@count.ToString()"
-                                                                    Inline=true
-                                                                    CloudChannel="5"
-                                                                    Disable=false
-                                                                    Conf="@editorConfInline"
-                                                                    ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                                    ClassName="counterEditor"
-                                                                    @bind-Value=(contentHolder.content) />
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfInline"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
+                                                                <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
                                                             </div>
                                                         </td>
                                                     </tr>
                                                 }
                                                 else
                                                 {
+                                                    var localCount = count;
+                                                    var localCountAll = countAll;
                                                     <tr>
                                                         @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                        <td class="kudosText col-1"><h4>@contentHolder.section<br><small><div class="text-muted">@contentHolder.subSection</div></small></h4></td>
+                                                        <td class="kudosText col-1">
+                                                            <h4 @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
+                                                                <Editor Id="@($"{count}-1")"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfHeaders"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].section) />
+                                                                <br><small>
+                                                                    <div class="text-muted">
+                                                                        <Editor Id="@($"{count}-2")"
+                                                        Inline=true
+                                                        CloudChannel="5"
+                                                        Disable=false
+                                                        Conf="@editorConfHeaders"
+                                                        ApiKey="@TinyAPIKey"
+                                                        ClassName="counterEditor"
+                                                        @bind-Value=(contentHolderList[item.index].subSection) />
+                                                                    </div>
+                                                                </small>
+                                                            </h4>
+                                                        </td>
                                                         @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                        <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolder.content!))</td>
+                                                        <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
                                                         @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
                                                         <td hidden="@(!IsEditing[count])">
                                                             <div class="dotted-lines tinymce-editor">
                                                                 <Editor Id="@count.ToString()"
-                                                                    Inline=false
-                                                                    CloudChannel="5"
-                                                                    Disable=false
-                                                                    Conf="@editorConf"
-                                                                    ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                                    ClassName="counterEditor"
-                                                                    @bind-Value=(contentHolder.content) />
+                                                Inline=false
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConf"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList[item.index].content) />
                                                             </div>
                                                         </td>
                                                     </tr>
                                                     @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                    var localCount = count;
-                                                    var localCountAll = countAll;
                                                     <tr>
                                                         @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
                                                         <td>
                                                             @*Spacing*@
                                                         </td>
                                                         <td>
-                                                            <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, localCountAll))">Clear</button>
-                                                            <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(localCountAll, username!))">Delete</button>
-                                                            <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, localCountAll))" hidden="@IsEditing[localCount]">Edit</button>
-                                                            <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, localCountAll, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                            <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, localCountAll))" hidden="@(!IsEditing[localCount])">Cancel</button>
+                                                            <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
+                                                            <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
+                                                            <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
+                                                            <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
+                                                            <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
                                                         </td>
                                                     </tr>
                                                 }
@@ -447,163 +619,175 @@
                                                 count++;
                                             }
                                             @*
-                                            @if (hasMatch > 0)
-                                            {
-                                                <p>@hasMatch search results</p>
-                                            }
-                                            else
-                                            {
-                                                <p>No results found for: @searchTerm </p>
-                                            }
-                                            *@
+                            @if (hasMatch > 0)
+                            {
+                            <p>@hasMatch search results</p>
+                            }
+                            else
+                            {
+                            <p>No results found for: @searchTerm </p>
+                            }
+                            *@
                                         }
                                         else
                                         {
-                                            if (contentHolder.page == null)
+                                            if (contentHolderList[item.index].page == null)
                                             {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolder.subSection)
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
                                             }
-                                            else if (contentHolder.section == null)
+                                            else if (contentHolderList[item.index].section == null)
                                             {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolder.subSection)
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
                                             }
-                                            else if (contentHolder.subSection == null)
+                                            else if (contentHolderList[item.index].subSection == null)
                                             {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolder.section)
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
                                             }
-                                            else if (contentHolder.content == null)
+                                            else if (contentHolderList[item.index].content == null)
                                             {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolder.subSection)
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
                                             }
                                         }
                                     }
-                                    else 
+                                    else
                                     {
                                         Console.WriteLine("Suppressing error?");
                                     }
                                     countAll++;
                                 }
-                                @if (type == "add" && IsEditing![0] == true)
+                                @if (IsEditing != null)
                                 {
-                                    if (inline == true)
+                                    @if (type == "add" && IsEditing![0] == true)
                                     {
-                                        count = 0;
-                                        var localCount = count;
-                                        var localCountAll = countAll;
-                                        <tr>
-                                            <td><h3 class="kudosTextInline">New Section: </h3>
-                                                <div class="dotted-lines tinymce-editor" @onfocusout="(() => Save(localCount, username!, localCountAll, true))">
-                                                <Editor
-                                                    Id="@count.ToString()"
-                                                    Inline=true
-                                                    CloudChannel="5"
-                                                    Disable=false
-                                                    Conf="@editorConfInline"
-                                                    ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                    ClassName="counterEditor"
-                                                    @bind-Value=(contentHolderList.Last().content)
-                                                /> 
-                                            </div></td>
-                                        </tr>
+                                        if (inline == true)
+                                        {
+                                            count = 0;
+                                            var localCount = count;
+                                            var localCountAll = countAll;
+                                            <tr>
+                                                <td>
+                                                    <h3 class="kudosTextInline">New Section: </h3>
+                                                    <div class="dotted-lines tinymce-editor" @onfocusout="(() => Save(localCount, username!, localCountAll, true))">
+                                                        <Editor Id="@count.ToString()"
+                                                Inline=true
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConfInline"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList.Last().content) />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            var localCount = 0;
+                                            count = 0;
+                                            var localCountAll = countAll;
+                                            <tr>
+                                                <td class="kudosText">New Section: </td>
+                                                @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+                                                <td hidden="@IsEditing[count]">@(new MarkupString(contentHolderList.Last().content!))</td>
+                                                <td hidden="@(!IsEditing[count])">
+                                                    <div class="dotted-lines tinymce-editor">
+                                                        <Editor Id="@count.ToString()"
+                                                Inline=false
+                                                CloudChannel="5"
+                                                Disable=false
+                                                Conf="@editorConf"
+                                                ApiKey="@TinyAPIKey"
+                                                ClassName="counterEditor"
+                                                @bind-Value=(contentHolderList.Last().content) />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    @*Spacing*@
+                                                </td>
+                                                @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
+                                                <td>
+                                                    <button class="btn btn-outline-warning" @onclick="()=>contentHolderList.Last().content = clearText">Clear</button>
+                                                    <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, localCountAll, true))" hidden="@(!IsEditing[localCount])">Save</button>
+                                                    <button class="btn btn-outline-primary" @onclick="(() => CancelNew(localCount))" hidden="@(!IsEditing[localCount])">Cancel</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                        countAll++;
                                     }
-                                    else
-                                    {
-                                        var localCount = 0;
-                                        count = 0;
-                                        var localCountAll = countAll;
-                                        <tr>
-                                            <td class="kudosText">New Section: </td>
-                                            @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                            <td hidden="@IsEditing[count]">@(new MarkupString(contentHolderList.Last().content!))</td>
-                                            <td hidden="@(!IsEditing[count])"><div class="dotted-lines tinymce-editor">
-                                                <Editor
-                                                    Id="@count.ToString()"
-                                                    Inline=false
-                                                    CloudChannel="5"
-                                                    Disable=false
-                                                    Conf="@editorConf"
-                                                    ApiKey="7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl"
-                                                    ClassName="counterEditor"
-                                                    @bind-Value=(contentHolderList.Last().content)
-                                                /> 
-                                            </div></td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                @*Spacing*@
-                                            </td>
-                                            @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                            <td><button class="btn btn-outline-warning" @onclick="()=>contentHolderList.Last().content = clearText">Clear</button>
-                                            <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, localCountAll, true))" hidden="@(!IsEditing[localCount])">Save</button>
-                                            <button class="btn btn-outline-primary" @onclick="(() => CancelNew(localCount))" hidden="@(!IsEditing[localCount])">Cancel</button></td>
-                                        </tr>
-                                    }
-                                    countAll++;
                                 }
                             </tbody>
                         </table>
                     }
-                @if (type == "add")
-                {
-                @* Section for adding a new section from user selection *@
-                @* Using bootstraps grid layout for formatting *@
-                    <div class="bg-dark text-primary container-fluid">
-                        <div class="row">
-                            <div class="col-6">
-                                @* Dropdown for section type *@
-                                <div class="form-group">
-                                    <label class="form-label bg-dark text-light" for="typeDropdown">Select New Section Type:</label>
-                                    <select class="form-control form-control-dark bg-dark text-primary border-primary" id="typeDropdown" @bind="typeDropdown">
-                                        <option value="Default" disabled selected>Select a type</option>
-                                            @foreach (var group in contentHolderList!.GroupBy(ch => ch.page))
+                    @if (type == "add")
+                    {
+                        @if (contentHolderList == null || isContentLoaded == false || IsEditing == null)
+                        {
+                            <p><em> </em></p>
+                        }
+                        else
+                        {
+                            IsEditing[0] = false;
+                            var username = @context.User.Identity!.Name;
+                            <div class="bg-dark text-primary container-fluid">
+                                <div class="row">
+                                    <div class="col-6">
+                                        @* Dropdown for section type *@
+                                        <div class="form-group">
+                                            <label class="form-label bg-dark text-light" for="typeDropdown">Select Type:</label>
+                                            <select class="form-control form-control-dark bg-dark text-primary border-primary" id="typeDropdown" @bind="typeDropdown">
+                                                <option value="Default" disabled selected>Select a type</option>
+                                                @foreach (var group in contentHolderList!.GroupBy(ch => ch.page))
+                                                {
+                                                    <option value="@group.First().page">@group.Key</option>
+                                                }
+                                                <option value="Add">Add New</option>
+                                            </select>
+                                            @if (typeDropdown == "Add")
                                             {
-                                                <option value="@group.First().page">@group.Key</option>
+                                                <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary mt-2" placeholder="Enter new type name" @bind="newTypeDropdown" />
                                             }
-                                        <option value="Add">Add New</option>
-                                    </select>
-                                    @if (typeDropdown == "Add")
-                                    {
-                                        <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary mt-2" placeholder="Enter new type name" @bind="newTypeDropdown" />
-                                    }
-                                </div>
-                                @* Text field for section name *@
-                                <div class="form-group">
-                                    <label class="form-label bg-dark text-light" for="sectionDropdown">Select New Section Type:</label>
-                                    <select class="form-control form-control-dark bg-dark text-primary border-primary" id="sectionDropdown" @bind="sectionName">
-                                        <option value="Default" disabled selected>Select a type, then section</option>
-                                            @foreach (var group in contentHolderList!.Where(ch => ch.page == typeDropdown).GroupBy(ch => ch.section))
+                                        </div>
+                                        @* Text field for section name *@
+                                        <div class="form-group">
+                                            <label class="form-label bg-dark text-light" for="sectionDropdown">Select Section:</label>
+                                            <select class="form-control form-control-dark bg-dark text-primary border-primary" id="sectionDropdown" @bind="sectionName">
+                                                <option value="Default" disabled selected>Select a type, then section</option>
+                                                @foreach (var group in contentHolderList!.Where(ch => ch.page == typeDropdown).GroupBy(ch => ch.section))
+                                                {
+                                                    <option value="@group.First().section">@group.Key</option>
+                                                }
+                                                <option value="Add">Add New</option>
+                                            </select>
+                                            @if (sectionName == "Add")
                                             {
-                                                <option value="@group.First().section">@group.Key</option>
+                                                <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary mt-2" placeholder="Enter new section name" @bind="newSectionName" />
                                             }
-                                        <option value="Add">Add New</option>
-                                    </select>
-                                        @if (sectionName == "Add")
-                                    {
-                                        <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary mt-2" placeholder="Enter new section name" @bind="newSectionName" />
-                                    }
+                                        </div>
+                                        @* Text field for subSection name *@
+                                        <div class="form-group bg-dark text-primary">
+                                            <label class="form-label bg-dark text-light mt-1" for="sectionContent">Select subSection:</label>
+                                            <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary" id="sectionContent" placeholder="Name of the new subSection" @bind="subSectionName">
+                                        </div>
+                                        @* Add section button *@
+                                        <button class="btn btn-outline-primary mt-2" @onclick="(() => AddNewSection(username!))">Add New subSection</button>
+                                    </div>
+                                    <div class="col-6">
+                                        @* Spacing *@
+                                    </div>
                                 </div>
-                                @* Text field for subSection name *@
-                                <div class="form-group bg-dark text-primary">
-                                    <label class="form-label bg-dark text-light mt-1" for="sectionContent">subSection Name:</label>
-                                    <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary" id="sectionContent" placeholder="Name of the new subSection" @bind="subSectionName">
-                                </div>
-                                @* Add section button *@
-                                <button class="btn btn-outline-primary mt-2" @onclick="(() => AddNewSection())">Add New subSection</button>
                             </div>
-                            <div class="col-6">
-                                @* Spacing *@
-                            </div>
-                        </div>
-                    </div>            
-                }
+                        }
+                    }
                 </div>
             </div>
         </div>
     </Authorized>
-    <NotAuthorized> 
+    <NotAuthorized>
         @* If user is not authorized, call RedirectHome *@
         <p>Please Login to see this content....</p>
-        @if(!context.User.Identity!.IsAuthenticated)
+        @if (!context.User.Identity!.IsAuthenticated)
         {
             <button class="btn btn-outline-primary mt-2" @onclick="(() => RedirectHome())">Login</button>
         }
@@ -616,7 +800,7 @@
     public string? tempContentSection;
     public List<contentHolder> searchResults = new List<contentHolder>();
     public string? searchTerm { get; set; }
-    private string[] types = {"Hardware", "Software", "Misc"};
+    //private string[] types = {"Hardware", "Software", "Misc"};
     private string Logo = "tempLogo.png";
     public string loadingMSG = "Loading...";
     //public contentHolder[] ContentHolderListState;
@@ -629,37 +813,40 @@
     public string? subSections { get; set; }
     @* Declare Global Vars *@
     private bool? inline { get; set; } = true;
-    private string[]? initialContent;
+    private contentHolder[]? initialContent;
     private bool[]? IsEditing;
     private string? typeDropdown;
     private string? newTypeDropdown;
     private string? sectionName;
     private string? subSectionName;
     private string? newSectionName;
+    private int sectionBeingEdited;
+    private string TinyAPIKey = "7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl";
     @* Declare/Initialize variables for API communication *@
-    private string? repoName = "PersonalSiteRepo";
-    private string? userName = "SamDenton";
-    private string? token;
     private string? commitText = "Test From Wiki";
+    public Dictionary<string, string> shaDictionary = new Dictionary<string, string>();
     private string? newSHA;
     private int? updateCount = 0;
     private bool isContentLoaded { get; set; } = false;
+    private bool initiating = true;
+    string? lastPage = null;
 
     @* Initialize page.  Using Async initialization as I want to load content from API before rendering *@
     protected override async Task OnInitializedAsync()
     {
+        Console.WriteLine("mainContent.razor initialised");
         try
         {
-            @* Get API token from external file.  Token.txt is not included in Commits.  Should probably do the same with my TinyMCE token *@
-            var getFromTokens = await Http.GetAsync("Token.txt");
-            token = await getFromTokens.Content.ReadAsStringAsync();
             @* Call method to make GET request *@
-            await Task.WhenAll(GetContentFromGitHubRepo<contentHolder>(userName!, repoName!, token, false));
+            await Task.WhenAll(GetAllContentFromGitHubRepo<contentHolder>(false));
+            var orderedContentHolderList = contentHolderList.OrderBy(x => x.page).ThenBy(x => x.section).ThenBy(x => x.subSection);
+            contentHolderList = orderedContentHolderList.ToArray();
+            Array.Resize(ref tempContentHolderList, contentHolderList.Length);
             timer();
             myStateContainer.OnStateChange += StateHasChanged;
             //myStateContainer.SetValue();
             @* Initialize control variables after populating contentHolderList *@
-            initialContent = new string[contentHolderList!.Length];
+            Array.Resize(ref initialContent, contentHolderList!.Length);
             IsEditing = new bool[contentHolderList.Length];
             @* Add event handler to nagigation change event to reset IsEditing array *@
             Navigation.LocationChanged += LocationChanged!;
@@ -679,7 +866,6 @@
     {
         if (firstRender)
         {
-            Console.WriteLine("hi");
             //Code to execute once
             //await GetAuthenticationState();
         }
@@ -694,13 +880,28 @@
 
     private async void Timer_Elapsed(object? sender, ElapsedEventArgs? e)
     {
-        string? oldSHATimed = newSHA;
-        await GetContentFromGitHubRepo<contentHolder>(userName!, repoName!, token!, true);
-        if (oldSHATimed != newSHA)
+        @* Updated section *@
+        Dictionary<string, string> tempShaDictionary = new Dictionary<string, string>();
+        tempShaDictionary = new Dictionary<string, string>(shaDictionary); // Use a copy of the dictionary to prevent reference issues
+        await GetAllContentFromGitHubRepo<contentHolder>(true);
+
+        @* Updated code to compare dictionaries *@
+        List<string> mismatchedKeys = new List<string>();
+
+        foreach (var entry in tempShaDictionary)
         {
+            if (shaDictionary.ContainsKey(entry.Key) && shaDictionary[entry.Key] != entry.Value)
+            {
+                mismatchedKeys.Add(entry.Key);
+            }
+        }
+
+        if (mismatchedKeys.Count > 0)
+        {
+            Console.WriteLine("Found out of date section, updating...");
             if (IsEditing!.All(x => x == false))
             {
-                contentHolderList = tempContentHolderList;
+                Array.Copy(tempContentHolderList, contentHolderList, contentHolderList.Length);
             }
             else
             {
@@ -710,14 +911,12 @@
                     if (IsEditing[i] == true)
                     {
                         tempContentSection = contentHolderList[i].content;
-                        contentHolderList = tempContentHolderList;
+                        Array.Copy(tempContentHolderList, contentHolderList, contentHolderList.Length);
                         contentHolderList[i].content = tempContentSection;
-                        break;
                     }
                 }
             }
         }
-        StateHasChanged();
     }
     private void alerter(string message)
     {
@@ -740,6 +939,7 @@
     {
         ClearIsEditingArray();
     }
+
     private void ClearIsEditingArray()
     {
         if (IsEditing != null)
@@ -749,8 +949,13 @@
                 IsEditing[i] = false;
                 StateHasChanged();
             }
+            if (!IsEditing!.All(x => x == false))
+            {
+                Save(0, "Internal save by navigating away", sectionBeingEdited, true);
+            }
         }
     }
+
     private void SearchTermChanged()
     {
         if (type != "Search")
@@ -795,68 +1000,113 @@
         contentHolderList![globalSectionNo].content = "";
         IsEditing![localSectionNo] = true;
     }
+
     @* Set selected sections IsEditing to True, which should render the editor *@
     private async void Edit(int localSectionNo, int globalSectionNo)
     {
-        string oldSHA = newSHA!;
-        int? oldUpdateCount = updateCount;
-        ClearIsEditingArray();
-        Console.WriteLine(oldSHA + " " + newSHA);
-        await GetContentFromGitHubRepo<contentHolder>(userName!, repoName!, token!, true);
-        EditParser(localSectionNo, globalSectionNo, oldSHA, oldUpdateCount);
+        string? localSection = contentHolderList[globalSectionNo].page + contentHolderList[globalSectionNo].section;
+        string oldSHA;
+        int? oldUpdateCount;
+        if (shaDictionary[localSection] != null)
+        {
+            oldSHA = shaDictionary[localSection]!;
+            oldUpdateCount = updateCount;
+            ClearIsEditingArray();
+            Console.WriteLine(oldSHA + " " + newSHA);
+            await GetContentFromGitHubRepo<contentHolder>(true, localSection);
+        }
+        else
+        {
+            oldUpdateCount = updateCount;
+            ClearIsEditingArray();
+            await GetContentFromGitHubRepo<contentHolder>(true, localSection);
+            oldSHA = shaDictionary[localSection]!;
+        }
+        EditParser(localSectionNo, globalSectionNo, oldSHA, shaDictionary[localSection], oldUpdateCount);
     }
+
     @* This function is meant to check if there is changes to content before trying to edit.  Seems unreliable tho *@
-    private void EditParser(int localSectionNo, int globalSectionNo, string oldSHA, int? oldUpdateCount)
+    private void EditParser(int localSectionNo, int globalSectionNo, string oldSHA, string localSHA, int? oldUpdateCount)
     {
         if (updateCount == oldUpdateCount + 1)
         {
-            if (newSHA == oldSHA)
+            if (localSHA == oldSHA)
             {
                 @* When you click edit, save the current state so 'Cancel' button can revert changes *@
-                initialContent![globalSectionNo] = contentHolderList![globalSectionNo].content!;
+                initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentHolderList![globalSectionNo]));
                 IsEditing![localSectionNo] = true;
             }
             else
             {
-                JSRuntime.InvokeVoidAsync("alert", "Content is out of date with database, refreshing");
-                initialContent![globalSectionNo] = tempContentHolderList![globalSectionNo].content!;
-                contentHolderList = tempContentHolderList;
+                Console.WriteLine("If this is triggered, its trying to update in background");
+                //JSRuntime.InvokeVoidAsync("alert", "Content is out of date with database, refreshing");
+                initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentHolderList![globalSectionNo]));
+                Array.Copy(tempContentHolderList, contentHolderList, contentHolderList.Length);
                 IsEditing![localSectionNo] = true;
 
             }
+            sectionBeingEdited = globalSectionNo;
         }
         else
         {
             Console.WriteLine("Re-triggering edit function");
-            EditParser(localSectionNo, globalSectionNo, oldSHA, oldUpdateCount);
+            EditParser(localSectionNo, globalSectionNo, oldSHA, localSHA, oldUpdateCount);
         }
         StateHasChanged();
     }
+
+    private void inlineEdit(string username, int globalSectionNo)
+    {
+        initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentHolderList![globalSectionNo]));
+    }
+
     @* Set selected section's IsEditing to false, then call method to PUT new JSON to GitHub.  Should render updated content to DOM *@
     private async void Save(int sectionNo, string username, int globalSectionNo, bool newSec)
     {
-        string oldSHA = newSHA!;
+        string? localSection; ;
+        string oldSHA;
         int? oldUpdateCount = updateCount;
-        await GetContentFromGitHubRepo<contentHolder>(userName!, repoName!, token!, true);
+        if (newSec == true)
+        {
+            localSection = contentHolderList.Last().page + contentHolderList.Last().section;
+            oldSHA = "";
+            shaDictionary[localSection] = "";
+            updateCount++;
+        }
+        else
+        {
+            localSection = initialContent[globalSectionNo].page + initialContent[globalSectionNo].section;
+            oldSHA = shaDictionary[localSection]!;
+            await GetContentFromGitHubRepo<contentHolder>(true, localSection);
+        }
         if (updateCount == oldUpdateCount + 1)
         {
-            if (newSHA == oldSHA)
+            //Console.WriteLine("oldSHA: " + oldSHA + " newHSA: " + shaDictionary[localSection]);
+            if (shaDictionary[localSection] == oldSHA || newSec == true)
             {
                 if (newSec == true)
                 {
-                    Console.WriteLine("saving");
+                    Console.WriteLine("saving new section");
                     IsEditing![sectionNo] = false;
                     commitText = "Content change made by: " + username + "";
                     @* Update the array for navigation *@
                     myStateContainer.SetValue();
                     myStateContainer.OnStateChange += RefreshMe;
                     @* Serialize current object array to a JSON String *@
-                    var jsonString = JsonConvert.SerializeObject(contentHolderList);
-                    await UpdateJSONOnGitHub(jsonString, repoName!, userName!, token!, commitText!, newSHA!);
+                    contentHolder[] localContentHolderList = contentHolderList.Where(holder => holder.page == contentHolderList.Last().page && holder.section == contentHolderList.Last().section).ToArray();
+                    var jsonString = JsonConvert.SerializeObject(localContentHolderList);
+                    await UpdateJSONOnGitHub(jsonString, commitText!, localSection!);
                 }
                 else
                 {
-                    if (contentHolderList![globalSectionNo].content! != initialContent!.ElementAtOrDefault(globalSectionNo))
+                    string? types = contentHolderList[globalSectionNo].page;
+                    string? oldTypes = initialContent[globalSectionNo].page;
+                    string? sections = contentHolderList[globalSectionNo].section;
+                    string? oldSections = initialContent[globalSectionNo].section;
+                    Console.WriteLine("Current: " + contentHolderList![globalSectionNo] + "Old: " + initialContent![globalSectionNo]);
+                    if (contentHolderList![globalSectionNo].section != initialContent![globalSectionNo].section ||
+                        contentHolderList![globalSectionNo].subSection != initialContent![globalSectionNo].subSection ||
+                        contentHolderList![globalSectionNo].content != initialContent![globalSectionNo].content)
                     {
                         Console.WriteLine("saving");
                         IsEditing![sectionNo] = false;
@@ -864,25 +1114,48 @@
                         @* Update the array for navigation *@
                         myStateContainer.SetValue();
                         myStateContainer.OnStateChange += RefreshMe;
-                        @* Serialize current object array to a JSON String *@
-                        var jsonString = JsonConvert.SerializeObject(contentHolderList);
-                        await UpdateJSONOnGitHub(jsonString, repoName!, userName!, token!, commitText!, newSHA!);
+
+                        @* Check if Type or Section names have changes, then Serialize current object array to a JSON String *@
+                        if (types != oldTypes || sections != oldSections)
+                        {
+                            contentHolder[] oldLocalContentHolderList = contentHolderList.Where(holder => holder.page == oldTypes && holder.section == oldSections).ToArray();
+                            var oldJsonString = JsonConvert.SerializeObject(oldLocalContentHolderList);
+                            if (oldJsonString == "[]")
+                            {
+                                commitText = "Section removed by: " + username + "";
+                                Console.WriteLine("Section Empty, Should remove JSON from db");
+                                await DeleteFile(commitText, localSection!);
+                            }
+                            else
+                            {
+                                await UpdateJSONOnGitHub(oldJsonString, commitText!, localSection!);
+                            }
+                        }
+
+                        contentHolder[] localContentHolderList = contentHolderList.Where(holder => holder.page == types && holder.section == sections).ToArray();
+                        var jsonString = JsonConvert.SerializeObject(localContentHolderList);
+                        var oldLocalSection = localSection;
+                        localSection = contentHolderList[globalSectionNo].page + contentHolderList[globalSectionNo].section;
+                        await UpdateJSONOnGitHub(jsonString, commitText!, localSection!);
                     }
                     else
                     {
                         IsEditing![sectionNo] = false;
+                        Console.WriteLine("No changes detected");
+                        Console.WriteLine(contentHolderList![globalSectionNo].content!);
                     }
                 }
             }
             else
             {
+                Console.WriteLine("Triggering the extra save logic");
                 await JSRuntime.InvokeVoidAsync("alert", "Content is out of date with database, please press save again to force changes or cancel to update to database version");
                 for (int i = 0; i < IsEditing!.Length; i++)
                 {
                     if (IsEditing[i] == true)
                     {
                         tempContentSection = contentHolderList[i].content;
-                        contentHolderList = tempContentHolderList;
+                        Array.Copy(tempContentHolderList, contentHolderList, contentHolderList.Length);
                         contentHolderList[i].content = tempContentSection;
                         break;
                     }
@@ -895,21 +1168,23 @@
         }
         StateHasChanged();
     }
+
     private void RefreshMe()
     {
         StateHasChanged();
     }
+
     @* Set sections IsEditing to false, and set the content to the stored previous state *@
     private async void Cancel(int localSectionNo, int globalSectionNo)
     {
-    @* If statement needed here so canceling on a newly added section will remove it *@
+        @* If statement needed here so canceling on a newly added section will remove it *@
         if (initialContent![globalSectionNo] != null)
         {
-            contentHolderList![globalSectionNo].content = initialContent[globalSectionNo];
+            contentHolderList![globalSectionNo].content = initialContent[globalSectionNo].content!;
         }
         else
         {
-            await RemoveSection(contentHolderList!.Length - 1, "New Section");
+            await RemoveSection(contentHolderList!.Length - 1, "... (New Section)");
         }
         IsEditing![localSectionNo] = false;
     }
@@ -918,9 +1193,8 @@
         IsEditing![localSectionNo] = false;
     }
 
-
     @* Add a new object to my array from user input *@
-    private void AddNewSection()
+    private async Task AddNewSection(string username)
     {
         @* Using data binding to tie user selection to these vars *@
         string? subName = subSectionName;
@@ -930,103 +1204,134 @@
         string finalName;
         if (typeDropdown == "Add")
         {
-            finalType = newTypeDropdown;
+            finalType = newTypeDropdown!;
         }
         else
         {
-            finalType = typeDropdown;
+            finalType = typeDropdown!;
         }
         if (sectionName == "Add")
         {
-            finalName = newSectionName;
+            finalName = newSectionName!;
         }
         else
         {
-            finalName = sectionName;
+            finalName = sectionName!;
         }
-        if (!String.IsNullOrWhiteSpace(finalType) && !String.IsNullOrWhiteSpace(finalName))
+        if (!String.IsNullOrWhiteSpace(finalType) && !String.IsNullOrWhiteSpace(finalName) && !String.IsNullOrWhiteSpace(subName))
         {
-            @* Best way to add to an array is to resize then initialize the new index *@
-            Array.Resize(ref contentHolderList, contentHolderList!.Length + 1);
-            Array.Resize(ref IsEditing, IsEditing!.Length + 1);
-            contentHolderList[contentHolderList.Length - 1] = new contentHolder { 
-                page = finalType,
-                section = finalName,
-                subSection = subName,
-                content = "<p>Enter some details about " + subName + " here.</p>"
-            };
-            ReInitialize();
-            @* Initialize new index on control variables *@
-            IsEditing[0] = true;
+            if (!contentHolderList.Any(item => item.subSection.Contains(subName)))
+            {
+                @* Best way to add to an array is to resize then initialize the new index *@
+                Array.Resize(ref contentHolderList, contentHolderList!.Length + 1);
+                Array.Resize(ref tempContentHolderList, contentHolderList!.Length);
+                Array.Resize(ref IsEditing, IsEditing!.Length + 1);
+                contentHolderList[contentHolderList.Length - 1] = new contentHolder
+                    {
+                        page = finalType,
+                        section = finalName,
+                        subSection = subName,
+                        content = "<p>Enter some details about " + subName + " here.</p>"
+                    };
+                ReInitialize();
+                @* Initialize new index on control variables *@
+                IsEditing[0] = true;
+                sectionBeingEdited = contentHolderList.Length;
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "subName must be unique. Currently includes partial matches, so any existing subSection name containing " + subName + " will trigger a match");
+                searchTerm = subName;
+                SearchTermChanged();
+            }
         }
         else
         {
-        @* Should add an alert or style change to the entry box here to show a value is needed *@
+            await JSRuntime.InvokeVoidAsync("alert", "Each box must have an entry");
         }
     }
-
 
     @* Method to remove selected section *@
     private async Task RemoveSection(int sectionNo, string username)
     {
-        if (contentHolderList!.Length > 1)
+        bool responce = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete the subSection: " + contentHolderList[sectionNo].subSection);
+        if (responce == true)
         {
-    @* Easiest way to remove an element from middle of array is to build a new array from the old, skipping the line to remove, then setting it back to main array *@
-            contentHolder[] newArray = new contentHolder[contentHolderList.Length - 1];
-            int newArrayIndex = 0;
-            for (int i = 0; i < contentHolderList.Length; i++)
+            if (contentHolderList!.Length > 1)
             {
-                if (i != sectionNo)
+                string? localSection = contentHolderList[sectionNo].page + contentHolderList[sectionNo].section;
+                string? types = contentHolderList[sectionNo].page;
+                string? sections = contentHolderList[sectionNo].section;
+                @* Easiest way to remove an element from middle of array is to build a new array from the old, skipping the line to remove, then setting it back to main array *@
+                contentHolder[] newArray = new contentHolder[contentHolderList.Length - 1];
+                int newArrayIndex = 0;
+                for (int i = 0; i < contentHolderList.Length; i++)
                 {
-                    newArray[newArrayIndex++] = contentHolderList[i];
+                    if (i != sectionNo)
+                    {
+                        newArray[newArrayIndex++] = contentHolderList[i];
+                    }
+                }
+                contentHolderList = newArray;
+                ReInitialize();
+                myStateContainer.SetValue();
+                myStateContainer.OnStateChange += RefreshMe;
+                @* Serialize and upload to GitHub *@
+
+                contentHolder[] localContentHolderList = contentHolderList.Where(holder => holder.page == types && holder.section == sections).ToArray();
+                var jsonString = JsonConvert.SerializeObject(localContentHolderList);
+                if (jsonString == "[]")
+                {
+                    commitText = "Section removed by: " + username + "";
+                    Console.WriteLine("Section Empty, Should remove JSON from db");
+                    await DeleteFile(commitText, localSection!);
+                }
+                else
+                {
+                    commitText = "subSection removed by : " + username + "";
+                    await UpdateJSONOnGitHub(jsonString, commitText!, localSection!);
                 }
             }
-            contentHolderList = newArray;
-            ReInitialize();
-            myStateContainer.SetValue();
-            myStateContainer.OnStateChange += RefreshMe;
-    @* Serialize and upload to GitHub *@
-            commitText = "Section removed by change made by: " + username + "";
-            var jsonString = JsonConvert.SerializeObject(contentHolderList);
-            await UpdateJSONOnGitHub(jsonString, repoName!, userName!, token!, commitText!, newSHA!);
         }
     }
     @* This method should reset lengths of different variables and re-load the page.  Called after a number of state changes *@
     private void ReInitialize()
     {
-        initialContent = new string[contentHolderList!.Length];
+        Array.Resize(ref initialContent, contentHolderList!.Length);
         IsEditing = new bool[contentHolderList.Length];
         StateHasChanged();
     }
     @* Method for uploading content to GitHub API via PUT *@
-    private async Task UpdateJSONOnGitHub(string jsonString, string repositoryName, string username, string token, string commitMessage, string sha)
+    private async Task UpdateJSONOnGitHub(string jsonString, string commitMessage, string section)
     {
         try
         {
-            //await GetContentFromGitHubRepo(username, repositoryName, token);
-            @* Since I'm injecting a Http client for Token GET I dont know if i need to declare new clients for each method, but its working *@
             using (var client = new HttpClient())
             {
+                var sha = shaDictionary[section];
+
                 Console.WriteLine("Saving2");
-                @* Initialize the HttpClient object with an authorization header and desired content type *@
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", token);
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-                @* Define the request body, encoding the content string as base64 *@
+
+                // Define the request body, encoding the content string as base64
+                Console.WriteLine(jsonString);
                 var body = new
                 {
                     message = commitMessage,
                     content = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString)),
                     sha = sha
                 };
-                @* Serialize the body object and encode *@
+
+                // Serialize the body object and encode
                 var json = JsonConvert.SerializeObject(body);
                 var contentAndMessage = new StringContent(json, Encoding.UTF8, "application/json");
-                @* Send the PUT request to the GitHub API *@
-                var response = await client.PutAsync($"https://api.github.com/repos/{username}/{repositoryName}/contents/data.json", contentAndMessage);
+
+                // Send the PUT request to the PHP proxy
+                var response = await client.PutAsync($"https://samdenton.tech/GithubPut-proxy.php?section={section}", contentAndMessage);
                 var responceHeaders = await response.Content.ReadAsStringAsync();
+
                 @* Get new sha value from PUT response headers *@
                 var gitContent = JsonConvert.DeserializeObject<Root>(responceHeaders);
-                newSHA = gitContent!.content!.sha!;
+                shaDictionary[section] = gitContent!.content!.sha!;
                 Console.WriteLine("newnewSHA: " + newSHA);
                 @* Ensure the request was successful *@
                 response.EnsureSuccessStatusCode();
@@ -1034,6 +1339,7 @@
                 {
                     throw new Exception("Error updating content: " + response.ReasonPhrase);
                 }
+
             }
         }
         catch (Exception ex)
@@ -1048,15 +1354,13 @@
     @* need to think about weather I want 2 functions, 1 for all sections and one of indevidual, or if I can work out both in 1 *@
     @* Think im limted to 1000 files per request, but that might be 1000 files total for the dir to be acessable *@
     @* I'm hoping to get the whole directory in a single API call to initialise and build menu etc, but might have to get each file with sepotate calls, which till be slow... *@
-    public async Task GetContentFromGitHubRepo<T>(string username, string repositoryName, string token, bool checking)
+    public async Task GetContentFromGitHubRepo<T>(bool checking, string section)
     {
         using (var client = new HttpClient())
         {
-            @* Initialize the HttpClient object with an authorization header and desired content type *@
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", token);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-            @* Send the GET request to the GitHub API *@
-            var response = await client.GetAsync($"https://api.github.com/repos/{username}/{repositoryName}/contents/data.json");
+            // Send the GET request to the PHP proxy
+            var response = await client.GetAsync($"https://samdenton.tech/GithubGet-proxy.php?section={section}");
+
             @* Read the response content, parse the content and convert it from base64, then de-serialize the content with my custom class *@
             try
             {
@@ -1066,50 +1370,193 @@
                 var jsonContent = Encoding.UTF8.GetString(contentBytes);
                 var array = JsonConvert.DeserializeObject<contentHolder[]>(jsonContent);
                 @* Get the sha of the retrieved file *@
-                Console.WriteLine("oldSHA: " + newSHA);
-                newSHA = gitContent.sha!;
-                Console.WriteLine("newSHA: " + newSHA);
+                shaDictionary[section] = gitContent.sha!;
+
                 if (checking != true)
                 {
-                    contentHolderList = array!;
+                    foreach (contentHolder updateItem in array)
+                    {
+                        foreach (contentHolder mainContentItem in contentHolderList)
+                        {
+                            Console.WriteLine("updating contentHolderList");
+                            if (mainContentItem.page == updateItem.page &&
+                                mainContentItem.section == updateItem.section &&
+                                mainContentItem.subSection == updateItem.subSection)
+                            {
+                                mainContentItem.content = updateItem.content;
+                            }
+                        }
+                    }
                 }
                 else
                 {
-                    tempContentHolderList = array!; //should store the result of this call in a temp array, and ask user if they want to switch to latest content.
+                    Array.Copy(contentHolderList, tempContentHolderList, contentHolderList.Length);
+                    Console.WriteLine("adding: " + array);
+                    foreach (contentHolder updateItem in array)
+                    {
+                        Console.WriteLine("updating tempContentHolderList");
+                        foreach (contentHolder mainContentItem in tempContentHolderList)
+                        {
+                            if (mainContentItem.page == updateItem.page &&
+                                mainContentItem.section == updateItem.section &&
+                                mainContentItem.subSection == updateItem.subSection)
+                            {
+                                Console.WriteLine("This should be copying data from the database to a temp array then chossing whether to overwrite main array");
+                                //This is currently causing content on the main array to not update with user changes
+                                //mainContentItem.content = updateItem.content;
+                            }
+                        }
+                    }
                 }
+
+
                 isContentLoaded = true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Error: " + ex.Message);
-                loadingMSG += "Error Loading Content: " + ex.Message + "Check size of DB";
+                loadingMSG += "Error Loading single section Content: " + ex.Message + "Check size of DB";
                 StateHasChanged();
             }
             StateHasChanged();
             updateCount++;
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new Exception("Error getting content: " + response.ReasonPhrase);
-            }
         }
     }
-    @* Not using this method currently, but might be useful if I split content across pages / files on GitHub *@
-    @* If I end up using this method, I should re-write to match the format of my GET and PUT methods*@
-    private async Task DeleteFile(string repositoryName, string username, string token, string commitMessage, string sha)
+
+    public async Task GetAllContentFromGitHubRepo<T>(bool checking)
     {
+        using (var client = new HttpClient())
+        {
+            // Send the GET request to the PHP proxy
+            var response = await client.GetAsync("https://samdenton.tech/GithubGetAll-proxy.php");
+
+            try
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var gitContents = JsonConvert.DeserializeObject<List<Content>>(content);
+                List<contentHolder> localContentHolderList = new List<contentHolder>();
+
+                if (initiating)
+                {
+                    foreach (var gitContent in gitContents)
+                    {
+                        if (gitContent.type == "file")
+                        {
+                            // Send the GET request to the GitHub API to get the content of the individual file
+                            var fileResponse = await client.GetAsync($"https://samdenton.tech/GithubGetFile-proxy.php?url={WebUtility.UrlEncode(gitContent.url)}");
+                            var fileContent = await fileResponse.Content.ReadAsStringAsync();
+                            var fileGitContent = JsonConvert.DeserializeObject<Content>(fileContent);
+
+                            var contentBytes = Convert.FromBase64String(fileGitContent.content);
+                            var jsonContent = Encoding.UTF8.GetString(contentBytes);
+                            var array = JsonConvert.DeserializeObject<List<contentHolder>>(jsonContent);
+
+                            localContentHolderList.AddRange(array);
+                            // Add the filename (without '_data.json') and the SHA value to the dictionary
+                            string fileNameWithoutSuffix = gitContent.name.Replace("_data.json", "");
+                            shaDictionary[fileNameWithoutSuffix] = fileGitContent.sha;
+                        }
+                    }
+                    initiating = false;
+                    contentHolderList = localContentHolderList.ToArray();
+                }
+                else
+                {
+                    foreach (var gitContent in gitContents)
+                    {
+                        string fileNameWithoutSuffix = gitContent.name.Replace("_data.json", "");
+                        if (gitContent.type == "file" && gitContent.sha != shaDictionary[fileNameWithoutSuffix])
+                        {
+                            // Send the GET request to the GitHub API to get the content of the individual file
+                            var fileResponse = await client.GetAsync($"https://samdenton.tech/GithubGetFile-proxy.php?url={WebUtility.UrlEncode(gitContent.url)}");
+                            var fileContent = await fileResponse.Content.ReadAsStringAsync();
+                            var fileGitContent = JsonConvert.DeserializeObject<Content>(fileContent);
+
+                            var contentBytes = Convert.FromBase64String(fileGitContent.content);
+                            var jsonContent = Encoding.UTF8.GetString(contentBytes);
+                            var array = JsonConvert.DeserializeObject<List<contentHolder>>(jsonContent);
+
+                            localContentHolderList.AddRange(array);
+                            // Add the filename (without '_data.json') and the SHA value to the dictionary
+
+                            shaDictionary[fileNameWithoutSuffix] = fileGitContent.sha;
+                        }
+                    }
+                }
+
+                if (checking != true)
+                {
+                    foreach (contentHolder updateItem in localContentHolderList)
+                    {
+                        foreach (contentHolder mainContentItem in contentHolderList)
+                        {
+                            Console.WriteLine("updating contentHolderList");
+                            if (mainContentItem.page == updateItem.page &&
+                                mainContentItem.section == updateItem.section &&
+                                mainContentItem.subSection == updateItem.subSection)
+                            {
+                                mainContentItem.content = updateItem.content;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    Array.Copy(contentHolderList, tempContentHolderList, contentHolderList.Length);
+                    foreach (contentHolder updateItem in localContentHolderList)
+                    {
+                        Console.WriteLine("updating tempContentHolderList");
+                        foreach (contentHolder mainContentItem in tempContentHolderList)
+                        {
+                            if (mainContentItem.page == updateItem.page &&
+                                mainContentItem.section == updateItem.section &&
+                                mainContentItem.subSection == updateItem.subSection)
+                            {
+                                mainContentItem.content = updateItem.content;
+                            }
+                        }
+                    }
+                }
+
+
+                isContentLoaded = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error: " + ex.Message);
+                loadingMSG += "Error Loading All Content: " + ex.Message + "Check size of DB";
+                StateHasChanged();
+            }
+
+            StateHasChanged();
+            updateCount++;
+        }
+    }
+
+    private async Task DeleteFile(string commitMessage, string section)
+    {
+        var sha = shaDictionary[section];
         var client = new HttpClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", token);
-        var content = new StringContent("{\"message\":\"" + commitMessage + "\",\"sha\":\"" + sha + "\"}", Encoding.UTF8, "application/json");
-        var response = await client.DeleteAsync($"https://api.github.com/repos/{username}/{repositoryName}/contents/data.json");
+
+        var content = new StringContent(JsonConvert.SerializeObject(new
+        {
+            message = commitMessage,
+            sha = sha
+        }), Encoding.UTF8, "application/json");
+
+        var response = await client.DeleteAsync($"https://samdenton.tech/GithubDelete-proxy.php?section={section}&sha={sha}");
+
         if (!response.IsSuccessStatusCode)
         {
             throw new Exception("Error deleting file: " + response.ReasonPhrase);
         }
     }
+
     public void Dispose()
     {
         //myStateContainer.OnStateChange -= StateHasChanged;
     }
+
     @* Class for creating custom objects from JSON string *@
     public class contentHolder
     {
@@ -1128,6 +1575,9 @@
         public string? encoding { get; set; }
         public int? size { get; set; }
         public string? sha { get; set; }
+        public string? type { get; set; }
+        public string? name { get; set; }
+        public string? url { get; set; }
     }
     @* Class structure to get sha from PUT response headers *@
     public class Root
@@ -1143,7 +1593,7 @@
     }
     @* Define properties for TinyMCE WYSIWYG editor *@
     private Dictionary<string, object> editorConf = new Dictionary<string, object>  {
-        {"menubar", "edit insert format table tools help"}, 
+        {"menubar", "edit insert format table tools help"},
     @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
         {"toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize blocks | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media template link anchor codesample | ltr rtl"},
         {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
@@ -1164,7 +1614,7 @@
         {"paste_data_images", "false"},
         {"paste_as_text", "true"},
         {"resize", "true"}
-        @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
+    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
     };
     private Dictionary<string, object> editorConfInline = new Dictionary<string, object>  {
     @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
@@ -1186,8 +1636,32 @@
         {"autosave_ask_before_unload", "true"},
         {"paste_data_images", "false"},
         {"paste_as_text", "true"},
-        {"resize", "true"} 
-        @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
+        {"resize", "true"}
+    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
+    };
+    private Dictionary<string, object> editorConfHeaders = new Dictionary<string, object>  {
+    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
+        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
+        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
+        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
+        {"quickbars_selection_toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize | blocks | bullist numlist | alignleft aligncenter alignright alignjustify | outdent indent | forecolor backcolor | blockquote quicklink | charmap emoticons | print | insertfile image media template link anchor codesample | removeformat"},
+        {"toolbar", "false"},
+        {"menubar", "false"},
+        {"block_formats", "Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;"},
+        {"quickbars_insert_toolbar", "quicktable image media codesample" },
+        {"width", "100%"},
+        {"min_width", "100%"},
+        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
+        {"min_height", 100},
+        {"autoresize_bottom_margin", 30},
+        {"skin", "oxide-dark"},
+        {"content_css", "dark"},
+        {"autosave_ask_before_unload", "true"},
+        {"paste_data_images", "false"},
+        {"paste_as_text", "true"},
+        {"resize", "true"},
+        {"forced_root_block", ""}
+    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
     };
 
     @*{"toolbar_sticky", "true"},

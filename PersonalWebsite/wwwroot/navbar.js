@@ -52,24 +52,13 @@ function fadeOut() {
     }
 }
 
-let navContainer;
-let scrollContainer;
-let nav;
-let isScrolling = false;
-let currentTop = 0;
-let maxTop;
-let isFirstHover = true;
-let navItemsContainer;
-let navItemsContainerClone1;
-let navItemsContainerClone2;
-let containerHeight;
-let navHeight;
-let navItemsHeight;
+let navContainer, scrollContainer, nav;
 let isMouseOverNav = false;
-let prevTop = 0;
+let currentTop = 0, prevTop = 0;
+let maxTop, containerHeight, navHeight, navItemsHeight;
 let animationStarted = false;
-let momentumFactor = 0.951;
-let fadeEffectStrength = 0.3;
+const momentumFactor = 0.951;
+const fadeEffectStrength = 0.3;
 
 function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSelector) {
     navContainer = document.querySelector(navContainerSelector);
@@ -77,6 +66,9 @@ function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSel
     nav = document.querySelector(navSelector);
     navContainer.addEventListener("mousemove", onMouseMove);
     navContainer.addEventListener("mouseleave", onMouseLeave);
+    navContainer.addEventListener("touchstart", onTouchStart, { passive: true });
+    navContainer.addEventListener("touchmove", onTouchMove, { passive: false });
+    navContainer.addEventListener("touchend", onTouchEnd, { passive: true });
     setTimeout(() => {
         const navItemsContainer = nav.querySelector('.nav-items-container');
         const navItemsContainerClone1 = navItemsContainer.cloneNode(true);
@@ -97,7 +89,7 @@ function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSel
 
 function calculateScrollSpeed(mouseY, containerHeight, maxSpeed) {
     const distanceToMiddle = Math.abs(mouseY - containerHeight / 2);
-    const speed = distanceToMiddle / (containerHeight / 2);
+    const speed = (distanceToMiddle / (containerHeight / 2)) / 2;
 
     if (speed > maxSpeed) {
         return maxSpeed;
@@ -107,6 +99,7 @@ function calculateScrollSpeed(mouseY, containerHeight, maxSpeed) {
 }
 
 function onMouseMove(event) {
+    if (isTouchActive) { return };
     isMouseOverNav = true;
     navHeight = nav.offsetHeight;
     containerHeight = navContainer.offsetHeight;
@@ -183,6 +176,36 @@ function onMouseLeave(event) {
         animationStarted = false;
     }
 }
+
+let touchStartY = 0;
+let touchMoveThreshold = 10; // Set the threshold in pixels (e.g., 10 pixels)
+let isTouchActive = false;
+
+function onTouchStart(event) {
+    isTouchActive = true;
+    touchStartY = event.touches[0].clientY;
+}
+
+function onTouchMove(event) {
+    const touch = event.touches[0];
+    const deltaY = touch.clientY - touchStartY;
+    touchStartY = touch.clientY;
+
+    // Only call preventDefault if the user has moved their finger beyond the threshold
+    if (Math.abs(deltaY) > touchMoveThreshold) {
+        event.preventDefault(); // Prevent scrolling in the background
+    }
+
+    const speedMultiplier = 2; // Adjust this value to control the scrolling speed
+    const newTop = currentTop + deltaY * speedMultiplier;
+    updatePosition(newTop);
+}
+
+function onTouchEnd(event) {
+    isTouchActive = false;
+    onMouseLeave();
+}
+
 
 function applyEffects() {
     const navItems = nav.querySelectorAll('.item-fader');

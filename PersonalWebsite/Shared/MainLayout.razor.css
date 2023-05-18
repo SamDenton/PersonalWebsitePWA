@@ -42,7 +42,7 @@ main {
 .userNameDisp {
     height: 20px;
     position: fixed;
-    right: 10px;
+    right: 15px;
     bottom: 10px;
 }
 
@@ -61,14 +61,15 @@ main {
         text-decoration: none;
     }
 
-    .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
-        text-decoration: underline;
-    }
+        .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
+            text-decoration: underline;
+        }
 
-    .top-row ::deep a:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+        .top-row ::deep a:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
 }
 
 @media (max-width: 380px) {
@@ -92,7 +93,7 @@ main {
         /*height: 100vh-56px;*/
         /*display: none;*/
     }
-    
+
     .sidebarController {
         /* animation: hideNavbar 0.3s ease-in-out forwards;
         width: 0px; */
@@ -133,6 +134,7 @@ main {
     .sidebar {
         background-image: linear-gradient(180deg, #0d3759 10%, #212529 50%);
     }
+
     .top-row.auth {
         justify-content: flex-end;
         margin-left: -250px;
@@ -299,4 +301,3 @@ input[type="checkbox"] {
         width: 250px;
     }
 }
-
