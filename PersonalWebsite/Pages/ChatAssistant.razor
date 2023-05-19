@@ -54,7 +54,7 @@
         <Authorized>
             <section class="main">
                 <h1>GPTSam</h1>
-                <div id="conversation">
+                <div class="conversation">
                     @foreach (var message in currentConversation)
                     {
                         if (message.role == "user")
@@ -99,7 +99,7 @@
         <NotAuthorized>
             <section class="main">
                 <h1>GPTSam</h1>
-                <div id="conversation">
+                <div class="conversation">
                     @foreach (var message in exampleConversation)
                     {
                         if (message.role == "user")
@@ -158,9 +158,6 @@
     {
         if (firstRender)
         {
-            @* Would be fun to try and send some wiki data as context.  I think if I just implement my existing search function here, sanitise and include and part of the system message, that should work. *@
-            var getFromTokens = await Http.GetAsync("ChatToken.txt");
-            API_KEY = await getFromTokens.Content.ReadAsStringAsync();
             currentConversationId = $"Conversation {Guid.NewGuid()}";
             currentConversation.Add(new Message { role = "system", content = systemMessageChat });
             preConversationText.Add(new Message { role = "system", content = systemMessageSearch });
@@ -170,6 +167,7 @@
             exampleConversation.Add(new Message { role = "assistant", content = "Hi there!  I'm sorry to hear that.  It sounds like you are not currently logged in with an authenticated user.  Please login or contact Sam to have your privilages escelated" });
             exampleConversation.Add(new Message { role = "user", content = "Ok, so some parts of the website require authentication?" });
             exampleConversation.Add(new Message { role = "assistant", content = "Yes, some parts of the site, and some functions like editing content and interacting with the chatbot currently require authentication, however, a guest tier is being added currently so authenticated but not privilaged users have some level of access, while unauthenticated users get minimal, read only access" });
+            StateHasChanged();
         }
     }
 
