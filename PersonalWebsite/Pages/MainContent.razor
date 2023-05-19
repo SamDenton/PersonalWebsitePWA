@@ -785,12 +785,463 @@
         </div>
     </Authorized>
     <NotAuthorized>
-        @* If user is not authorized, call RedirectHome *@
+
+
+        <div class="ps-1 pt-2 sticky-top container-flex" id="searchBar" style="pointer-events: none;">
+            <div class="row">
+                <div class="col-3">
+                </div>
+                <div class="col-5">
+                    <div class="input-group mb-3 text-light" style="pointer-events: auto;">
+                        <input class="form-control bg-dark text-light" placeholder="Search" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChanged">
+                    </div>
+                </div>
+                <div class="col-4">
+                </div>
+            </div>
+        </div>
+        <div class="container-fluid mx-0 ps-0">
+            <div class="row mx-0 ps-0 gx-3">
+                <div class="col">
+                    @if (type != null)
+                    {
+                        <div class="ms-1 form-group form-check form-switch kudosTextToggle">
+                            <label class="form-check-label" for="sliderToggle">Switch Between Inline and Full Editor</label>
+                            <input type="checkbox" class="form-check-input inputCheck" id="sliderToggle" @bind="inline" @onclick="(() => ClearIsEditingArray())" />
+                        </div>
+                    }
+                    @if (type != "all" && type != null && sections != "all" && subSections != "all" && type != "Search" && type != "add")
+                    {
+                        <h1 class="kudosTextTop">@sections <small class="text-muted">@subSections </small></h1>
+                    }
+                    else if (type != "all" && sections != "all" && subSections == "all" && type != "Search" && type != "add")
+                    {
+                        <h1 class="kudosTextTop">@type <small class="text-muted">@sections </small></h1>
+                    }
+                    else if (type != "all" && sections == "all" && type != "Search" && type != "add")
+                    {
+                        <h1 class="kudosTextTop">@type <small class="text-muted"></small></h1>
+                    }
+                    else if (type == "all")
+                    {
+                        <h1 class="kudosTextTop"></h1>
+                    }
+                    else if (type == "Search")
+                    {
+                        <h1 class="kudosTextTop">Search Results <small class="text-muted"></small></h1>
+                    }
+                    @* Show a loading message before API call is complete *@
+                    @* Might add a timer so it displays a different message if the request takes too long *@
+                    @* Should also add failure case if the API call returns 404 *@
+                    @if (contentHolderList == null || isContentLoaded == false)
+                    {
+                        <p><em>@loadingMSG</em></p>
+                    }
+                    else if (type == null)
+                    {
+                        <div class="container-fluid bg-dark text-light">
+                            <div class="row">
+                                <div class="col-12 text-center">
+                                    <img src="@Logo" alt="Company Logo" height="165" width="272" class="mx-auto d-block img-fluid" />
+                                    <h1 class="mt-3">Welcome to my website</h1>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12 text-center">
+                                    <p>This is a personal site for projects. It's largely an excuse to show off, so I have embedded a few bits from other projects, like a Wiki structure for user content, a ChatBot etc.</p>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        var count = 0;
+                        var countAll = 0;
+                        var clearText = "";
+                        var username = @context.User.Identity!.Name;
+                        <table class="table rounded table-dark @(inline == true ? "border-bottom" : "table-borderless table-striped")">
+                            @* @(inline == true ? "" : "") *@
+                            <tbody>
+                                @* Pragmatically populate the table using my customer object array *@
+                                @foreach (var item in contentHolderList
+                               .OrderBy(x => x.page)
+                               .ThenBy(x => x.section)
+                               .ThenBy(x => x.subSection)
+                               .Select((contentHolder, index) => new { contentHolder, index }))
+                                {
+                                    @if (item.contentHolder != null)
+                                    {
+
+                                        @if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == contentHolderList[item.index].subSection && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        {
+                                            if (inline == true)
+                                            {
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td>
+                                                        <h3 class="kudosTextInline"><small class="text-muted"></small></h3>
+                                                        <div class="dotted-lines">
+                                                            @(new MarkupString(@contentHolderList[item.index].content!))
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            else
+                                            {
+                                                <tr>
+                                                    <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
+                                                </tr>
+                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
+                                                    <td>
+                                                        <button class="btn btn-outline-warning" disabled>Clear</button>
+                                                        <button class="btn btn-outline-danger" disabled>Delete</button>
+                                                        <button class="btn btn-outline-primary" disabled>Edit</button>
+                                                        <button class="btn btn-outline-primary" disabled>Save</button>
+                                                        <button class="btn btn-outline-primary" disabled>Cancel</button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            @* Increment global count *@
+                                            count++;
+                                        }
+                                        else
+                                        {
+                                            if (contentHolderList[item.index].page == null)
+                                            {
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
+                                            }
+                                            else if (contentHolderList[item.index].section == null)
+                                            {
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
+                                            }
+                                            else if (contentHolderList[item.index].subSection == null)
+                                            {
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
+                                            }
+                                            else if (contentHolderList[item.index].content == null)
+                                            {
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
+                                            }
+                                        }
+                                        @if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        {
+                                            if (inline == true)
+                                            {
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td>
+                                                        <h3 class="kudosTextInline">
+                                                            <small>
+                                                                <div class="text-muted">
+                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
+                                                                </div>
+                                                            </small>
+                                                        </h3>
+                                                        <div class="dotted-lines">
+                                                            @(new MarkupString(@contentHolderList[item.index].content!))
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            else
+                                            {
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td class="kudosText col-1">
+                                                        <h4>
+                                                            @if (contentHolderList[item.index].subSection != null && isContentLoaded == true)
+                                                            {
+                                                                <h3 class="kudosTextInline">
+                                                                    <small>
+                                                                        <div class="text-muted">
+                                                                            @(new MarkupString(@contentHolderList[item.index].subSection))
+                                                                        </div>
+                                                                    </small>
+                                                                </h3>
+                                                            }
+                                                        </h4>
+                                                    </td>
+                                                    <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
+                                                </tr>
+                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
+                                                <tr>
+                                                    <td>
+                                                        @*Spacing*@
+                                                    </td>
+                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
+                                                    <td>
+                                                        <button class="btn btn-outline-warning" disabled>Clear</button>
+                                                        <button class="btn btn-outline-danger" disabled>Delete</button>
+                                                        <button class="btn btn-outline-primary" disabled>Edit</button>
+                                                        <button class="btn btn-outline-primary" disabled>Save</button>
+                                                        <button class="btn btn-outline-primary" disabled>Cancel</button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            @* Increment global count *@
+                                            count++;
+                                        }
+                                        else if ((type == contentHolderList[item.index].page && sections == "all" || type == null)
+                                        && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        {
+                                            @if (type == null)
+                                            {
+                                                type = "Misc (autoselected as missing type)";
+                                            }
+                                            if (inline == true)
+                                            {
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td>
+                                                        <h3 class="kudosTextInline">
+                                                            @(new MarkupString(@contentHolderList[item.index].section))
+                                                            <small>
+                                                                <div class="text-muted">
+                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
+                                                                </div>
+                                                            </small>
+                                                        </h3>
+                                                        <div class="dotted-lines">
+                                                            @(new MarkupString(@contentHolderList[item.index].content!))
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            else
+                                            {
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td class="kudosText col-1">
+                                                        <h4>
+                                                            @(new MarkupString(contentHolderList[item.index].section))
+                                                            <br>                                                            
+                                                            <small>
+                                                                <div class="text-muted">
+                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
+                                                                </div>
+                                                            </small>
+                                                        </h4>
+                                                    </td>
+                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+                                                    <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
+                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
+                                                </tr>
+                                                @* Initiate localCount here so button onclick events use the count at create time, not when clicked *@
+                                                <tr>
+                                                    <td>
+                                                        @*Spacing*@
+                                                    </td>
+                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
+                                                    <td>
+                                                        <button class="btn btn-outline-warning" disabled>Clear</button>
+                                                        <button class="btn btn-outline-danger" disabled>Delete</button>
+                                                        <button class="btn btn-outline-primary" disabled>Edit</button>
+                                                        <button class="btn btn-outline-primary" disabled>Save</button>
+                                                        <button class="btn btn-outline-primary" disabled>Cancel</button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            @* Increment global count *@
+                                            count++;
+                                        }
+                                        else if (type == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        {
+                                            if (lastPage != contentHolderList[item.index].page)
+                                            {
+                                                <h1 class="kudosTextInline">@contentHolderList[item.index].page</h1>
+                                                lastPage = contentHolderList[item.index].page;
+                                            }
+                                            if (inline == true)
+                                            {
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td>
+                                                        <h3 class="kudosTextInline">
+                                                            @(new MarkupString(@contentHolderList[item.index].section))
+                                                            <small>
+                                                                <div class="text-muted">
+                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
+                                                                </div>
+                                                            </small>
+                                                        </h3>
+                                                        <div class="dotted-lines">
+                                                            @(new MarkupString(@contentHolderList[item.index].content!))
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            else
+                                            {
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <tr>
+                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                    <td class="kudosText col-1">
+                                                        <h4>
+                                                            @(new MarkupString(contentHolderList[item.index].section))
+                                                            <br>
+                                                            <small>
+                                                                <div class="text-muted">
+                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
+                                                                </div>
+                                                            </small>
+                                                        </h4>
+                                                    </td>
+                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+                                                    <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
+                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
+                                                </tr>
+                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
+                                                <tr>
+                                                    <td>
+                                                        @*Spacing*@
+                                                    </td>
+                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
+                                                    <td>
+                                                        <button class="btn btn-outline-warning" disabled>Clear</button>
+                                                        <button class="btn btn-outline-danger" disabled>Delete</button>
+                                                        <button class="btn btn-outline-primary" disabled>Edit</button>
+                                                        <button class="btn btn-outline-primary" disabled>Save</button>
+                                                        <button class="btn btn-outline-primary" disabled>Cancel</button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            @* Increment global count *@
+                                            count++;
+                                        }
+                                        else if (type == "Search" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        {
+                                            int hasMatch = 0;
+                                            if (contentHolderList[item.index].section!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].subSection!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].content!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                hasMatch++;
+                                                if (inline == true)
+                                                {
+                                                    var localCount = count;
+                                                    var localCountAll = countAll;
+                                                    <tr>
+                                                        @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                        <td>
+                                                            <h3 class="kudosTextInline">
+                                                                @(new MarkupString(@contentHolderList[item.index].section))
+                                                                <small>
+                                                                    <div class="text-muted">
+                                                                        @(new MarkupString(@contentHolderList[item.index].subSection))
+                                                                    </div>
+                                                                </small>
+                                                            </h3>
+                                                            <div class="dotted-lines">
+                                                                @(new MarkupString(@contentHolderList[item.index].content!))
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                                else
+                                                {
+                                                    var localCount = count;
+                                                    var localCountAll = countAll;
+                                                    <tr>
+                                                        @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+                                                        <td class="kudosText col-1">
+                                                            <h4>
+                                                                @(new MarkupString(contentHolderList[item.index].section))
+                                                                <br>
+                                                                <small>
+                                                                    <div class="text-muted">
+                                                                        @(new MarkupString(@contentHolderList[item.index].subSection))
+                                                                    </div>
+                                                                </small>
+                                                            </h4>
+                                                        </td>
+                                                        @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+                                                        <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
+                                                        @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
+                                                    </tr>
+                                                    @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
+                                                    <tr>
+                                                        @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
+                                                        <td>
+                                                            @*Spacing*@
+                                                        </td>
+                                                        <td>
+                                                            <button class="btn btn-outline-warning" disabled>Clear</button>
+                                                            <button class="btn btn-outline-danger" disabled>Delete</button>
+                                                            <button class="btn btn-outline-primary" disabled>Edit</button>
+                                                            <button class="btn btn-outline-primary" disabled>Save</button>
+                                                            <button class="btn btn-outline-primary" disabled>Cancel</button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                                @* Increment global count *@
+                                                count++;
+                                            }
+                                            @*
+                                            @if (hasMatch > 0)
+                                            {
+                                            <p>@hasMatch search results</p>
+                                            }
+                                            else
+                                            {
+                                            <p>No results found for: @searchTerm </p>
+                                            }
+                                            *@
+                                        }
+                                        else
+                                        {
+                                            if (contentHolderList[item.index].page == null)
+                                            {
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
+                                            }
+                                            else if (contentHolderList[item.index].section == null)
+                                            {
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
+                                            }
+                                            else if (contentHolderList[item.index].subSection == null)
+                                            {
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
+                                            }
+                                            else if (contentHolderList[item.index].content == null)
+                                            {
+                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Suppressing error?");
+                                    }
+                                    countAll++;
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* If user is not authorized, call RedirectHome 
         <p>Please Login to see this content....</p>
         @if (!context.User.Identity!.IsAuthenticated)
         {
             <button class="btn btn-outline-primary mt-2" @onclick="(() => RedirectHome())">Login</button>
         }
+        *@
     </NotAuthorized>
 </AuthorizeView>
 @code {
@@ -1328,7 +1779,12 @@
                 // Send the PUT request to the PHP proxy
                 var response = await client.PutAsync($"https://samdenton.tech/GithubPut-proxy.php?section={section}", contentAndMessage);
                 var responceHeaders = await response.Content.ReadAsStringAsync();
-
+                // Remove potential Byte Order Mark (BOM)
+                var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
+                if (responceHeaders.StartsWith(bom))
+                {
+                    responceHeaders = responceHeaders.Remove(0, bom.Length);
+                }
                 @* Get new sha value from PUT response headers *@
                 var gitContent = JsonConvert.DeserializeObject<Root>(responceHeaders);
                 shaDictionary[section] = gitContent!.content!.sha!;
@@ -1365,6 +1821,12 @@
             try
             {
                 var content = await response.Content.ReadAsStringAsync();
+                // Remove potential Byte Order Mark (BOM)
+                var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
+                if (content.StartsWith(bom))
+                {
+                    content = content.Remove(0, bom.Length);
+                }
                 var gitContent = JsonConvert.DeserializeObject<Content>(content);
                 var contentBytes = Convert.FromBase64String(gitContent!.content!);
                 var jsonContent = Encoding.UTF8.GetString(contentBytes);
@@ -1433,6 +1895,12 @@
             try
             {
                 var content = await response.Content.ReadAsStringAsync();
+                // Remove potential Byte Order Mark (BOM)
+                var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
+                if (content.StartsWith(bom))
+                {
+                    content = content.Remove(0, bom.Length);
+                }
                 var gitContents = JsonConvert.DeserializeObject<List<Content>>(content);
                 List<contentHolder> localContentHolderList = new List<contentHolder>();
 
@@ -1445,6 +1913,11 @@
                             // Send the GET request to the GitHub API to get the content of the individual file
                             var fileResponse = await client.GetAsync($"https://samdenton.tech/GithubGetFile-proxy.php?url={WebUtility.UrlEncode(gitContent.url)}");
                             var fileContent = await fileResponse.Content.ReadAsStringAsync();
+                            // Remove potential Byte Order Mark (BOM)
+                            if (fileContent.StartsWith(bom))
+                            {
+                                fileContent = fileContent.Remove(0, bom.Length);
+                            }
                             var fileGitContent = JsonConvert.DeserializeObject<Content>(fileContent);
 
                             var contentBytes = Convert.FromBase64String(fileGitContent.content);
@@ -1470,6 +1943,11 @@
                             // Send the GET request to the GitHub API to get the content of the individual file
                             var fileResponse = await client.GetAsync($"https://samdenton.tech/GithubGetFile-proxy.php?url={WebUtility.UrlEncode(gitContent.url)}");
                             var fileContent = await fileResponse.Content.ReadAsStringAsync();
+                            // Remove potential Byte Order Mark (BOM)
+                            if (fileContent.StartsWith(bom))
+                            {
+                                fileContent = fileContent.Remove(0, bom.Length);
+                            }
                             var fileGitContent = JsonConvert.DeserializeObject<Content>(fileContent);
 
                             var contentBytes = Convert.FromBase64String(fileGitContent.content);

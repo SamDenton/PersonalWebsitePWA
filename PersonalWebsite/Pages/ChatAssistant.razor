@@ -2,11 +2,20 @@
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @using System.Net.Http.Json
-<AuthorizeView>
-    <Authorized>
-        <div class="container">
-            <section class="side-bar">
+
+<div class="container">
+    <section class="side-bar">
+        <AuthorizeView>
+            <Authorized>
                 <button @onclick="SaveConversationAndStartNew" class="newChatBtn" disabled="@loading">New chat</button>
+            </Authorized>
+            <NotAuthorized>
+                <button class="newChatBtn" disabled>New Chat (login first)</button>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        <AuthorizeView>
+            <Authorized>
                 <div class="history">
                     @foreach (var item in history)
                     {
@@ -30,10 +39,19 @@
                         }
                     }
                 </div>
-                <nav>
-                    <p>Chat History (Currently Deleted on refresh)</p>
-                </nav>
-            </section>
+            </Authorized>
+            <NotAuthorized>
+                <div class="history">
+                    <p>Login to see conversation history</p>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+        <nav>
+            <p>Chat History (Currently Deleted on refresh)</p>
+        </nav>
+    </section>
+    <AuthorizeView>
+        <Authorized>
             <section class="main">
                 <h1>GPTSam</h1>
                 <div id="conversation">
@@ -77,9 +95,41 @@
                 </div>
                 <p class="info">ChatGPT Mar 4 Version</p>
             </section>
-        </div>
-    </Authorized>
-</AuthorizeView>
+        </Authorized>
+        <NotAuthorized>
+            <section class="main">
+                <h1>GPTSam</h1>
+                <div id="conversation">
+                    @foreach (var message in exampleConversation)
+                    {
+                        if (message.role == "user")
+                        {
+                            <div class="message-container user">
+                                <div class="text-bubble">@message.content</div>
+                                <div class="name">@context.User.Identity?.Name</div>
+                            </div>
+                        }
+                        else if (message.role == "assistant")
+                        {
+                            <div class="message-container assistant">
+                                <div class="text-bubble">@message.content</div>
+                                <div class="name">GPTSam</div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="bottom-section">
+                    <div class="input-container">
+                        <input class="inputText" disabled placeholder="Type a message (After loggin in!)" />
+                        <div id="submit" class="oi oi-chevron-right" disabled></div>
+                    </div>
+                </div>
+                <p class="info">ChatGPT Mar 4 Version</p>
+            </section>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
 
 @code {
 
@@ -101,6 +151,8 @@
     private string systemMessageChat = "You are a helpful, polite chatbot assistant built by Kudos Software to assist our customers with issues before they are raised to the support team.  You will only answer questions related to EPoS systems, tills, printers and gift aid.  If other questions are asked, you will reply: Sorry, that query is outside my scope, please contact support.";
     private string systemMessageSearch = "You are a search assistant that takes a query written in natural English and summarizing it in a quick search phrase, between 1 and 5 words.";
     private string systemMessageSummary = "You are a summary assistant that takes a conversation in natural English and summarizes it into a conversation title, no more than 6 words.";
+    private string systemMessageExample = "You are not a real bot, you are an example";
+    private List<Message> exampleConversation = new List<Message>();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -113,6 +165,11 @@
             currentConversation.Add(new Message { role = "system", content = systemMessageChat });
             preConversationText.Add(new Message { role = "system", content = systemMessageSearch });
             summaryConversationText.Add(new Message { role = "system", content = systemMessageSummary });
+            exampleConversation.Add(new Message { role = "system", content = systemMessageExample });
+            exampleConversation.Add(new Message { role = "user", content = "Hi GPTSam, I'm having some issues using your site, like the buttons on this page are disabled, why is that?" });
+            exampleConversation.Add(new Message { role = "assistant", content = "Hi there!  I'm sorry to hear that.  It sounds like you are not currently logged in with an authenticated user.  Please login or contact Sam to have your privilages escelated" });
+            exampleConversation.Add(new Message { role = "user", content = "Ok, so some parts of the website require authentication?" });
+            exampleConversation.Add(new Message { role = "assistant", content = "Yes, some parts of the site, and some functions like editing content and interacting with the chatbot currently require authentication, however, a guest tier is being added currently so authenticated but not privilaged users have some level of access, while unauthenticated users get minimal, read only access" });
         }
     }
 

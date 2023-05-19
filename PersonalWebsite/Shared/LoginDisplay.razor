@@ -6,10 +6,10 @@
 
 <AuthorizeView>
     <Authorized>
-        <button class="nav-link btn btn-link" @onclick="BeginLogout">Log out</button>
+        <button class="nav-link btn btn-link loginBTN" @onclick="BeginLogout">Log out</button>
     </Authorized>
     <NotAuthorized>
-        <a href="authentication/login">Log in</a>
+        <a class="loginBTN" href="authentication/login">Log in</a>
     </NotAuthorized>
 </AuthorizeView>
 

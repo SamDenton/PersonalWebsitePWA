@@ -1,0 +1,3 @@
+﻿echo Moving files from wwwroot to public_html...
+move /y public_html\wwwroot\*.* public_html\
+echo Done.
