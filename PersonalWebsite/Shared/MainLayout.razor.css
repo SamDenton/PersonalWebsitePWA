@@ -46,6 +46,14 @@ main {
     bottom: 10px;
 }
 
+.homeImg {
+    margin-top: -4px;
+    position: relative;
+    display: inline-block !important;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
 .top-row {
     background-image: linear-gradient(90deg, #0d385b 10%, #212529 90%);
     /*border-bottom: 1px solid #0d385b;*/
@@ -222,7 +230,12 @@ main {
     position: fixed;
     top: 10px;
     left: 80px;
+    color: #566674;
     z-index: 999;
+}
+
+.topLeftTextMuted {
+    color: #56667475;
 }
 
 input[type="checkbox"] {

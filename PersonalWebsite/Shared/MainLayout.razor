@@ -17,9 +17,9 @@
                     <span class="oi oi-menu form-check-icon icon"></span>
                 </label>
             </div>
-            <div id="topLeftText">
+            <div id="topLeftText" @onclick="GoHome">
                 <h4>
-                    <img src="@icon" alt="Icon" height="30" width="30" class="mx-2 img-fluid" />Sam's <small class="text-muted @(isChecked == false ? "internalWiki" : "")">Personal Website</small>
+                    <img src="@icon" alt="Icon" height="30" width="30" class="mx-2 img-fluid homeImg" />Sam's <small class="topLeftTextMuted @(isChecked == false ? "internalWiki" : "")">Personal Website</small>
                 </h4>
             </div>
         </div>
@@ -55,8 +55,8 @@
 
 @code {
     private bool isChecked { get; set; }
-    private string icon = "tempLogo.png";
-    private string versionNo = "V1.0.1";
+    private string icon = "Logo.png";
+    private string versionNo = "V1.0.2";
 
     protected override void OnInitialized()
     {
@@ -79,5 +79,9 @@
         {
             NavigationManager.NavigateTo("/");
         }
+    }
+    private void GoHome()
+    {
+        NavigationManager.NavigateTo("/");
     }
 }

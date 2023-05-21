@@ -1,0 +1,9 @@
+﻿.pdfViewer {
+    width: 100%;
+    height: calc(100vh - 150px);
+    box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.9);
+    border-radius: 10px;
+}
+.title {
+    color: #1c5380;
+}

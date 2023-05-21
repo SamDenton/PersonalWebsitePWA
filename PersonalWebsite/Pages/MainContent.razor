@@ -73,13 +73,13 @@
                         <div class="container-fluid bg-dark text-light">
                             <div class="row">
                                 <div class="col-12 text-center">
-                                    <img src="@Logo" alt="Company Logo" height="165" width="272" class="mx-auto d-block img-fluid" />
+                                    <img src="@Logo" alt="Company Logo" height="165" width="272" class="mx-auto d-block img-fluid homeImg" />
                                     <h1 class="mt-3">Welcome to my website</h1>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-12 text-center">
-                                    <p>This is a personal site for projects. It's largely an excuse to show off, so I have embedded a few bits from other projects, like a Wiki structure for user content, a ChatBot etc.</p>
+                                    <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.  Over time I will populate it with different projects i'm working on.  The site is structured as a Wiki, for no other reason than I wanted an excuse to improve my API skills, so most of the content on this site is called from a GithubRepo!  While logged in, most of the content is also editable.  It's also a Progressive Web App(PWA), so feel free to instal locally!  I have been working on a ChatBot which can take the content from this site as context and answer questions about it!</p>
                                 </div>
                             </div>
                         </div>
@@ -833,22 +833,20 @@
                     @* Show a loading message before API call is complete *@
                     @* Might add a timer so it displays a different message if the request takes too long *@
                     @* Should also add failure case if the API call returns 404 *@
-                    @if (contentHolderList == null || isContentLoaded == false)
-                    {
-                        <p><em>@loadingMSG</em></p>
-                    }
-                    else if (type == null)
+                    @if (contentHolderList == null || isContentLoaded == false || type == null)
                     {
                         <div class="container-fluid bg-dark text-light">
                             <div class="row">
                                 <div class="col-12 text-center">
-                                    <img src="@Logo" alt="Company Logo" height="165" width="272" class="mx-auto d-block img-fluid" />
+                                    <div class="homeImg">
+                                        <img src="@Logo" alt="Company Logo" height="165" width="272" class="mx-auto d-block img-fluid" />
+                                    </div>
                                     <h1 class="mt-3">Welcome to my website</h1>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-12 text-center">
-                                    <p>This is a personal site for projects. It's largely an excuse to show off, so I have embedded a few bits from other projects, like a Wiki structure for user content, a ChatBot etc.</p>
+                                    <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.  Over time I will populate it with different projects i'm working on.  The site uses Microsoft Authentication, there is currently no guest tier so you will need to ask me to add you to my tenant.  The site is structured as a Wiki, for no other reason than I wanted an excuse to improve my API skills, so most of the content on this site is called from a GithubRepo!  If you login, most of the content is also editable.  It's also a Progressive Web App(PWA), so feel free to instal locally!  I have been working on a ChatBot which can take the content from this site as context and answer questions about it, however this requires a login as it costs me money!</p>
                                 </div>
                             </div>
                         </div>
@@ -1252,7 +1250,7 @@
     public List<contentHolder> searchResults = new List<contentHolder>();
     public string? searchTerm { get; set; }
     //private string[] types = {"Hardware", "Software", "Misc"};
-    private string Logo = "tempLogo.png";
+    private string Logo = "Logo.png";
     public string loadingMSG = "Loading...";
     //public contentHolder[] ContentHolderListState;
     @* Declare var for current user selection *@

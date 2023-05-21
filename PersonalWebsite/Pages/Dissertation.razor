@@ -1,0 +1,31 @@
+﻿@page "/Dissertation/{file}"
+
+<h3 class="title">@title</h3>
+
+<object class="pdfViewer" data="@filePath" type="application/pdf">
+    <embed src="@filePath">
+    This browser does not support PDFs. Please download the PDF to view it:
+    <a href="@filePath">Download PDF</a>.
+</object>
+
+
+@code {
+    private string? filePath;
+    private string? title;
+    [Parameter]
+    public string? file { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (file == "Dissertation")
+        {
+            filePath = "Denton,Sam,S4908415,Project_Report.pdf";
+            title = "Dissertation: A comparison of neural network-based network IDS techniques for achieving interpretability";
+        }
+        else if (file == "Artifact")
+        {
+            filePath = "Denton,Sam,S4908415,Artefact.pdf";
+            title = "Artifact: A comparison of neural network-based network IDS techniques for achieving interpretability";
+        }
+    }
+}

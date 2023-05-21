@@ -88,6 +88,40 @@
     margin-top: -74px;
 }
 
+.homeImg {
+    position: relative;
+    display: inline-block !important;
+    border-radius: 0px;
+}
+
+    .homeImg::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: linear-gradient(45deg, rgba(33,37,41,1) 0%, rgba(33,37,41,0) 30%), 
+                    linear-gradient(135deg, rgba(33,37,41,1) 0%, rgba(33,37,41,0) 30%), 
+                    linear-gradient(225deg, rgba(33,37,41,1) 0%, rgba(33,37,41,0) 30%), 
+                    linear-gradient(315deg, rgba(33,37,41,1) 0%, rgba(33,37,41,0) 30%);
+        pointer-events: none;
+    }
+
+    .homeImg::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: linear-gradient(0deg, rgba(33,37,41,1) 0%, rgba(33,37,41,0) 45%), 
+            linear-gradient(90deg, rgba(33,37,41,1) 0%, rgba(33,37,41,0) 45%), 
+            linear-gradient(180deg, rgba(33,37,41,1) 0%, rgba(33,37,41,0) 45%), 
+            linear-gradient(270deg, rgba(33,37,41,1) 0%, rgba(33,37,41,0) 45%);
+        pointer-events: none;
+    }
+
 input {
     border-color: #6c757d;
 }
