@@ -62,7 +62,7 @@
                                     {
                                         <div class="item-fader nav-item px-1 fade-in" id="fader">
                                             @*@(showSubSections[localCount] == true ? "" : "fade-out")*@
-                                            <NavLink class="nav-link text-muted" href=@($"/{type}/{sectionName}/{contentHolder.subSection}")>
+                                            <NavLink class="nav-link text-muted lastLink" href=@($"/{type}/{sectionName}/{contentHolder.subSection}")>
                                                 &nbsp<h5 class="oi oi-minus text-muted text-truncate" aria-hidden="true" style="width:100%;"> &nbsp @contentHolder.subSection </h5>
                                             </NavLink>
                                         </div>
@@ -108,6 +108,11 @@
                         <h2 class="oi oi-person text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Artifact!</h2>
                     </NavLink>
                 </div>
+                <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                    <NavLink class="p-1 nav-link text-muted" href="/Dissertation/CV" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                        <h2 class="oi oi-person text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp My CV!</h2>
+                    </NavLink>
+                </div>
                 <div class="item-fader dropdown-divider"></div>
                 <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                     <NavLink class="p-1 nav-link text-muted" href="/chat" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
@@ -141,6 +146,14 @@
         {
             this.firstRender = false;
             await JSRuntime.InvokeVoidAsync("initScrollingMenu", "#nav-container", "#scroll-container", "#nav");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (contentHolderList != null)
+        {
+            await JSRuntime.InvokeVoidAsync("initNavbarMobile");
         }
     }
 

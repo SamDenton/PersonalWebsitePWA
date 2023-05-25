@@ -45,6 +45,28 @@
     });
 }
 
+function initNavbarMobile() {
+    var navbar = document.querySelector('.sidebarController');
+    var links = document.querySelectorAll('.lastLink');
+    var icon = document.querySelector('.icon');
+    links.forEach(function (link) {
+        // Listen for clicks on the link
+        link.addEventListener('click', function () {
+            if (navbar.classList.contains('navShower') && window.innerWidth < 690) {
+                navbar.classList.remove('navShower');
+                navbar.classList.add('navHider');
+                icon.classList.remove('rotateLeft');
+                icon.classList.add('rotateRight');
+            } else {
+                navbar.classList.remove('navHider');
+                navbar.classList.add('navShower');
+                icon.classList.remove('rotateRight');
+                icon.classList.add('rotateLeft');
+            }
+        });
+    });
+}
+
 function fadeOut() {
     var elements = document.querySelectorAll('.fade-in');
     for (var i = 0; i < elements.length; i++) {
@@ -125,6 +147,7 @@ function onMouseMove(event) {
 }
 
 function animateMouseMove(event) {
+    if (isTouchActive) { return };
     if (isMouseOverNav) {
         window.requestAnimationFrame(() => onMouseMove(event));
     } else {
@@ -142,6 +165,7 @@ function updatePosition(targetTop) {
 }
 
 function applyMomentum(targetTop, momentum) {
+    if (isTouchActive) { return };
     if (Math.abs(momentum) < 0.001) {
         return targetTop;
     }
@@ -196,14 +220,13 @@ function onTouchMove(event) {
         event.preventDefault(); // Prevent scrolling in the background
     }
 
-    const speedMultiplier = 2; // Adjust this value to control the scrolling speed
+    const speedMultiplier = 10; // Adjust this value to control the scrolling speed
     const newTop = currentTop + deltaY * speedMultiplier;
     updatePosition(newTop);
 }
 
 function onTouchEnd(event) {
     isTouchActive = false;
-    onMouseLeave();
 }
 
 

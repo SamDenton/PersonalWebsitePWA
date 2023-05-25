@@ -24,7 +24,8 @@
 	<ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
 </ItemGroup>
 
-<Target Name="PostBuild" AfterTargets="PostBuildEvent">
-  <Exec Command="cmd /c postpublish.bat" />
-</Target>
+<!--<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+  <Exec Command="postpublish.bat $(PublishDir)" />
+</Target>-->
+
 </Project>
