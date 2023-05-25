@@ -19,7 +19,7 @@
             </div>
             <div id="topLeftText" @onclick="GoHome">
                 <h4>
-                    <img src="@icon" alt="Icon" height="30" width="30" class="mx-2 img-fluid homeImg" />Sam's <small class="topLeftTextMuted @(isChecked == false ? "internalWiki" : "")">Personal Website</small>
+                    <img src="@icon" alt="Icon" height="30" width="30" class="mx-2 img-fluid homeImg" />Sam's <small class="topLeftTextMuted @(isChecked == false ? "internalWiki" : "")">Personal WebApp</small>
                 </h4>
             </div>
         </div>
@@ -56,7 +56,7 @@
 @code {
     private bool isChecked { get; set; }
     private string icon = "Logo.png";
-    private string versionNo = "V1.0.2";
+    private string versionNo = "V1.0.3";
 
     protected override void OnInitialized()
     {
