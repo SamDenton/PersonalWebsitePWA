@@ -20,7 +20,7 @@
                 </div>
                 <div class="col-5">
                     <div class="input-group mb-3 text-light" style="pointer-events: auto;">
-                        <input class="form-control bg-dark text-light" placeholder="Search" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChanged">
+                        <input class="form-control bg-dark text-light" placeholder="Search Wiki" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChanged">
                     </div>
                 </div>
                 <div class="col-4">
@@ -77,6 +77,12 @@
                                     <h1 class="mt-3">Welcome to my Web App</h1>
                                 </div>
                             </div>
+                            @if (contentHolderList == null)
+                            {
+                                <div class="loader">
+                                    <div class="loaderBar"></div>
+                                </div>
+                            }
                             <div class="row">
                                 <div class="col-12 text-center">
                                     <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.  Over time I will populate it with different projects i'm working on. You will find a lot of placeholder text at the moment while I develop the back end. The site is structured as a Wiki, for no other reason than I wanted an excuse to improve my API skills, so most of the content on this site is called from a GithubRepo!  While logged in, most of the content is also editable.  It's also a Progressive Web App(PWA), so feel free to instal locally!  I have been working on a ChatBot which can take the content from this site as context and answer questions about it!</p>
@@ -793,7 +799,7 @@
                 </div>
                 <div class="col-5">
                     <div class="input-group mb-3 text-light" style="pointer-events: auto;">
-                        <input class="form-control bg-dark text-light" placeholder="Search" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChanged">
+                        <input class="form-control bg-dark text-light" placeholder="Search Wiki" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChanged">
                     </div>
                 </div>
                 <div class="col-4">
@@ -844,13 +850,16 @@
                                     <h1 class="mt-3">Welcome to my Web App</h1>
                                 </div>
                             </div>
+                            @if (contentHolderList == null)
+                            {
+                                <div class="loader">
+                                    <div class="loaderBar"></div>
+                                </div>
+                            }
                             <div class="row">
                                 <div class="col-12 text-center">
                                     <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.  Over time I will populate it with different projects i'm working on.  You will find a lot of placeholder text at the moment while I develop the back end.  The site uses Microsoft Authentication, there is currently no guest tier so you will need to ask me to add you to my tenant.  The site is structured as a Wiki, for no other reason than I wanted an excuse to improve my API skills, so most of the content on this site is called from a GithubRepo!  If you login, most of the content is also editable.  It's also a Progressive Web App(PWA), so feel free to instal locally!  I have been working on a ChatBot which can take the content from this site as context and answer questions about it, however this requires a login as it costs me money!  </p>
-                                    @if (contentHolderList == null)
-                                    {
-                                        <p>Content is loading in the background, please wait...</p>
-                                    }
+
                                 </div>
                             </div>
                         </div>
