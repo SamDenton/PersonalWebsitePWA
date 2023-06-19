@@ -64,11 +64,7 @@
                     @* Show a loading message before API call is complete *@
                     @* Might add a timer so it displays a different message if the request takes too long *@
                     @* Should also add failure case if the API call returns 404 *@
-                    @if (contentHolderList == null || isContentLoaded == false)
-                    {
-                        <p><em>@loadingMSG</em></p>
-                    }
-                    else if (type == null)
+                    @if (contentHolderList == null || isContentLoaded == false || type == null)
                     {
                         <div class="container-fluid bg-dark text-light">
                             <div class="row">
@@ -1773,7 +1769,7 @@
                 var sha = shaDictionary[section];
 
                 Console.WriteLine("Saving2");
-
+                Console.WriteLine("sha before: " + sha);
                 // Define the request body, encoding the content string as base64
                 Console.WriteLine(jsonString);
                 var body = new
@@ -1789,17 +1785,23 @@
 
                 // Send the PUT request to the PHP proxy
                 var response = await client.PutAsync($"https://samdenton.tech/GithubPut-proxy.php?section={section}", contentAndMessage);
-                var responceHeaders = await response.Content.ReadAsStringAsync();
-                // Remove potential Byte Order Mark (BOM)
-                var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
-                if (responceHeaders.StartsWith(bom))
+                var responseBytes = await response.Content.ReadAsByteArrayAsync();
+
+                // Detect and remove potential Byte Order Mark (BOM)
+                var bom = Encoding.UTF8.GetPreamble();
+                if (responseBytes.Take(bom.Length).SequenceEqual(bom))
                 {
-                    responceHeaders = responceHeaders.Remove(0, bom.Length);
+                    responseBytes = responseBytes.Skip(bom.Length).ToArray();
                 }
+
+                // Convert bytes to string
+                var responceHeaders = Encoding.UTF8.GetString(responseBytes);
                 @* Get new sha value from PUT response headers *@
-                var gitContent = JsonConvert.DeserializeObject<Root>(responceHeaders);
-                shaDictionary[section] = gitContent!.content!.sha!;
-                Console.WriteLine("newnewSHA: " + newSHA);
+                Console.WriteLine("response before parsing too root: " + responceHeaders);
+                var gitContent = JsonConvert.DeserializeObject<PUTContentParser>(responceHeaders);
+                Console.WriteLine("response before parsing to content: " + gitContent);
+                shaDictionary[section] = gitContent.content.sha;
+                Console.WriteLine("sha after: " + shaDictionary[section]);
                 @* Ensure the request was successful *@
                 response.EnsureSuccessStatusCode();
                 if (!response.IsSuccessStatusCode)
@@ -1838,7 +1840,7 @@
                 {
                     content = content.Remove(0, bom.Length);
                 }
-                var gitContent = JsonConvert.DeserializeObject<Content>(content);
+                var gitContent = JsonConvert.DeserializeObject<ContentParser>(content);
                 var contentBytes = Convert.FromBase64String(gitContent!.content!);
                 var jsonContent = Encoding.UTF8.GetString(contentBytes);
                 var array = JsonConvert.DeserializeObject<contentHolder[]>(jsonContent);
@@ -1912,7 +1914,7 @@
                 {
                     content = content.Remove(0, bom.Length);
                 }
-                var gitContents = JsonConvert.DeserializeObject<List<Content>>(content);
+                var gitContents = JsonConvert.DeserializeObject<List<ContentParser>>(content);
                 List<contentHolder> localContentHolderList = new List<contentHolder>();
 
                 if (initiating)
@@ -1929,7 +1931,7 @@
                             {
                                 fileContent = fileContent.Remove(0, bom.Length);
                             }
-                            var fileGitContent = JsonConvert.DeserializeObject<Content>(fileContent);
+                            var fileGitContent = JsonConvert.DeserializeObject<ContentParser>(fileContent);
 
                             var contentBytes = Convert.FromBase64String(fileGitContent.content);
                             var jsonContent = Encoding.UTF8.GetString(contentBytes);
@@ -1959,7 +1961,7 @@
                             {
                                 fileContent = fileContent.Remove(0, bom.Length);
                             }
-                            var fileGitContent = JsonConvert.DeserializeObject<Content>(fileContent);
+                            var fileGitContent = JsonConvert.DeserializeObject<ContentParser>(fileContent);
 
                             var contentBytes = Convert.FromBase64String(fileGitContent.content);
                             var jsonContent = Encoding.UTF8.GetString(contentBytes);
@@ -2058,7 +2060,7 @@
         public string? content { get; set; }
     }
     @* Class for creating an object from GET response. content here will still be JSON string, so needs de-serializing further using previous class *@
-    public class Content
+    public class ContentParser
     {
         public string? content { get; set; }
         public string? encoding { get; set; }
@@ -2069,17 +2071,22 @@
         public string? url { get; set; }
     }
     @* Class structure to get sha from PUT response headers *@
-    public class Root
+    public class PUTContentParser
     {
-        public PutResponse? content { get; set; }
+        public Content content { get; set; }
+        public Commit commit { get; set; }
     }
-    public class PutResponse
+
+    public class Content
     {
-        public string? sha { get; set; }
-        public string? content { get; set; }
-        public string? commit { get; set; }
-        public string? url { get; set; }
+        public string sha { get; set; }
     }
+
+    public class Commit
+    {
+        public string sha { get; set; }
+    }
+
     @* Define properties for TinyMCE WYSIWYG editor *@
     private Dictionary<string, object> editorConf = new Dictionary<string, object>  {
         {"menubar", "edit insert format table tools help"},

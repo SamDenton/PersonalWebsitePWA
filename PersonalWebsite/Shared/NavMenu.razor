@@ -192,7 +192,7 @@
                 {
                     content = content.Remove(0, bom.Length);
                 }
-                var gitContents = JsonConvert.DeserializeObject<List<Content>>(content);
+                var gitContents = JsonConvert.DeserializeObject<List<ContentParser>>(content);
 
                 List<contentHolder> localContentHolderList = new List<contentHolder>();
 
@@ -208,7 +208,7 @@
                         {
                             fileContent = fileContent.Remove(0, bom.Length);
                         }
-                        var fileGitContent = JsonConvert.DeserializeObject<Content>(fileContent);
+                        var fileGitContent = JsonConvert.DeserializeObject<ContentParser>(fileContent);
 
                         var contentBytes = Convert.FromBase64String(fileGitContent.content);
                         var jsonContent = Encoding.UTF8.GetString(contentBytes);
