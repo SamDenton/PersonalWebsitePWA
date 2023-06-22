@@ -1,0 +1,157 @@
+﻿@inject contentHolder contentHolder
+@inject MyStateContainer myStateContainer
+
+@if (contentHolderList != null)
+{
+	@if (type == "all" && lastPage != contentHolderList[indexParsed].page)
+	{
+		<h1 class="kudosTextInline">@contentHolderList[indexParsed].page</h1>
+		lastPage = contentHolderList[indexParsed].page;
+	}
+	@if (inline == true)
+	{
+		<tr>
+			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+			<td>
+				@if (type == "all" || (!matchTypeSections && matchType))
+				{
+					<h3 class="kudosTextInline">
+						@(new MarkupString(@contentHolderList[indexParsed].section))
+						<small>
+							<div class="text-muted">
+								@(new MarkupString(@contentHolderList[indexParsed].subSection))
+							</div>
+						</small>
+					</h3>
+				}
+				else if (!matchTypeSectionsSubSections && matchTypeSections)
+				{
+					<h3 class="kudosTextInline">
+						@(new MarkupString(@contentHolderList[indexParsed].section))
+						<small>
+							<div class="text-muted">
+								@(new MarkupString(@contentHolderList[indexParsed].subSection))
+							</div>
+						</small>
+					</h3>
+				}
+				else
+				{
+					<h3 class="kudosTextInline">
+						<small class="text-muted">
+
+						</small>
+					</h3>
+				}
+				<div class="dotted-lines">
+					@(new MarkupString(@contentHolderList[indexParsed].content!))
+				</div>
+			</td>
+		</tr>
+	}
+	else
+	{
+		<tr>
+			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+			@if (type == "all")
+			{
+				<td class="kudosText col-1">
+					<h4>
+						@(new MarkupString(contentHolderList[indexParsed].section))
+						<br>
+						<small>
+							<div class="text-muted">
+								@(new MarkupString(@contentHolderList[indexParsed].subSection))
+							</div>
+						</small>
+					</h4>
+				</td>
+			}
+			else if (!matchTypeSections && matchType)
+			{
+				<td class="kudosText col-1">
+					<h4>
+						@(new MarkupString(contentHolderList[indexParsed].section))
+						<br>
+						<small>
+							<div class="text-muted">
+								@(new MarkupString(@contentHolderList[indexParsed].subSection))
+							</div>
+						</small>
+					</h4>
+				</td>
+			}
+			else if (!matchTypeSectionsSubSections && matchTypeSections)
+			{
+				<td class="kudosText col-1">
+					<h4>
+						@if (contentHolderList[indexParsed].subSection != null)
+						{
+							<h3 class="kudosTextInline">
+								<small>
+									<div class="text-muted">
+										@(new MarkupString(@contentHolderList[indexParsed].subSection))
+									</div>
+								</small>
+							</h3>
+						}
+					</h4>
+				</td>
+			}
+			else if (matchTypeSectionsSubSections)
+			{
+
+			}
+
+			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+			<td>@(new MarkupString(@contentHolderList[indexParsed].content!))</td>
+		</tr>
+		<tr>
+			@if (!matchTypeSectionsSubSections)
+			{
+				<td>
+					@*Spacing*@
+				</td>
+			}
+			<td>
+				<button class="btn btn-outline-warning" disabled>Clear</button>
+				<button class="btn btn-outline-danger" disabled>Delete</button>
+				<button class="btn btn-outline-primary" disabled>Edit</button>
+				<button class="btn btn-outline-primary" disabled>Save</button>
+				<button class="btn btn-outline-primary" disabled>Cancel</button>
+			</td>
+		</tr>
+	}
+}
+else
+{
+	<p>content holder list empty in child</p>
+}
+
+
+
+@code {
+	[Parameter] public contentHolder[] contentHolderList { get; set; }
+	[Parameter] public bool? inline { get; set; }
+	[Parameter] public bool matchTypeSectionsSubSections { get; set; }
+	[Parameter] public bool matchTypeSections { get; set; }
+	[Parameter] public bool matchType { get; set; }
+	[Parameter] public string type { get; set; }
+	[Parameter] public string sections { get; set; }
+	[Parameter] public string subSections { get; set; }
+	[Parameter] public int count { get; set; }
+	[Parameter] public int localCount { get; set; }
+	[Parameter] public int localCountAll { get; set; }
+	[Parameter] public int indexParsed { get; set; }
+
+	private string? lastPage;
+
+	protected override async Task OnInitializedAsync()
+	{
+		myStateContainer.OnStateChange += async () => await RefreshMe();
+	}
+	private async Task RefreshMe()
+	{
+		StateHasChanged();
+	}
+}

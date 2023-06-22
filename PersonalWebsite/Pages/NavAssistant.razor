@@ -1,0 +1,101 @@
+﻿@page "/navBot"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject contentHolder contentHolder
+@inject MyStateContainer myStateContainer
+@using System.Net.Http.Json
+
+<h3>AI Navigation Assistant</h3>
+<p>This tool is designed to assist in searching this website for specific content, and summarizing it where practical.</p>
+
+<div class="UserInput">
+    <p>What do you want to search for?</p>
+    <input @bind="userRequest" />
+</div>
+<div class="BotOutput">
+    <p>Output:</p>
+    <div class="OutputBox">
+        <p>SELECT @producedSQL</p>
+    </div>
+</div>
+<div class="loaderContiner">
+    @if (loading)
+    {
+        <div class="loader">
+            <div class="loaderBar"></div>
+        </div>
+    }
+</div>
+<button class="btn btn-outline-primary generateBTN" @onclick="(() => GenerateSQL())" disabled="@loading">Generate!</button>
+
+@code {
+    private string API_KEY;
+    private string userRequest = "Tell me about Sam's 3d printing projects";
+    private string userRequestPrePrompt = "### Postgres SQL tables, with their properties:\n#\n# Employee(id, name, department_id)\n# Department(id, name, address)\n# Salary_Payments(id, employee_id, amount, date)\n#\n###A query to";
+    private string userRequestPostPrompt = "\nSELECT";
+    private bool loading = false;
+    private string producedSQL = "This will be replaced by relevant SQL";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var getFromTokens = await Http.GetAsync("ChatToken.txt");
+        API_KEY = await getFromTokens.Content.ReadAsStringAsync();
+    }
+
+    private async Task GenerateSQL()
+    {
+        Console.WriteLine("called GetGraphData");
+        if (loading)
+        {
+            return;
+        }
+        try
+        {
+            loading = true;
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/completions");
+
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", API_KEY);
+
+            var requestBody = new
+            {
+                model = "text-davinci-003",
+                prompt = userRequestPrePrompt + " " + userRequest + " " + userRequestPostPrompt,
+                max_tokens = 1000,
+                temperature = 1
+            };
+
+            StateHasChanged();
+            request.Content = JsonContent.Create(requestBody);
+            request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+            var response = await Http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            var dataOut = await response.Content.ReadFromJsonAsync<OpenAIResponse>();
+
+            var outputText = dataOut.choices[0].text;
+            producedSQL = outputText;
+
+            Console.WriteLine(outputText);
+            loading = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine("OpenAI API unavailable or out of credits");
+            loading = false;
+        }
+    }
+
+    public class OpenAIResponse
+    {
+        public Choice[] choices { get; set; }
+    }
+
+    public class Choice
+    {
+        public string text { get; set; }
+    }
+}

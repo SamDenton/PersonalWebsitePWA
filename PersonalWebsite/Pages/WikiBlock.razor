@@ -1,0 +1,320 @@
+﻿@inject contentHolder contentHolder
+@inject MyStateContainer myStateContainer
+
+	@if (type == "all" && lastPage != contentHolderList[indexParsed].page)
+	{
+		<h1 class="kudosTextInline">@contentHolderList[indexParsed].page</h1>
+		lastPage = contentHolderList[indexParsed].page;
+	}
+	@if (inline == true)
+	{
+		<tr>
+			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+			<td>
+				@if (type == "all" || (!matchTypeSections && matchType))
+				{
+					<h3 class="kudosTextInline" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+						<Editor Id="@($"{count}-1")"
+						Inline=true
+						CloudChannel="5"
+						Disable=false
+						Conf="@editorConfHeaders"
+						ApiKey="@TinyAPIKey"
+						ClassName="counterEditor"
+						Value="@contentHolderList[indexParsed].section"
+						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].section = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })"		/>
+						<small>
+							<div class="text-muted">
+								<Editor Id="@($"{count}-2")"
+								Inline=true
+								CloudChannel="5"
+								Disable=false
+								Conf="@editorConfHeaders"
+								ApiKey="@TinyAPIKey"
+								ClassName="counterEditor"
+								Value="@contentHolderList[indexParsed].subSection"
+								ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+							</div>
+						</small>
+					</h3>
+				}
+				else if (!matchTypeSectionsSubSections && matchTypeSections)
+				{
+					<h3 class="kudosTextInline" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+						<small>
+							<div class="text-muted">
+								<Editor Id="@($"{count}-2")"
+									Inline=true
+									CloudChannel="5"
+									Disable=false
+									Conf="@editorConfHeaders"
+									ApiKey="@TinyAPIKey"
+									ClassName="counterEditor"
+									Value="@contentHolderList[indexParsed].subSection"
+									ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+							</div>
+						</small>
+					</h3>
+				}
+				else
+				{
+					<h3 class="kudosTextInline">
+						<small class="text-muted">
+
+						</small>
+					</h3>
+				}
+				<div class="dotted-lines" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+					<Editor Id="@count.ToString()"
+						Inline=true
+						CloudChannel="5"
+						Disable=false
+						Conf="@editorConfInline"
+						ApiKey="@TinyAPIKey"
+						ClassName="counterEditor"
+						Value="@contentHolderList[indexParsed].content"
+						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].content = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+					<button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection.InvokeAsync((indexParsed, username!)))">Delete</button>
+				</div>
+			</td>
+		</tr>
+	}
+	else
+	{
+		<tr>
+			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+			@if (type == "all")
+			{
+				<td class="kudosText col-1">
+				<h4 @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+						<Editor Id="@($"{count}-1")"
+						Inline=true
+						CloudChannel="5"
+						Disable=false
+						Conf="@editorConfHeaders"
+						ApiKey="@TinyAPIKey"
+						ClassName="counterEditor"
+						Value="@contentHolderList[indexParsed].section"
+						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].section = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+						<br><small>
+							<div class="text-muted">
+								<Editor Id="@($"{count}-2")"
+								Inline=true
+								CloudChannel="5"
+								Disable=false
+								Conf="@editorConfHeaders"
+								ApiKey="@TinyAPIKey"
+								ClassName="counterEditor"
+								Value="@contentHolderList[indexParsed].subSection"
+								ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+							</div>
+						</small>
+					</h4>
+				</td>
+			}
+			else if (!matchTypeSections && matchType)
+			{
+				<td class="kudosText col-1">
+				<h4 @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+						<Editor Id="@($"{count}-1")"
+						Inline=true
+						CloudChannel="5"
+						Disable=false
+						Conf="@editorConfHeaders"
+						ApiKey="@TinyAPIKey"
+						ClassName="counterEditor"
+						Value="@contentHolderList[indexParsed].section"
+						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].section = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+						<br><small>
+							<div class="text-muted">
+								<Editor Id="@($"{count}-2")"
+								Inline=true
+								CloudChannel="5"
+								Disable=false
+								Conf="@editorConfHeaders"
+								ApiKey="@TinyAPIKey"
+								ClassName="counterEditor"
+								Value="@contentHolderList[indexParsed].subSection"
+								ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+							</div>
+						</small>
+					</h4>
+				</td>
+			}
+			else if (!matchTypeSectionsSubSections && matchTypeSections)
+			{
+				<td class="kudosText col-1">
+					<h4>
+					@if (contentHolderList[indexParsed].subSection != null)
+						{
+						<h3 class="kudosTextInline" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+								<Editor Id="@($"{count}-2")"
+								Inline=true
+								CloudChannel="5"
+								Disable=false
+								Conf="@editorConfHeaders"
+								ApiKey="@TinyAPIKey"
+								ClassName="counterEditor"
+								Value="@contentHolderList[indexParsed].subSection"
+								ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+							</h3>
+						}
+					</h4>
+				</td>
+			}
+			else if (matchTypeSectionsSubSections)
+			{
+				
+			}
+			
+			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+			<td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[indexParsed].content!))</td>
+			@* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
+			<td hidden="@(!IsEditing[count])">
+				<div class="dotted-lines tinymce-editor">
+					<Editor Id="@count.ToString()"
+						Inline=false
+						CloudChannel="5"
+						Disable=false
+						Conf="@editorConf"
+						ApiKey="@TinyAPIKey"
+						ClassName="counterEditor"
+						Value="@contentHolderList[indexParsed].content"
+						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].content = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+				</div>
+			</td>
+		</tr>
+		<tr>
+			@if (!matchTypeSectionsSubSections)
+				{
+					<td>
+						@*Spacing*@
+					</td>
+				}
+			@if (type == "add" && IsEditing![0] == true)
+			{
+				var clearText = "";
+				<td>
+					<button class="btn btn-outline-warning" @onclick="()=> contentHolderList.Last().content = clearText">Clear</button>
+					<button class="btn btn-outline-primary" @onclick="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))" hidden="@(!IsEditing[localCount])">Save</button>
+					<button class="btn btn-outline-primary" @onclick="(() => CancelNew.InvokeAsync(localCount))" hidden="@(!IsEditing[localCount])">Cancel</button>
+				</td>
+			}
+			else
+			{
+				<td>
+					<button class="btn btn-outline-warning" @onclick="(() => ClearContent.InvokeAsync((localCount, indexParsed)))">Clear</button>
+					<button class="btn btn-outline-danger" @onclick="(() => RemoveSection.InvokeAsync((indexParsed, username!)))">Delete</button>
+					<button class="btn btn-outline-primary" @onclick="(() => Edit.InvokeAsync((localCount, indexParsed)))" hidden="@IsEditing[localCount]">Edit</button>
+					<button class="btn btn-outline-primary" @onclick="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))" hidden="@(!IsEditing[localCount])">Save</button>
+					<button class="btn btn-outline-primary" @onclick="(() => Cancel.InvokeAsync((localCount, indexParsed)))" hidden="@(!IsEditing[localCount])">Cancel</button>
+				</td>
+			}
+		</tr>
+	}
+
+
+
+
+@code {
+	[Parameter] public contentHolder[] contentHolderList { get; set; }
+	[Parameter] public bool? inline { get; set; }
+	[Parameter] public bool matchTypeSectionsSubSections { get; set; }
+	[Parameter] public bool matchTypeSections { get; set; }
+	[Parameter] public bool matchType { get; set; }
+	[Parameter] public string type { get; set; }
+	[Parameter] public string sections { get; set; }
+	[Parameter] public string subSections { get; set; }
+	[Parameter] public string TinyAPIKey { get; set; }
+	[Parameter] public int count { get; set; }
+	[Parameter] public bool[] IsEditing { get; set; }
+	[Parameter] public int localCount { get; set; }
+	[Parameter] public int localCountAll { get; set; }
+	[Parameter] public int indexParsed { get; set; }
+	[Parameter] public string username { get; set; }
+	[Parameter] public EventCallback<(string, int)> inlineEdit { get; set; }
+	[Parameter] public EventCallback<(int, int)> Edit { get; set; }
+	[Parameter] public EventCallback<(int, string, int, bool)> Save { get; set; }
+	[Parameter] public EventCallback<(int, string)> RemoveSection { get; set; }
+	[Parameter] public EventCallback<(int, int)> ClearContent { get; set; }
+	[Parameter] public EventCallback<(int, int)> Cancel { get; set; }
+	[Parameter] public EventCallback<int> CancelNew { get; set; }
+	[Parameter] public EventCallback<contentHolder[]> OnDataChanged { get; set; }
+
+	private string? lastPage;
+
+
+	    @* Define properties for TinyMCE WYSIWYG editor *@
+    private Dictionary<string, object> editorConf = new Dictionary<string, object>  {
+        {"menubar", "edit insert format table tools help"},
+    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
+        {"toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize blocks | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media template link anchor codesample | ltr rtl"},
+        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
+        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
+        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
+        {"quickbars_selection_toolbar", "bold italic underline | fontfamily fontsize blocks | bullist numlist | blockquote quicklink"},
+        {"quickbars_insert_toolbar", "quicktable image media codesample" },
+        {"toolbar_mode", "floating"},
+        {"toolbar_location", "top"},
+        {"width", "100%"},
+        {"min_width", "100%"},
+        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
+        {"min_height", 100},
+        {"autoresize_bottom_margin", 30},
+        {"skin", "oxide-dark"},
+        {"content_css", "dark"},
+        {"autosave_ask_before_unload", "true"},
+        {"paste_data_images", "false"},
+        {"paste_as_text", "true"},
+        {"resize", "true"}
+    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
+    };
+    private Dictionary<string, object> editorConfInline = new Dictionary<string, object>  {
+    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
+        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
+        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
+        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
+        {"quickbars_selection_toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize | blocks | bullist numlist | alignleft aligncenter alignright alignjustify | outdent indent | forecolor backcolor | blockquote quicklink | charmap emoticons | print | insertfile image media template link anchor codesample | removeformat"},
+        {"toolbar", "false"},
+        {"menubar", "false"},
+        {"block_formats", "Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;"},
+        {"quickbars_insert_toolbar", "quicktable image media codesample" },
+        {"width", "100%"},
+        {"min_width", "100%"},
+        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
+        {"min_height", 100},
+        {"autoresize_bottom_margin", 30},
+        {"skin", "oxide-dark"},
+        {"content_css", "dark"},
+        {"autosave_ask_before_unload", "true"},
+        {"paste_data_images", "false"},
+        {"paste_as_text", "true"},
+        {"resize", "true"}
+    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
+    };
+    private Dictionary<string, object> editorConfHeaders = new Dictionary<string, object>  {
+    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
+        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
+        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
+        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
+        {"quickbars_selection_toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize | blocks | bullist numlist | alignleft aligncenter alignright alignjustify | outdent indent | forecolor backcolor | blockquote quicklink | charmap emoticons | print | insertfile image media template link anchor codesample | removeformat"},
+        {"toolbar", "false"},
+        {"menubar", "false"},
+        {"block_formats", "Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;"},
+        {"quickbars_insert_toolbar", "quicktable image media codesample" },
+        {"width", "100%"},
+        {"min_width", "100%"},
+        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
+        {"min_height", 100},
+        {"autoresize_bottom_margin", 30},
+        {"skin", "oxide-dark"},
+        {"content_css", "dark"},
+        {"autosave_ask_before_unload", "true"},
+        {"paste_data_images", "false"},
+        {"paste_as_text", "true"},
+        {"resize", "true"},
+        {"forced_root_block", ""}
+    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
+    };
+
+}

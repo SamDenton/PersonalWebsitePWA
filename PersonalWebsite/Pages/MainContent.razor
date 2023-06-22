@@ -7,7 +7,7 @@
 @inject HttpClient Http;
 @inject NavigationManager Navigation;
 @inject MyStateContainer myStateContainer;
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JSRuntime;
 
 @* Using Authorize View to only load content when user is authenticated.  If not logged in, they should be redirected to a Microsoft authenticator *@
 
@@ -102,534 +102,191 @@
                                .ThenBy(x => x.subSection)
                                .Select((contentHolder, index) => new { contentHolder, index }))
                                 {
+                                    bool contentNotNull = contentHolderList[item.index].page != null 
+                                    && contentHolderList[item.index].section != null 
+                                    && contentHolderList[item.index].subSection != null 
+                                    && contentHolderList[item.index].content != null;
+
+                                    bool matchTypeSectionsSubSections = type == contentHolderList[item.index].page 
+                                    && sections == contentHolderList[item.index].section 
+                                    && subSections == contentHolderList[item.index].subSection;
+
+                                    bool matchTypeSections = type == contentHolderList[item.index].page 
+                                    && sections == contentHolderList[item.index].section
+                                    && subSections == "all";
+
+                                    bool matchType = type == contentHolderList[item.index].page
+                                    && sections == "all";
+
+                                    int indexParsed = item.index;
+
                                     @if (item.contentHolder != null)
                                     {
 
-                                        @if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == contentHolderList[item.index].subSection && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        @if (matchTypeSectionsSubSections && contentNotNull)
                                         {
-                                            if (inline == true)
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td>
-                                                        <h3 class="kudosTextInline"><small class="text-muted"></small></h3>
-                                                        <div class="dotted-lines" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                            <Editor Id="@count.ToString()"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfInline"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                            <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                    <td hidden="@(!IsEditing[count])">
-                                                        <div class="dotted-lines tinymce-editor">
-                                                            <Editor Id="@count.ToString()"
-                                                Inline=false
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConf"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td>
-                                                        <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
-                                                        <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
-                                                    </td>
-                                                </tr>
-                                            }
+                                            var localCount = count;
+                                            var localCountAll = countAll;
+
+                                            <WikiBlock
+                                                contentHolderList="contentHolderList"
+                                                inline="@inline"
+                                                matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                matchTypeSections="@matchTypeSections"
+                                                matchType="@matchType"
+                                                type="@type"
+                                                sections="@sections"
+                                                subSections="@subSections"
+                                                TinyAPIKey="@TinyAPIKey"
+                                                count="@count"
+                                                IsEditing="@IsEditing"
+                                                localCount=localCount
+                                                localCountAll=localCountAll
+                                                indexParsed="@indexParsed"
+                                                username="@username"
+                                                inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                                Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                                Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                                RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                                ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                                Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                                OnDataChanged="UpdateContentHolderList"
+                                            />
+
                                             @* Increment global count *@
                                             count++;
                                         }
-                                        else
+                                        else if (matchTypeSections && contentNotNull)
                                         {
-                                            if (contentHolderList[item.index].page == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                            else if (contentHolderList[item.index].section == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                            else if (contentHolderList[item.index].subSection == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
-                                            }
-                                            else if (contentHolderList[item.index].content == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                        }
-                                        @if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
-                                        {
-                                            if (inline == true)
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td>
-                                                        <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                            <small>
-                                                                <div class="text-muted">
-                                                                    <Editor Id="@($"{count}-2")"
-                                                        Inline=true
-                                                        CloudChannel="5"
-                                                        Disable=false
-                                                        Conf="@editorConfHeaders"
-                                                        ApiKey="@TinyAPIKey"
-                                                        ClassName="counterEditor"
-                                                        @bind-Value=(contentHolderList[item.index].subSection) />
-                                                                </div>
-                                                            </small>
-                                                        </h3>
-                                                        <div class="dotted-lines" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                            <Editor Id="@count.ToString()"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfInline"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                            <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td class="kudosText col-1">
-                                                        <h4>
-                                                            @if (contentHolderList[item.index].subSection != null && isContentLoaded == true)
-                                                            {
-                                                                <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                                    <Editor Id="@($"{count}-2")"
-                                                    Inline=true
-                                                    CloudChannel="5"
-                                                    Disable=false
-                                                    Conf="@editorConfHeaders"
-                                                    ApiKey="@TinyAPIKey"
-                                                    ClassName="counterEditor"
-                                                    @bind-Value=(contentHolderList[item.index].subSection) />
-                                                                </h3>
-                                                            }
-                                                        </h4>
-                                                    </td>
-                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                    <td hidden="@(!IsEditing[count])">
-                                                        <div class="dotted-lines tinymce-editor">
-                                                            <Editor Id="@count.ToString()"
-                                                Inline=false
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConf"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                <tr>
-                                                    <td>
-                                                        @*Spacing*@
-                                                    </td>
-                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td>
-                                                        <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
-                                                        <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
-                                                    </td>
-                                                </tr>
-                                            }
+                                            var localCount = count;
+                                            var localCountAll = countAll;
+
+                                            <WikiBlock contentHolderList="contentHolderList"
+                                       inline="@inline"
+                                       matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                       matchTypeSections="@matchTypeSections"
+                                       matchType="@matchType"
+                                       type="@type"
+                                       sections="@sections"
+                                       subSections="@subSections"
+                                       TinyAPIKey="@TinyAPIKey"
+                                       count="@count"
+                                       IsEditing="@IsEditing"
+                                       localCount=localCount
+                                       localCountAll=localCountAll
+                                       indexParsed="@indexParsed"
+                                       username="@username"
+                                       inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                       Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                       Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                       RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                       ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                       Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                       OnDataChanged="UpdateContentHolderList" />
+
                                             @* Increment global count *@
                                             count++;
                                         }
-                                        else if ((type == contentHolderList[item.index].page && sections == "all" || type == null)
-                                        && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        else if (matchType || type == null && contentNotNull)
                                         {
-                                            @if (type == null)
-                                            {
-                                                type = "Misc (autoselected as missing type)";
-                                            }
-                                            if (inline == true)
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td>
-                                                        <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                            <Editor Id="@($"{count}-1")"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfHeaders"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].section) />
-                                                            <small>
-                                                                <div class="text-muted">
-                                                                    <Editor Id="@($"{count}-2")"
-                                                        Inline=true
-                                                        CloudChannel="5"
-                                                        Disable=false
-                                                        Conf="@editorConfHeaders"
-                                                        ApiKey="@TinyAPIKey"
-                                                        ClassName="counterEditor"
-                                                        @bind-Value=(contentHolderList[item.index].subSection) />
-                                                                </div>
-                                                            </small>
-                                                        </h3>
-                                                        <div class="dotted-lines tinymce-editor" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                            <Editor Id="@count.ToString()"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfInline"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                            <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td class="kudosText col-1">
-                                                        <h4 @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                            <Editor Id="@($"{count}-1")"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfHeaders"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].section) />
-                                                            <br><small>
-                                                                <div class="text-muted">
-                                                                    <Editor Id="@($"{count}-2")"
-                                                        Inline=true
-                                                        CloudChannel="5"
-                                                        Disable=false
-                                                        Conf="@editorConfHeaders"
-                                                        ApiKey="@TinyAPIKey"
-                                                        ClassName="counterEditor"
-                                                        @bind-Value=(contentHolderList[item.index].subSection) />
-                                                                </div>
-                                                            </small>
-                                                        </h4>
-                                                    </td>
-                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                    <td hidden="@(!IsEditing[count])">
-                                                        <div class="dotted-lines tinymce-editor">
-                                                            <Editor Id="@count.ToString()"
-                                                Inline=false
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConf"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                                @* Initiate localCount here so button onclick events use the count at create time, not when clicked *@
-                                                <tr>
-                                                    <td>
-                                                        @*Spacing*@
-                                                    </td>
-                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td>
-                                                        <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
-                                                        <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
-                                                    </td>
-                                                </tr>
-                                            }
+                                            var localCount = count;
+                                            var localCountAll = countAll;
+
+                                            <WikiBlock contentHolderList="contentHolderList"
+                                       inline="@inline"
+                                       matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                       matchTypeSections="@matchTypeSections"
+                                       matchType="@matchType"
+                                       type="@type"
+                                       sections="@sections"
+                                       subSections="@subSections"
+                                       TinyAPIKey="@TinyAPIKey"
+                                       count="@count"
+                                       IsEditing="@IsEditing"
+                                       localCount=localCount
+                                       localCountAll=localCountAll
+                                       indexParsed="@indexParsed"
+                                       username="@username"
+                                       inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                       Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                       Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                       RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                       ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                       Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                       OnDataChanged="UpdateContentHolderList" />
+
                                             @* Increment global count *@
                                             count++;
                                         }
-                                        else if (type == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        else if (type == "all" && contentNotNull)
                                         {
-                                            if (lastPage != contentHolderList[item.index].page)
-                                            {
-                                                <h1 class="kudosTextInline">@contentHolderList[item.index].page</h1>
-                                                lastPage = contentHolderList[item.index].page;
-                                            }
-                                            if (inline == true)
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td>
-                                                        <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                            <Editor Id="@($"{count}-1")"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfHeaders"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].section) />
-                                                            <small>
-                                                                <div class="text-muted">
-                                                                    <Editor Id="@($"{count}-2")"
-                                                        Inline=true
-                                                        CloudChannel="5"
-                                                        Disable=false
-                                                        Conf="@editorConfHeaders"
-                                                        ApiKey="@TinyAPIKey"
-                                                        ClassName="counterEditor"
-                                                        @bind-Value=(contentHolderList[item.index].subSection) />
-                                                                </div>
-                                                            </small>
-                                                        </h3>
-                                                        <div class="dotted-lines tinymce-editor" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                            <Editor Id="@($"{count}-3")"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfInline"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                            <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td class="kudosText col-1">
-                                                        <h4 @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                            <Editor Id="@($"{count}-1")"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfHeaders"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].section) />
-                                                            <br><small>
-                                                                <div class="text-muted">
-                                                                    <Editor Id="@($"{count}-2")"
-                                                        Inline=true
-                                                        CloudChannel="5"
-                                                        Disable=false
-                                                        Conf="@editorConfHeaders"
-                                                        ApiKey="@TinyAPIKey"
-                                                        ClassName="counterEditor"
-                                                        @bind-Value=(contentHolderList[item.index].subSection) />
-                                                                </div>
-                                                            </small>
-                                                        </h4>
-                                                    </td>
-                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                    <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                    <td hidden="@(!IsEditing[count])">
-                                                        <div class="dotted-lines tinymce-editor">
-                                                            <Editor Id="@count.ToString()"
-                                                Inline=false
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConf"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                <tr>
-                                                    <td>
-                                                        @*Spacing*@
-                                                    </td>
-                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td>
-                                                        <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
-                                                        <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                        <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
-                                                    </td>
-                                                </tr>
-                                            }
+                                            var localCount = count;
+                                            var localCountAll = countAll;
+
+                                            <WikiBlock
+                                                contentHolderList="contentHolderList"
+                                                inline="@inline"
+                                                matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                matchTypeSections="@matchTypeSections"
+                                                matchType="@matchType"
+                                                type="@type"
+                                                sections="@sections"
+                                                subSections="@subSections"
+                                                TinyAPIKey="@TinyAPIKey"
+                                                count="@count"
+                                                IsEditing="@IsEditing"
+                                                localCount=localCount
+                                                localCountAll=localCountAll
+                                                indexParsed="@indexParsed"
+                                                username="@username"
+                                                inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                                Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                                Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                                RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                                ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                                Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                                OnDataChanged="UpdateContentHolderList"
+                                            />
+
                                             @* Increment global count *@
                                             count++;
                                         }
-                                        else if (type == "Search" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        else if (type == "Search" && contentNotNull)
                                         {
                                             int hasMatch = 0;
                                             if (contentHolderList[item.index].section!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].subSection!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].content!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
                                             {
                                                 hasMatch++;
-                                                if (inline == true)
-                                                {
-                                                    var localCount = count;
-                                                    var localCountAll = countAll;
-                                                    <tr>
-                                                        @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                        <td>
-                                                            <h3 class="kudosTextInline" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                                <Editor Id="@($"{count}-1")"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfHeaders"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].section) />
-                                                                <small>
-                                                                    <div class="text-muted">
-                                                                        <Editor Id="@($"{count}-2")"
-                                                        Inline=true
-                                                        CloudChannel="5"
-                                                        Disable=false
-                                                        Conf="@editorConfHeaders"
-                                                        ApiKey="@TinyAPIKey"
-                                                        ClassName="counterEditor"
-                                                        @bind-Value=(contentHolderList[item.index].subSection) />
-                                                                    </div>
-                                                                </small>
-                                                            </h3>
-                                                            <div class="dotted-lines tinymce-editor" @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                                <Editor Id="@count.ToString()"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfInline"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                                <button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                }
-                                                else
-                                                {
-                                                    var localCount = count;
-                                                    var localCountAll = countAll;
-                                                    <tr>
-                                                        @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                        <td class="kudosText col-1">
-                                                            <h4 @onfocusin="(() => inlineEdit(username!, item.index))" @onfocusout="(() => Save(localCount, username!, item.index, false))">
-                                                                <Editor Id="@($"{count}-1")"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfHeaders"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].section) />
-                                                                <br><small>
-                                                                    <div class="text-muted">
-                                                                        <Editor Id="@($"{count}-2")"
-                                                        Inline=true
-                                                        CloudChannel="5"
-                                                        Disable=false
-                                                        Conf="@editorConfHeaders"
-                                                        ApiKey="@TinyAPIKey"
-                                                        ClassName="counterEditor"
-                                                        @bind-Value=(contentHolderList[item.index].subSection) />
-                                                                    </div>
-                                                                </small>
-                                                            </h4>
-                                                        </td>
-                                                        @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                        <td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                        @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                        <td hidden="@(!IsEditing[count])">
-                                                            <div class="dotted-lines tinymce-editor">
-                                                                <Editor Id="@count.ToString()"
-                                                Inline=false
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConf"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList[item.index].content) />
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                    @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                    <tr>
-                                                        @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                        <td>
-                                                            @*Spacing*@
-                                                        </td>
-                                                        <td>
-                                                            <button class="btn btn-outline-warning" @onclick="(() => ClearContent(localCount, item.index))">Clear</button>
-                                                            <button class="btn btn-outline-danger" @onclick="(() => RemoveSection(item.index, username!))">Delete</button>
-                                                            <button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, item.index))" hidden="@IsEditing[localCount]">Edit</button>
-                                                            <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, item.index, false))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                            <button class="btn btn-outline-primary" @onclick="(() => Cancel(localCount, item.index))" hidden="@(!IsEditing[localCount])">Cancel</button>
-                                                        </td>
-                                                    </tr>
-                                                }
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+
+                                                <WikiBlock
+                                                contentHolderList="contentHolderList"
+                                                inline="@inline"
+                                                matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                matchTypeSections="@matchTypeSections"
+                                                matchType="@matchType"
+                                                type="@type"
+                                                sections="@sections"
+                                                subSections="@subSections"
+                                                TinyAPIKey="@TinyAPIKey"
+                                                count="@count"
+                                                IsEditing="@IsEditing"
+                                                localCount=localCount
+                                                localCountAll=localCountAll
+                                                indexParsed="@indexParsed"
+                                                username="@username"
+                                                inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                                Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                                Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                                RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                                ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                                Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                                OnDataChanged="UpdateContentHolderList"     />
+
                                                 @* Increment global count *@
                                                 count++;
                                             }
-                                            @*
-                            @if (hasMatch > 0)
-                            {
-                            <p>@hasMatch search results</p>
-                            }
-                            else
-                            {
-                            <p>No results found for: @searchTerm </p>
-                            }
-                            *@
                                         }
                                         else
                                         {
@@ -661,61 +318,31 @@
                                 {
                                     @if (type == "add" && IsEditing![0] == true)
                                     {
-                                        if (inline == true)
-                                        {
-                                            count = 0;
-                                            var localCount = count;
-                                            var localCountAll = countAll;
-                                            <tr>
-                                                <td>
-                                                    <h3 class="kudosTextInline">New Section: </h3>
-                                                    <div class="dotted-lines tinymce-editor" @onfocusout="(() => Save(localCount, username!, localCountAll, true))">
-                                                        <Editor Id="@count.ToString()"
-                                                Inline=true
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConfInline"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList.Last().content) />
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        }
-                                        else
-                                        {
-                                            var localCount = 0;
-                                            count = 0;
-                                            var localCountAll = countAll;
-                                            <tr>
-                                                <td class="kudosText">New Section: </td>
-                                                @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                <td hidden="@IsEditing[count]">@(new MarkupString(contentHolderList.Last().content!))</td>
-                                                <td hidden="@(!IsEditing[count])">
-                                                    <div class="dotted-lines tinymce-editor">
-                                                        <Editor Id="@count.ToString()"
-                                                Inline=false
-                                                CloudChannel="5"
-                                                Disable=false
-                                                Conf="@editorConf"
-                                                ApiKey="@TinyAPIKey"
-                                                ClassName="counterEditor"
-                                                @bind-Value=(contentHolderList.Last().content) />
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>
-                                                    @*Spacing*@
-                                                </td>
-                                                @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                <td>
-                                                    <button class="btn btn-outline-warning" @onclick="()=>contentHolderList.Last().content = clearText">Clear</button>
-                                                    <button class="btn btn-outline-primary" @onclick="(() => Save(localCount, username!, localCountAll, true))" hidden="@(!IsEditing[localCount])">Save</button>
-                                                    <button class="btn btn-outline-primary" @onclick="(() => CancelNew(localCount))" hidden="@(!IsEditing[localCount])">Cancel</button>
-                                                </td>
-                                            </tr>
-                                        }
+                                        count = 0;
+                                        var localCount = count;
+                                        var localCountAll = countAll;
+                                        <h3 class="kudosTextInline">New Section: </h3>
+                                            <WikiBlock inline="@inline"
+                                                matchTypeSectionsSubSections="false"
+                                                matchTypeSections="false"
+                                                matchType="false"
+                                                type="@type"
+                                                sections="@sections"
+                                                subSections="@subSections"
+                                                TinyAPIKey="@TinyAPIKey"
+                                                count="@count"
+                                                IsEditing="@IsEditing"
+                                                localCount=localCount
+                                                localCountAll=localCountAll
+                                                indexParsed="0"
+                                                username="@username"
+                                                inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                                Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                                Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                                RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                                ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                                Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                                CancelNew="CancelNew" />
                                         countAll++;
                                     }
                                 }
@@ -785,9 +412,9 @@
                 </div>
             </div>
         </div>
+
     </Authorized>
     <NotAuthorized>
-
 
         <div class="ps-1 pt-2 sticky-top container-flex" id="searchBar" style="pointer-events: none;">
             <div class="row">
@@ -876,259 +503,105 @@
                                .ThenBy(x => x.subSection)
                                .Select((contentHolder, index) => new { contentHolder, index }))
                                 {
+                                    bool contentNotNull = contentHolderList[item.index].page != null 
+                                    && contentHolderList[item.index].section != null 
+                                    && contentHolderList[item.index].subSection != null 
+                                    && contentHolderList[item.index].content != null;
+
+                                    bool matchTypeSectionsSubSections = type == contentHolderList[item.index].page 
+                                    && sections == contentHolderList[item.index].section 
+                                    && subSections == contentHolderList[item.index].subSection;
+
+                                    bool matchTypeSections = type == contentHolderList[item.index].page 
+                                    && sections == contentHolderList[item.index].section
+                                    && subSections == "all";
+
+                                    bool matchType = type == contentHolderList[item.index].page
+                                    && sections == "all";
+
+                                    int indexParsed = item.index;
                                     @if (item.contentHolder != null)
                                     {
 
                                         @if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == contentHolderList[item.index].subSection && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
                                         {
-                                            if (inline == true)
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td>
-                                                        <h3 class="kudosTextInline"><small class="text-muted"></small></h3>
-                                                        <div class="dotted-lines">
-                                                            @(new MarkupString(@contentHolderList[item.index].content!))
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                <tr>
-                                                    <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                </tr>
-                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td>
-                                                        <button class="btn btn-outline-warning" disabled>Clear</button>
-                                                        <button class="btn btn-outline-danger" disabled>Delete</button>
-                                                        <button class="btn btn-outline-primary" disabled>Edit</button>
-                                                        <button class="btn btn-outline-primary" disabled>Save</button>
-                                                        <button class="btn btn-outline-primary" disabled>Cancel</button>
-                                                    </td>
-                                                </tr>
-                                            }
+                                            var localCount = count;
+                                            var localCountAll = countAll;
+                                            <WikiBlockNoAuth 
+                                               contentHolderList="contentHolderList"
+                                               inline="@inline"
+                                               matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                               matchTypeSections="@matchTypeSections"
+                                               matchType="@matchType"
+                                               type="@type"
+                                               sections="@sections"
+                                               subSections="@subSections"
+                                               count="@count"
+                                               localCount=localCount
+                                               localCountAll=localCountAll
+                                               indexParsed="indexParsed"  />
                                             @* Increment global count *@
                                             count++;
                                         }
-                                        else
+                                        else if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
                                         {
-                                            if (contentHolderList[item.index].page == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                            else if (contentHolderList[item.index].section == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                            else if (contentHolderList[item.index].subSection == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
-                                            }
-                                            else if (contentHolderList[item.index].content == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                        }
-                                        @if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
-                                        {
-                                            if (inline == true)
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td>
-                                                        <h3 class="kudosTextInline">
-                                                            <small>
-                                                                <div class="text-muted">
-                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
-                                                                </div>
-                                                            </small>
-                                                        </h3>
-                                                        <div class="dotted-lines">
-                                                            @(new MarkupString(@contentHolderList[item.index].content!))
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td class="kudosText col-1">
-                                                        <h4>
-                                                            @if (contentHolderList[item.index].subSection != null && isContentLoaded == true)
-                                                            {
-                                                                <h3 class="kudosTextInline">
-                                                                    <small>
-                                                                        <div class="text-muted">
-                                                                            @(new MarkupString(@contentHolderList[item.index].subSection))
-                                                                        </div>
-                                                                    </small>
-                                                                </h3>
-                                                            }
-                                                        </h4>
-                                                    </td>
-                                                    <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                </tr>
-                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                <tr>
-                                                    <td>
-                                                        @*Spacing*@
-                                                    </td>
-                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td>
-                                                        <button class="btn btn-outline-warning" disabled>Clear</button>
-                                                        <button class="btn btn-outline-danger" disabled>Delete</button>
-                                                        <button class="btn btn-outline-primary" disabled>Edit</button>
-                                                        <button class="btn btn-outline-primary" disabled>Save</button>
-                                                        <button class="btn btn-outline-primary" disabled>Cancel</button>
-                                                    </td>
-                                                </tr>
-                                            }
+                                            var localCount = count;
+                                            var localCountAll = countAll;
+                                            <WikiBlockNoAuth 
+                                               contentHolderList="contentHolderList"
+                                               inline="@inline"
+                                               matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                               matchTypeSections="@matchTypeSections"
+                                               matchType="@matchType"
+                                               type="@type"
+                                               sections="@sections"
+                                               subSections="@subSections"
+                                               count="@count"
+                                               localCount=localCount
+                                               localCountAll=localCountAll
+                                               indexParsed="indexParsed"  />
+                                            @* Increment global count *@
+                                            count++;
                                             @* Increment global count *@
                                             count++;
                                         }
                                         else if ((type == contentHolderList[item.index].page && sections == "all" || type == null)
                                         && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
                                         {
-                                            @if (type == null)
-                                            {
-                                                type = "Misc (autoselected as missing type)";
-                                            }
-                                            if (inline == true)
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td>
-                                                        <h3 class="kudosTextInline">
-                                                            @(new MarkupString(@contentHolderList[item.index].section))
-                                                            <small>
-                                                                <div class="text-muted">
-                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
-                                                                </div>
-                                                            </small>
-                                                        </h3>
-                                                        <div class="dotted-lines">
-                                                            @(new MarkupString(@contentHolderList[item.index].content!))
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td class="kudosText col-1">
-                                                        <h4>
-                                                            @(new MarkupString(contentHolderList[item.index].section))
-                                                            <br>                                                            
-                                                            <small>
-                                                                <div class="text-muted">
-                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
-                                                                </div>
-                                                            </small>
-                                                        </h4>
-                                                    </td>
-                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                    <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                </tr>
-                                                @* Initiate localCount here so button onclick events use the count at create time, not when clicked *@
-                                                <tr>
-                                                    <td>
-                                                        @*Spacing*@
-                                                    </td>
-                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td>
-                                                        <button class="btn btn-outline-warning" disabled>Clear</button>
-                                                        <button class="btn btn-outline-danger" disabled>Delete</button>
-                                                        <button class="btn btn-outline-primary" disabled>Edit</button>
-                                                        <button class="btn btn-outline-primary" disabled>Save</button>
-                                                        <button class="btn btn-outline-primary" disabled>Cancel</button>
-                                                    </td>
-                                                </tr>
-                                            }
+                                            var localCount = count;
+                                            var localCountAll = countAll;
+                                            <WikiBlockNoAuth contentHolderList="contentHolderList"
+                                             inline="@inline"
+                                             matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                             matchTypeSections="@matchTypeSections"
+                                             matchType="@matchType"
+                                             type="@type"
+                                             sections="@sections"
+                                             subSections="@subSections"
+                                             count="@count"
+                                             localCount=localCount
+                                             localCountAll=localCountAll
+                                             indexParsed="indexParsed" />
                                             @* Increment global count *@
                                             count++;
                                         }
                                         else if (type == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
                                         {
-                                            if (lastPage != contentHolderList[item.index].page)
-                                            {
-                                                <h1 class="kudosTextInline">@contentHolderList[item.index].page</h1>
-                                                lastPage = contentHolderList[item.index].page;
-                                            }
-                                            if (inline == true)
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td>
-                                                        <h3 class="kudosTextInline">
-                                                            @(new MarkupString(@contentHolderList[item.index].section))
-                                                            <small>
-                                                                <div class="text-muted">
-                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
-                                                                </div>
-                                                            </small>
-                                                        </h3>
-                                                        <div class="dotted-lines">
-                                                            @(new MarkupString(@contentHolderList[item.index].content!))
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                            else
-                                            {
-                                                var localCount = count;
-                                                var localCountAll = countAll;
-                                                <tr>
-                                                    @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                    <td class="kudosText col-1">
-                                                        <h4>
-                                                            @(new MarkupString(contentHolderList[item.index].section))
-                                                            <br>
-                                                            <small>
-                                                                <div class="text-muted">
-                                                                    @(new MarkupString(@contentHolderList[item.index].subSection))
-                                                                </div>
-                                                            </small>
-                                                        </h4>
-                                                    </td>
-                                                    @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                    <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                    @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                </tr>
-                                                @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                <tr>
-                                                    <td>
-                                                        @*Spacing*@
-                                                    </td>
-                                                    @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                    <td>
-                                                        <button class="btn btn-outline-warning" disabled>Clear</button>
-                                                        <button class="btn btn-outline-danger" disabled>Delete</button>
-                                                        <button class="btn btn-outline-primary" disabled>Edit</button>
-                                                        <button class="btn btn-outline-primary" disabled>Save</button>
-                                                        <button class="btn btn-outline-primary" disabled>Cancel</button>
-                                                    </td>
-                                                </tr>
-                                            }
+                                            var localCount = count;
+                                            var localCountAll = countAll;
+                                            <WikiBlockNoAuth 
+                                               contentHolderList="contentHolderList"
+                                               inline="@inline"
+                                               matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                               matchTypeSections="@matchTypeSections"
+                                               matchType="@matchType"
+                                               type="@type"
+                                               sections="@sections"
+                                               subSections="@subSections"
+                                               count="@count"
+                                               localCount=localCount
+                                               localCountAll=localCountAll
+                                               indexParsed="indexParsed"  />
                                             @* Increment global count *@
                                             count++;
                                         }
@@ -1138,76 +611,24 @@
                                             if (contentHolderList[item.index].section!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].subSection!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].content!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
                                             {
                                                 hasMatch++;
-                                                if (inline == true)
-                                                {
-                                                    var localCount = count;
-                                                    var localCountAll = countAll;
-                                                    <tr>
-                                                        @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                        <td>
-                                                            <h3 class="kudosTextInline">
-                                                                @(new MarkupString(@contentHolderList[item.index].section))
-                                                                <small>
-                                                                    <div class="text-muted">
-                                                                        @(new MarkupString(@contentHolderList[item.index].subSection))
-                                                                    </div>
-                                                                </small>
-                                                            </h3>
-                                                            <div class="dotted-lines">
-                                                                @(new MarkupString(@contentHolderList[item.index].content!))
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                }
-                                                else
-                                                {
-                                                    var localCount = count;
-                                                    var localCountAll = countAll;
-                                                    <tr>
-                                                        @* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-                                                        <td class="kudosText col-1">
-                                                            <h4>
-                                                                @(new MarkupString(contentHolderList[item.index].section))
-                                                                <br>
-                                                                <small>
-                                                                    <div class="text-muted">
-                                                                        @(new MarkupString(@contentHolderList[item.index].subSection))
-                                                                    </div>
-                                                                </small>
-                                                            </h4>
-                                                        </td>
-                                                        @* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-                                                        <td>@(new MarkupString(@contentHolderList[item.index].content!))</td>
-                                                        @* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-                                                    </tr>
-                                                    @* Initiate localCount here to button onclick events use the count at create time, not when clicked *@
-                                                    <tr>
-                                                        @* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-                                                        <td>
-                                                            @*Spacing*@
-                                                        </td>
-                                                        <td>
-                                                            <button class="btn btn-outline-warning" disabled>Clear</button>
-                                                            <button class="btn btn-outline-danger" disabled>Delete</button>
-                                                            <button class="btn btn-outline-primary" disabled>Edit</button>
-                                                            <button class="btn btn-outline-primary" disabled>Save</button>
-                                                            <button class="btn btn-outline-primary" disabled>Cancel</button>
-                                                        </td>
-                                                    </tr>
-                                                }
+                                                var localCount = count;
+                                                var localCountAll = countAll;
+                                                <WikiBlockNoAuth 
+                                                   contentHolderList="contentHolderList"
+                                                   inline="@inline"
+                                                   matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                   matchTypeSections="@matchTypeSections"
+                                                   matchType="@matchType"
+                                                   type="@type"
+                                                   sections="@sections"
+                                                   subSections="@subSections"
+                                                   count="@count"
+                                                   localCount=localCount
+                                                   localCountAll=localCountAll
+                                                   indexParsed="indexParsed"  />
                                                 @* Increment global count *@
                                                 count++;
                                             }
-                                            @*
-                                            @if (hasMatch > 0)
-                                            {
-                                            <p>@hasMatch search results</p>
-                                            }
-                                            else
-                                            {
-                                            <p>No results found for: @searchTerm </p>
-                                            }
-                                            *@
                                         }
                                         else
                                         {
@@ -1242,13 +663,6 @@
             </div>
         </div>
 
-        @* If user is not authorized, call RedirectHome 
-        <p>Please Login to see this content....</p>
-        @if (!context.User.Identity!.IsAuthenticated)
-        {
-            <button class="btn btn-outline-primary mt-2" @onclick="(() => RedirectHome())">Login</button>
-        }
-        *@
     </NotAuthorized>
 </AuthorizeView>
 @code {
@@ -1317,6 +731,7 @@
             StateHasChanged();
         }
     }
+
     @*Function to force login when first opening *@
     [Inject]
     public AuthenticationStateProvider? AuthenticationStateProvider { get; set; }
@@ -1329,6 +744,7 @@
         }
         base.OnAfterRender(firstRender);
     }
+
     public void timer()
     {
         Timer timer = new Timer(60000); // 60000 milliseconds = 1 minute
@@ -1376,10 +792,12 @@
             }
         }
     }
+
     private void alerter(string message)
     {
         JSRuntime.InvokeVoidAsync("alert", message);
     }
+
     private async Task GetAuthenticationState()
     {
         var authenticationState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();
@@ -1393,9 +811,15 @@
             Navigation.NavigateTo($"/authentication/login");
         }
     }
+
     private void LocationChanged(object sender, LocationChangedEventArgs e)
     {
         ClearIsEditingArray();
+    }
+
+    private void UpdateContentHolderList(contentHolder[] newContentHolder)
+    {
+        contentHolderList = newContentHolder;
     }
 
     private void ClearIsEditingArray()
@@ -1409,7 +833,7 @@
             }
             if (!IsEditing!.All(x => x == false))
             {
-                Save(0, "Internal save by navigating away", sectionBeingEdited, true);
+                Save((0, "Internal save by navigating away", sectionBeingEdited, true));
             }
         }
     }
@@ -1453,15 +877,19 @@
     }
 
     @* Method to clear specific sections content *@
-    private void ClearContent(int localSectionNo, int globalSectionNo)
+    private void ClearContent((int localSectionNo, int globalSectionNo) parameters)
     {
+        int localSectionNo = parameters.localSectionNo;
+        int globalSectionNo = parameters.globalSectionNo;
         contentHolderList![globalSectionNo].content = "";
         IsEditing![localSectionNo] = true;
     }
 
     @* Set selected sections IsEditing to True, which should render the editor *@
-    private async void Edit(int localSectionNo, int globalSectionNo)
+    private async void Edit((int localSectionNo, int globalSectionNo) parameters)
     {
+        int localSectionNo = parameters.localSectionNo;
+        int globalSectionNo = parameters.globalSectionNo;
         string? localSection = contentHolderList[globalSectionNo].page + contentHolderList[globalSectionNo].section;
         string oldSHA;
         int? oldUpdateCount;
@@ -1513,14 +941,21 @@
         StateHasChanged();
     }
 
-    private void inlineEdit(string username, int globalSectionNo)
+    private void inlineEdit((string username, int globalSectionNo) parameters)
     {
+        string username = parameters.username;
+        int globalSectionNo = parameters.globalSectionNo;
         initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentHolderList![globalSectionNo]));
     }
 
     @* Set selected section's IsEditing to false, then call method to PUT new JSON to GitHub.  Should render updated content to DOM *@
-    private async void Save(int sectionNo, string username, int globalSectionNo, bool newSec)
+    private async void Save((int sectionNo, string username, int globalSectionNo, bool newSec) parameters)
     {
+        int sectionNo = parameters.sectionNo;
+        string username = parameters.username;
+        int globalSectionNo = parameters.globalSectionNo;
+        bool newSec = parameters.newSec;
+
         string? localSection; ;
         string oldSHA;
         int? oldUpdateCount = updateCount;
@@ -1633,8 +1068,10 @@
     }
 
     @* Set sections IsEditing to false, and set the content to the stored previous state *@
-    private async void Cancel(int localSectionNo, int globalSectionNo)
+    private async void Cancel((int localSectionNo, int globalSectionNo) parameters)
     {
+        int localSectionNo = parameters.localSectionNo;
+        int globalSectionNo = parameters.globalSectionNo;
         @* If statement needed here so canceling on a newly added section will remove it *@
         if (initialContent![globalSectionNo] != null)
         {
@@ -1642,7 +1079,7 @@
         }
         else
         {
-            await RemoveSection(contentHolderList!.Length - 1, "... (New Section)");
+            await RemoveSection((contentHolderList!.Length - 1, "... (New Section)"));
         }
         IsEditing![localSectionNo] = false;
     }
@@ -1710,8 +1147,10 @@
     }
 
     @* Method to remove selected section *@
-    private async Task RemoveSection(int sectionNo, string username)
+    private async Task RemoveSection((int sectionNo, string username) parameters)
     {
+        int sectionNo = parameters.sectionNo;
+        string username = parameters.username;
         bool responce = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete the subSection: " + contentHolderList[sectionNo].subSection);
         if (responce == true)
         {
