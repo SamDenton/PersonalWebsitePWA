@@ -11,7 +11,7 @@
 		<tr>
 			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
 			<td>
-				@if (type == "all" || (!matchTypeSections && matchType))
+				@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
 				{
 					<h3 class="kudosTextInline" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
 						<Editor Id="@($"{count}-1")"
@@ -83,40 +83,11 @@
 	{
 		<tr>
 			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-			@if (type == "all")
+			@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
 			{
 				<td class="kudosText col-1">
 				<h4 @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
-						<Editor Id="@($"{count}-1")"
-						Inline=true
-						CloudChannel="5"
-						Disable=false
-						Conf="@editorConfHeaders"
-						ApiKey="@TinyAPIKey"
-						ClassName="counterEditor"
-						Value="@contentHolderList[indexParsed].section"
-						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].section = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
-						<br><small>
-							<div class="text-muted">
-								<Editor Id="@($"{count}-2")"
-								Inline=true
-								CloudChannel="5"
-								Disable=false
-								Conf="@editorConfHeaders"
-								ApiKey="@TinyAPIKey"
-								ClassName="counterEditor"
-								Value="@contentHolderList[indexParsed].subSection"
-								ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
-							</div>
-						</small>
-					</h4>
-				</td>
-			}
-			else if (!matchTypeSections && matchType)
-			{
-				<td class="kudosText col-1">
-				<h4 @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
-						<Editor Id="@($"{count}-1")"
+					<Editor Id="@($"{count}-1")"
 						Inline=true
 						CloudChannel="5"
 						Disable=false
@@ -229,7 +200,6 @@
 	[Parameter] public int count { get; set; }
 	[Parameter] public bool[] IsEditing { get; set; }
 	[Parameter] public int localCount { get; set; }
-	[Parameter] public int localCountAll { get; set; }
 	[Parameter] public int indexParsed { get; set; }
 	[Parameter] public string username { get; set; }
 	[Parameter] public EventCallback<(string, int)> inlineEdit { get; set; }

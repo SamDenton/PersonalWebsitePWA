@@ -4,6 +4,7 @@
 @using System.Net.Http.Headers;
 @using Newtonsoft.Json;
 @using System.Timers;
+@using System.Text.RegularExpressions;
 @inject HttpClient Http;
 @inject NavigationManager Navigation;
 @inject MyStateContainer myStateContainer;
@@ -37,6 +38,7 @@
                             <input type="checkbox" class="form-check-input inputCheck" id="sliderToggle" @bind="inline" @onclick="(() => ClearIsEditingArray())" />
                         </div>
                     }
+                    @* Wtf is this block... really need to tidy this up.  Most of if can move to the main foreach loop conditionals *@
                     @if (type != "all" && type != null && sections != "all" && subSections != "all" && type != "Search" && type != "add")
                     {
                         <h1 class="kudosTextTop">@sections <small class="text-muted">@subSections </small></h1>
@@ -81,7 +83,7 @@
                             }
                             <div class="row">
                                 <div class="col-12 text-center">
-                                    <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.  Over time I will populate it with different projects i'm working on. You will find a lot of placeholder text at the moment while I develop the back end. The site is structured as a Wiki, for no other reason than I wanted an excuse to improve my API skills, so most of the content on this site is called from a GithubRepo!  While logged in, most of the content is also editable.  It's also a Progressive Web App(PWA), so feel free to instal locally!  I have been working on a ChatBot which can take the content from this site as context and answer questions about it!</p>
+                                    <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.  Over time I will populate it with different projects i'm working on.  The site is structured as a Wiki, for no other reason than I wanted an excuse to improve my API skills, so, while logged in, most of the content is also editable.  It's also a Progressive Web App(PWA), so feel free to install locally!</p>
                                 </div>
                             </div>
                         </div>
@@ -89,230 +91,221 @@
                     else
                     {
                         var count = 0;
-                        var countAll = 0;
                         var clearText = "";
                         var username = @context.User.Identity!.Name;
                         <table class="table rounded table-dark @(inline == true ? "border-bottom" : "table-borderless table-striped")">
                             @* @(inline == true ? "" : "") *@
                             <tbody>
-                                @* Pragmatically populate the table using my customer object array *@
-                                @foreach (var item in contentHolderList
-                               .OrderBy(x => x.page)
-                               .ThenBy(x => x.section)
-                               .ThenBy(x => x.subSection)
-                               .Select((contentHolder, index) => new { contentHolder, index }))
+                                @if (type == "Search")
                                 {
-                                    bool contentNotNull = contentHolderList[item.index].page != null 
-                                    && contentHolderList[item.index].section != null 
-                                    && contentHolderList[item.index].subSection != null 
-                                    && contentHolderList[item.index].content != null;
-
-                                    bool matchTypeSectionsSubSections = type == contentHolderList[item.index].page 
-                                    && sections == contentHolderList[item.index].section 
-                                    && subSections == contentHolderList[item.index].subSection;
-
-                                    bool matchTypeSections = type == contentHolderList[item.index].page 
-                                    && sections == contentHolderList[item.index].section
-                                    && subSections == "all";
-
-                                    bool matchType = type == contentHolderList[item.index].page
-                                    && sections == "all";
-
-                                    int indexParsed = item.index;
-
-                                    @if (item.contentHolder != null)
+                                    foreach (var item in searchResults
+                                    .OrderByDescending(x => x.Score)
+                                    .Select((searchResult, index) => new { searchResult, index }))
                                     {
+                                        var localCount = count;
+                                        int indexParsed = item.searchResult.Content.id;
+                                        <WikiBlock 
+                                            contentHolderList="@contentHolderList"
+                                            inline="@inline"
+                                            matchTypeSectionsSubSections="false"
+                                            matchTypeSections="false"
+                                            matchType="false"
+                                            type="@type"
+                                            sections="@sections"
+                                            subSections="@subSections"
+                                            TinyAPIKey="@TinyAPIKey"
+                                            count="@count"
+                                            IsEditing="@IsEditing"
+                                            localCount=localCount
+                                            indexParsed="@indexParsed"
+                                            username="@username"
+                                            inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                            Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                            Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                            RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                            ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                            Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                            OnDataChanged="UpdateContentHolderList"     />
+                                        <p>Search Score: @item.searchResult.Score</p>
+                                        @* Increment global count *@
+                                        count++;
+                                    }
+                                }
+                                else
+                                {
+                                    @* Pragmatically populate the table using my custom object array *@
+                                    @foreach (var item in contentHolderList
+                                    .OrderBy(x => x.page)
+                                    .ThenBy(x => x.section)
+                                    .ThenBy(x => x.subSection)
+                                    .Select((contentHolder, index) => new { contentHolder, index }))
+                                    {
+                                        bool contentNotNull = contentHolderList[item.index].page != null 
+                                        && contentHolderList[item.index].section != null 
+                                        && contentHolderList[item.index].subSection != null 
+                                        && contentHolderList[item.index].content != null;
 
-                                        @if (matchTypeSectionsSubSections && contentNotNull)
+                                        bool matchTypeSectionsSubSections = type == contentHolderList[item.index].page 
+                                        && sections == contentHolderList[item.index].section 
+                                        && subSections == contentHolderList[item.index].subSection;
+
+                                        bool matchTypeSections = type == contentHolderList[item.index].page 
+                                        && sections == contentHolderList[item.index].section
+                                        && subSections == "all";
+
+                                        bool matchType = type == contentHolderList[item.index].page
+                                        && sections == "all";
+
+                                        int indexParsed = item.index;
+
+                                        @if (item.contentHolder != null)
                                         {
-                                            var localCount = count;
-                                            var localCountAll = countAll;
 
-                                            <WikiBlock
-                                                contentHolderList="contentHolderList"
-                                                inline="@inline"
-                                                matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                                matchTypeSections="@matchTypeSections"
-                                                matchType="@matchType"
-                                                type="@type"
-                                                sections="@sections"
-                                                subSections="@subSections"
-                                                TinyAPIKey="@TinyAPIKey"
-                                                count="@count"
-                                                IsEditing="@IsEditing"
-                                                localCount=localCount
-                                                localCountAll=localCountAll
-                                                indexParsed="@indexParsed"
-                                                username="@username"
-                                                inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                                Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                                Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
-                                                RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                                ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                                Cancel="@(e => Cancel((e.Item1, e.Item2)))"
-                                                OnDataChanged="UpdateContentHolderList"
-                                            />
-
-                                            @* Increment global count *@
-                                            count++;
-                                        }
-                                        else if (matchTypeSections && contentNotNull)
-                                        {
-                                            var localCount = count;
-                                            var localCountAll = countAll;
-
-                                            <WikiBlock contentHolderList="contentHolderList"
-                                       inline="@inline"
-                                       matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                       matchTypeSections="@matchTypeSections"
-                                       matchType="@matchType"
-                                       type="@type"
-                                       sections="@sections"
-                                       subSections="@subSections"
-                                       TinyAPIKey="@TinyAPIKey"
-                                       count="@count"
-                                       IsEditing="@IsEditing"
-                                       localCount=localCount
-                                       localCountAll=localCountAll
-                                       indexParsed="@indexParsed"
-                                       username="@username"
-                                       inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                       Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                       Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
-                                       RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                       ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                       Cancel="@(e => Cancel((e.Item1, e.Item2)))"
-                                       OnDataChanged="UpdateContentHolderList" />
-
-                                            @* Increment global count *@
-                                            count++;
-                                        }
-                                        else if (matchType || type == null && contentNotNull)
-                                        {
-                                            var localCount = count;
-                                            var localCountAll = countAll;
-
-                                            <WikiBlock contentHolderList="contentHolderList"
-                                       inline="@inline"
-                                       matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                       matchTypeSections="@matchTypeSections"
-                                       matchType="@matchType"
-                                       type="@type"
-                                       sections="@sections"
-                                       subSections="@subSections"
-                                       TinyAPIKey="@TinyAPIKey"
-                                       count="@count"
-                                       IsEditing="@IsEditing"
-                                       localCount=localCount
-                                       localCountAll=localCountAll
-                                       indexParsed="@indexParsed"
-                                       username="@username"
-                                       inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                       Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                       Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
-                                       RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                       ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                       Cancel="@(e => Cancel((e.Item1, e.Item2)))"
-                                       OnDataChanged="UpdateContentHolderList" />
-
-                                            @* Increment global count *@
-                                            count++;
-                                        }
-                                        else if (type == "all" && contentNotNull)
-                                        {
-                                            var localCount = count;
-                                            var localCountAll = countAll;
-
-                                            <WikiBlock
-                                                contentHolderList="contentHolderList"
-                                                inline="@inline"
-                                                matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                                matchTypeSections="@matchTypeSections"
-                                                matchType="@matchType"
-                                                type="@type"
-                                                sections="@sections"
-                                                subSections="@subSections"
-                                                TinyAPIKey="@TinyAPIKey"
-                                                count="@count"
-                                                IsEditing="@IsEditing"
-                                                localCount=localCount
-                                                localCountAll=localCountAll
-                                                indexParsed="@indexParsed"
-                                                username="@username"
-                                                inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                                Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                                Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
-                                                RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                                ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                                Cancel="@(e => Cancel((e.Item1, e.Item2)))"
-                                                OnDataChanged="UpdateContentHolderList"
-                                            />
-
-                                            @* Increment global count *@
-                                            count++;
-                                        }
-                                        else if (type == "Search" && contentNotNull)
-                                        {
-                                            int hasMatch = 0;
-                                            if (contentHolderList[item.index].section!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].subSection!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].content!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                                            @if (matchTypeSectionsSubSections && contentNotNull)
                                             {
-                                                hasMatch++;
                                                 var localCount = count;
-                                                var localCountAll = countAll;
 
                                                 <WikiBlock
-                                                contentHolderList="contentHolderList"
-                                                inline="@inline"
-                                                matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                                matchTypeSections="@matchTypeSections"
-                                                matchType="@matchType"
-                                                type="@type"
-                                                sections="@sections"
-                                                subSections="@subSections"
-                                                TinyAPIKey="@TinyAPIKey"
-                                                count="@count"
-                                                IsEditing="@IsEditing"
-                                                localCount=localCount
-                                                localCountAll=localCountAll
-                                                indexParsed="@indexParsed"
-                                                username="@username"
-                                                inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                                Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                                Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
-                                                RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                                ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                                Cancel="@(e => Cancel((e.Item1, e.Item2)))"
-                                                OnDataChanged="UpdateContentHolderList"     />
+                                                    contentHolderList="contentHolderList"
+                                                    inline="@inline"
+                                                    matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                    matchTypeSections="@matchTypeSections"
+                                                    matchType="@matchType"
+                                                    type="@type"
+                                                    sections="@sections"
+                                                    subSections="@subSections"
+                                                    TinyAPIKey="@TinyAPIKey"
+                                                    count="@count"
+                                                    IsEditing="@IsEditing"
+                                                    localCount=localCount
+                                                    indexParsed="@indexParsed"
+                                                    username="@username"
+                                                    inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                                    Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                                    Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                                    RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                                    ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                                    Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                                    OnDataChanged="UpdateContentHolderList"
+                                                />
 
                                                 @* Increment global count *@
                                                 count++;
                                             }
+                                            else if (matchTypeSections && contentNotNull)
+                                            {
+                                                var localCount = count;
+
+                                                <WikiBlock contentHolderList="contentHolderList"
+                                           inline="@inline"
+                                           matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                           matchTypeSections="@matchTypeSections"
+                                           matchType="@matchType"
+                                           type="@type"
+                                           sections="@sections"
+                                           subSections="@subSections"
+                                           TinyAPIKey="@TinyAPIKey"
+                                           count="@count"
+                                           IsEditing="@IsEditing"
+                                           localCount=localCount
+                                           indexParsed="@indexParsed"
+                                           username="@username"
+                                           inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                           Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                           Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                           RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                           ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                           Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                           OnDataChanged="UpdateContentHolderList" />
+
+                                                @* Increment global count *@
+                                                count++;
+                                            }
+                                            else if (matchType || type == null && contentNotNull)
+                                            {
+                                                var localCount = count;
+
+                                                <WikiBlock contentHolderList="contentHolderList"
+                                           inline="@inline"
+                                           matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                           matchTypeSections="@matchTypeSections"
+                                           matchType="@matchType"
+                                           type="@type"
+                                           sections="@sections"
+                                           subSections="@subSections"
+                                           TinyAPIKey="@TinyAPIKey"
+                                           count="@count"
+                                           IsEditing="@IsEditing"
+                                           localCount=localCount
+                                           indexParsed="@indexParsed"
+                                           username="@username"
+                                           inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                           Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                           Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                           RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                           ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                           Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                           OnDataChanged="UpdateContentHolderList" />
+
+                                                @* Increment global count *@
+                                                count++;
+                                            }
+                                            else if (type == "all" && contentNotNull)
+                                            {
+                                                var localCount = count;
+
+                                                <WikiBlock
+                                                    contentHolderList="contentHolderList"
+                                                    inline="@inline"
+                                                    matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                    matchTypeSections="@matchTypeSections"
+                                                    matchType="@matchType"
+                                                    type="@type"
+                                                    sections="@sections"
+                                                    subSections="@subSections"
+                                                    TinyAPIKey="@TinyAPIKey"
+                                                    count="@count"
+                                                    IsEditing="@IsEditing"
+                                                    localCount=localCount
+                                                    indexParsed="@indexParsed"
+                                                    username="@username"
+                                                    inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                                    Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                                    Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                                    RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                                    ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                                    Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                                    OnDataChanged="UpdateContentHolderList"
+                                                />
+
+                                                @* Increment global count *@
+                                                count++;
+                                            }
+                                            else
+                                            {
+                                                if (contentHolderList[item.index].page == null)
+                                                {
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
+                                                }
+                                                else if (contentHolderList[item.index].section == null)
+                                                {
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
+                                                }
+                                                else if (contentHolderList[item.index].subSection == null)
+                                                {
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
+                                                }
+                                                else if (contentHolderList[item.index].content == null)
+                                                {
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
+                                                }
+                                            }
                                         }
                                         else
                                         {
-                                            if (contentHolderList[item.index].page == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                            else if (contentHolderList[item.index].section == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                            else if (contentHolderList[item.index].subSection == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
-                                            }
-                                            else if (contentHolderList[item.index].content == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
-                                            }
+                                            Console.WriteLine("Suppressing error?");
                                         }
                                     }
-                                    else
-                                    {
-                                        Console.WriteLine("Suppressing error?");
-                                    }
-                                    countAll++;
                                 }
                                 @if (IsEditing != null)
                                 {
@@ -320,7 +313,6 @@
                                     {
                                         count = 0;
                                         var localCount = count;
-                                        var localCountAll = countAll;
                                         <h3 class="kudosTextInline">New Section: </h3>
                                             <WikiBlock inline="@inline"
                                                 matchTypeSectionsSubSections="false"
@@ -333,7 +325,6 @@
                                                 count="@count"
                                                 IsEditing="@IsEditing"
                                                 localCount=localCount
-                                                localCountAll=localCountAll
                                                 indexParsed="0"
                                                 username="@username"
                                                 inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
@@ -343,7 +334,6 @@
                                                 ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
                                                 Cancel="@(e => Cancel((e.Item1, e.Item2)))"
                                                 CancelNew="CancelNew" />
-                                        countAll++;
                                     }
                                 }
                             </tbody>
@@ -481,7 +471,7 @@
                             }
                             <div class="row">
                                 <div class="col-12 text-center">
-                                    <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.  Over time I will populate it with different projects i'm working on.  You will find a lot of placeholder text at the moment while I develop the back end.  The site uses Microsoft Authentication, there is currently no guest tier so you will need to ask me to add you to my tenant.  The site is structured as a Wiki, for no other reason than I wanted an excuse to improve my API skills, so most of the content on this site is called from a GithubRepo!  If you login, most of the content is also editable.  It's also a Progressive Web App(PWA), so feel free to instal locally!  I have been working on a ChatBot which can take the content from this site as context and answer questions about it, however this requires a login as it costs me money!  </p>
+                                    <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.  Over time I will populate it with different projects i'm working on.  The site is structured as a Wiki, for no other reason than I wanted an excuse to improve my API skills, so, while logged in, most of the content is also editable.  It's also a Progressive Web App(PWA), so feel free to install locally!</p>
 
                                 </div>
                             </div>
@@ -490,171 +480,163 @@
                     else
                     {
                         var count = 0;
-                        var countAll = 0;
                         var clearText = "";
                         var username = @context.User.Identity!.Name;
                         <table class="table rounded table-dark @(inline == true ? "border-bottom" : "table-borderless table-striped")">
                             @* @(inline == true ? "" : "") *@
                             <tbody>
                                 @* Pragmatically populate the table using my customer object array *@
-                                @foreach (var item in contentHolderList
-                               .OrderBy(x => x.page)
-                               .ThenBy(x => x.section)
-                               .ThenBy(x => x.subSection)
-                               .Select((contentHolder, index) => new { contentHolder, index }))
+                                @if (type == "Search")
                                 {
-                                    bool contentNotNull = contentHolderList[item.index].page != null 
-                                    && contentHolderList[item.index].section != null 
-                                    && contentHolderList[item.index].subSection != null 
-                                    && contentHolderList[item.index].content != null;
-
-                                    bool matchTypeSectionsSubSections = type == contentHolderList[item.index].page 
-                                    && sections == contentHolderList[item.index].section 
-                                    && subSections == contentHolderList[item.index].subSection;
-
-                                    bool matchTypeSections = type == contentHolderList[item.index].page 
-                                    && sections == contentHolderList[item.index].section
-                                    && subSections == "all";
-
-                                    bool matchType = type == contentHolderList[item.index].page
-                                    && sections == "all";
-
-                                    int indexParsed = item.index;
-                                    @if (item.contentHolder != null)
+                                    foreach (var item in searchResults
+                                    .OrderByDescending(x => x.Score)
+                                    .Select((searchResult, index) => new { searchResult, index }))
                                     {
+                                        var localCount = count;
+                                        int indexParsed = item.searchResult.Content.id;
+                                        <WikiBlockNoAuth 
+                                           contentHolderList="@contentHolderList"
+                                           inline="@inline"
+                                           matchTypeSectionsSubSections="false"
+                                           matchTypeSections="false"
+                                           matchType="false"
+                                           type="@type"
+                                           sections="@sections"
+                                           subSections="@subSections"
+                                           count="@count"
+                                           localCount=localCount
+                                           indexParsed="@indexParsed" />
+                                        <p>Search Score: @item.searchResult.Score</p>
+                                        @* Increment global count *@
+                                        count++;
+                                    }
+                                }
+                                else
+                                {
+                                    @foreach (var item in contentHolderList
+                                    .OrderBy(x => x.page)
+                                    .ThenBy(x => x.section)
+                                    .ThenBy(x => x.subSection)
+                                    .Select((contentHolder, index) => new { contentHolder, index }))
+                                    {
+                                        bool contentNotNull = contentHolderList[item.index].page != null 
+                                        && contentHolderList[item.index].section != null 
+                                        && contentHolderList[item.index].subSection != null 
+                                        && contentHolderList[item.index].content != null;
 
-                                        @if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == contentHolderList[item.index].subSection && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
+                                        bool matchTypeSectionsSubSections = type == contentHolderList[item.index].page 
+                                        && sections == contentHolderList[item.index].section 
+                                        && subSections == contentHolderList[item.index].subSection;
+
+                                        bool matchTypeSections = type == contentHolderList[item.index].page 
+                                        && sections == contentHolderList[item.index].section
+                                        && subSections == "all";
+
+                                        bool matchType = type == contentHolderList[item.index].page
+                                        && sections == "all";
+
+                                        int indexParsed = item.index;
+                                        @if (item.contentHolder != null)
                                         {
-                                            var localCount = count;
-                                            var localCountAll = countAll;
-                                            <WikiBlockNoAuth 
-                                               contentHolderList="contentHolderList"
-                                               inline="@inline"
-                                               matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                               matchTypeSections="@matchTypeSections"
-                                               matchType="@matchType"
-                                               type="@type"
-                                               sections="@sections"
-                                               subSections="@subSections"
-                                               count="@count"
-                                               localCount=localCount
-                                               localCountAll=localCountAll
-                                               indexParsed="indexParsed"  />
-                                            @* Increment global count *@
-                                            count++;
-                                        }
-                                        else if (type == contentHolderList[item.index].page && sections == contentHolderList[item.index].section && subSections == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
-                                        {
-                                            var localCount = count;
-                                            var localCountAll = countAll;
-                                            <WikiBlockNoAuth 
-                                               contentHolderList="contentHolderList"
-                                               inline="@inline"
-                                               matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                               matchTypeSections="@matchTypeSections"
-                                               matchType="@matchType"
-                                               type="@type"
-                                               sections="@sections"
-                                               subSections="@subSections"
-                                               count="@count"
-                                               localCount=localCount
-                                               localCountAll=localCountAll
-                                               indexParsed="indexParsed"  />
-                                            @* Increment global count *@
-                                            count++;
-                                            @* Increment global count *@
-                                            count++;
-                                        }
-                                        else if ((type == contentHolderList[item.index].page && sections == "all" || type == null)
-                                        && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
-                                        {
-                                            var localCount = count;
-                                            var localCountAll = countAll;
-                                            <WikiBlockNoAuth contentHolderList="contentHolderList"
-                                             inline="@inline"
-                                             matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                             matchTypeSections="@matchTypeSections"
-                                             matchType="@matchType"
-                                             type="@type"
-                                             sections="@sections"
-                                             subSections="@subSections"
-                                             count="@count"
-                                             localCount=localCount
-                                             localCountAll=localCountAll
-                                             indexParsed="indexParsed" />
-                                            @* Increment global count *@
-                                            count++;
-                                        }
-                                        else if (type == "all" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
-                                        {
-                                            var localCount = count;
-                                            var localCountAll = countAll;
-                                            <WikiBlockNoAuth 
-                                               contentHolderList="contentHolderList"
-                                               inline="@inline"
-                                               matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                               matchTypeSections="@matchTypeSections"
-                                               matchType="@matchType"
-                                               type="@type"
-                                               sections="@sections"
-                                               subSections="@subSections"
-                                               count="@count"
-                                               localCount=localCount
-                                               localCountAll=localCountAll
-                                               indexParsed="indexParsed"  />
-                                            @* Increment global count *@
-                                            count++;
-                                        }
-                                        else if (type == "Search" && contentHolderList[item.index].page != null && contentHolderList[item.index].section != null && contentHolderList[item.index].subSection != null && contentHolderList[item.index].content != null)
-                                        {
-                                            int hasMatch = 0;
-                                            if (contentHolderList[item.index].section!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].subSection!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || contentHolderList[item.index].content!.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+
+                                            @if (matchTypeSectionsSubSections && contentNotNull)
                                             {
-                                                hasMatch++;
                                                 var localCount = count;
-                                                var localCountAll = countAll;
                                                 <WikiBlockNoAuth 
-                                                   contentHolderList="contentHolderList"
-                                                   inline="@inline"
-                                                   matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                                   matchTypeSections="@matchTypeSections"
-                                                   matchType="@matchType"
-                                                   type="@type"
-                                                   sections="@sections"
-                                                   subSections="@subSections"
-                                                   count="@count"
-                                                   localCount=localCount
-                                                   localCountAll=localCountAll
-                                                   indexParsed="indexParsed"  />
+                                                    contentHolderList="contentHolderList"
+                                                    inline="@inline"
+                                                    matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                    matchTypeSections="@matchTypeSections"
+                                                    matchType="@matchType"
+                                                    type="@type"
+                                                    sections="@sections"
+                                                    subSections="@subSections"
+                                                    count="@count"
+                                                    localCount=localCount
+                                                    indexParsed="indexParsed"  />
                                                 @* Increment global count *@
                                                 count++;
+                                            }
+                                            else if (matchTypeSections && contentNotNull)
+                                            {
+                                                var localCount = count;
+                                                <WikiBlockNoAuth 
+                                                    contentHolderList="contentHolderList"
+                                                    inline="@inline"
+                                                    matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                    matchTypeSections="@matchTypeSections"
+                                                    matchType="@matchType"
+                                                    type="@type"
+                                                    sections="@sections"
+                                                    subSections="@subSections"
+                                                    count="@count"
+                                                    localCount=localCount
+                                                    indexParsed="indexParsed"  />
+                                                @* Increment global count *@
+                                                count++;
+                                                @* Increment global count *@
+                                                count++;
+                                            }
+                                            else if ((matchType || type == null) && contentNotNull)
+                                            {
+                                                var localCount = count;
+                                                <WikiBlockNoAuth contentHolderList="contentHolderList"
+                                                    inline="@inline"
+                                                    matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                    matchTypeSections="@matchTypeSections"
+                                                    matchType="@matchType"
+                                                    type="@type"
+                                                    sections="@sections"
+                                                    subSections="@subSections"
+                                                    count="@count"
+                                                    localCount=localCount
+                                                    indexParsed="indexParsed" />
+                                                @* Increment global count *@
+                                                count++;
+                                            }
+                                            else if (type == "all" && contentNotNull)
+                                            {
+                                                var localCount = count;
+                                                <WikiBlockNoAuth 
+                                                    contentHolderList="contentHolderList"
+                                                    inline="@inline"
+                                                    matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                    matchTypeSections="@matchTypeSections"
+                                                    matchType="@matchType"
+                                                    type="@type"
+                                                    sections="@sections"
+                                                    subSections="@subSections"
+                                                    count="@count"
+                                                    localCount=localCount
+                                                    indexParsed="indexParsed"  />
+                                                @* Increment global count *@
+                                                count++;
+                                            }
+                                            else
+                                            {
+                                                if (contentHolderList[item.index].page == null)
+                                                {
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
+                                                }
+                                                else if (contentHolderList[item.index].section == null)
+                                                {
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
+                                                }
+                                                else if (contentHolderList[item.index].subSection == null)
+                                                {
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
+                                                }
+                                                else if (contentHolderList[item.index].content == null)
+                                                {
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
+                                                }
                                             }
                                         }
                                         else
                                         {
-                                            if (contentHolderList[item.index].page == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                            else if (contentHolderList[item.index].section == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
-                                            }
-                                            else if (contentHolderList[item.index].subSection == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
-                                            }
-                                            else if (contentHolderList[item.index].content == null)
-                                            {
-                                                @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
-                                            }
+                                            Console.WriteLine("Suppressing error?");
                                         }
                                     }
-                                    else
-                                    {
-                                        Console.WriteLine("Suppressing error?");
-                                    }
-                                    countAll++;
                                 }
                             </tbody>
                         </table>
@@ -670,7 +652,7 @@
     public contentHolder[]? contentHolderList;
     public contentHolder[]? tempContentHolderList;
     public string? tempContentSection;
-    public List<contentHolder> searchResults = new List<contentHolder>();
+    public List<SearchResult> searchResults = new List<SearchResult>(); 
     public string? searchTerm { get; set; }
     //private string[] types = {"Hardware", "Software", "Misc"};
     private string Logo = "Logo.png";
@@ -703,6 +685,9 @@
     private bool initiating = true;
     string? lastPage = null;
 
+    [Inject]
+    public AuthenticationStateProvider? AuthenticationStateProvider { get; set; }
+
     @* Initialize page.  Using Async initialization as I want to load content from API before rendering *@
     protected override async Task OnInitializedAsync()
     {
@@ -713,6 +698,7 @@
             await Task.WhenAll(GetAllContentFromGitHubRepo<contentHolder>(false));
             var orderedContentHolderList = contentHolderList.OrderBy(x => x.page).ThenBy(x => x.section).ThenBy(x => x.subSection);
             contentHolderList = orderedContentHolderList.ToArray();
+            InitializeContentHolderList();
             Array.Resize(ref tempContentHolderList, contentHolderList.Length);
             timer();
             myStateContainer.OnStateChange += StateHasChanged;
@@ -732,9 +718,6 @@
         }
     }
 
-    @*Function to force login when first opening *@
-    [Inject]
-    public AuthenticationStateProvider? AuthenticationStateProvider { get; set; }
     protected override async void OnAfterRender(bool firstRender)
     {
         if (firstRender)
@@ -744,6 +727,15 @@
         }
         base.OnAfterRender(firstRender);
     }
+
+    public void InitializeContentHolderList()
+    {
+        for (int i = 0; i < contentHolderList.Length; i++)
+        {
+            contentHolderList[i].id = i;
+        }
+    }
+
 
     public void timer()
     {
@@ -790,6 +782,7 @@
                     }
                 }
             }
+            InitializeContentHolderList();
         }
     }
 
@@ -820,6 +813,7 @@
     private void UpdateContentHolderList(contentHolder[] newContentHolder)
     {
         contentHolderList = newContentHolder;
+        InitializeContentHolderList();
     }
 
     private void ClearIsEditingArray()
@@ -840,6 +834,33 @@
 
     private void SearchTermChanged()
     {
+        if (searchTerm!.Length > 1)
+        {
+            if (string.Equals(searchTerm, "CV", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/Dissertation/CV");
+            }
+            else if (string.Equals(searchTerm, "Dissertation", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/Dissertation/Dissertation");
+            }
+            else if (string.Equals(searchTerm, "Artifact", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/Dissertation/Artifact");
+            }
+            else if (string.Equals(searchTerm, "ChatBot", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/chat");
+            }
+            else if (searchTerm.Contains("Assistant", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/chat");
+            }
+            else
+            {
+                searchResults = PerformSearch(searchTerm, contentHolderList);
+            }
+        }
         if (type != "Search")
         {
             if (searchTerm!.Length > 1)
@@ -856,6 +877,86 @@
         }
 
     }
+
+    @* Build a list of search results including scores *@
+    private List<SearchResult> PerformSearch(string searchTerm, contentHolder[] contentList)
+    {
+        var results = new List<SearchResult>();
+
+        for (int i = 0; i < contentList.Length; i++)
+        {
+            var content = contentList[i];
+            int score = CalculateMatchScore(searchTerm, content);
+            if (score > 0)
+            {
+                results.Add(new SearchResult{ Score = score, Content = content });
+            }
+        }
+        return results.OrderByDescending(r => r.Score).ToList();
+    }
+
+    public int CalculateMatchScore(string searchTerm, contentHolder content)
+    {
+        int score = 0;
+        // Normalize search term
+        searchTerm = Regex.Replace(searchTerm, @"\p{P}", "").ToLower();
+
+        // Split the search term into words
+        var searchWords = searchTerm.Split(' ');
+
+        // Strip HTML tags from content and normalize
+        var strippedContent = Regex.Replace(content.content, "<.*?>", String.Empty);
+        strippedContent = Regex.Replace(strippedContent, @"\p{P}", "").ToLower();
+
+        // Split the content into words
+        var contentWords = strippedContent.Split(' ');
+
+        // Normalize title words
+        var title = $"{content.page} {content.section} {content.subSection}";
+        title = Regex.Replace(title, "<.*?>", String.Empty);
+        title = Regex.Replace(title, @"\p{P}", "").ToLower();
+
+        var titleWords = title.Split(' ');
+
+        // Check if the entire search term appears in the content or title
+        if (strippedContent.Contains(searchTerm) || title.Contains(searchTerm))
+        {
+            score += 4;
+        }
+
+        // Check each word in the search term
+        foreach (var word in searchWords)
+        {
+            // Check full word matches in content
+            if (contentWords.Any(contentWord =>
+                string.Equals(contentWord, word, StringComparison.OrdinalIgnoreCase)))
+            {
+                score += 2;
+            }
+            // Check full word matches in title
+            if (titleWords.Any(titleWord =>
+                string.Equals(titleWord, word, StringComparison.OrdinalIgnoreCase)))
+            {
+                score += 4;
+            }
+            // Check partial matches in content
+            if (contentWords.Any(contentWord =>
+                contentWord.Contains(word, StringComparison.OrdinalIgnoreCase)))
+            {
+                score += 1;
+            }
+            // Check partial matches in title
+            if (titleWords.Any(titleWord =>
+                titleWord.Contains(word, StringComparison.OrdinalIgnoreCase)))
+            {
+                score += 2;
+            }
+        }
+
+        return score;
+    }
+
+
 
     @* Currently actually redirects to Microsoft Authentication popup, but might change this to home *@
     protected private void RedirectHome()
@@ -956,7 +1057,7 @@
         int globalSectionNo = parameters.globalSectionNo;
         bool newSec = parameters.newSec;
 
-        string? localSection; ;
+        string? localSection;
         string oldSHA;
         int? oldUpdateCount = updateCount;
         if (newSec == true)
@@ -1059,6 +1160,7 @@
         {
             Console.WriteLine("Still Loading");
         }
+        InitializeContentHolderList();
         StateHasChanged();
     }
 
@@ -1082,6 +1184,7 @@
             await RemoveSection((contentHolderList!.Length - 1, "... (New Section)"));
         }
         IsEditing![localSectionNo] = false;
+        InitializeContentHolderList();
     }
     private void CancelNew(int localSectionNo)
     {
@@ -1144,6 +1247,7 @@
         {
             await JSRuntime.InvokeVoidAsync("alert", "Each box must have an entry");
         }
+        InitializeContentHolderList();
     }
 
     @* Method to remove selected section *@
@@ -1190,12 +1294,14 @@
                 }
             }
         }
+        InitializeContentHolderList();
     }
     @* This method should reset lengths of different variables and re-load the page.  Called after a number of state changes *@
     private void ReInitialize()
     {
         Array.Resize(ref initialContent, contentHolderList!.Length);
         IsEditing = new bool[contentHolderList.Length];
+        InitializeContentHolderList();
         StateHasChanged();
     }
     @* Method for uploading content to GitHub API via PUT *@
@@ -1332,6 +1438,7 @@
                 loadingMSG += "Error Loading single section Content: " + ex.Message + "Check size of DB";
                 StateHasChanged();
             }
+            InitializeContentHolderList();
             StateHasChanged();
             updateCount++;
         }
@@ -1457,7 +1564,7 @@
                 loadingMSG += "Error Loading All Content: " + ex.Message + "Check size of DB";
                 StateHasChanged();
             }
-
+            InitializeContentHolderList();
             StateHasChanged();
             updateCount++;
         }
@@ -1497,7 +1604,17 @@
         public string? subSection { get; set; }
 
         public string? content { get; set; }
+
+        public int id { get; set; }
     }
+
+    @* Class for tying search results to their score *@
+    public class SearchResult
+    {
+        public contentHolder Content { get; set; }
+        public int Score { get; set; }
+    }
+
     @* Class for creating an object from GET response. content here will still be JSON string, so needs de-serializing further using previous class *@
     public class ContentParser
     {

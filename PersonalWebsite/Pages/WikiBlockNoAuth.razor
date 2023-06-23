@@ -13,7 +13,7 @@
 		<tr>
 			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
 			<td>
-				@if (type == "all" || (!matchTypeSections && matchType))
+				@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
 				{
 					<h3 class="kudosTextInline">
 						@(new MarkupString(@contentHolderList[indexParsed].section))
@@ -53,21 +53,7 @@
 	{
 		<tr>
 			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-			@if (type == "all")
-			{
-				<td class="kudosText col-1">
-					<h4>
-						@(new MarkupString(contentHolderList[indexParsed].section))
-						<br>
-						<small>
-							<div class="text-muted">
-								@(new MarkupString(@contentHolderList[indexParsed].subSection))
-							</div>
-						</small>
-					</h4>
-				</td>
-			}
-			else if (!matchTypeSections && matchType)
+			@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
 			{
 				<td class="kudosText col-1">
 					<h4>
@@ -141,7 +127,6 @@ else
 	[Parameter] public string subSections { get; set; }
 	[Parameter] public int count { get; set; }
 	[Parameter] public int localCount { get; set; }
-	[Parameter] public int localCountAll { get; set; }
 	[Parameter] public int indexParsed { get; set; }
 
 	private string? lastPage;

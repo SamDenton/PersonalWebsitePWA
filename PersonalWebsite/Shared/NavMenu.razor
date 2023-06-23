@@ -55,10 +55,10 @@
                 {
                     var count = 0;
                     @foreach (var typeGroup in contentHolderList
-                   .OrderBy(c => c.page)
-                   .ThenBy(c => c.section)
-                   .ThenBy(c => c.subSection)
-                   .GroupBy(c => c.page))
+                    .OrderBy(c => c.page)
+                    .ThenBy(c => c.section)
+                    .ThenBy(c => c.subSection)
+                    .GroupBy(c => c.page))
                     {
                         var type = typeGroup.Key;
                         <div class="p-1 item-fader nav-item px-2 font-weight-bold" @onclick="(() => { Array.Fill(showSubSections!, false); })">
