@@ -131,6 +131,30 @@
                                         count++;
                                     }
                                 }
+                                else if (type == "add" && IsEditing![0] == true && contentHolderList != null)
+                                {
+                                    <WikiBlock contentHolderList="@contentHolderList"
+                                        inline="@inline"
+                                        matchTypeSectionsSubSections="false"
+                                        matchTypeSections="false"
+                                        matchType="false"
+                                        type="@type"
+                                        sections="@sections"
+                                        subSections="@subSections"
+                                        TinyAPIKey="@TinyAPIKey"
+                                        count="0"
+                                        IsEditing="@IsEditing"
+                                        localCount=0
+                                        indexParsed=0
+                                        username="@username"
+                                        inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
+                                        Edit="@(e => Edit((e.Item1, e.Item2)))"
+                                        Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
+                                        RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
+                                        ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
+                                        Cancel="@(e => Cancel((e.Item1, e.Item2)))"
+                                        CancelNew="CancelNew" />
+                                }
                                 else
                                 {
                                     @* Pragmatically populate the table using my custom object array *@
@@ -307,97 +331,67 @@
                                         }
                                     }
                                 }
-                                @if (IsEditing != null)
+                                @if (type == "add")
                                 {
-                                    @if (type == "add" && IsEditing![0] == true)
+                                    @if (contentHolderList == null || isContentLoaded == false || IsEditing == null)
                                     {
-                                        count = 0;
-                                        var localCount = count;
-                                        <h3 class="kudosTextInline">New Section: </h3>
-                                            <WikiBlock inline="@inline"
-                                                matchTypeSectionsSubSections="false"
-                                                matchTypeSections="false"
-                                                matchType="false"
-                                                type="@type"
-                                                sections="@sections"
-                                                subSections="@subSections"
-                                                TinyAPIKey="@TinyAPIKey"
-                                                count="@count"
-                                                IsEditing="@IsEditing"
-                                                localCount=localCount
-                                                indexParsed="0"
-                                                username="@username"
-                                                inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                                Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                                Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
-                                                RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                                ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                                Cancel="@(e => Cancel((e.Item1, e.Item2)))"
-                                                CancelNew="CancelNew" />
+                                        <p><em> </em></p>
+                                    }
+                                    else
+                                    {
+                                        IsEditing[0] = false;
+                                        <div class="bg-dark text-primary container-fluid">
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    @* Dropdown for section type *@
+                                                    <div class="form-group">
+                                                        <label class="form-label bg-dark text-light" for="typeDropdown">Select Type:</label>
+                                                        <select class="form-control form-control-dark bg-dark text-primary border-primary" id="typeDropdown" @bind="typeDropdown">
+                                                            <option value="Default" disabled selected>Select a type</option>
+                                                            @foreach (var group in contentHolderList!.GroupBy(ch => ch.page))
+                                                            {
+                                                                <option value="@group.First().page">@group.Key</option>
+                                                            }
+                                                            <option value="Add">Add New</option>
+                                                        </select>
+                                                        @if (typeDropdown == "Add")
+                                                        {
+                                                            <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary mt-2" placeholder="Enter new type name" @bind="newTypeDropdown" />
+                                                        }
+                                                    </div>
+                                                    @* Text field for section name *@
+                                                    <div class="form-group">
+                                                        <label class="form-label bg-dark text-light" for="sectionDropdown">Select Section:</label>
+                                                        <select class="form-control form-control-dark bg-dark text-primary border-primary" id="sectionDropdown" @bind="sectionName">
+                                                            <option value="Default" disabled selected>Select a type, then section</option>
+                                                            @foreach (var group in contentHolderList!.Where(ch => ch.page == typeDropdown).GroupBy(ch => ch.section))
+                                                            {
+                                                                <option value="@group.First().section">@group.Key</option>
+                                                            }
+                                                            <option value="Add">Add New</option>
+                                                        </select>
+                                                        @if (sectionName == "Add")
+                                                        {
+                                                            <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary mt-2" placeholder="Enter new section name" @bind="newSectionName" />
+                                                        }
+                                                    </div>
+                                                    @* Text field for subSection name *@
+                                                    <div class="form-group bg-dark text-primary">
+                                                        <label class="form-label bg-dark text-light mt-1" for="sectionContent">Select subSection:</label>
+                                                        <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary" id="sectionContent" placeholder="Name of the new subSection" @bind="subSectionName">
+                                                    </div>
+                                                    @* Add section button *@
+                                                    <button class="btn btn-outline-primary mt-2" @onclick="(() => AddNewSection(username!))">Add New subSection</button>
+                                                </div>
+                                                <div class="col-6">
+                                                    @* Spacing *@
+                                                </div>
+                                            </div>
+                                        </div>
                                     }
                                 }
                             </tbody>
                         </table>
-                    }
-                    @if (type == "add")
-                    {
-                        @if (contentHolderList == null || isContentLoaded == false || IsEditing == null)
-                        {
-                            <p><em> </em></p>
-                        }
-                        else
-                        {
-                            IsEditing[0] = false;
-                            var username = @context.User.Identity!.Name;
-                            <div class="bg-dark text-primary container-fluid">
-                                <div class="row">
-                                    <div class="col-6">
-                                        @* Dropdown for section type *@
-                                        <div class="form-group">
-                                            <label class="form-label bg-dark text-light" for="typeDropdown">Select Type:</label>
-                                            <select class="form-control form-control-dark bg-dark text-primary border-primary" id="typeDropdown" @bind="typeDropdown">
-                                                <option value="Default" disabled selected>Select a type</option>
-                                                @foreach (var group in contentHolderList!.GroupBy(ch => ch.page))
-                                                {
-                                                    <option value="@group.First().page">@group.Key</option>
-                                                }
-                                                <option value="Add">Add New</option>
-                                            </select>
-                                            @if (typeDropdown == "Add")
-                                            {
-                                                <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary mt-2" placeholder="Enter new type name" @bind="newTypeDropdown" />
-                                            }
-                                        </div>
-                                        @* Text field for section name *@
-                                        <div class="form-group">
-                                            <label class="form-label bg-dark text-light" for="sectionDropdown">Select Section:</label>
-                                            <select class="form-control form-control-dark bg-dark text-primary border-primary" id="sectionDropdown" @bind="sectionName">
-                                                <option value="Default" disabled selected>Select a type, then section</option>
-                                                @foreach (var group in contentHolderList!.Where(ch => ch.page == typeDropdown).GroupBy(ch => ch.section))
-                                                {
-                                                    <option value="@group.First().section">@group.Key</option>
-                                                }
-                                                <option value="Add">Add New</option>
-                                            </select>
-                                            @if (sectionName == "Add")
-                                            {
-                                                <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary mt-2" placeholder="Enter new section name" @bind="newSectionName" />
-                                            }
-                                        </div>
-                                        @* Text field for subSection name *@
-                                        <div class="form-group bg-dark text-primary">
-                                            <label class="form-label bg-dark text-light mt-1" for="sectionContent">Select subSection:</label>
-                                            <input type="text" class="form-control form-control-dark bg-dark text-primary border-primary" id="sectionContent" placeholder="Name of the new subSection" @bind="subSectionName">
-                                        </div>
-                                        @* Add section button *@
-                                        <button class="btn btn-outline-primary mt-2" @onclick="(() => AddNewSection(username!))">Add New subSection</button>
-                                    </div>
-                                    <div class="col-6">
-                                        @* Spacing *@
-                                    </div>
-                                </div>
-                            </div>
-                        }
                     }
                 </div>
             </div>
@@ -924,30 +918,33 @@
             score += 4;
         }
 
-        // Check each word in the search term
-        foreach (var word in searchWords)
+        // Check each word in the content
+        foreach (var word in contentWords)
         {
-            // Check full word matches in content
-            if (contentWords.Any(contentWord =>
-                string.Equals(contentWord, word, StringComparison.OrdinalIgnoreCase)))
+            // Check full word matches
+            if (searchWords.Any(searchWord =>
+                string.Equals(word, searchWord, StringComparison.OrdinalIgnoreCase)))
             {
                 score += 2;
-            }
-            // Check full word matches in title
-            if (titleWords.Any(titleWord =>
-                string.Equals(titleWord, word, StringComparison.OrdinalIgnoreCase)))
-            {
-                score += 4;
-            }
-            // Check partial matches in content
-            if (contentWords.Any(contentWord =>
-                contentWord.Contains(word, StringComparison.OrdinalIgnoreCase)))
+            }// Check partial matches
+            else if (searchWords.Any(searchWord =>
+                word.Contains(searchWord, StringComparison.OrdinalIgnoreCase)))
             {
                 score += 1;
             }
-            // Check partial matches in title
-            if (titleWords.Any(titleWord =>
-                titleWord.Contains(word, StringComparison.OrdinalIgnoreCase)))
+        }
+
+        // Check each word in the title
+        foreach (var word in titleWords)
+        {
+            // Check full word matches
+            if (searchWords.Any(searchWord =>
+                string.Equals(word, searchWord, StringComparison.OrdinalIgnoreCase)))
+            {
+                score += 3;
+            }// Check partial matches
+            else if (searchWords.Any(searchWord =>
+                word.Contains(searchWord, StringComparison.OrdinalIgnoreCase)))
             {
                 score += 2;
             }
@@ -955,6 +952,7 @@
 
         return score;
     }
+
 
 
 
@@ -1063,8 +1061,7 @@
         if (newSec == true)
         {
             localSection = contentHolderList.Last().page + contentHolderList.Last().section;
-            oldSHA = "";
-            shaDictionary[localSection] = "";
+            oldSHA = shaDictionary[localSection]!;
             updateCount++;
         }
         else
@@ -1230,7 +1227,7 @@
                         section = finalName,
                         subSection = subName,
                         content = "<p>Enter some details about " + subName + " here.</p>"
-                    };
+                    }; 
                 ReInitialize();
                 @* Initialize new index on control variables *@
                 IsEditing[0] = true;
@@ -1247,7 +1244,6 @@
         {
             await JSRuntime.InvokeVoidAsync("alert", "Each box must have an entry");
         }
-        InitializeContentHolderList();
     }
 
     @* Method to remove selected section *@
@@ -1642,81 +1638,4 @@
     {
         public string sha { get; set; }
     }
-
-    @* Define properties for TinyMCE WYSIWYG editor *@
-    private Dictionary<string, object> editorConf = new Dictionary<string, object>  {
-        {"menubar", "edit insert format table tools help"},
-    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
-        {"toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize blocks | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media template link anchor codesample | ltr rtl"},
-        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
-        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
-        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
-        {"quickbars_selection_toolbar", "bold italic underline | fontfamily fontsize blocks | bullist numlist | blockquote quicklink"},
-        {"quickbars_insert_toolbar", "quicktable image media codesample" },
-        {"toolbar_mode", "floating"},
-        {"toolbar_location", "top"},
-        {"width", "100%"},
-        {"min_width", "100%"},
-        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
-        {"min_height", 100},
-        {"autoresize_bottom_margin", 30},
-        {"skin", "oxide-dark"},
-        {"content_css", "dark"},
-        {"autosave_ask_before_unload", "true"},
-        {"paste_data_images", "false"},
-        {"paste_as_text", "true"},
-        {"resize", "true"}
-    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
-    };
-    private Dictionary<string, object> editorConfInline = new Dictionary<string, object>  {
-    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
-        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
-        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
-        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
-        {"quickbars_selection_toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize | blocks | bullist numlist | alignleft aligncenter alignright alignjustify | outdent indent | forecolor backcolor | blockquote quicklink | charmap emoticons | print | insertfile image media template link anchor codesample | removeformat"},
-        {"toolbar", "false"},
-        {"menubar", "false"},
-        {"block_formats", "Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;"},
-        {"quickbars_insert_toolbar", "quicktable image media codesample" },
-        {"width", "100%"},
-        {"min_width", "100%"},
-        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
-        {"min_height", 100},
-        {"autoresize_bottom_margin", 30},
-        {"skin", "oxide-dark"},
-        {"content_css", "dark"},
-        {"autosave_ask_before_unload", "true"},
-        {"paste_data_images", "false"},
-        {"paste_as_text", "true"},
-        {"resize", "true"}
-    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
-    };
-    private Dictionary<string, object> editorConfHeaders = new Dictionary<string, object>  {
-    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
-        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
-        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
-        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
-        {"quickbars_selection_toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize | blocks | bullist numlist | alignleft aligncenter alignright alignjustify | outdent indent | forecolor backcolor | blockquote quicklink | charmap emoticons | print | insertfile image media template link anchor codesample | removeformat"},
-        {"toolbar", "false"},
-        {"menubar", "false"},
-        {"block_formats", "Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;"},
-        {"quickbars_insert_toolbar", "quicktable image media codesample" },
-        {"width", "100%"},
-        {"min_width", "100%"},
-        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
-        {"min_height", 100},
-        {"autoresize_bottom_margin", 30},
-        {"skin", "oxide-dark"},
-        {"content_css", "dark"},
-        {"autosave_ask_before_unload", "true"},
-        {"paste_data_images", "false"},
-        {"paste_as_text", "true"},
-        {"resize", "true"},
-        {"forced_root_block", ""}
-    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
-    };
-
-    @*{"toolbar_sticky", "true"},
-        {"toolbar_sticky_offset", "500"},
-        {"toolbar_location", "auto"},*@
 }

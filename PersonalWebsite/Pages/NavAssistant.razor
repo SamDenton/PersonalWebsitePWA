@@ -6,27 +6,34 @@
 @using System.Net.Http.Json
 
 <h3>AI Navigation Assistant</h3>
-<p>This tool is designed to assist in searching this website for specific content, and summarizing it where practical.</p>
+<AuthorizeView>
+    <Authorized>
+        <p>This tool is designed to assist in searching this website for specific content, and summarizing it where practical.</p>
 
-<div class="UserInput">
-    <p>What do you want to search for?</p>
-    <input @bind="userRequest" />
-</div>
-<div class="BotOutput">
-    <p>Output:</p>
-    <div class="OutputBox">
-        <p>SELECT @producedSQL</p>
-    </div>
-</div>
-<div class="loaderContiner">
-    @if (loading)
-    {
-        <div class="loader">
-            <div class="loaderBar"></div>
+        <div class="UserInput">
+            <p>What do you want to search for?</p>
+            <input @bind="userRequest" />
         </div>
-    }
-</div>
-<button class="btn btn-outline-primary generateBTN" @onclick="(() => GenerateSQL())" disabled="@loading">Generate!</button>
+        <div class="BotOutput">
+            <p>Output:</p>
+            <div class="OutputBox">
+                <p>SELECT @producedSQL</p>
+            </div>
+        </div>
+        <div class="loaderContiner">
+            @if (loading)
+            {
+                <div class="loader">
+                    <div class="loaderBar"></div>
+                </div>
+            }
+        </div>
+        <button class="btn btn-outline-primary generateBTN" @onclick="(() => GenerateSQL())" disabled="@loading">Generate!</button>
+    </Authorized>
+    <NotAuthorized>
+        <p>Tool still in progress, check back in a few days or login to see the prototype!</p>
+    </NotAuthorized>
+</AuthorizeView>
 
 @code {
     private string API_KEY;

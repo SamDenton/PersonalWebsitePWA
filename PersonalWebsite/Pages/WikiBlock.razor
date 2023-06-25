@@ -1,11 +1,68 @@
 ﻿@inject contentHolder contentHolder
 @inject MyStateContainer myStateContainer
 
-	@if (type == "all" && lastPage != contentHolderList[indexParsed].page)
+@if (type == "all" && lastPage != contentHolderList[indexParsed].page)
+{
+	<h1 class="kudosTextInline">@contentHolderList[indexParsed].page</h1>
+	lastPage = contentHolderList[indexParsed].page;
+}
+@if (type == "add")
+{
+	if (inline == true)
 	{
-		<h1 class="kudosTextInline">@contentHolderList[indexParsed].page</h1>
-		lastPage = contentHolderList[indexParsed].page;
+		<tr>
+			<td>
+				<h3 class="kudosTextInline">New Section: </h3>
+				<div class="dotted-lines" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, true)))">
+					<Editor Id="@count.ToString()"
+						Inline=true
+						CloudChannel="5"
+						Disable=false
+						Conf="@editorConfInline"
+						ApiKey="@TinyAPIKey"
+						ClassName="counterEditor"
+						Value="@contentHolderList.Last().content"
+						ValueChanged="@(async (newValue) => { contentHolderList.Last().content = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+				</div>
+			</td>
+		</tr>
 	}
+	else
+	{
+		<tr>
+			<td class="kudosText">New Section: </td>
+			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+			<td hidden="@IsEditing[count]">@(new MarkupString(contentHolderList.Last().content!))</td>
+			<td hidden="@(!IsEditing[count])">
+				<div class="dotted-lines tinymce-editor">
+					<Editor Id="@count.ToString()"
+							Inline=false
+							CloudChannel="5"
+							Disable=false
+							Conf="@editorConf"
+							ApiKey="@TinyAPIKey"
+							ClassName="counterEditor"
+							Value="@contentHolderList.Last().content"
+							ValueChanged="@(async (newValue) => { contentHolderList.Last().content = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				@*Spacing*@
+			</td>
+			@* Button bank to be generated per section.  Using lambda expression to parse value to function *@
+			@{var clearText = "";}
+			<td>
+				<button class="btn btn-outline-warning" @onclick="()=> contentHolderList.Last().content = clearText">Clear</button>
+				<button class="btn btn-outline-primary" @onclick="(() => Save.InvokeAsync((localCount, username!, indexParsed, true)))" hidden="@(!IsEditing[localCount])">Save</button>
+				<button class="btn btn-outline-primary" @onclick="(() => CancelNew.InvokeAsync(localCount))" hidden="@(!IsEditing[localCount])">Cancel</button>
+			</td>
+	</tr>
+	}
+}
+else
+{
 	@if (inline == true)
 	{
 		<tr>
@@ -157,33 +214,21 @@
 		</tr>
 		<tr>
 			@if (!matchTypeSectionsSubSections)
-				{
-					<td>
-						@*Spacing*@
-					</td>
-				}
-			@if (type == "add" && IsEditing![0] == true)
-			{
-				var clearText = "";
-				<td>
-					<button class="btn btn-outline-warning" @onclick="()=> contentHolderList.Last().content = clearText">Clear</button>
-					<button class="btn btn-outline-primary" @onclick="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))" hidden="@(!IsEditing[localCount])">Save</button>
-					<button class="btn btn-outline-primary" @onclick="(() => CancelNew.InvokeAsync(localCount))" hidden="@(!IsEditing[localCount])">Cancel</button>
-				</td>
-			}
-			else
 			{
 				<td>
-					<button class="btn btn-outline-warning" @onclick="(() => ClearContent.InvokeAsync((localCount, indexParsed)))">Clear</button>
-					<button class="btn btn-outline-danger" @onclick="(() => RemoveSection.InvokeAsync((indexParsed, username!)))">Delete</button>
-					<button class="btn btn-outline-primary" @onclick="(() => Edit.InvokeAsync((localCount, indexParsed)))" hidden="@IsEditing[localCount]">Edit</button>
-					<button class="btn btn-outline-primary" @onclick="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))" hidden="@(!IsEditing[localCount])">Save</button>
-					<button class="btn btn-outline-primary" @onclick="(() => Cancel.InvokeAsync((localCount, indexParsed)))" hidden="@(!IsEditing[localCount])">Cancel</button>
+					@*Spacing*@
 				</td>
 			}
+			<td>
+				<button class="btn btn-outline-warning" @onclick="(() => ClearContent.InvokeAsync((localCount, indexParsed)))">Clear</button>
+				<button class="btn btn-outline-danger" @onclick="(() => RemoveSection.InvokeAsync((indexParsed, username!)))">Delete</button>
+				<button class="btn btn-outline-primary" @onclick="(() => Edit.InvokeAsync((localCount, indexParsed)))" hidden="@IsEditing[localCount]">Edit</button>
+				<button class="btn btn-outline-primary" @onclick="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))" hidden="@(!IsEditing[localCount])">Save</button>
+				<button class="btn btn-outline-primary" @onclick="(() => Cancel.InvokeAsync((localCount, indexParsed)))" hidden="@(!IsEditing[localCount])">Cancel</button>
+			</td>
 		</tr>
 	}
-
+}
 
 
 
@@ -236,6 +281,7 @@
         {"autosave_ask_before_unload", "true"},
         {"paste_data_images", "false"},
         {"paste_as_text", "true"},
+		{"browser_spellcheck", "true"},
         {"resize", "true"}
     @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
     };
@@ -259,6 +305,7 @@
         {"autosave_ask_before_unload", "true"},
         {"paste_data_images", "false"},
         {"paste_as_text", "true"},
+		{"browser_spellcheck", "true"},
         {"resize", "true"}
     @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
     };
@@ -283,6 +330,7 @@
         {"paste_data_images", "false"},
         {"paste_as_text", "true"},
         {"resize", "true"},
+		{"browser_spellcheck", "true"},
         {"forced_root_block", ""}
     @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
     };

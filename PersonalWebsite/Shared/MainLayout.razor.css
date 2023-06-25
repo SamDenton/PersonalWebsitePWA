@@ -10,7 +10,7 @@ main {
 }
 
 .sidebar {
-    background-image: linear-gradient(180deg, #0d385b 10%, #212529 50%);
+    background-image: linear-gradient(180deg, #0d385b 10%, #212529 70%);
     max-height: 100vh;
     width: 250px;
 }

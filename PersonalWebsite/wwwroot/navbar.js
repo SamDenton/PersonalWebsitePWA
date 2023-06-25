@@ -74,18 +74,22 @@ function fadeOut() {
     }
 }
 
-let navContainer, scrollContainer, nav;
+let navContainer, scrollContainer, nav, popupTip, tooltipTimeout;
 let isMouseOverNav = false;
-let currentTop = 0, prevTop = 0;
-let maxTop, containerHeight, navHeight, navItemsHeight;
+let currentTop = 0, prevTop = 0, startY = 0, startX = 0;
+let maxTop, containerHeight, navHeight, navItemsHeight, initialY;
 let animationStarted = false;
-const momentumFactor = 0.951;
-const fadeEffectStrength = 0.3;
+const momentumFactor = 0.95;
+const fadeEffectStrength = 0.05;
 
 function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSelector) {
     navContainer = document.querySelector(navContainerSelector);
     scrollContainer = document.querySelector(scrollContainerSelector);
     nav = document.querySelector(navSelector);
+
+    popupTip = document.querySelector('#popupTip');
+
+    navContainer.addEventListener("mouseenter", onMouseEnter);
     navContainer.addEventListener("mousemove", onMouseMove);
     navContainer.addEventListener("mouseleave", onMouseLeave);
     navContainer.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -109,9 +113,9 @@ function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSel
     }, 500); // Set the delay time in milliseconds (e.g., 500ms)
 }
 
-function calculateScrollSpeed(mouseY, containerHeight, maxSpeed) {
-    const distanceToMiddle = Math.abs(mouseY - containerHeight / 2);
-    const speed = (distanceToMiddle / (containerHeight / 2)) / 2;
+function calculateScrollSpeed(mouseY, startY, maxSpeed) {
+    const distanceToStart = Math.abs(mouseY - startY);
+    const speed = (distanceToStart / (containerHeight / 2)) / 2;
 
     if (speed > maxSpeed) {
         return maxSpeed;
@@ -120,23 +124,45 @@ function calculateScrollSpeed(mouseY, containerHeight, maxSpeed) {
     return speed;
 }
 
+function onMouseEnter(event) {
+    const navContainerRect = navContainer.getBoundingClientRect();
+    startY = event.clientY - navContainerRect.top;
+    startX = event.clientX - navContainerRect.left;
+    // Show the tooltip
+    popupTip.style.display = 'block';
+    popupTip.style.top = `${startY + 10}px`;
+    popupTip.style.left = `${startX - 10}px`;
+    // Hide the tooltip after 3 seconds
+    clearTimeout(tooltipTimeout);
+    tooltipTimeout = setTimeout(() => {
+        popupTip.style.display = 'none';
+    }, 4000);
+}
+
 function onMouseMove(event) {
     if (isTouchActive) { return };
+    const navContainerRect = navContainer.getBoundingClientRect();
+    let moveY = event.clientY - navContainerRect.top;
+    let moveX = event.clientX - navContainerRect.left;
+
+    // Update the tooltip position
+    popupTip.style.top = `${moveY + 10}px`;
+    popupTip.style.left = `${moveX - 10}px`;
     isMouseOverNav = true;
     navHeight = nav.offsetHeight;
     containerHeight = navContainer.offsetHeight;
     if (navHeight > containerHeight) {
-        const navContainerRect = navContainer.getBoundingClientRect();
         const mouseY = event.clientY - navContainerRect.top;
-        const scrollPosition = (mouseY - containerHeight / 2) / (containerHeight / 2);
+        const scrollPosition = (mouseY - startY) / (containerHeight / 2);
         maxTop = containerHeight - ((navHeight * 3) / 2);
 
         // Calculate scrolling speed based on the mouse position
         const maxSpeed = 0.1; // Set the maximum scrolling speed
-        const speed = calculateScrollSpeed(mouseY, containerHeight, maxSpeed);
+        const speed = calculateScrollSpeed(mouseY, startY, maxSpeed);
         const newTop = maxTop * scrollPosition * speed - (navHeight - containerHeight) / 2;
 
         updatePosition(newTop);
+
     }
 
     // Start the animation loop only if it has not been started
@@ -193,12 +219,13 @@ function onMouseLeave(event) {
         animationStarted = true;
     }
 
-    if (Math.abs(currentTop - prevTop) > 0.001) {
+    if (Math.abs(currentTop - prevTop) > 0.05) {
         window.requestAnimationFrame(() => onMouseLeave(event));
     } else {
         // Reset the animationStarted flag when the momentum effect has ended
         animationStarted = false;
     }
+    popupTip.style.display = 'none';  // Hide the tooltip when the mouse leaves the navbar
 }
 
 let touchStartY = 0;
@@ -232,7 +259,7 @@ function onTouchEnd(event) {
 
 function applyEffects() {
     const navItems = nav.querySelectorAll('.item-fader');
-    const centerY = containerHeight / 2;
+    const centerY = startY;
 
     navItems.forEach((navItem) => {
         const navItemRect = navItem.getBoundingClientRect();
@@ -240,7 +267,7 @@ function applyEffects() {
         const navItemCenterY = navItemRect.top + navItemRect.height / 2 - navContainerRect.top;
         const distanceFromCenter = Math.abs(navItemCenterY - centerY);
         const scaleFactor = 1 - (distanceFromCenter / containerHeight * fadeEffectStrength);
-        const opacityFactor = Math.max(0, 1 - (distanceFromCenter / (containerHeight / 2) * fadeEffectStrength));
+        const opacityFactor = Math.abs(1 - (distanceFromCenter / (containerHeight / 2) * fadeEffectStrength));
 
         navItem.style.transform = `scale(${scaleFactor})`;// translateY(-50%)
         navItem.style.opacity = opacityFactor;
