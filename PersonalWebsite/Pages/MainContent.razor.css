@@ -156,10 +156,6 @@
     z-index: 0;
 }
 
-#searchBar {
-    margin-top: -74px;
-}
-
 .homeImg {
     position: relative;
     display: inline-block !important;

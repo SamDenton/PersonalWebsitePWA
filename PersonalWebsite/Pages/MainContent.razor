@@ -15,19 +15,10 @@
 <AuthorizeView>
     <Authorized>
         <PageTitle>Wiki</PageTitle>
-        <div class="ps-1 pt-2 sticky-top container-flex" id="searchBar" style="pointer-events: none;">
-            <div class="row">
-                <div class="col-3">
-                </div>
-                <div class="col-5">
-                    <div class="input-group mb-3 text-light" style="pointer-events: auto;">
-                        <input class="form-control bg-dark text-light" placeholder="Search Wiki" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChanged">
-                    </div>
-                </div>
-                <div class="col-4">
-                </div>
-            </div>
-        </div>
+        <SearchBar 
+           type="@type"
+           SearchTermChanged="SearchTermChanged"
+           IsSearchDisabled="false"  />
         <div class="container-fluid mx-0 ps-0">
             <div class="row mx-0 ps-0 gx-3">
                 <div class="col">
@@ -400,19 +391,10 @@
     </Authorized>
     <NotAuthorized>
 
-        <div class="ps-1 pt-2 sticky-top container-flex" id="searchBar" style="pointer-events: none;">
-            <div class="row">
-                <div class="col-3">
-                </div>
-                <div class="col-5">
-                    <div class="input-group mb-3 text-light" style="pointer-events: auto;">
-                        <input class="form-control bg-dark text-light" placeholder="Search Wiki" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChanged">
-                    </div>
-                </div>
-                <div class="col-4">
-                </div>
-            </div>
-        </div>
+        <SearchBar 
+            type="@type"
+            SearchTermChanged="SearchTermChanged" 
+            IsSearchDisabled="false"  />
         <div class="container-fluid mx-0 ps-0">
             <div class="row mx-0 ps-0 gx-3">
                 <div class="col">
@@ -679,8 +661,7 @@
     private bool initiating = true;
     string? lastPage = null;
 
-    [Inject]
-    public AuthenticationStateProvider? AuthenticationStateProvider { get; set; }
+    [Inject] public AuthenticationStateProvider? AuthenticationStateProvider { get; set; }
 
     @* Initialize page.  Using Async initialization as I want to load content from API before rendering *@
     protected override async Task OnInitializedAsync()
@@ -784,7 +765,7 @@
     {
         JSRuntime.InvokeVoidAsync("alert", message);
     }
-
+    
     private async Task GetAuthenticationState()
     {
         var authenticationState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();
@@ -798,7 +779,7 @@
             Navigation.NavigateTo($"/authentication/login");
         }
     }
-
+    
     private void LocationChanged(object sender, LocationChangedEventArgs e)
     {
         ClearIsEditingArray();
@@ -826,8 +807,9 @@
         }
     }
 
-    private void SearchTermChanged()
+    private void SearchTermChanged(string searchPhrase)
     {
+        searchTerm = searchPhrase;
         if (searchTerm!.Length > 1)
         {
             if (string.Equals(searchTerm, "CV", StringComparison.OrdinalIgnoreCase))
@@ -848,7 +830,7 @@
             }
             else if (searchTerm.Contains("Assistant", StringComparison.OrdinalIgnoreCase))
             {
-                Navigation.NavigateTo($"/chat");
+                Navigation.NavigateTo($"/navBot");
             }
             else
             {
@@ -893,24 +875,24 @@
     {
         int score = 0;
         // Normalize search term
-        searchTerm = Regex.Replace(searchTerm, @"\p{P}", "").ToLower();
+        searchTerm = Regex.Replace(searchTerm.Trim(), @"\p{P}", "").ToLower();
 
         // Split the search term into words
-        var searchWords = searchTerm.Split(' ');
+        var searchWords = searchTerm.Split(' ').Where(word => !string.IsNullOrEmpty(word));
 
         // Strip HTML tags from content and normalize
         var strippedContent = Regex.Replace(content.content, "<.*?>", String.Empty);
         strippedContent = Regex.Replace(strippedContent, @"\p{P}", "").ToLower();
 
         // Split the content into words
-        var contentWords = strippedContent.Split(' ');
+        var contentWords = strippedContent.Split(' ').Where(word => !string.IsNullOrEmpty(word));
 
         // Normalize title words
         var title = $"{content.page} {content.section} {content.subSection}";
         title = Regex.Replace(title, "<.*?>", String.Empty);
         title = Regex.Replace(title, @"\p{P}", "").ToLower();
 
-        var titleWords = title.Split(' ');
+        var titleWords = title.Split(' ').Where(word => !string.IsNullOrEmpty(word));
 
         // Check if the entire search term appears in the content or title
         if (strippedContent.Contains(searchTerm) || title.Contains(searchTerm))
@@ -952,9 +934,6 @@
 
         return score;
     }
-
-
-
 
     @* Currently actually redirects to Microsoft Authentication popup, but might change this to home *@
     protected private void RedirectHome()
@@ -1237,7 +1216,7 @@
             {
                 await JSRuntime.InvokeVoidAsync("alert", "subName must be unique. Currently includes partial matches, so any existing subSection name containing " + subName + " will trigger a match");
                 searchTerm = subName;
-                SearchTermChanged();
+                SearchTermChanged(searchTerm);
             }
         }
         else

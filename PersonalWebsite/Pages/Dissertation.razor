@@ -1,5 +1,9 @@
 ﻿@page "/Dissertation/{file}"
 
+<SearchBar 
+    type="chat"
+    IsSearchDisabled="true" />
+
 <h3 class="title">@title</h3>
 
 <object class="pdfViewer" data="@filePath" type="application/pdf">

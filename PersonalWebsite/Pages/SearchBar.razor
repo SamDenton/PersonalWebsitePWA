@@ -1,0 +1,95 @@
+﻿@inject NavigationManager Navigation;
+@inject IJSRuntime JSRuntime;
+
+<div class="ps-1 pt-2 sticky-top container-flex searchBar" @onclick="NavigateToMainComponent">
+    <div class="row">
+        <div class="col-3">
+        </div>
+        <div class="col-5">
+            <div class="input-group mb-3 text-light" style="pointer-events: auto;">
+                <input id="searchBox" class="form-control bg-dark text-light" placeholder="Search Wiki" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChangedInComponent" disabled="@IsSearchDisabled">
+            </div>
+        </div>
+        <div class="col-4">
+        </div>
+    </div>
+</div>
+
+@code {
+    public string? searchTerm { get; set; }
+    [Parameter] public string? type { get; set; }
+    [Parameter] public EventCallback<string> SearchTermChanged { get; set; }
+    [Parameter] public bool IsSearchDisabled { get; set; } = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!IsSearchDisabled && firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("setTimeout", DotNetObjectReference.Create(new ActionWrapper(() => FocusOnSearchBox())), 1000);
+        }
+    }
+
+    private async Task FocusOnSearchBox()
+    {
+        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('searchBox').focus()");
+    }
+
+    public class ActionWrapper
+    {
+        private Action action;
+
+        public ActionWrapper(Action action)
+        {
+            this.action = action;
+        }
+
+        [JSInvokable]
+        public void InvokeAction()
+        {
+            action();
+        }
+    }
+
+
+    private void NavigateToMainComponent()
+    {
+        Console.WriteLine("test1");
+        if (IsSearchDisabled)
+        {
+            Console.WriteLine("test2");
+            Navigation.NavigateTo($"/Search");
+        }
+    }
+
+    private void SearchTermChangedInComponent()
+    {
+        if (searchTerm!.Length > 1)
+        {
+            if (string.Equals(searchTerm, "CV", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/Dissertation/CV");
+            }
+            else if (string.Equals(searchTerm, "Dissertation", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/Dissertation/Dissertation");
+            }
+            else if (string.Equals(searchTerm, "Artifact", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/Dissertation/Artifact");
+            }
+            else if (string.Equals(searchTerm, "ChatBot", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/chat");
+            }
+            else if (searchTerm.Contains("Assistant", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/navBot");
+            }
+            else
+            {
+                SearchTermChanged.InvokeAsync(searchTerm);
+            }
+        }
+    }
+
+}

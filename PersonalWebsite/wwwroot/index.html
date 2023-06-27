@@ -119,7 +119,8 @@
     <script src="_framework/blazor.webassembly.js"></script>
     <script src="navbar.js"></script>
     <script src="customRefresh.js"></script>
-    <script>navigator.serviceWorker.register('/service-worker.js');</script>
+    <!--I have disabled the service worker for now to try to improve caching behaviour, but if load times are a lot worse, I will have to look to implement database led updates.-->
+    <!--<script>navigator.serviceWorker.register('/service-worker.js');</script>-->
 </body>
 
 </html >
