@@ -53,42 +53,37 @@
 
     private void NavigateToMainComponent()
     {
-        Console.WriteLine("test1");
         if (IsSearchDisabled)
         {
-            Console.WriteLine("test2");
-            Navigation.NavigateTo($"/Search");
+            Navigation.NavigateTo($"/");
         }
     }
 
     private void SearchTermChangedInComponent()
     {
-        if (searchTerm!.Length > 1)
+        if (string.Equals(searchTerm, "CV", StringComparison.OrdinalIgnoreCase))
         {
-            if (string.Equals(searchTerm, "CV", StringComparison.OrdinalIgnoreCase))
-            {
-                Navigation.NavigateTo($"/Dissertation/CV");
-            }
-            else if (string.Equals(searchTerm, "Dissertation", StringComparison.OrdinalIgnoreCase))
-            {
-                Navigation.NavigateTo($"/Dissertation/Dissertation");
-            }
-            else if (string.Equals(searchTerm, "Artifact", StringComparison.OrdinalIgnoreCase))
-            {
-                Navigation.NavigateTo($"/Dissertation/Artifact");
-            }
-            else if (string.Equals(searchTerm, "ChatBot", StringComparison.OrdinalIgnoreCase))
-            {
-                Navigation.NavigateTo($"/chat");
-            }
-            else if (searchTerm.Contains("Assistant", StringComparison.OrdinalIgnoreCase))
-            {
-                Navigation.NavigateTo($"/navBot");
-            }
-            else
-            {
-                SearchTermChanged.InvokeAsync(searchTerm);
-            }
+            Navigation.NavigateTo($"/Dissertation/CV");
+        }
+        else if (string.Equals(searchTerm, "Dissertation", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo($"/Dissertation/Dissertation");
+        }
+        else if (string.Equals(searchTerm, "Artifact", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo($"/Dissertation/Artifact");
+        }
+        else if (string.Equals(searchTerm, "ChatBot", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo($"/chat");
+        }
+        else if (searchTerm.Contains("Assistant", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo($"/navBot");
+        }
+        else
+        {
+            SearchTermChanged.InvokeAsync(searchTerm);
         }
     }
 
