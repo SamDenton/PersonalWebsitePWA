@@ -1,17 +1,9 @@
 ﻿@inject NavigationManager Navigation;
 @inject IJSRuntime JSRuntime;
 
-<div class="ps-1 pt-2 sticky-top container-flex searchBar" @onclick="NavigateToMainComponent">
-    <div class="row">
-        <div class="col-3">
-        </div>
-        <div class="col-5">
-            <div class="input-group mb-3 text-light" style="pointer-events: auto;">
-                <input id="searchBox" class="form-control bg-dark text-light" placeholder="Search Wiki" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChangedInComponent" disabled="@IsSearchDisabled">
-            </div>
-        </div>
-        <div class="col-4">
-        </div>
+<div class="ps-1 pt-2 sticky-top searchBar" @onclick="NavigateToMainComponent">
+    <div class="input-group mb-3 text-light" style="pointer-events: auto;">
+        <input id="searchBox" class="form-control bg-dark text-light" placeholder="Search Wiki" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChangedInComponent" disabled="@IsSearchDisabled">
     </div>
 </div>
 

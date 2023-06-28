@@ -11,30 +11,7 @@
 <div class="nav-container" id="nav-container">
     <div class="scroll-container" id="scroll-container">
         <nav class="d-flex flex-column text-light navbar-expand-lg nav-menu" @ref="navMenu" id="nav">
-            @*auto-scroll *@
-            @* Should looks to replace this on mainlayout component *@
-            @*
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarScroll" aria-controls="navbarScroll" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-            </button>
-            *@
             <div class="nav-items-container">
-                <AuthorizeView>
-                    <Authorized>
-                        <div class="item-fader nav-item px-3">
-                            <NavLink class="nav-link text-light text-muted lastLink" href="/add" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                                <span class="oi oi-plus" aria-hidden="true"></span> Add New Section
-                            </NavLink>
-                        </div>
-                    </Authorized>
-                    <NotAuthorized>
-                        <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                            <NavLink class="p-1 nav-link text-muted lastLink" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                                <h2 class="oi oi-plus text-muted text-truncate" aria-hidden="true" style="width:100%;">&nbsp Login to contribute</h2>
-                            </NavLink>
-                        </div>
-                    </NotAuthorized>
-                </AuthorizeView>
                 <div class="item-fader dropdown-divider divider"></div>
                 <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                     <NavLink class="p-1 nav-link text-muted lastLink" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
@@ -129,14 +106,30 @@
                         </NavLink>
                     </div>
                 }
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="item-fader nav-item px-3">
+                            <NavLink class="nav-link text-light text-muted lastLink" href="/add" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                                <span class="oi oi-plus" aria-hidden="true"></span> Add New Section
+                            </NavLink>
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                            <NavLink class="p-1 nav-link text-muted lastLink" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                                <h2 class="oi oi-plus text-muted text-truncate" aria-hidden="true" style="width:100%;">&nbsp Login to contribute</h2>
+                            </NavLink>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
                 <div class="item-fader dropdown-divider divider "></div>
             </div>
         </nav>
     </div>
-</div>
-<div id="popupTip" class="popupTip">
-    <div class="oi up-arrow"></div>
-    <div class="oi down-arrow"></div>
+    <div id="popupTip" class="popupTip">
+        <div class="oi up-arrow"></div>
+        <div class="oi down-arrow"></div>
+    </div>
 </div>
 @code {
     private contentHolder[]? contentHolderList;

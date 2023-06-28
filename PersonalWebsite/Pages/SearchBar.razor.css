@@ -1,6 +1,26 @@
 ﻿.searchBar {
+    text-align: center;
     pointer-events: none;
     margin-top: -74px;
+    position: fixed;
+    width: 40vw !important;
+    max-width: 600px;
+    top: 74px;
+    margin-left: auto;
+    margin-right: auto;
 }
-
-
+@media (min-width: 689.98px) {
+    .searchBar {
+        left: 100px;
+        right: -100px;
+    }
+}
+@media (max-width: 689.98px) {
+    .searchBar {
+        left: 0;
+        right: 0;
+    }
+}
+input::placeholder {
+    /*text-align: center;*/
+}

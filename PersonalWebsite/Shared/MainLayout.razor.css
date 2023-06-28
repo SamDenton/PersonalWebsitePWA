@@ -1,8 +1,13 @@
+.body {
+    overflow: hidden;
+}
 .page {
     position: relative;
     display: flex;
     flex-direction: column;
     color: white;
+    overflow: hidden;
+    height: 100vh;
 }
 
 main {
@@ -198,6 +203,7 @@ main {
 }
 /* width */
 ::-webkit-scrollbar {
+    background: #212529;
     width: 10px;
     border-radius: 0px;
 }
