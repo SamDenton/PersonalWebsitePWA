@@ -63,17 +63,19 @@ nav {
 .divider{
     border-width: 2px !important;
 }
-/*.nav-item.active {
-        opacity: 1;
-        transform: scale(1) /*translateY(-50%);
-    }*/
+
 .typeText {
     font-size: x-large !important;
     /*margin: 1rem 1rem 0 1rem;*/
 }
 
 .titleText {
+    font-size: x-large !important;
+}
+
+.titleTextMenu {
     font-size: xx-large !important;
+    font-weight: 700;
 }
 
 oi-inner-text-right {
@@ -97,6 +99,7 @@ oi-inner-text-right {
 navlink {
     margin-left: -10px !important;
 }
+
 
 .fade-in {
     opacity: 0;

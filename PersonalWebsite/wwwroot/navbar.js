@@ -96,13 +96,7 @@ function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSel
     navContainer.addEventListener("touchend", onTouchEnd, { passive: true });
     setTimeout(() => {
         const navItemsContainer = nav.querySelector('.nav-items-container');
-        const navItemsContainerClone1 = navItemsContainer.cloneNode(true);
-        const navItemsContainerClone2 = navItemsContainer.cloneNode(true);
 
-        if (menuCount == 3) {
-            nav.prepend(navItemsContainerClone1);
-            nav.append(navItemsContainerClone2);
-        }
         containerHeight = navContainer.offsetHeight;
         navHeight = nav.offsetHeight;
         navItemsHeight = navItemsContainer.offsetHeight;
@@ -211,8 +205,6 @@ function updatePosition(targetTop) {
     currentTop = newTop;
     scrollContainer.style.top = `${currentTop}px`;
 }
-
-    //applyEffects();
 
 function applyMomentum(targetTop, momentum) {
     if (isTouchActive) { return };
