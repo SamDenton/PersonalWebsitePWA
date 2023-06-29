@@ -705,13 +705,7 @@
     {
         ClearIsEditingArray();
     }
-
-    private void UpdateContentHolderList(contentHolder[] newContentHolder)
-    {
-        contentHolderList = newContentHolder;
-        InitializeContentHolderList();
-    }
-
+    @* Method called in a few places, but should close all open editors, and save any content thats being edited currently *@
     private void ClearIsEditingArray()
     {
         if (IsEditing != null)
@@ -728,11 +722,18 @@
         }
     }
 
+    private void UpdateContentHolderList(contentHolder[] newContentHolder)
+    {
+        contentHolderList = newContentHolder;
+        InitializeContentHolderList();
+    }
+    @* Detects when text changes in the search component, and triggers search methods *@
     private void SearchTermChanged(string searchPhrase)
     {
         searchTerm = searchPhrase;
         if (searchTerm!.Length > 1)
         {
+            @* Not a good solution, I need to add entries to contentHolderList that can be searched through, but dont get rendered. *@
             if (string.Equals(searchTerm, "CV", StringComparison.OrdinalIgnoreCase))
             {
                 Navigation.NavigateTo($"/Dissertation/CV");
@@ -774,7 +775,6 @@
         }
 
     }
-
     @* Build a list of search results including scores *@
     private List<SearchResult> PerformSearch(string searchTerm, contentHolder[] contentList)
     {
@@ -791,7 +791,7 @@
         }
         return results.OrderByDescending(r => r.Score).ToList();
     }
-
+    @* Calculate score for each item in contentHolderList.  Might need to play with the given scores for each match type *@
     public int CalculateMatchScore(string searchTerm, contentHolder content)
     {
         int score = 0;
@@ -865,7 +865,9 @@
         IsEditing![localSectionNo] = true;
     }
 
-    @* Set selected sections IsEditing to True, which should render the editor *@
+    @* Set selected sections IsEditing to True, which should render the editor. It tries to check before opening the editor if the content is up to date with DB, if its not, it should update then open. 
+        This is way over-complicated at the moment.  Given I have an update event every minuite, I really dont need to check for changes when clicking edit.  It makes the came check every minuite, and when you save...
+    *@
     private async void Edit((int localSectionNo, int globalSectionNo) parameters)
     {
         int localSectionNo = parameters.localSectionNo;
@@ -905,7 +907,6 @@
             else
             {
                 Console.WriteLine("If this is triggered, its trying to update in background");
-                //JSRuntime.InvokeVoidAsync("alert", "Content is out of date with database, refreshing");
                 initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentHolderList![globalSectionNo]));
                 Array.Copy(tempContentHolderList, contentHolderList, contentHolderList.Length);
                 IsEditing![localSectionNo] = true;
@@ -928,7 +929,10 @@
         initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentHolderList![globalSectionNo]));
     }
 
-    @* Set selected section's IsEditing to false, then call method to PUT new JSON to GitHub.  Should render updated content to DOM *@
+    @* Set selected section's IsEditing to false, then call method to PUT new JSON to GitHub.  Should render updated content to DOM 
+        again, this is way more complex than it needs to be.  It should just check for differences with db and either make the save, or update then save.
+        A lot of this logic is trying to detect if the save is to a new section or existing one.  Might be better to have 2 methods, and less conditionals
+    *@
     private async void Save((int sectionNo, string username, int globalSectionNo, bool newSec) parameters)
     {
         int sectionNo = parameters.sectionNo;

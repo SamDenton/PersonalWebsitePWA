@@ -66,17 +66,20 @@
         {
             await JSRuntime.InvokeVoidAsync("initNavbar");
             await JSRuntime.InvokeVoidAsync("customRefresh.preventRefresh");
+            await JSRuntime.InvokeVoidAsync("customRefresh.preventRefreshMobile");
             CheckNavigationTypeAsync();
         }
     }
+    @* Re-directs back to home on refreshes to allow proper re-initiation *@
     private async Task CheckNavigationTypeAsync()
     {
         var navType = await JSRuntime.InvokeAsync<string>("customRefresh.getNavigationType");
         if (navType == "reload" || navType == "back_forward")
         {
-            NavigationManager.NavigateTo("/");
+            GoHome();
         }
     }
+
     private void GoHome()
     {
         NavigationManager.NavigateTo("/");

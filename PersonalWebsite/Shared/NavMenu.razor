@@ -8,13 +8,14 @@
 @inject HttpClient Http;
 @inject IJSRuntime JSRuntime;
 
+@* Could simplify this div structure now im not duplicating the #navMenu *@
 <div class="nav-container" id="nav-container">
     <div class="scroll-container" id="scroll-container">
         <nav class="d-flex flex-column text-light navbar-expand-lg nav-menu" @ref="navMenu" id="nav">
             <div class="nav-items-container">
                 <div class="item-fader dropdown-divider divider"></div>
                 <div class="p-1 item-fader px-2 font-weight-bold">
-                    <NavLink class="p-1 nav-link text-muted lastLink" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <NavLink class="p-1 nav-link text-muted lastLink" href="/" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
                         <h2 class="text-muted text-truncate titleTextMenu" aria-hidden="true" style="width:100%;text-align:center;"> MENU</h2>
                     </NavLink>
                 </div>
@@ -52,6 +53,7 @@
                 </div>
                 @if (contentHolderList != null)
                 {
+                    @* loop through each item in contentHolderList, ordering the list, then grouping by page *@
                     var count = 0;
                     @foreach (var typeGroup in contentHolderList
                     .OrderBy(c => c.page)
@@ -59,6 +61,7 @@
                     .ThenBy(c => c.subSection)
                     .GroupBy(c => c.page))
                     {
+                        @* Display 1 instance of each page name *@
                         var type = typeGroup.Key;
                         <div class="p-1 item-fader nav-item px-2 font-weight-bold" @onclick="(() => { Array.Fill(showSubSections!, false); })">
                             <NavLink class="p-1 nav-link text-muted lastLink" href=@($"/{type}/all/all")>
@@ -66,6 +69,7 @@
                             </NavLink>
                         </div>
                         Console.WriteLine($"Page: {typeGroup.Key}, Count: {typeGroup.Count()}");
+                        @* Loop through the page groups for each Section *@ 
                         @foreach (var sectionGroup in typeGroup.GroupBy(c => c.section))
                         {
                             Console.WriteLine($"Section: {sectionGroup.Key}, Count: {sectionGroup.Count()}");
@@ -83,6 +87,7 @@
                                 </div>
                                 @if (showSubSections![localCount])
                                 {
+                                    @* If the section is expanded, loop through the section groups for subSections *@
                                     @foreach (var contentHolder in sectionGroup)
                                     {
                                         <div class="item-fader nav-item px-1 fade-in" id="fader">
@@ -169,13 +174,11 @@
     {
         await JSRuntime.InvokeVoidAsync("fadeOut");
     }
-
+    @* Method to re-initialise data structures and menu list when a new item is added to contentHolderList *@
     private async Task RefreshMe()
     {
         await Task.Delay(1000);
-        Console.WriteLine("making GET");
         await GetContentFromGitHubRepo<contentHolder>();
-        Console.WriteLine("Triggered on navMenu by contentholder " + contentHolderList!.Last().section);
         if (contentHolderList != null)
         {
             uniqueSectionsCount = contentHolderList.GroupBy(x => x.section).Count();

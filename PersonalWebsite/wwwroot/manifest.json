@@ -8,7 +8,7 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "icon-512.png",
+      "src": "tempLogo.png",
       "type": "image/png",
       "sizes": "512x512"
     },
