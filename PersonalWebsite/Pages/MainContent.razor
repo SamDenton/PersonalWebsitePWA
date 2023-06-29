@@ -686,20 +686,20 @@
             InitializeContentHolderList();
         }
     }
-    
-    //private async Task GetAuthenticationState()
-    //{
-    //    var authenticationState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();
-    //    var user = authenticationState.User;
-    //    if (user.Identity!.IsAuthenticated)
-    //    {
-    //        var username = user.Identity.Name;
-    //    }
-    //    else
-    //    {
-    //        Navigation.NavigateTo($"/authentication/login");
-    //    }
-    //}
+    @* This method is needed.  I think it tells the site which page to navigate to after authenticating. *@
+    private async Task GetAuthenticationState()
+    {
+        var authenticationState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();
+        var user = authenticationState.User;
+        if (user.Identity!.IsAuthenticated)
+        {
+            var username = user.Identity.Name;
+        }
+        else
+        {
+            Navigation.NavigateTo($"/authentication/login");
+        }
+    }
     
     private void LocationChanged(object sender, LocationChangedEventArgs e)
     {
