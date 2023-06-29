@@ -102,7 +102,7 @@ function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSel
         navItemsHeight = navItemsContainer.offsetHeight;
         maxTop = containerHeight - ((navHeight * 3) / 2);
 
-        currentTop = ((containerHeight - navItemsHeight * menuCount) / 2) + 50; // Update currentTop calculation
+        currentTop = ((containerHeight - navItemsHeight * menuCount) / 2) + 110; // Update currentTop calculation
         scrollContainer.style.top = `${currentTop}px`;
     }, 500); // Set the delay time in milliseconds (e.g., 500ms)
 }
@@ -119,6 +119,7 @@ function calculateScrollSpeed(mouseY, startY, maxSpeed) {
 }
 
 function onMouseEnter(event) {
+    if (isTouchActive) { return };
     const navContainerRect = navContainer.getBoundingClientRect();
     //startY = event.clientY - navContainerRect.top;
     startY = containerHeight / 2;
@@ -181,6 +182,7 @@ let hasBouncedTop = false;
 let hasBouncedBottom = false;
 
 function updatePosition(targetTop) {
+    if (isTouchActive) { return };
     const smoothingFactor = 0.05; // Change this value to control the smoothness of the animation
     prevTop = currentTop; // Store the current top position before updating
 
@@ -219,6 +221,7 @@ function applyMomentum(targetTop, momentum) {
 }
 
 function onMouseLeave(event) {
+    if (isTouchActive) { return };
     isMouseOverNav = false; // Set the flag to false when the mouse leaves the navbar
     animationStarted = false;
     if (!animationStarted) {
