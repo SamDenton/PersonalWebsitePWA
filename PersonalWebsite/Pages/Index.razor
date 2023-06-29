@@ -41,15 +41,16 @@
         Console.WriteLine("index.razor initialised");
     }
 
-    protected override async void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-        {
-            //Code to execute once
-            //await GetAuthenticationState();
-        }
-        base.OnAfterRender(firstRender);
-    }
+    //protected override async void OnAfterRender(bool firstRender)
+    //{
+    //    if (firstRender)
+    //    {
+    //        //Code to execute once
+    //        //await GetAuthenticationState();
+    //    }
+    //    base.OnAfterRender(firstRender);
+    //}
+
     private async Task GetAuthenticationState()
     {
         var authenticationState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();

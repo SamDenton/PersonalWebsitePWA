@@ -73,14 +73,19 @@ function fadeOut() {
         elements[i].classList.add('fade-out');
     }
 }
-
+//Divs and containers
 let navContainer, scrollContainer, nav, popupTip;
-let isMouseOverNav, isTouchActive, animationStarted = false;
+//Flags
+let isMouseOverNav, isTouchActive, animationStarted, hasBouncedTop, hasBouncedBottom = false;
+//Positions
 let currentTop = 0, prevTop = 0, startY = 0, startX = 0;
+//Shared vars
 let maxTop, containerHeight, navHeight, navItemsHeight, initialY, tooltipTimeout;
+
+//Control variables:
 const momentumFactor = 0.95;
-const fadeEffectStrength = 0.05;
-let menuCount = 1;
+const bounceFactor = 0.5; 
+
 
 function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSelector) {
     navContainer = document.querySelector(navContainerSelector);
@@ -102,7 +107,7 @@ function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSel
         navItemsHeight = navItemsContainer.offsetHeight;
         maxTop = containerHeight - ((navHeight * 3) / 2);
 
-        currentTop = ((containerHeight - navItemsHeight * menuCount) / 2) + 110; // Update currentTop calculation
+        currentTop = ((containerHeight - navItemsHeight) / 2) + 110; // Update currentTop calculation
         scrollContainer.style.top = `${currentTop}px`;
     }, 500); // Set the delay time in milliseconds (e.g., 500ms)
 }
@@ -176,10 +181,6 @@ function animateMouseMove(event) {
         animationStarted = false;
     }
 }
-
-const bounceFactor = 0.5; // Change this value to control the strength of the bounce
-let hasBouncedTop = false;
-let hasBouncedBottom = false;
 
 function updatePosition(targetTop) {
     if (isTouchActive) { return };
@@ -256,9 +257,9 @@ function onTouchStart(event) {
 }
 
 function onTouchEnd(event) {
-    isTouchActive = false;
     navContainer.classList.remove("nav-container-touch");
     navContainer.classList.add("nav-container");
+    isTouchActive = false;
 }
 
 window.initScrollingMenu = initScrollingMenu;

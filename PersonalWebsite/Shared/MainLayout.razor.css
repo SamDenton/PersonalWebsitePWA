@@ -83,8 +83,6 @@ main {
             text-overflow: ellipsis;
         }
 
-}
-
 @media (max-width: 380px) {
     .logindispSmall {
         /*display: none;*/
