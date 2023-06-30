@@ -10,127 +10,125 @@
 
 @* Could simplify this div structure now im not duplicating the #navMenu *@
 <div class="nav-container" id="nav-container">
-    <div class="scroll-container" id="scroll-container">
-        <nav class="d-flex flex-column text-light navbar-expand-lg nav-menu" @ref="navMenu" id="nav">
-            <div class="nav-items-container">
-                <div class="item-fader dropdown-divider divider"></div>
-                <div class="p-1 item-fader px-2 font-weight-bold">
-                    <NavLink class="p-1 nav-link text-muted lastLink" href="/" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                        <h2 class="text-muted text-truncate titleTextMenu" aria-hidden="true" style="width:100%;text-align:center;"> MENU</h2>
-                    </NavLink>
-                </div>
-                <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                    <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/Dissertation" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                        <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Dissertation!</h2>
-                    </NavLink>
-                </div>
-                <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                    <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/Artifact" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                        <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Artifact!</h2>
-                    </NavLink>
-                </div>
-                <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                    <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/CV" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                        <h2 class="oi oi-person text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp My CV!</h2>
-                    </NavLink>
-                </div>
-                <div class="item-fader dropdown-divider divider"></div>
-                <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                    <NavLink class="p-1 nav-link text-muted lastLink" href="/chat" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                        <h2 class="oi oi-chat text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp ChatBot!</h2>
-                    </NavLink>
-                </div>
-                <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                    <NavLink class="p-1 nav-link text-muted lastLink" href="/navBot" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                        <h2 class="oi oi-chat text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp AI Assistant!</h2>
-                    </NavLink>
-                </div>
-                <div class="item-fader dropdown-divider divider"></div>
-                <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                    <NavLink class="p-1 nav-link text-muted lastLink" href="/all" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                        <h2 class="oi oi-info text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Wiki:</h2>
-                    </NavLink>
-                </div>
-                @if (contentHolderList != null)
+    <nav class="d-flex flex-column text-light navbar-expand-lg nav-menu" @ref="navMenu" id="nav">
+        <div class="nav-items-container">
+            <div class="item-fader dropdown-divider divider"></div>
+            <div class="p-1 item-fader px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <h2 class="text-muted text-truncate titleTextMenu" aria-hidden="true" style="width:100%;text-align:center;"> MENU</h2>
+                </NavLink>
+            </div>
+            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/Dissertation" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Dissertation!</h2>
+                </NavLink>
+            </div>
+            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/Artifact" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Artifact!</h2>
+                </NavLink>
+            </div>
+            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/CV" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <h2 class="oi oi-person text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp My CV!</h2>
+                </NavLink>
+            </div>
+            <div class="item-fader dropdown-divider divider"></div>
+            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/chat" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <h2 class="oi oi-chat text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp ChatBot!</h2>
+                </NavLink>
+            </div>
+            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/navBot" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <h2 class="oi oi-chat text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp AI Assistant!</h2>
+                </NavLink>
+            </div>
+            <div class="item-fader dropdown-divider divider"></div>
+            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/all" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <h2 class="oi oi-info text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Wiki:</h2>
+                </NavLink>
+            </div>
+            @if (contentHolderList != null)
+            {
+                @* loop through each item in contentHolderList, ordering the list, then grouping by page *@
+                var count = 0;
+                @foreach (var typeGroup in contentHolderList
+                .OrderBy(c => c.page)
+                .ThenBy(c => c.section)
+                .ThenBy(c => c.subSection)
+                .GroupBy(c => c.page))
                 {
-                    @* loop through each item in contentHolderList, ordering the list, then grouping by page *@
-                    var count = 0;
-                    @foreach (var typeGroup in contentHolderList
-                    .OrderBy(c => c.page)
-                    .ThenBy(c => c.section)
-                    .ThenBy(c => c.subSection)
-                    .GroupBy(c => c.page))
-                    {
-                        @* Display 1 instance of each page name *@
-                        var type = typeGroup.Key;
-                        <div class="p-1 item-fader nav-item px-2 font-weight-bold" @onclick="(() => { Array.Fill(showSubSections!, false); })">
-                            <NavLink class="p-1 nav-link text-muted lastLink" href=@($"/{type}/all/all")>
-                                &nbsp&nbsp<h2 class="oi oi-list-rich text-muted text-truncate typeText" style="width:100%;">&nbsp @type</h2>
-                            </NavLink>
-                        </div>
-                        Console.WriteLine($"Page: {typeGroup.Key}, Count: {typeGroup.Count()}");
-                        @* Loop through the page groups for each Section *@ 
-                        @foreach (var sectionGroup in typeGroup.GroupBy(c => c.section))
-                        {
-                            Console.WriteLine($"Section: {sectionGroup.Key}, Count: {sectionGroup.Count()}");
-                            var localCount = count;
-                            var sectionName = "";
-                            if (sectionGroup.Key != null)
-                            {
-                                sectionName = sectionGroup.Key;
-                            }
-                            <div class="item-fader navSubContainer @(showSubSections![localCount] == true ? "show" : "hide")">
-                                <div class="p-1 item-fader nav-item px-1 font-weight-bold" @onclick="(async () => { Array.Fill(showSubSections!, false, 0, localCount); if (showSubSections[localCount] == false) {showSubSections[localCount] = !showSubSections[localCount];} else {await FadeOut(); await Task.Delay(500); showSubSections[localCount] = !showSubSections[localCount];} Array.Fill(showSubSections, false, localCount+1, showSubSections.Length-localCount-1); StateHasChanged(); Console.WriteLine(showSubSections[localCount]); } )">
-                                    <NavLink class="p-1 nav-link" href=@($"/{type}/{sectionName}/all")>
-                                        &nbsp<h3 class="oi text-nowrap text-truncate @(showSubSections![localCount] == true ? "oi-caret-bottom" : "oi-caret-right text-muted")" style="width:100%;"><span class="oi @(showSubSections![localCount] == true ? "oi-inner-text" : "oi-inner-text-right")"> &nbsp&nbsp&nbsp&nbsp @sectionName</span> </h3>
-                                    </NavLink>
-                                </div>
-                                @if (showSubSections![localCount])
-                                {
-                                    @* If the section is expanded, loop through the section groups for subSections *@
-                                    @foreach (var contentHolder in sectionGroup)
-                                    {
-                                        <div class="item-fader nav-item px-1 fade-in" id="fader">
-                                            @*@(showSubSections[localCount] == true ? "" : "fade-out")*@
-                                            <NavLink class="nav-link text-muted lastLink" href=@($"/{type}/{sectionName}/{contentHolder.subSection}")>
-                                                &nbsp<h5 class="oi oi-minus text-muted text-truncate" aria-hidden="true" style="width:100%;"> &nbsp @contentHolder.subSection </h5>
-                                            </NavLink>
-                                        </div>
-                                    }
-                                }
-                            </div>
-                            count++;
-                        }
-                    }
-                }
-                else
-                {
-                    <div class="item-fader nav-item px-3">
-                        <NavLink class="nav-link text-light text-muted">
-                            <span class="oi oi-list-rich" aria-hidden="true"></span> Loading...
+                    @* Display 1 instance of each page name *@
+                    var type = typeGroup.Key;
+                    <div class="p-1 item-fader nav-item px-2 font-weight-bold" @onclick="(() => { Array.Fill(showSubSections!, false); })">
+                        <NavLink class="p-1 nav-link text-muted lastLink" href=@($"/{type}/all/all")>
+                            &nbsp&nbsp<h2 class="oi oi-list-rich text-muted text-truncate typeText" style="width:100%;">&nbsp @type</h2>
                         </NavLink>
                     </div>
+                    Console.WriteLine($"Page: {typeGroup.Key}, Count: {typeGroup.Count()}");
+                    @* Loop through the page groups for each Section *@ 
+                    @foreach (var sectionGroup in typeGroup.GroupBy(c => c.section))
+                    {
+                        Console.WriteLine($"Section: {sectionGroup.Key}, Count: {sectionGroup.Count()}");
+                        var localCount = count;
+                        var sectionName = "";
+                        if (sectionGroup.Key != null)
+                        {
+                            sectionName = sectionGroup.Key;
+                        }
+                        <div class="item-fader navSubContainer @(showSubSections![localCount] == true ? "show" : "hide")">
+                            <div class="p-1 item-fader nav-item px-1 font-weight-bold" @onclick="(async () => { Array.Fill(showSubSections!, false, 0, localCount); if (showSubSections[localCount] == false) {showSubSections[localCount] = !showSubSections[localCount];} else {await FadeOut(); await Task.Delay(500); showSubSections[localCount] = !showSubSections[localCount];} Array.Fill(showSubSections, false, localCount+1, showSubSections.Length-localCount-1); StateHasChanged(); Console.WriteLine(showSubSections[localCount]); } )">
+                                <NavLink class="p-1 nav-link" href=@($"/{type}/{sectionName}/all")>
+                                    &nbsp<h3 class="oi text-nowrap text-truncate @(showSubSections![localCount] == true ? "oi-caret-bottom" : "oi-caret-right text-muted")" style="width:100%;"><span class="oi @(showSubSections![localCount] == true ? "oi-inner-text" : "oi-inner-text-right")"> &nbsp&nbsp&nbsp&nbsp @sectionName</span> </h3>
+                                </NavLink>
+                            </div>
+                            @if (showSubSections![localCount])
+                            {
+                                @* If the section is expanded, loop through the section groups for subSections *@
+                                @foreach (var contentHolder in sectionGroup)
+                                {
+                                    <div class="item-fader nav-item px-1 fade-in" id="fader">
+                                        @*@(showSubSections[localCount] == true ? "" : "fade-out")*@
+                                        <NavLink class="nav-link text-muted lastLink" href=@($"/{type}/{sectionName}/{contentHolder.subSection}")>
+                                            &nbsp<h5 class="oi oi-minus text-muted text-truncate" aria-hidden="true" style="width:100%;"> &nbsp @contentHolder.subSection </h5>
+                                        </NavLink>
+                                    </div>
+                                }
+                            }
+                        </div>
+                        count++;
+                    }
                 }
-                <AuthorizeView>
-                    <Authorized>
-                        <div class="item-fader nav-item px-3">
-                            <NavLink class="nav-link text-light text-muted lastLink" href="/add" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                                <span class="oi oi-plus" aria-hidden="true"></span> Add New Section
-                            </NavLink>
-                        </div>
-                    </Authorized>
-                    <NotAuthorized>
-                        <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                            <NavLink class="p-1 nav-link text-muted lastLink" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                                <h2 class="oi oi-plus text-muted text-truncate" aria-hidden="true" style="width:100%;">&nbsp Login to contribute</h2>
-                            </NavLink>
-                        </div>
-                    </NotAuthorized>
-                </AuthorizeView>
-                <div class="item-fader dropdown-divider divider "></div>
-            </div>
-        </nav>
-    </div>
+            }
+            else
+            {
+                <div class="item-fader nav-item px-3">
+                    <NavLink class="nav-link text-light text-muted">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Loading...
+                    </NavLink>
+                </div>
+            }
+            <AuthorizeView>
+                <Authorized>
+                    <div class="item-fader nav-item px-3">
+                        <NavLink class="nav-link text-light text-muted lastLink" href="/add" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                            <span class="oi oi-plus" aria-hidden="true"></span> Add New Section
+                        </NavLink>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                        <NavLink class="p-1 nav-link text-muted lastLink" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                            <h2 class="oi oi-plus text-muted text-truncate" aria-hidden="true" style="width:100%;">&nbsp Login to contribute</h2>
+                        </NavLink>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+            <div class="item-fader dropdown-divider divider "></div>
+        </div>
+    </nav>
     <div id="popupTip" class="popupTip">
         <div class="oi up-arrow"></div>
         <div class="oi down-arrow"></div>
@@ -158,7 +156,7 @@
         if (this.firstRender)
         {
             this.firstRender = false;
-            await JSRuntime.InvokeVoidAsync("initScrollingMenu", "#nav-container", "#scroll-container", "#nav");
+            //await JSRuntime.InvokeVoidAsync("initScrollingMenu", "#nav-container", "#scroll-container", "#nav");
         }
     }
 
@@ -167,6 +165,7 @@
         if (contentHolderList != null)
         {
             await JSRuntime.InvokeVoidAsync("initNavbarMobile");
+            await JSRuntime.InvokeVoidAsync("initScrollingMenu", "#nav-container", "#nav");
         }
     }
 

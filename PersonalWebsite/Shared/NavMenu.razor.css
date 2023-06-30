@@ -28,17 +28,12 @@ body {
     overflow: scroll;
 }
 
-.scroll-container {
-    position: absolute;
-    top: 0;
-    width: 100%;
-}
-
 nav {
     position: absolute;
     width: 100%;
     top: 0;
     left: 0;
+    display: block;
 }
 
 .nav-menu {

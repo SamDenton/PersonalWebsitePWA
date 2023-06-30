@@ -74,7 +74,7 @@ function fadeOut() {
     }
 }
 //Divs and containers
-let navContainer, scrollContainer, nav, popupTip;
+let navContainer, nav, popupTip;
 //Flags
 let isMouseOverNav, isTouchActive, animationStarted, hasBouncedTop, hasBouncedBottom = false;
 //Positions
@@ -87,15 +87,14 @@ const momentumFactor = 0.95;
 const bounceFactor = 0.5; 
 
 
-function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSelector) {
+function initScrollingMenu(navContainerSelector, navSelector) {
     navContainer = document.querySelector(navContainerSelector);
-    scrollContainer = document.querySelector(scrollContainerSelector);
     nav = document.querySelector(navSelector);
 
     popupTip = document.querySelector('#popupTip');
 
-    //navContainer.addEventListener("mouseenter", onMouseEnter);
-    //navContainer.addEventListener("mousemove", onMouseMove);
+    navContainer.addEventListener("mouseenter", onMouseEnter);
+    navContainer.addEventListener("mousemove", onMouseMove);
     navContainer.addEventListener("mouseleave", onMouseLeave);
     navContainer.addEventListener("touchstart", onTouchStart, { passive: true });
     navContainer.addEventListener("touchend", onTouchEnd, { passive: true });
@@ -108,7 +107,7 @@ function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSel
         maxTop = containerHeight - ((navHeight * 3) / 2);
 
         currentTop = ((containerHeight - navItemsHeight) / 2) + 110; // Update currentTop calculation
-        scrollContainer.style.top = `${currentTop}px`;
+        nav.style.top = `${currentTop}px`;
     }, 500); // Set the delay time in milliseconds (e.g., 500ms)
 }
 
@@ -206,7 +205,7 @@ function updatePosition(targetTop) {
     newTop = currentTop + (targetTop - currentTop) * smoothingFactor;
 
     currentTop = newTop;
-    scrollContainer.style.top = `${currentTop}px`;
+    nav.style.top = `${currentTop}px`;
 }
 
 function applyMomentum(targetTop, momentum) {
@@ -259,6 +258,8 @@ function onTouchStart(event) {
 function onTouchEnd(event) {
     navContainer.classList.remove("nav-container-touch");
     navContainer.classList.add("nav-container");
+    currentTop = ((containerHeight - navItemsHeight) / 2) + 110; // Update currentTop calculation
+    nav.style.top = `${currentTop}px`;
     isTouchActive = false;
 }
 
