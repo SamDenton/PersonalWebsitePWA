@@ -94,8 +94,8 @@ function initScrollingMenu(navContainerSelector, scrollContainerSelector, navSel
 
     popupTip = document.querySelector('#popupTip');
 
-    navContainer.addEventListener("mouseenter", onMouseEnter);
-    navContainer.addEventListener("mousemove", onMouseMove);
+    //navContainer.addEventListener("mouseenter", onMouseEnter);
+    //navContainer.addEventListener("mousemove", onMouseMove);
     navContainer.addEventListener("mouseleave", onMouseLeave);
     navContainer.addEventListener("touchstart", onTouchStart, { passive: true });
     navContainer.addEventListener("touchend", onTouchEnd, { passive: true });
