@@ -622,15 +622,15 @@
         }
     }
 
-    //protected override async void OnAfterRender(bool firstRender)
-    //{
-    //    if (firstRender)
-    //    {
-    //        //Code to execute once
-    //        //await GetAuthenticationState();
-    //    }
-    //    base.OnAfterRender(firstRender);
-    //}
+    protected override async void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            //Code to execute once
+            await GetAuthenticationState();
+        }
+        base.OnAfterRender(firstRender);
+    }
 
     public void InitializeContentHolderList()
     {
@@ -688,19 +688,19 @@
             InitializeContentHolderList();
         }
     }
-    @* This method is needed.  I think it tells the site which page to navigate to after authenticating. *@
+    @* Checks current authenticaiton state *@
     private async Task GetAuthenticationState()
     {
         var authenticationState = await AuthenticationStateProvider!.GetAuthenticationStateAsync();
         var user = authenticationState.User;
-        if (user.Identity!.IsAuthenticated)
-        {
-            var username = user.Identity.Name;
-        }
-        else
-        {
-            Navigation.NavigateTo($"/authentication/login");
-        }
+        //if (user.Identity!.IsAuthenticated)
+        //{
+        //    var username = user.Identity.Name;
+        //}
+        //else
+        //{
+        //    Navigation.NavigateTo($"/authentication/login");
+        //}
     }
     
     private void LocationChanged(object sender, LocationChangedEventArgs e)

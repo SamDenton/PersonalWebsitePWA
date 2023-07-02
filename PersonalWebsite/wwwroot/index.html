@@ -22,7 +22,7 @@
 
         .loader {
             height: 20px;
-            width: 80vw;
+            width: 70vw;
             max-width: 500px;
             margin: 0 auto;
             border-radius: 10px;
@@ -125,7 +125,8 @@
     <script src="navbar.js"></script>
     <script src="customRefresh.js"></script>
     <!--I have disabled the service worker for now to try to improve caching behaviour, but if load times are a lot worse, I will have to look to implement database led updates.-->
-    <!--<script>navigator.serviceWorker.register('/service-worker.js');</script>-->
+    <!--Re-enabled, but attempting to only cache static core files that should never need updating-->
+    <script>navigator.serviceWorker.register('/service-worker.js');</script>
 </body>
 
 </html >

@@ -81,7 +81,8 @@ let isMouseOverNav, isTouchActive, animationStarted, hasBouncedTop, hasBouncedBo
 let currentTop = 0, prevTop = 0, startY = 0, startX = 0;
 //Shared vars
 let maxTop, containerHeight, navHeight, navItemsHeight, initialY, tooltipTimeout;
-
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+let interval = null;
 //Control variables:
 const momentumFactor = 0.95;
 const bounceFactor = 0.5; 
@@ -98,6 +99,44 @@ function initScrollingMenu(navContainerSelector, navSelector) {
     navContainer.addEventListener("mouseleave", onMouseLeave);
     navContainer.addEventListener("touchstart", onTouchStart, { passive: true });
     navContainer.addEventListener("touchend", onTouchEnd, { passive: true });
+    const intervals = new Map();
+
+    let hackerAnimations = document.querySelectorAll(".hackerAnimation");
+
+    hackerAnimations.forEach(element => {
+        element.addEventListener('mouseover', event => {
+            let iteration = 0;
+            const elementId = event.target.dataset.id;
+
+            if (intervals.has(elementId)) {
+                clearInterval(intervals.get(elementId));
+                intervals.delete(elementId);
+            }
+
+            const intervalId = setInterval(() => {
+                event.target.innerText = event.target.innerText
+                    .split("")
+                    .map((letter, index) => {
+                        if (index < iteration) {
+                            return event.target.dataset.value[index];
+                        }
+
+                        return letters[Math.floor(Math.random() * 26)];
+                    })
+                    .join("");
+
+                if (iteration >= event.target.dataset.value.length) {
+                    clearInterval(intervalId);
+                    intervals.delete(elementId);
+                }
+
+                iteration += 1 / 3;
+            }, 30);
+
+            intervals.set(elementId, intervalId);
+        });
+    });
+
     setTimeout(() => {
         const navItemsContainer = nav.querySelector('.nav-items-container');
 
