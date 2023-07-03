@@ -1,12 +1,17 @@
-﻿@inject contentHolder contentHolder
-@inject MyStateContainer myStateContainer
+﻿@inject MyStateContainer myStateContainer
+@inject IState<ContentState> contentState
+@inject IDispatcher Dispatcher
+@using PersonalWebsite.Shared.Model;
+@using PersonalWebsite.Store.Actions;
+@using PersonalWebsite.Store.State;
+@using Fluxor;
 
-@if (contentHolderList != null)
+@if (contentState.Value.Contents != null)
 {
-	@if (type == "all" && lastPage != contentHolderList[indexParsed].page)
+	@if (type == "all" && lastPage != contentState.Value.Contents[indexParsed].page)
 	{
-		<h1 class="kudosTextInline">@contentHolderList[indexParsed].page</h1>
-		lastPage = contentHolderList[indexParsed].page;
+		<h1 class="kudosTextInline">@contentState.Value.Contents[indexParsed].page</h1>
+		lastPage = contentState.Value.Contents[indexParsed].page;
 	}
 	@if (inline == true)
 	{
@@ -16,18 +21,18 @@
 				@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
 				{
 					<h3 class="kudosTextInline">
-						@(new MarkupString(@contentHolderList[indexParsed].section))
+						@(new MarkupString(@contentState.Value.Contents[indexParsed].section))
 						<small class="text-muted">
-							@(new MarkupString(@contentHolderList[indexParsed].subSection))
+							@(new MarkupString(@contentState.Value.Contents[indexParsed].subSection))
 						</small>
 					</h3>
 				}
 				else if (!matchTypeSectionsSubSections && matchTypeSections)
 				{
 					<h3 class="kudosTextInline">
-						@(new MarkupString(@contentHolderList[indexParsed].section))
+						@(new MarkupString(@contentState.Value.Contents[indexParsed].section))
 						<small class="text-muted">
-							@(new MarkupString(@contentHolderList[indexParsed].subSection))
+							@(new MarkupString(@contentState.Value.Contents[indexParsed].subSection))
 						</small>
 					</h3>
 				}
@@ -40,7 +45,7 @@
 					</h3>
 				}
 				<div class="dotted-lines">
-					@(new MarkupString(@contentHolderList[indexParsed].content!))
+					@(new MarkupString(@contentState.Value.Contents[indexParsed].content!))
 				</div>
 			</td>
 		</tr>
@@ -53,11 +58,11 @@
 			{
 				<td class="kudosText col-1">
 					<h4>
-						@(new MarkupString(contentHolderList[indexParsed].section))
+						@(new MarkupString(contentState.Value.Contents[indexParsed].section))
 						<br>
 						<small>
 							<div class="text-muted">
-								@(new MarkupString(@contentHolderList[indexParsed].subSection))
+								@(new MarkupString(@contentState.Value.Contents[indexParsed].subSection))
 							</div>
 						</small>
 					</h4>
@@ -67,12 +72,12 @@
 			{
 				<td class="kudosText col-1">
 					<h4>
-						@if (contentHolderList[indexParsed].subSection != null)
+						@if (contentState.Value.Contents[indexParsed].subSection != null)
 						{
 							<h3 class="kudosTextInline">
 								<small>
 									<div class="text-muted">
-										@(new MarkupString(@contentHolderList[indexParsed].subSection))
+										@(new MarkupString(@contentState.Value.Contents[indexParsed].subSection))
 									</div>
 								</small>
 							</h3>
@@ -86,7 +91,7 @@
 			}
 
 			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-			<td>@(new MarkupString(@contentHolderList[indexParsed].content!))</td>
+			<td>@(new MarkupString(@contentState.Value.Contents[indexParsed].content!))</td>
 		</tr>
 		<tr>
 			@if (!matchTypeSectionsSubSections)
@@ -113,7 +118,7 @@ else
 
 
 @code {
-	[Parameter] public contentHolder[] contentHolderList { get; set; }
+	//[Parameter] public contentHolder[] contentState.Value.Contents { get; set; }
 	[Parameter] public bool? inline { get; set; }
 	[Parameter] public bool matchTypeSectionsSubSections { get; set; }
 	[Parameter] public bool matchTypeSections { get; set; }
@@ -130,6 +135,14 @@ else
 	protected override async Task OnInitializedAsync()
 	{
 		myStateContainer.OnStateChange += async () => await RefreshMe();
+		contentState.StateChanged += HandleStateChanged;
+	}
+	private void HandleStateChanged(object sender, EventArgs e)
+	{
+		if (contentState.Value.FileCount == contentState.Value.LoadedFilesCount)
+		{
+			InvokeAsync(StateHasChanged);
+		}
 	}
 	private async Task RefreshMe()
 	{

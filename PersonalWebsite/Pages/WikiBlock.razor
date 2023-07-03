@@ -1,10 +1,15 @@
-﻿@inject contentHolder contentHolder
-@inject MyStateContainer myStateContainer
+﻿@inject MyStateContainer myStateContainer
+@inject IState<ContentState> contentState
+@inject IDispatcher Dispatcher
+@using PersonalWebsite.Shared.Model;
+@using PersonalWebsite.Store.Actions;
+@using PersonalWebsite.Store.State;
+@using Fluxor;
 
-@if (type == "all" && lastPage != contentHolderList[indexParsed].page)
+@if (type == "all" && lastPage != contentState.Value.Contents[indexParsed].page)
 {
-	<h1 class="kudosTextInline">@contentHolderList[indexParsed].page</h1>
-	lastPage = contentHolderList[indexParsed].page;
+	<h1 class="kudosTextInline">@contentState.Value.Contents[indexParsed].page</h1>
+	lastPage = contentState.Value.Contents[indexParsed].page;
 }
 @if (type == "add")
 {
@@ -21,8 +26,8 @@
 						Conf="@editorConfInline"
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
-						Value="@contentHolderList.Last().content"
-						ValueChanged="@(async (newValue) => { contentHolderList.Last().content = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+						Value="@contentState.Value.Contents.Last().content"
+						ValueChanged="@(async (newValue) => { contentState.Value.Contents.Last().content = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
 				</div>
 			</td>
 		</tr>
@@ -32,7 +37,7 @@
 		<tr>
 			<td class="kudosText">New Section: </td>
 			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-			<td hidden="@IsEditing[count]">@(new MarkupString(contentHolderList.Last().content!))</td>
+			<td hidden="@IsEditing[count]">@(new MarkupString(contentState.Value.Contents.Last().content!))</td>
 			<td hidden="@(!IsEditing[count])">
 				<div class="dotted-lines tinymce-editor">
 					<Editor Id="@count.ToString()"
@@ -42,8 +47,8 @@
 							Conf="@editorConf"
 							ApiKey="@TinyAPIKey"
 							ClassName="counterEditor"
-							Value="@contentHolderList.Last().content"
-							ValueChanged="@(async (newValue) => { contentHolderList.Last().content = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+							Value="@contentState.Value.Contents.Last().content"
+							ValueChanged="@(async (newValue) => { contentState.Value.Contents.Last().content = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents); */})" />
 				</div>
 			</td>
 		</tr>
@@ -54,7 +59,7 @@
 			@* Button bank to be generated per section.  Using lambda expression to parse value to function *@
 			@{var clearText = "";}
 			<td>
-				<button class="btn btn-outline-warning" @onclick="()=> contentHolderList.Last().content = clearText">Clear</button>
+				<button class="btn btn-outline-warning" @onclick="()=> contentState.Value.Contents.Last().content = clearText">Clear</button>
 				<button class="btn btn-outline-primary" @onclick="(() => Save.InvokeAsync((localCount, username!, indexParsed, true)))" hidden="@(!IsEditing[localCount])">Save</button>
 				<button class="btn btn-outline-primary" @onclick="(() => CancelNew.InvokeAsync(localCount))" hidden="@(!IsEditing[localCount])">Cancel</button>
 			</td>
@@ -78,8 +83,8 @@ else
 						Conf="@editorConfHeaders"
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
-						Value="@contentHolderList[indexParsed].section"
-						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].section = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })"		/>
+						Value="@contentState.Value.Contents[indexParsed].section"
+						ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].section = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })"		/>
 						<small>
 							<div class="text-muted">
 								<Editor Id="@($"{count}-2")"
@@ -89,8 +94,8 @@ else
 								Conf="@editorConfHeaders"
 								ApiKey="@TinyAPIKey"
 								ClassName="counterEditor"
-								Value="@contentHolderList[indexParsed].subSection"
-								ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+								Value="@contentState.Value.Contents[indexParsed].subSection"
+								ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].subSection = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents); */})" />
 							</div>
 						</small>
 					</h3>
@@ -107,8 +112,8 @@ else
 									Conf="@editorConfHeaders"
 									ApiKey="@TinyAPIKey"
 									ClassName="counterEditor"
-									Value="@contentHolderList[indexParsed].subSection"
-									ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+									Value="@contentState.Value.Contents[indexParsed].subSection"
+									ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].subSection = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
 							</div>
 						</small>
 					</h3>
@@ -129,8 +134,8 @@ else
 						Conf="@editorConfInline"
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
-						Value="@contentHolderList[indexParsed].content"
-						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].content = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+						Value="@contentState.Value.Contents[indexParsed].content"
+						ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].content = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
 					<button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection.InvokeAsync((indexParsed, username!)))">Delete</button>
 				</div>
 			</td>
@@ -151,8 +156,8 @@ else
 						Conf="@editorConfHeaders"
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
-						Value="@contentHolderList[indexParsed].section"
-						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].section = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+						Value="@contentState.Value.Contents[indexParsed].section"
+						ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].section = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
 						<br><small>
 							<div class="text-muted">
 								<Editor Id="@($"{count}-2")"
@@ -162,8 +167,8 @@ else
 								Conf="@editorConfHeaders"
 								ApiKey="@TinyAPIKey"
 								ClassName="counterEditor"
-								Value="@contentHolderList[indexParsed].subSection"
-								ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+								Value="@contentState.Value.Contents[indexParsed].subSection"
+								ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].subSection = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
 							</div>
 						</small>
 					</h4>
@@ -173,7 +178,7 @@ else
 			{
 				<td class="kudosText col-1">
 					<h4>
-					@if (contentHolderList[indexParsed].subSection != null)
+					@if (contentState.Value.Contents[indexParsed].subSection != null)
 						{
 						<h3 class="kudosTextInline" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
 								<Editor Id="@($"{count}-2")"
@@ -183,8 +188,8 @@ else
 								Conf="@editorConfHeaders"
 								ApiKey="@TinyAPIKey"
 								ClassName="counterEditor"
-								Value="@contentHolderList[indexParsed].subSection"
-								ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].subSection = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+								Value="@contentState.Value.Contents[indexParsed].subSection"
+								ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].subSection = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents); */})" />
 							</h3>
 						}
 					</h4>
@@ -196,7 +201,7 @@ else
 			}
 			
 			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-			<td hidden="@IsEditing![count]">@(new MarkupString(@contentHolderList[indexParsed].content!))</td>
+			<td hidden="@IsEditing![count]">@(new MarkupString(@contentState.Value.Contents[indexParsed].content!))</td>
 			@* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
 			<td hidden="@(!IsEditing[count])">
 				<div class="dotted-lines tinymce-editor">
@@ -207,8 +212,8 @@ else
 						Conf="@editorConf"
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
-						Value="@contentHolderList[indexParsed].content"
-						ValueChanged="@(async (newValue) => { contentHolderList[indexParsed].content = newValue.ToString(); await OnDataChanged.InvokeAsync(contentHolderList); })" />
+						Value="@contentState.Value.Contents[indexParsed].content"
+						ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].content = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
 				</div>
 			</td>
 		</tr>
@@ -233,7 +238,6 @@ else
 
 
 @code {
-	[Parameter] public contentHolder[] contentHolderList { get; set; }
 	[Parameter] public bool? inline { get; set; }
 	[Parameter] public bool matchTypeSectionsSubSections { get; set; }
 	[Parameter] public bool matchTypeSections { get; set; }
@@ -258,6 +262,17 @@ else
 
 	private string? lastPage;
 
+	protected override async Task OnInitializedAsync()
+	{
+		contentState.StateChanged += HandleStateChanged;
+	}
+	private void HandleStateChanged(object sender, EventArgs e)
+	{
+		if (contentState.Value.FileCount == contentState.Value.LoadedFilesCount)
+		{
+			InvokeAsync(StateHasChanged);
+		}
+	}
 
 	    @* Define properties for TinyMCE WYSIWYG editor *@
     private Dictionary<string, object> editorConf = new Dictionary<string, object>  {

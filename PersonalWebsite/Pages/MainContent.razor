@@ -5,11 +5,16 @@
 @using Newtonsoft.Json;
 @using System.Timers;
 @using System.Text.RegularExpressions;
+@using PersonalWebsite.Shared.Model;
+@using PersonalWebsite.Store.Actions;
+@using PersonalWebsite.Store.State;
+@using Fluxor;
+@inject IState<ContentState> contentState
+@inject IDispatcher Dispatcher
 @inject HttpClient Http;
 @inject NavigationManager Navigation;
 @inject MyStateContainer myStateContainer;
 @inject IJSRuntime JSRuntime;
-
 @* Using Authorize View to only load content when user is authenticated. The editor is disabled when not authenticated *@
 
 <PageTitle>Wiki</PageTitle>
@@ -57,7 +62,8 @@
             }
             @* Show a loading message before API call is complete *@
             @* Should also add failure case if the API call returns 404 *@
-            @if (contentHolderList == null || isContentLoaded == false || type == null)
+            @*add back 'isContentLoaded == false || ' to conditional*@
+            @if (contentState.Value.Contents == null || type == null)
             {
                 <div class="container-fluid bg-dark text-light">
                     <div class="row">
@@ -67,7 +73,7 @@
                         </div>
                     </div>
                     <div class="loaderContiner">
-                        @if (contentHolderList == null)
+                        @if (contentState.Value.Contents == null)
                         {
                             <div class="loader">
                                 <div class="loaderBar"></div>
@@ -100,7 +106,6 @@
                                         var localCount = count;
                                         int indexParsed = item.searchResult.Content.id;
                                         <WikiBlock 
-                                            contentHolderList="@contentHolderList"
                                             inline="@inline"
                                             matchTypeSectionsSubSections="false"
                                             matchTypeSections="false"
@@ -126,9 +131,9 @@
                                         count++;
                                     }
                                 }
-                                else if (type == "add" && IsEditing![0] == true && contentHolderList != null)
+                                else if (type == "add" && IsEditing![0] == true && contentState.Value.Contents != null)
                                 {
-                                    <WikiBlock contentHolderList="@contentHolderList"
+                                    <WikiBlock
                                         inline="@inline"
                                         matchTypeSectionsSubSections="false"
                                         matchTypeSections="false"
@@ -153,26 +158,26 @@
                                 else
                                 {
                                     @* Pragmatically populate the table using my custom object array *@
-                                    @foreach (var item in contentHolderList
+                                    @foreach (var item in contentState.Value.Contents
                                     .OrderBy(x => x.page)
                                     .ThenBy(x => x.section)
                                     .ThenBy(x => x.subSection)
                                     .Select((contentHolder, index) => new { contentHolder, index }))
                                     {
-                                        bool contentNotNull = contentHolderList[item.index].page != null 
-                                        && contentHolderList[item.index].section != null 
-                                        && contentHolderList[item.index].subSection != null 
-                                        && contentHolderList[item.index].content != null;
+                                        bool contentNotNull = contentState.Value.Contents[item.index].page != null 
+                                        && contentState.Value.Contents[item.index].section != null 
+                                        && contentState.Value.Contents[item.index].subSection != null 
+                                        && contentState.Value.Contents[item.index].content != null;
 
-                                        bool matchTypeSectionsSubSections = type == contentHolderList[item.index].page 
-                                        && sections == contentHolderList[item.index].section 
-                                        && subSections == contentHolderList[item.index].subSection;
+                                        bool matchTypeSectionsSubSections = type == contentState.Value.Contents[item.index].page 
+                                        && sections == contentState.Value.Contents[item.index].section 
+                                        && subSections == contentState.Value.Contents[item.index].subSection;
 
-                                        bool matchTypeSections = type == contentHolderList[item.index].page 
-                                        && sections == contentHolderList[item.index].section
+                                        bool matchTypeSections = type == contentState.Value.Contents[item.index].page 
+                                        && sections == contentState.Value.Contents[item.index].section
                                         && subSections == "all";
 
-                                        bool matchType = type == contentHolderList[item.index].page
+                                        bool matchType = type == contentState.Value.Contents[item.index].page
                                         && sections == "all";
 
                                         int indexParsed = item.index;
@@ -185,7 +190,6 @@
                                                 var localCount = count;
 
                                                 <WikiBlock
-                                                    contentHolderList="contentHolderList"
                                                     inline="@inline"
                                                     matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
                                                     matchTypeSections="@matchTypeSections"
@@ -215,7 +219,7 @@
                                             {
                                                 var localCount = count;
 
-                                                <WikiBlock contentHolderList="contentHolderList"
+                                                <WikiBlock
                                             inline="@inline"
                                             matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
                                             matchTypeSections="@matchTypeSections"
@@ -244,7 +248,7 @@
                                             {
                                                 var localCount = count;
 
-                                                <WikiBlock contentHolderList="contentHolderList"
+                                                <WikiBlock
                                             inline="@inline"
                                             matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
                                             matchTypeSections="@matchTypeSections"
@@ -274,7 +278,6 @@
                                                 var localCount = count;
 
                                                 <WikiBlock
-                                                    contentHolderList="contentHolderList"
                                                     inline="@inline"
                                                     matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
                                                     matchTypeSections="@matchTypeSections"
@@ -302,21 +305,21 @@
                                             }
                                             else
                                             {
-                                                if (contentHolderList[item.index].page == null)
+                                                if (contentState.Value.Contents[item.index].page == null)
                                                 {
-                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentState.Value.Contents[item.index].subSection)
                                                 }
-                                                else if (contentHolderList[item.index].section == null)
+                                                else if (contentState.Value.Contents[item.index].section == null)
                                                 {
-                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentState.Value.Contents[item.index].subSection)
                                                 }
-                                                else if (contentHolderList[item.index].subSection == null)
+                                                else if (contentState.Value.Contents[item.index].subSection == null)
                                                 {
-                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentState.Value.Contents[item.index].section)
                                                 }
-                                                else if (contentHolderList[item.index].content == null)
+                                                else if (contentState.Value.Contents[item.index].content == null)
                                                 {
-                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentState.Value.Contents[item.index].subSection)
                                                 }
                                             }
                                         }
@@ -328,7 +331,7 @@
                                 }
                                 @if (type == "add")
                                 {
-                                    @if (contentHolderList == null || isContentLoaded == false || IsEditing == null)
+                                    @if (contentState.Value.Contents == null || isContentLoaded == false || IsEditing == null)
                                     {
                                         <p><em> </em></p>
                                     }
@@ -343,7 +346,7 @@
                                                         <label class="form-label bg-dark text-light" for="typeDropdown">Select Type:</label>
                                                         <select class="form-control form-control-dark bg-dark text-primary border-primary" id="typeDropdown" @bind="typeDropdown">
                                                             <option value="Default" disabled selected>Select a type</option>
-                                                            @foreach (var group in contentHolderList!.GroupBy(ch => ch.page))
+                                                            @foreach (var group in contentState.Value.Contents!.GroupBy(ch => ch.page))
                                                             {
                                                                 <option value="@group.First().page">@group.Key</option>
                                                             }
@@ -359,7 +362,7 @@
                                                         <label class="form-label bg-dark text-light" for="sectionDropdown">Select Section:</label>
                                                         <select class="form-control form-control-dark bg-dark text-primary border-primary" id="sectionDropdown" @bind="sectionName">
                                                             <option value="Default" disabled selected>Select a type, then section</option>
-                                                            @foreach (var group in contentHolderList!.Where(ch => ch.page == typeDropdown).GroupBy(ch => ch.section))
+                                                            @foreach (var group in contentState.Value.Contents!.Where(ch => ch.page == typeDropdown).GroupBy(ch => ch.section))
                                                             {
                                                                 <option value="@group.First().section">@group.Key</option>
                                                             }
@@ -405,7 +408,6 @@
                                         var localCount = count;
                                         int indexParsed = item.searchResult.Content.id;
                                         <WikiBlockNoAuth 
-                                            contentHolderList="@contentHolderList"
                                             inline="@inline"
                                             matchTypeSectionsSubSections="false"
                                             matchTypeSections="false"
@@ -423,26 +425,26 @@
                                 }
                                 else
                                 {
-                                    @foreach (var item in contentHolderList
+                                    @foreach (var item in contentState.Value.Contents
                                     .OrderBy(x => x.page)
                                     .ThenBy(x => x.section)
                                     .ThenBy(x => x.subSection)
                                     .Select((contentHolder, index) => new { contentHolder, index }))
                                     {
-                                        bool contentNotNull = contentHolderList[item.index].page != null 
-                                        && contentHolderList[item.index].section != null 
-                                        && contentHolderList[item.index].subSection != null 
-                                        && contentHolderList[item.index].content != null;
+                                        bool contentNotNull = contentState.Value.Contents[item.index].page != null 
+                                        && contentState.Value.Contents[item.index].section != null 
+                                        && contentState.Value.Contents[item.index].subSection != null 
+                                        && contentState.Value.Contents[item.index].content != null;
 
-                                        bool matchTypeSectionsSubSections = type == contentHolderList[item.index].page 
-                                        && sections == contentHolderList[item.index].section 
-                                        && subSections == contentHolderList[item.index].subSection;
+                                        bool matchTypeSectionsSubSections = type == contentState.Value.Contents[item.index].page 
+                                        && sections == contentState.Value.Contents[item.index].section 
+                                        && subSections == contentState.Value.Contents[item.index].subSection;
 
-                                        bool matchTypeSections = type == contentHolderList[item.index].page 
-                                        && sections == contentHolderList[item.index].section
+                                        bool matchTypeSections = type == contentState.Value.Contents[item.index].page 
+                                        && sections == contentState.Value.Contents[item.index].section
                                         && subSections == "all";
 
-                                        bool matchType = type == contentHolderList[item.index].page
+                                        bool matchType = type == contentState.Value.Contents[item.index].page
                                         && sections == "all";
 
                                         int indexParsed = item.index;
@@ -453,7 +455,6 @@
                                             {
                                                 var localCount = count;
                                                 <WikiBlockNoAuth 
-                                                    contentHolderList="contentHolderList"
                                                     inline="@inline"
                                                     matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
                                                     matchTypeSections="@matchTypeSections"
@@ -471,7 +472,6 @@
                                             {
                                                 var localCount = count;
                                                 <WikiBlockNoAuth 
-                                                    contentHolderList="contentHolderList"
                                                     inline="@inline"
                                                     matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
                                                     matchTypeSections="@matchTypeSections"
@@ -488,7 +488,7 @@
                                             else if ((matchType || type == null) && contentNotNull)
                                             {
                                                 var localCount = count;
-                                                <WikiBlockNoAuth contentHolderList="contentHolderList"
+                                                <WikiBlockNoAuth
                                                     inline="@inline"
                                                     matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
                                                     matchTypeSections="@matchTypeSections"
@@ -506,7 +506,6 @@
                                             {
                                                 var localCount = count;
                                                 <WikiBlockNoAuth 
-                                                    contentHolderList="contentHolderList"
                                                     inline="@inline"
                                                     matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
                                                     matchTypeSections="@matchTypeSections"
@@ -522,21 +521,21 @@
                                             }
                                             else
                                             {
-                                                if (contentHolderList[item.index].page == null)
+                                                if (contentState.Value.Contents[item.index].page == null)
                                                 {
-                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentHolderList[item.index].subSection)
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing title for subSection: " + contentState.Value.Contents[item.index].subSection)
                                                 }
-                                                else if (contentHolderList[item.index].section == null)
+                                                else if (contentState.Value.Contents[item.index].section == null)
                                                 {
-                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentHolderList[item.index].subSection)
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing section name for subSection: " + contentState.Value.Contents[item.index].subSection)
                                                 }
-                                                else if (contentHolderList[item.index].subSection == null)
+                                                else if (contentState.Value.Contents[item.index].subSection == null)
                                                 {
-                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentHolderList[item.index].section)
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing subSection name for something in section: " + contentState.Value.Contents[item.index].section)
                                                 }
-                                                else if (contentHolderList[item.index].content == null)
+                                                else if (contentState.Value.Contents[item.index].content == null)
                                                 {
-                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentHolderList[item.index].subSection)
+                                                    @JSRuntime.InvokeVoidAsync("alert", "Warning, missing content for subSection: " + contentState.Value.Contents[item.index].subSection)
                                                 }
                                             }
                                         }
@@ -558,7 +557,7 @@
 
 @code {
     @* Declare custom object array will change this for a dictionary *@
-    public contentHolder[]? contentHolderList;
+    //public contentHolder[]? contentState.Value.Contents;
     public contentHolder[]? tempContentHolderList;
     public string? tempContentSection;
     public List<SearchResult> searchResults = new List<SearchResult>(); 
@@ -599,17 +598,12 @@
         try
         {
             @* Call method to make GET request *@
-            await Task.WhenAll(GetAllContentFromGitHubRepo<contentHolder>(false));
-            var orderedContentHolderList = contentHolderList.OrderBy(x => x.page).ThenBy(x => x.section).ThenBy(x => x.subSection);
-            contentHolderList = orderedContentHolderList.ToArray();
-            InitializeContentHolderList();
-            Array.Resize(ref tempContentHolderList, contentHolderList.Length);
-            timer();
+            //await Task.WhenAll(GetAllContentFromGitHubRepo<contentHolder>(false));
+            contentState.StateChanged += ContentStateChanged;
             myStateContainer.OnStateChange += StateHasChanged;
             //myStateContainer.SetValue();
-            @* Initialize control variables after populating contentHolderList *@
-            Array.Resize(ref initialContent, contentHolderList!.Length);
-            IsEditing = new bool[contentHolderList.Length];
+            @* Initialize control variables after populating contentState.Value.Contents *@
+
             @* Add event handler to nagigation change event to reset IsEditing array *@
             Navigation.LocationChanged += LocationChanged!;
             base.OnInitialized();
@@ -619,6 +613,23 @@
             Console.WriteLine("Error: " + ex.Message);
             loadingMSG += "Error Loading Content: " + ex.Message;
             StateHasChanged();
+        }
+    }
+
+    private void ContentStateChanged(object? sender, EventArgs e)
+    {
+        if (contentState.Value.FileCount == contentState.Value.LoadedFilesCount)
+        {
+            // This will run every time the state changes
+            var orderedContentHolderList = contentState.Value.Contents.OrderBy(x => x.page).ThenBy(x => x.section).ThenBy(x => x.subSection);
+            //Add this back
+            //contentState.Value.Contents = orderedContentHolderList.ToArray();
+            InitializeContentHolderList();
+            Array.Resize(ref tempContentHolderList, contentState.Value.Contents.Count);
+            timer();
+            Array.Resize(ref initialContent, contentState.Value.Contents!.Count);
+            IsEditing = new bool[contentState.Value.Contents.Count];
+            InvokeAsync(StateHasChanged); // Update the UI
         }
     }
 
@@ -634,9 +645,9 @@
 
     public void InitializeContentHolderList()
     {
-        for (int i = 0; i < contentHolderList?.Length; i++)
+        for (int i = 0; i < contentState.Value.Contents?.Count; i++)
         {
-            contentHolderList[i].id = i;
+            contentState.Value.Contents[i].id = i;
         }
     }
 
@@ -670,7 +681,8 @@
             Console.WriteLine("Found out of date section, updating...");
             if (IsEditing!.All(x => x == false))
             {
-                Array.Copy(tempContentHolderList, contentHolderList, contentHolderList.Length);
+                //Add this back
+                //Array.Copy(tempContentHolderList, contentState.Value.Contents, contentState.Value.Contents.Count);
             }
             else
             {
@@ -679,9 +691,10 @@
                 {
                     if (IsEditing[i] == true)
                     {
-                        tempContentSection = contentHolderList?[i].content;
-                        Array.Copy(tempContentHolderList, contentHolderList, contentHolderList.Length);
-                        contentHolderList[i].content = tempContentSection;
+                        tempContentSection = contentState.Value.Contents?[i].content;
+                        //add this back
+                        //Array.Copy(tempContentHolderList, contentState.Value.Contents, contentState.Value.Contents.Count);
+                        contentState.Value.Contents[i].content = tempContentSection;
                     }
                 }
             }
@@ -726,7 +739,8 @@
 
     private void UpdateContentHolderList(contentHolder[] newContentHolder)
     {
-        contentHolderList = newContentHolder;
+        //add this back
+        //contentState.Value.Contents = newContentHolder;
         InitializeContentHolderList();
     }
     @* Detects when text changes in the search component, and triggers search methods *@
@@ -735,7 +749,7 @@
         searchTerm = searchPhrase;
         if (searchTerm!.Length > 1)
         {
-            @* Not a good solution, I need to add entries to contentHolderList that can be searched through, but dont get rendered. *@
+            @* Not a good solution, I need to add entries to contentState.Value.Contents that can be searched through, but dont get rendered. *@
             if (string.Equals(searchTerm, "CV", StringComparison.OrdinalIgnoreCase))
             {
                 Navigation.NavigateTo($"/Dissertation/CV");
@@ -758,7 +772,8 @@
             }
             else
             {
-                searchResults = PerformSearch(searchTerm, contentHolderList);
+                //add this back
+                //searchResults = PerformSearch(searchTerm, contentState.Value.Contents);
             }
         }
         if (type != "Search")
@@ -793,7 +808,7 @@
         }
         return results.OrderByDescending(r => r.Score).ToList();
     }
-    @* Calculate score for each item in contentHolderList.  Might need to play with the given scores for each match type *@
+    @* Calculate score for each item in contentState.Value.Contents.  Might need to play with the given scores for each match type *@
     public int CalculateMatchScore(string searchTerm, contentHolder content)
     {
         int score = 0;
@@ -863,7 +878,7 @@
     {
         int localSectionNo = parameters.localSectionNo;
         int globalSectionNo = parameters.globalSectionNo;
-        contentHolderList![globalSectionNo].content = "";
+        contentState.Value.Contents![globalSectionNo].content = "";
         IsEditing![localSectionNo] = true;
     }
 
@@ -874,7 +889,7 @@
     {
         int localSectionNo = parameters.localSectionNo;
         int globalSectionNo = parameters.globalSectionNo;
-        string? localSection = contentHolderList?[globalSectionNo].page + contentHolderList?[globalSectionNo].section;
+        string? localSection = contentState.Value.Contents?[globalSectionNo].page + contentState.Value.Contents?[globalSectionNo].section;
         string oldSHA;
         int? oldUpdateCount;
         if (shaDictionary[localSection] != null)
@@ -903,14 +918,15 @@
             if (localSHA == oldSHA)
             {
                 @* When you click edit, save the current state so 'Cancel' button can revert changes *@
-                initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentHolderList![globalSectionNo]));
+                initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentState.Value.Contents![globalSectionNo]));
                 IsEditing![localSectionNo] = true;
             }
             else
             {
                 Console.WriteLine("If this is triggered, its trying to update in background");
-                initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentHolderList![globalSectionNo]));
-                Array.Copy(tempContentHolderList, contentHolderList, contentHolderList.Length);
+                initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentState.Value.Contents![globalSectionNo]));
+                //add this back
+                //Array.Copy(tempContentHolderList, contentState.Value.Contents, contentState.Value.Contents.Count);
                 IsEditing![localSectionNo] = true;
 
             }
@@ -928,7 +944,7 @@
     {
         string username = parameters.username;
         int globalSectionNo = parameters.globalSectionNo;
-        initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentHolderList![globalSectionNo]));
+        initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentState.Value.Contents![globalSectionNo]));
     }
 
     @* Set selected section's IsEditing to false, then call method to PUT new JSON to GitHub.  Should render updated content to DOM 
@@ -947,7 +963,7 @@
         int? oldUpdateCount = updateCount;
         if (newSec == true)
         {
-            localSection = contentHolderList.Last().page + contentHolderList.Last().section;
+            localSection = contentState.Value.Contents.Last().page + contentState.Value.Contents.Last().section;
             oldSHA = shaDictionary[localSection]!;
             updateCount++;
         }
@@ -971,20 +987,20 @@
                     myStateContainer.SetValue();
                     myStateContainer.OnStateChange += RefreshMe;
                     @* Serialize current object array to a JSON String *@
-                    contentHolder[] localContentHolderList = contentHolderList!.Where(holder => holder.page == contentHolderList.Last().page && holder.section == contentHolderList.Last().section).ToArray();
+                    contentHolder[] localContentHolderList = contentState.Value.Contents!.Where(holder => holder.page == contentState.Value.Contents.Last().page && holder.section == contentState.Value.Contents.Last().section).ToArray();
                     var jsonString = JsonConvert.SerializeObject(localContentHolderList);
                     await UpdateJSONOnGitHub(jsonString, commitText!, localSection!);
                 }
                 else
                 {
-                    string? types = contentHolderList[globalSectionNo].page;
+                    string? types = contentState.Value.Contents[globalSectionNo].page;
                     string? oldTypes = initialContent[globalSectionNo].page;
-                    string? sections = contentHolderList[globalSectionNo].section;
+                    string? sections = contentState.Value.Contents[globalSectionNo].section;
                     string? oldSections = initialContent[globalSectionNo].section;
-                    Console.WriteLine("Current: " + contentHolderList![globalSectionNo] + "Old: " + initialContent![globalSectionNo]);
-                    if (contentHolderList![globalSectionNo].section != initialContent![globalSectionNo].section ||
-                        contentHolderList![globalSectionNo].subSection != initialContent![globalSectionNo].subSection ||
-                        contentHolderList![globalSectionNo].content != initialContent![globalSectionNo].content)
+                    Console.WriteLine("Current: " + contentState.Value.Contents![globalSectionNo] + "Old: " + initialContent![globalSectionNo]);
+                    if (contentState.Value.Contents![globalSectionNo].section != initialContent![globalSectionNo].section ||
+                        contentState.Value.Contents![globalSectionNo].subSection != initialContent![globalSectionNo].subSection ||
+                        contentState.Value.Contents![globalSectionNo].content != initialContent![globalSectionNo].content)
                     {
                         Console.WriteLine("saving");
                         IsEditing![sectionNo] = false;
@@ -996,7 +1012,7 @@
                         @* Check if Type or Section names have changes, then Serialize current object array to a JSON String *@
                         if (types != oldTypes || sections != oldSections)
                         {
-                            contentHolder[] oldLocalContentHolderList = contentHolderList.Where(holder => holder.page == oldTypes && holder.section == oldSections).ToArray();
+                            contentHolder[] oldLocalContentHolderList = contentState.Value.Contents.Where(holder => holder.page == oldTypes && holder.section == oldSections).ToArray();
                             var oldJsonString = JsonConvert.SerializeObject(oldLocalContentHolderList);
                             if (oldJsonString == "[]")
                             {
@@ -1010,17 +1026,17 @@
                             }
                         }
 
-                        contentHolder[] localContentHolderList = contentHolderList.Where(holder => holder.page == types && holder.section == sections).ToArray();
+                        contentHolder[] localContentHolderList = contentState.Value.Contents.Where(holder => holder.page == types && holder.section == sections).ToArray();
                         var jsonString = JsonConvert.SerializeObject(localContentHolderList);
                         var oldLocalSection = localSection;
-                        localSection = contentHolderList[globalSectionNo].page + contentHolderList[globalSectionNo].section;
+                        localSection = contentState.Value.Contents[globalSectionNo].page + contentState.Value.Contents[globalSectionNo].section;
                         await UpdateJSONOnGitHub(jsonString, commitText!, localSection!);
                     }
                     else
                     {
                         IsEditing![sectionNo] = false;
                         Console.WriteLine("No changes detected");
-                        Console.WriteLine(contentHolderList![globalSectionNo].content!);
+                        Console.WriteLine(contentState.Value.Contents![globalSectionNo].content!);
                     }
                 }
             }
@@ -1032,9 +1048,10 @@
                 {
                     if (IsEditing[i] == true)
                     {
-                        tempContentSection = contentHolderList[i].content;
-                        Array.Copy(tempContentHolderList, contentHolderList, contentHolderList.Length);
-                        contentHolderList[i].content = tempContentSection;
+                        tempContentSection = contentState.Value.Contents[i].content;
+                        //add this back
+                        //Array.Copy(tempContentHolderList, contentState.Value.Contents, contentState.Value.Contents.Count);
+                        contentState.Value.Contents[i].content = tempContentSection;
                         break;
                     }
                 }
@@ -1061,11 +1078,11 @@
         @* If statement needed here so canceling on a newly added section will remove it *@
         if (initialContent![globalSectionNo] != null)
         {
-            contentHolderList![globalSectionNo].content = initialContent[globalSectionNo].content!;
+            contentState.Value.Contents![globalSectionNo].content = initialContent[globalSectionNo].content!;
         }
         else
         {
-            await RemoveSection((contentHolderList!.Length - 1, "... (New Section)"));
+            await RemoveSection((contentState.Value.Contents!.Count - 1, "... (New Section)"));
         }
         IsEditing![localSectionNo] = false;
         InitializeContentHolderList();
@@ -1102,13 +1119,14 @@
         }
         if (!String.IsNullOrWhiteSpace(finalType) && !String.IsNullOrWhiteSpace(finalName) && !String.IsNullOrWhiteSpace(subName))
         {
-            if (!contentHolderList.Any(item => item.subSection.Contains(subName)))
+            if (!contentState.Value.Contents.Any(item => item.subSection.Contains(subName)))
             {
                 @* Best way to add to an array is to resize then initialize the new index *@
-                Array.Resize(ref contentHolderList, contentHolderList!.Length + 1);
-                Array.Resize(ref tempContentHolderList, contentHolderList!.Length);
+                //add this back
+                //Array.Resize(ref contentState.Value.Contents, contentState.Value.Contents!.Count + 1);
+                Array.Resize(ref tempContentHolderList, contentState.Value.Contents!.Count);
                 Array.Resize(ref IsEditing, IsEditing!.Length + 1);
-                contentHolderList[contentHolderList.Length - 1] = new contentHolder
+                contentState.Value.Contents[contentState.Value.Contents.Count - 1] = new contentHolder
                     {
                         page = finalType,
                         section = finalName,
@@ -1118,7 +1136,7 @@
                 ReInitialize();
                 @* Initialize new index on control variables *@
                 IsEditing[0] = true;
-                sectionBeingEdited = contentHolderList.Length;
+                sectionBeingEdited = contentState.Value.Contents.Count;
             }
             else
             {
@@ -1138,31 +1156,32 @@
     {
         int sectionNo = parameters.sectionNo;
         string username = parameters.username;
-        bool responce = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete the subSection: " + contentHolderList[sectionNo].subSection);
+        bool responce = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete the subSection: " + contentState.Value.Contents[sectionNo].subSection);
         if (responce == true)
         {
-            if (contentHolderList!.Length > 1)
+            if (contentState.Value.Contents!.Count > 1)
             {
-                string? localSection = contentHolderList[sectionNo].page + contentHolderList[sectionNo].section;
-                string? types = contentHolderList[sectionNo].page;
-                string? sections = contentHolderList[sectionNo].section;
+                string? localSection = contentState.Value.Contents[sectionNo].page + contentState.Value.Contents[sectionNo].section;
+                string? types = contentState.Value.Contents[sectionNo].page;
+                string? sections = contentState.Value.Contents[sectionNo].section;
                 @* Easiest way to remove an element from middle of array is to build a new array from the old, skipping the line to remove, then setting it back to main array *@
-                contentHolder[] newArray = new contentHolder[contentHolderList.Length - 1];
+                contentHolder[] newArray = new contentHolder[contentState.Value.Contents.Count - 1];
                 int newArrayIndex = 0;
-                for (int i = 0; i < contentHolderList.Length; i++)
+                for (int i = 0; i < contentState.Value.Contents.Count; i++)
                 {
                     if (i != sectionNo)
                     {
-                        newArray[newArrayIndex++] = contentHolderList[i];
+                        newArray[newArrayIndex++] = contentState.Value.Contents[i];
                     }
                 }
-                contentHolderList = newArray;
+                //add this back
+                //contentState.Value.Contents = newArray;
                 ReInitialize();
                 myStateContainer.SetValue();
                 myStateContainer.OnStateChange += RefreshMe;
                 @* Serialize and upload to GitHub *@
 
-                contentHolder[] localContentHolderList = contentHolderList.Where(holder => holder.page == types && holder.section == sections).ToArray();
+                contentHolder[] localContentHolderList = contentState.Value.Contents.Where(holder => holder.page == types && holder.section == sections).ToArray();
                 var jsonString = JsonConvert.SerializeObject(localContentHolderList);
                 if (jsonString == "[]")
                 {
@@ -1182,8 +1201,8 @@
     @* This method should reset lengths of different variables and re-load the page.  Called after a number of state changes *@
     private void ReInitialize()
     {
-        Array.Resize(ref initialContent, contentHolderList!.Length);
-        IsEditing = new bool[contentHolderList.Length];
+        Array.Resize(ref initialContent, contentState.Value.Contents!.Count);
+        IsEditing = new bool[contentState.Value.Contents.Count];
         InitializeContentHolderList();
         StateHasChanged();
     }
@@ -1279,9 +1298,9 @@
                 {
                     foreach (contentHolder updateItem in array)
                     {
-                        foreach (contentHolder mainContentItem in contentHolderList)
+                        foreach (contentHolder mainContentItem in contentState.Value.Contents)
                         {
-                            Console.WriteLine("updating contentHolderList");
+                            Console.WriteLine("updating contentState.Value.Contents");
                             if (mainContentItem.page == updateItem.page &&
                                 mainContentItem.section == updateItem.section &&
                                 mainContentItem.subSection == updateItem.subSection)
@@ -1293,7 +1312,8 @@
                 }
                 else
                 {
-                    Array.Copy(contentHolderList, tempContentHolderList, contentHolderList.Length);
+                    //add this back
+                    //Array.Copy(contentState.Value.Contents, tempContentHolderList, contentState.Value.Contents.Count);
                     Console.WriteLine("adding: " + array);
                     foreach (contentHolder updateItem in array)
                     {
@@ -1373,7 +1393,8 @@
                         }
                     }
                     initiating = false;
-                    contentHolderList = localContentHolderList.ToArray();
+                    //add this back
+                    //contentState.Value.Contents = localContentHolderList.ToArray();
                 }
                 else
                 {
@@ -1408,9 +1429,9 @@
                 {
                     foreach (contentHolder updateItem in localContentHolderList)
                     {
-                        foreach (contentHolder mainContentItem in contentHolderList)
+                        foreach (contentHolder mainContentItem in contentState.Value.Contents)
                         {
-                            Console.WriteLine("updating contentHolderList");
+                            Console.WriteLine("updating contentState.Value.Contents");
                             if (mainContentItem.page == updateItem.page &&
                                 mainContentItem.section == updateItem.section &&
                                 mainContentItem.subSection == updateItem.subSection)
@@ -1422,7 +1443,8 @@
                 }
                 else
                 {
-                    Array.Copy(contentHolderList, tempContentHolderList, contentHolderList.Length);
+                    //add this back
+                    //Array.Copy(contentState.Value.Contents, tempContentHolderList, contentState.Value.Contents.Count);
                     foreach (contentHolder updateItem in localContentHolderList)
                     {
                         Console.WriteLine("updating tempContentHolderList");
@@ -1474,11 +1496,11 @@
 
     public void Dispose()
     {
-        //myStateContainer.OnStateChange -= StateHasChanged;
+        contentState.StateChanged -= ContentStateChanged; // Clean up to avoid memory leaks
     }
 
     @* Class for creating custom objects from JSON string *@
-    public class contentHolder
+@*    public class contentHolder
     {
         public string? page { get; set; }
 
@@ -1489,7 +1511,7 @@
         public string? content { get; set; }
 
         public int id { get; set; }
-    }
+    }*@
 
     @* Class for tying search results to their score *@
     public class SearchResult
