@@ -37,4 +37,26 @@ namespace PersonalWebsite.Store.Actions
         }
     }
     public record AllFilesFetchedAction();
+	public record UpdateTempContentAction(int Id, string UpdatedContent, bool IsEditing);
+	public record UpdateIsEditingAction(int Index, bool IsEditing);
+	public record ResetIsEditingAction();
+	public class SaveContentAction
+	{
+		public string Username { get; set; }
+		public int GlobalSectionNo { get; set; }
+		public bool NewSec { get; set; }
+
+		public SaveContentAction(string username, int globalSectionNo, bool newSec)
+		{
+			Username = username;
+			GlobalSectionNo = globalSectionNo;
+			NewSec = newSec;
+		}
+	}
+	public record SaveNewSectionAction(int GlobalSectionNo, string Username, List<contentHolder> Content, string Sha);
+	public record SaveExistingSectionAction(int GlobalSectionNo, string Username, List<contentHolder> Content, string Sha);
+	public record SaveOutdatedSectionAction(int GlobalSectionNo, string Username, List<contentHolder> Content, string Sha);
+	public record UpdateContentOnGithubAction(string JsonString, string CommitMessage, string Section, string Sha);
+	public record DeleteFileOnGithubAction(string CommitMessage, string Section, string Sha);
+
 }

@@ -115,16 +115,11 @@
                                             subSections="@subSections"
                                             TinyAPIKey="@TinyAPIKey"
                                             count="@count"
-                                            IsEditing="@IsEditing"
                                             localCount=localCount
                                             indexParsed="@indexParsed"
                                             username="@username"
-                                            inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                            Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                            Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
                                             RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
                                             ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                            Cancel="@(e => Cancel((e.Item1, e.Item2)))"
                                             OnDataChanged="UpdateContentHolderList"     />
                                         <p>Search Score: @item.searchResult.Score</p>
                                         @* Increment global count *@
@@ -143,17 +138,11 @@
                                         subSections="@subSections"
                                         TinyAPIKey="@TinyAPIKey"
                                         count="0"
-                                        IsEditing="@IsEditing"
                                         localCount=0
                                         indexParsed=0
                                         username="@username"
-                                        inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                        Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                        Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
                                         RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                        ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                        Cancel="@(e => Cancel((e.Item1, e.Item2)))"
-                                        CancelNew="CancelNew" />
+                                        ClearContent="@(e => ClearContent((e.Item1, e.Item2)))" />
                                 }
                                 else
                                 {
@@ -180,7 +169,7 @@
                                         bool matchType = type == contentState.Value.Contents[item.index].page
                                         && sections == "all";
 
-                                        int indexParsed = item.index;
+                                        int indexParsed = contentState.Value.Contents[item.index].id;
 
                                         @if (item.contentHolder != null)
                                         {
@@ -199,16 +188,11 @@
                                                     subSections="@subSections"
                                                     TinyAPIKey="@TinyAPIKey"
                                                     count="@count"
-                                                    IsEditing="@IsEditing"
                                                     localCount=localCount
                                                     indexParsed="@indexParsed"
                                                     username="@username"
-                                                    inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                                    Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                                    Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
                                                     RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
                                                     ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                                    Cancel="@(e => Cancel((e.Item1, e.Item2)))"
                                                     OnDataChanged="UpdateContentHolderList"
                                                 />
 
@@ -229,16 +213,11 @@
                                             subSections="@subSections"
                                             TinyAPIKey="@TinyAPIKey"
                                             count="@count"
-                                            IsEditing="@IsEditing"
                                             localCount=localCount
                                             indexParsed="@indexParsed"
                                             username="@username"
-                                            inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                            Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                            Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
                                             RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
                                             ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                            Cancel="@(e => Cancel((e.Item1, e.Item2)))"
                                             OnDataChanged="UpdateContentHolderList" />
 
                                                 @* Increment global count *@
@@ -258,16 +237,11 @@
                                             subSections="@subSections"
                                             TinyAPIKey="@TinyAPIKey"
                                             count="@count"
-                                            IsEditing="@IsEditing"
                                             localCount=localCount
                                             indexParsed="@indexParsed"
                                             username="@username"
-                                            inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                            Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                            Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
                                             RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
                                             ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                            Cancel="@(e => Cancel((e.Item1, e.Item2)))"
                                             OnDataChanged="UpdateContentHolderList" />
 
                                                 @* Increment global count *@
@@ -287,16 +261,11 @@
                                                     subSections="@subSections"
                                                     TinyAPIKey="@TinyAPIKey"
                                                     count="@count"
-                                                    IsEditing="@IsEditing"
                                                     localCount=localCount
                                                     indexParsed="@indexParsed"
                                                     username="@username"
-                                                    inlineEdit="@(e => inlineEdit((e.Item1, e.Item2)))"
-                                                    Edit="@(e => Edit((e.Item1, e.Item2)))"
-                                                    Save="@(e => Save((e.Item1, e.Item2, e.Item3, e.Item4)))"
                                                     RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
                                                     ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                                    Cancel="@(e => Cancel((e.Item1, e.Item2)))"
                                                     OnDataChanged="UpdateContentHolderList"
                                                 />
 
@@ -447,7 +416,8 @@
                                         bool matchType = type == contentState.Value.Contents[item.index].page
                                         && sections == "all";
 
-                                        int indexParsed = item.index;
+                                        int indexParsed = contentState.Value.Contents[item.index].id;
+
                                         @if (item.contentHolder != null)
                                         {
 
@@ -559,6 +529,7 @@
     @* Declare custom object array will change this for a dictionary *@
     //public contentHolder[]? contentState.Value.Contents;
     public contentHolder[]? tempContentHolderList;
+    public contentHolder? tempContent;
     public string? tempContentSection;
     public List<SearchResult> searchResults = new List<SearchResult>(); 
     public string? searchTerm { get; set; }
@@ -573,7 +544,7 @@
     public string? subSections { get; set; }
     @* Declare Global Vars *@
     private bool? inline { get; set; } = true;
-    private contentHolder[]? initialContent;
+    private List<contentHolder> initialContent;
     private bool[]? IsEditing;
     private string? typeDropdown;
     private string? newTypeDropdown;
@@ -621,13 +592,14 @@
         if (contentState.Value.FileCount == contentState.Value.LoadedFilesCount)
         {
             // This will run every time the state changes
-            var orderedContentHolderList = contentState.Value.Contents.OrderBy(x => x.page).ThenBy(x => x.section).ThenBy(x => x.subSection);
+            //var orderedContentHolderList = contentState.Value.Contents.OrderBy(x => x.page).ThenBy(x => x.section).ThenBy(x => x.subSection);
             //Add this back
             //contentState.Value.Contents = orderedContentHolderList.ToArray();
             InitializeContentHolderList();
             Array.Resize(ref tempContentHolderList, contentState.Value.Contents.Count);
             timer();
-            Array.Resize(ref initialContent, contentState.Value.Contents!.Count);
+            //Add this back
+            //Array.Resize(ref initialContent, contentState.Value.Contents!.Count);
             IsEditing = new bool[contentState.Value.Contents.Count];
             InvokeAsync(StateHasChanged); // Update the UI
         }
@@ -885,61 +857,27 @@
     @* Set selected sections IsEditing to True, which should render the editor. It tries to check before opening the editor if the content is up to date with DB, if its not, it should update then open. 
         This is way over-complicated at the moment.  Given I have an update event every minuite, I really dont need to check for changes when clicking edit.  It makes the came check every minuite, and when you save...
     *@
-    private async void Edit((int localSectionNo, int globalSectionNo) parameters)
+    private void Edit((int localSectionNo, int globalSectionNo) parameters)
     {
         int localSectionNo = parameters.localSectionNo;
         int globalSectionNo = parameters.globalSectionNo;
-        string? localSection = contentState.Value.Contents?[globalSectionNo].page + contentState.Value.Contents?[globalSectionNo].section;
-        string oldSHA;
-        int? oldUpdateCount;
-        if (shaDictionary[localSection] != null)
-        {
-            oldSHA = shaDictionary[localSection]!;
-            oldUpdateCount = updateCount;
-            ClearIsEditingArray();
-            Console.WriteLine(oldSHA + " ");
-            await GetContentFromGitHubRepo<contentHolder>(true, localSection);
-        }
-        else
-        {
-            oldUpdateCount = updateCount;
-            ClearIsEditingArray();
-            await GetContentFromGitHubRepo<contentHolder>(true, localSection);
-            oldSHA = shaDictionary[localSection]!;
-        }
-        EditParser(localSectionNo, globalSectionNo, oldSHA, shaDictionary[localSection], oldUpdateCount);
-    }
 
-    @* This function is meant to check if there is changes to content before trying to edit.  Seems unreliable tho *@
-    private void EditParser(int localSectionNo, int globalSectionNo, string oldSHA, string localSHA, int? oldUpdateCount)
-    {
-        if (updateCount == oldUpdateCount + 1)
-        {
-            if (localSHA == oldSHA)
-            {
-                @* When you click edit, save the current state so 'Cancel' button can revert changes *@
-                initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentState.Value.Contents![globalSectionNo]));
-                IsEditing![localSectionNo] = true;
-            }
-            else
-            {
-                Console.WriteLine("If this is triggered, its trying to update in background");
-                initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentState.Value.Contents![globalSectionNo]));
-                //add this back
-                //Array.Copy(tempContentHolderList, contentState.Value.Contents, contentState.Value.Contents.Count);
-                IsEditing![localSectionNo] = true;
+        // When you click edit, save the current state so 'Cancel' button can revert changes
+        tempContent = CloneContentHolder(contentState.Value.Contents![globalSectionNo]);
 
-            }
-            sectionBeingEdited = globalSectionNo;
-        }
-        else
-        {
-            Console.WriteLine("Re-triggering edit function");
-            EditParser(localSectionNo, globalSectionNo, oldSHA, localSHA, oldUpdateCount);
-        }
+        // Open the editor for the selected section
+        IsEditing![localSectionNo] = true;
+
         StateHasChanged();
     }
 
+    // Creates a deep copy of a content holder
+    private contentHolder CloneContentHolder(contentHolder original)
+    {
+        return JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(original));
+    }
+
+    @* Old method, not in use *@
     private void inlineEdit((string username, int globalSectionNo) parameters)
     {
         string username = parameters.username;
@@ -947,9 +885,8 @@
         initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentState.Value.Contents![globalSectionNo]));
     }
 
-    @* Set selected section's IsEditing to false, then call method to PUT new JSON to GitHub.  Should render updated content to DOM 
-        again, this is way more complex than it needs to be.  It should just check for differences with db and either make the save, or update then save.
-        A lot of this logic is trying to detect if the save is to a new section or existing one.  Might be better to have 2 methods, and less conditionals
+    @* 
+        as I am moving to fluxor and simplifying things, I also need to dramatically simplify this before translating it.  I have decided I think to not worry about sha matching at the moment, and just always update, since its just me using this app...
     *@
     private async void Save((int sectionNo, string username, int globalSectionNo, bool newSec) parameters)
     {
@@ -1201,7 +1138,8 @@
     @* This method should reset lengths of different variables and re-load the page.  Called after a number of state changes *@
     private void ReInitialize()
     {
-        Array.Resize(ref initialContent, contentState.Value.Contents!.Count);
+        //Add this back
+        //Array.Resize(ref initialContent, contentState.Value.Contents!.Count);
         IsEditing = new bool[contentState.Value.Contents.Count];
         InitializeContentHolderList();
         StateHasChanged();

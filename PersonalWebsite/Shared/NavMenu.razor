@@ -94,6 +94,7 @@
                                 @* If the section is expanded, loop through the section groups for subSections *@
                                 @foreach (var contentHolder in sectionGroup)
                                 {
+                                    Console.WriteLine("subSection: " + @contentHolder.subSection + ". id assigned on initiation: " + @contentHolder.id);
                                     <div class="item-fader nav-item px-1 fade-in" id="fader">
                                         @*@(showSubSections[localCount] == true ? "" : "fade-out")*@
                                         <NavLink class="nav-link text-muted lastLink" href=@($"/{type}/{sectionName}/{contentHolder.subSection}")>
@@ -150,7 +151,7 @@
     protected override async Task OnInitializedAsync()
     {
         contentState.StateChanged += HandleStateChanged;
-        Dispatcher.Dispatch(new LoadContentsFromRepoAction());
+        //Dispatcher.Dispatch(new LoadContentsFromRepoAction());
 
         //await JSRuntime.InvokeVoidAsync("scrollNavMenu");
         if (this.firstRender)

@@ -89,6 +89,16 @@ namespace PersonalWebsite.Store.Effects
                 _logger.LogError(ex, $"Failed to fetch file content: {action.FileNameWithoutSuffix}");
             }
         }
-    }
+		[EffectMethod]
+		public async Task HandleUpdateContentOnGithubAction(UpdateContentOnGithubAction action, IDispatcher dispatcher)
+		{
+			// Your HTTP PUT request logic here
+		}
+		[EffectMethod]
+		public async Task HandleDeleteFileOnGithubAction(DeleteFileOnGithubAction action, IDispatcher dispatcher)
+		{
+			// Your HTTP DELETE request logic here
+		}
+	}
 }
 

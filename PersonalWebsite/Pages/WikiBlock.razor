@@ -1,6 +1,7 @@
 ﻿@inject MyStateContainer myStateContainer
 @inject IState<ContentState> contentState
 @inject IDispatcher Dispatcher
+@using Newtonsoft.Json;
 @using PersonalWebsite.Shared.Model;
 @using PersonalWebsite.Store.Actions;
 @using PersonalWebsite.Store.State;
@@ -18,7 +19,7 @@
 		<tr>
 			<td>
 				<h3 class="kudosTextInline">New Section: </h3>
-				<div class="dotted-lines" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, true)))">
+				<div class="dotted-lines" @onfocusout="(() => Save(true))">
 					<Editor Id="@count.ToString()"
 						Inline=true
 						CloudChannel="5"
@@ -27,7 +28,7 @@
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
 						Value="@contentState.Value.Contents.Last().content"
-						ValueChanged="@(async (newValue) => { contentState.Value.Contents.Last().content = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
+							ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 				</div>
 			</td>
 		</tr>
@@ -37,8 +38,8 @@
 		<tr>
 			<td class="kudosText">New Section: </td>
 			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-			<td hidden="@IsEditing[count]">@(new MarkupString(contentState.Value.Contents.Last().content!))</td>
-			<td hidden="@(!IsEditing[count])">
+			<td hidden="@contentState.Value.IsEditing[indexParsed]">@(new MarkupString(contentState.Value.Contents.Last().content!))</td>
+			<td hidden="@(!contentState.Value.IsEditing[indexParsed])">
 				<div class="dotted-lines tinymce-editor">
 					<Editor Id="@count.ToString()"
 							Inline=false
@@ -48,7 +49,7 @@
 							ApiKey="@TinyAPIKey"
 							ClassName="counterEditor"
 							Value="@contentState.Value.Contents.Last().content"
-							ValueChanged="@(async (newValue) => { contentState.Value.Contents.Last().content = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents); */})" />
+							ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 				</div>
 			</td>
 		</tr>
@@ -60,8 +61,8 @@
 			@{var clearText = "";}
 			<td>
 				<button class="btn btn-outline-warning" @onclick="()=> contentState.Value.Contents.Last().content = clearText">Clear</button>
-				<button class="btn btn-outline-primary" @onclick="(() => Save.InvokeAsync((localCount, username!, indexParsed, true)))" hidden="@(!IsEditing[localCount])">Save</button>
-				<button class="btn btn-outline-primary" @onclick="(() => CancelNew.InvokeAsync(localCount))" hidden="@(!IsEditing[localCount])">Cancel</button>
+				<button class="btn btn-outline-primary" @onclick="(() => Save(true))" hidden="@(!contentState.Value.IsEditing[indexParsed])">Save</button>
+				<button class="btn btn-outline-primary" @onclick="(() => Cancel())" hidden="@(!contentState.Value.IsEditing[indexParsed])">Cancel</button>
 			</td>
 	</tr>
 	}
@@ -75,7 +76,7 @@ else
 			<td>
 				@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
 				{
-					<h3 class="kudosTextInline" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+					<h3 class="kudosTextInline" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
 						<Editor Id="@($"{count}-1")"
 						Inline=true
 						CloudChannel="5"
@@ -84,7 +85,7 @@ else
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
 						Value="@contentState.Value.Contents[indexParsed].section"
-						ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].section = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })"		/>
+								ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 						<small>
 							<div class="text-muted">
 								<Editor Id="@($"{count}-2")"
@@ -95,14 +96,14 @@ else
 								ApiKey="@TinyAPIKey"
 								ClassName="counterEditor"
 								Value="@contentState.Value.Contents[indexParsed].subSection"
-								ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].subSection = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents); */})" />
+										ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 							</div>
 						</small>
 					</h3>
 				}
 				else if (!matchTypeSectionsSubSections && matchTypeSections)
 				{
-					<h3 class="kudosTextInline" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+					<h3 class="kudosTextInline" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
 						<small>
 							<div class="text-muted">
 								<Editor Id="@($"{count}-2")"
@@ -113,7 +114,7 @@ else
 									ApiKey="@TinyAPIKey"
 									ClassName="counterEditor"
 									Value="@contentState.Value.Contents[indexParsed].subSection"
-									ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].subSection = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
+										ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 							</div>
 						</small>
 					</h3>
@@ -126,7 +127,7 @@ else
 						</small>
 					</h3>
 				}
-				<div class="dotted-lines" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+				<div class="dotted-lines" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save())">
 					<Editor Id="@count.ToString()"
 						Inline=true
 						CloudChannel="5"
@@ -135,7 +136,7 @@ else
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
 						Value="@contentState.Value.Contents[indexParsed].content"
-						ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].content = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
+							ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 					<button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection.InvokeAsync((indexParsed, username!)))">Delete</button>
 				</div>
 			</td>
@@ -148,7 +149,7 @@ else
 			@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
 			{
 				<td class="kudosText col-1">
-				<h4 @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+					<h4 @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
 					<Editor Id="@($"{count}-1")"
 						Inline=true
 						CloudChannel="5"
@@ -157,7 +158,7 @@ else
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
 						Value="@contentState.Value.Contents[indexParsed].section"
-						ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].section = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
+								ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 						<br><small>
 							<div class="text-muted">
 								<Editor Id="@($"{count}-2")"
@@ -168,7 +169,7 @@ else
 								ApiKey="@TinyAPIKey"
 								ClassName="counterEditor"
 								Value="@contentState.Value.Contents[indexParsed].subSection"
-								ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].subSection = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
+										ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 							</div>
 						</small>
 					</h4>
@@ -180,7 +181,7 @@ else
 					<h4>
 					@if (contentState.Value.Contents[indexParsed].subSection != null)
 						{
-						<h3 class="kudosTextInline" @onfocusin="(() => inlineEdit.InvokeAsync((username!, indexParsed)))" @onfocusout="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))">
+							<h3 class="kudosTextInline" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save())">
 								<Editor Id="@($"{count}-2")"
 								Inline=true
 								CloudChannel="5"
@@ -189,7 +190,7 @@ else
 								ApiKey="@TinyAPIKey"
 								ClassName="counterEditor"
 								Value="@contentState.Value.Contents[indexParsed].subSection"
-								ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].subSection = newValue.ToString();/* await OnDataChanged.InvokeAsync(contentState.Value.Contents); */})" />
+										ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 							</h3>
 						}
 					</h4>
@@ -201,9 +202,9 @@ else
 			}
 			
 			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-			<td hidden="@IsEditing![count]">@(new MarkupString(@contentState.Value.Contents[indexParsed].content!))</td>
+			<td hidden="@contentState.Value.IsEditing[indexParsed]">@(new MarkupString(@contentState.Value.Contents[indexParsed].content!))</td>
 			@* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-			<td hidden="@(!IsEditing[count])">
+			<td hidden="@(!contentState.Value.IsEditing[indexParsed])">
 				<div class="dotted-lines tinymce-editor">
 					<Editor Id="@count.ToString()"
 						Inline=false
@@ -213,7 +214,7 @@ else
 						ApiKey="@TinyAPIKey"
 						ClassName="counterEditor"
 						Value="@contentState.Value.Contents[indexParsed].content"
-						ValueChanged="@(async (newValue) => { contentState.Value.Contents[indexParsed].content = newValue.ToString(); /*await OnDataChanged.InvokeAsync(contentState.Value.Contents);*/ })" />
+							ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
 				</div>
 			</td>
 		</tr>
@@ -227,9 +228,9 @@ else
 			<td>
 				<button class="btn btn-outline-warning" @onclick="(() => ClearContent.InvokeAsync((localCount, indexParsed)))">Clear</button>
 				<button class="btn btn-outline-danger" @onclick="(() => RemoveSection.InvokeAsync((indexParsed, username!)))">Delete</button>
-				<button class="btn btn-outline-primary" @onclick="(() => Edit.InvokeAsync((localCount, indexParsed)))" hidden="@IsEditing[localCount]">Edit</button>
-				<button class="btn btn-outline-primary" @onclick="(() => Save.InvokeAsync((localCount, username!, indexParsed, false)))" hidden="@(!IsEditing[localCount])">Save</button>
-				<button class="btn btn-outline-primary" @onclick="(() => Cancel.InvokeAsync((localCount, indexParsed)))" hidden="@(!IsEditing[localCount])">Cancel</button>
+				<button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, indexParsed))" hidden="@contentState.Value.IsEditing[indexParsed]">Edit</button>
+				<button class="btn btn-outline-primary" @onclick="(() => Save(false))" hidden="@(!contentState.Value.IsEditing[indexParsed])">Save</button>
+				<button class="btn btn-outline-primary" @onclick="(() => Cancel())" hidden="@(!contentState.Value.IsEditing[indexParsed])">Cancel</button>
 			</td>
 		</tr>
 	}
@@ -247,20 +248,21 @@ else
 	[Parameter] public string subSections { get; set; }
 	[Parameter] public string TinyAPIKey { get; set; }
 	[Parameter] public int count { get; set; }
-	[Parameter] public bool[] IsEditing { get; set; }
+	//[Parameter] public bool[] IsEditing { get; set; }
 	[Parameter] public int localCount { get; set; }
 	[Parameter] public int indexParsed { get; set; }
 	[Parameter] public string username { get; set; }
-	[Parameter] public EventCallback<(string, int)> inlineEdit { get; set; }
-	[Parameter] public EventCallback<(int, int)> Edit { get; set; }
-	[Parameter] public EventCallback<(int, string, int, bool)> Save { get; set; }
+	//[Parameter] public EventCallback<(string, int)> inlineEdit { get; set; }
+	//[Parameter] public EventCallback<(int, int)> Edit { get; set; }
+	//[Parameter] public EventCallback<(int, string, int, bool)> Save { get; set; }
 	[Parameter] public EventCallback<(int, string)> RemoveSection { get; set; }
 	[Parameter] public EventCallback<(int, int)> ClearContent { get; set; }
-	[Parameter] public EventCallback<(int, int)> Cancel { get; set; }
-	[Parameter] public EventCallback<int> CancelNew { get; set; }
+	//[Parameter] public EventCallback<(int, int)> Cancel { get; set; }
+	//[Parameter] public EventCallback<int> CancelNew { get; set; }
 	[Parameter] public EventCallback<contentHolder[]> OnDataChanged { get; set; }
 
 	private string? lastPage;
+	private contentHolder? tempContent;
 
 	protected override async Task OnInitializedAsync()
 	{
@@ -272,6 +274,38 @@ else
 		{
 			InvokeAsync(StateHasChanged);
 		}
+	}
+	private void Edit(int localSectionNo, int globalSectionNo)
+	{
+		Console.WriteLine($"IsEditing size: {contentState.Value.IsEditing.Count}, updating index: {globalSectionNo}");
+		// When you click edit, save the current state so 'Cancel' button can revert changes
+		tempContent = CloneContentHolder(contentState.Value.Contents![globalSectionNo]);
+		// Open the editor for the selected section
+		Dispatcher.Dispatch(new UpdateIsEditingAction(globalSectionNo, true));
+	}
+
+
+	// Creates a deep copy of a content holder
+	private contentHolder CloneContentHolder(contentHolder original)
+	{
+		return JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(original));
+	}
+	private void Save(bool newSec)
+	{
+		Dispatcher.Dispatch(new ResetIsEditingAction());
+
+		Dispatcher.Dispatch(new SaveContentAction(username, indexParsed, newSec));
+
+
+		Console.WriteLine("Test save, updated content: " + tempContent.content.ToString());
+
+		tempContent = null;
+	}
+
+	private void Cancel()
+	{
+		Dispatcher.Dispatch(new ResetIsEditingAction());
+		tempContent = null;
 	}
 
 	    @* Define properties for TinyMCE WYSIWYG editor *@
