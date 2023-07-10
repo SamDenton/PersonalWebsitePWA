@@ -1,6 +1,7 @@
 ﻿function initNavbar() {
     var navbar = document.querySelector('.sidebarController');
     var icon = document.querySelector('.icon');
+    var content = document.querySelector('.content');
     var mq = window.matchMedia('(max-width: 689.98px)');
 
     // Set initial state based on screen size
@@ -18,14 +19,18 @@
     icon.addEventListener('click', function () {
         if (navbar.classList.contains('navShower')) {
             navbar.classList.remove('navShower');
+            navbar.classList.remove('sidebarController-max');
             navbar.classList.add('navHider');
             icon.classList.remove('rotateLeft');
             icon.classList.add('rotateRight');
+            content.classList.remove('contentHider')
         } else {
             navbar.classList.remove('navHider');
             navbar.classList.add('navShower');
+            navbar.classList.add('sidebarController-max');
             icon.classList.remove('rotateRight');
             icon.classList.add('rotateLeft');
+            content.classList.add('contentHider')
         }
     });
 
@@ -33,12 +38,14 @@
     mq.addListener(function () {
         if (mq.matches) {
             navbar.classList.remove('navShower');
+            navbar.classList.remove('sidebarController-max');
             navbar.classList.add('navHider');
             icon.classList.remove('rotateLeft');
             icon.classList.add('rotateRight');
         } else {
             navbar.classList.remove('navHider');
             navbar.classList.add('navShower');
+            navbar.classList.add('sidebarController-max');
             icon.classList.remove('rotateRight');
             icon.classList.add('rotateLeft');
         }
@@ -54,14 +61,18 @@ function initNavbarMobile() {
         link.addEventListener('click', function () {
             if (navbar.classList.contains('navShower') && window.innerWidth < 690) {
                 navbar.classList.remove('navShower');
+                navbar.classList.remove('sidebarController-max');
                 navbar.classList.add('navHider');
                 icon.classList.remove('rotateLeft');
                 icon.classList.add('rotateRight');
+                content.classList.remove('contentHider')
             } else {
                 navbar.classList.remove('navHider');
                 navbar.classList.add('navShower');
+                navbar.classList.add('sidebarController-max');
                 icon.classList.remove('rotateRight');
                 icon.classList.add('rotateLeft');
+                content.classList.add('contentHider')
             }
         });
     });
@@ -73,6 +84,7 @@ function fadeOut() {
         elements[i].classList.add('fade-out');
     }
 }
+
 //Divs and containers
 let navContainer, nav, popupTip;
 //Flags
@@ -86,6 +98,7 @@ let interval = null;
 //Control variables:
 const momentumFactor = 0.95;
 const bounceFactor = 0.5; 
+const maxSpeed = 0.3; 
 
 
 function initScrollingMenu(navContainerSelector, navSelector) {
@@ -144,13 +157,13 @@ function initScrollingMenu(navContainerSelector, navSelector) {
         navHeight = nav.offsetHeight;
         navItemsHeight = navItemsContainer.offsetHeight;
         maxTop = containerHeight - ((navHeight * 3) / 2);
-
-        currentTop = ((containerHeight - navItemsHeight) / 2) + 110; // Update currentTop calculation
-        nav.style.top = `${currentTop}px`;
+        //removed this for now as it causes the nav bar to jump up and down when a section is expanded.  I might need to switch back to my logic that resets the starting position to the first mouse Y pos.
+        //currentTop = ((containerHeight - navItemsHeight) / 2) + 110; // Update currentTop calculation
+        //nav.style.top = `${currentTop}px`;
     }, 500); // Set the delay time in milliseconds (e.g., 500ms)
 }
 
-function calculateScrollSpeed(mouseY, startY, maxSpeed) {
+function calculateScrollSpeed(mouseY, startY) {
     const distanceToStart = Math.abs(mouseY - startY);
     const speed = (distanceToStart / (containerHeight / 1)) / 1;
 
@@ -195,8 +208,7 @@ function onMouseMove(event) {
         const scrollPosition = (mouseY - startY) / (containerHeight / 2);
 
         // Calculate scrolling speed based on the mouse position
-        const maxSpeed = 0.2; // Set the maximum scrolling speed
-        const speed = calculateScrollSpeed(mouseY, startY, maxSpeed);
+        const speed = calculateScrollSpeed(mouseY, startY);
         const newTop = maxTop * scrollPosition * speed - (navHeight - containerHeight) / 2;
 
         updatePosition(newTop);

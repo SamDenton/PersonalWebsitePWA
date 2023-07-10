@@ -94,7 +94,7 @@
                     @{var count = 0;
                     var username = @context.User.Identity!.Name;}
                     <div class="mainTable">
-                        <table class="mainTable table rounded table-dark @(inline == true ? "border-bottom" : "table-borderless table-striped")">
+                        <table class="table rounded table-dark @(inline == true ? "border-bottom" : "table-borderless table-striped")">
                             @* @(inline == true ? "" : "") *@
                             <tbody>
                                 @if (type == "Search")

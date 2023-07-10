@@ -254,13 +254,24 @@ navlink {
     height: 110px;
     width: 28px;
     display: none;
-    color: rgba(0, 0, 0, 0.7);
-    /*border-radius: 5px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.1);*/
+    color: #f5f5f5; 
+    border-radius: 5px;
     z-index: 999;
     pointer-events: none;
 }
+
+    .popupTip .popMessage {
+        position: absolute;
+        padding: 2px;
+        border-radius: 5px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.5);
+        background-color: rgba(0, 0, 0, 0.7); 
+        color: #f5f5f5;
+        width: 160px;
+        top: 45px;
+        left: -70px;
+    }
 
 .up-arrow,
 .down-arrow {
@@ -274,16 +285,17 @@ navlink {
 }
 
 .up-arrow {
-    top: -2px; /* Increased from -20px to -30px */
-    border-bottom-color: rgba(0, 0, 0, 0.7);
+    top: -2px;
+    border-bottom-color: #f5f5f5;
     animation: bounceUp 1s infinite;
 }
 
 .down-arrow {
-    top: 90px; /* Increased from -20px to -30px */
-    border-top-color: rgba(0, 0, 0, 0.7);
+    top: 90px;
+    border-top-color: #f5f5f5;
     animation: bounceDown 1s infinite;
 }
+
 @keyframes bounceUp {
     0%, 100% {
         transform: translateY(0);
@@ -303,6 +315,7 @@ navlink {
         transform: translateY(5px);
     }
 }
+
 
 /* width */
 ::-webkit-scrollbar {

@@ -20,11 +20,13 @@ main {
     width: 250px;
 }
 
+/*think i need to overflow scroll this, and add a max height*/
 .content {
+    overflow: scroll;
 }
 
 .sidebarContainer {
-    min-width: 250px;
+    /*min-width: 250px;*/
 }
 
 .topBlock {
@@ -83,9 +85,18 @@ main {
             text-overflow: ellipsis;
         }
 
-@media (max-width: 380px) {
-    .logindispSmall {
-        /*display: none;*/
+@media (max-width: 500px) {
+    .sidebarController-max {
+        width: 50vw !important;
+    }
+}
+
+@media (max-width: 400px) {
+    .sidebarController-max {
+        width: 100vw !important;
+    }
+    .contentHider {
+        display: none;
     }
 }
 
@@ -200,28 +211,28 @@ main {
     }
 }
 /* width */
-::-webkit-scrollbar {
+/*::-webkit-scrollbar {
     background: #212529;
     width: 10px;
     border-radius: 0px;
-}
+}*/
 
 /* Track */
-::-webkit-scrollbar-track {
+/*::-webkit-scrollbar-track {
     background: #212529;
     border-radius: 0px;
-}
+}*/
 
 /* Handle */
-::-webkit-scrollbar-thumb {
+/*::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 5px;
-}
+}*/
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    /*::-webkit-scrollbar-thumb:hover {
         background: #555;
-    }
+    }*/
 
 #navToggle {
     position: fixed;

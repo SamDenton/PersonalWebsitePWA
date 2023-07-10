@@ -127,7 +127,7 @@ else
 						</small>
 					</h3>
 				}
-				<div class="dotted-lines" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save())">
+				<div class="dotted-lines" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
 					<Editor Id="@count.ToString()"
 						Inline=true
 						CloudChannel="5"
@@ -181,7 +181,7 @@ else
 					<h4>
 					@if (contentState.Value.Contents[indexParsed].subSection != null)
 						{
-							<h3 class="kudosTextInline" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save())">
+							<h3 class="kudosTextInline" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
 								<Editor Id="@($"{count}-2")"
 								Inline=true
 								CloudChannel="5"
@@ -290,6 +290,7 @@ else
 	{
 		return JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(original));
 	}
+
 	private void Save(bool newSec)
 	{
 		Dispatcher.Dispatch(new ResetIsEditingAction());

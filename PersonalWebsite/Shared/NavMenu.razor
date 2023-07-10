@@ -20,39 +20,44 @@
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="MENU" data-id="1" aria-hidden="true" style="width:100%;text-align:center;"> MENU</h2>
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Documents" data-id="1" aria-hidden="true" style="width:100%;text-align:center;"> Documents</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/Dissertation" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-document text-muted text-truncate titleText hackerAnimation" data-value="Dissertation!" data-id="2" aria-hidden="true" style="width:100%;">&nbsp Dissertation!</h2>
+                    <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Dissertation!</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/Artifact" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-document text-muted text-truncate titleText hackerAnimation" data-value="Artifact!" data-id="3" aria-hidden="true" style="width:100%;">&nbsp Artifact!</h2>
+                    <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Artifact!</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/CV" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-person text-muted text-truncate titleText hackerAnimation" data-value="My CV!" data-id="4" aria-hidden="true" style="width:100%;">&nbsp My CV!</h2>
+                    <h2 class="oi oi-person text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp My CV!</h2>
                 </NavLink>
             </div>
             <div class="item-fader dropdown-divider divider"></div>
+            <div class="p-1 item-fader px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Tools" data-id="2" aria-hidden="true" style="width:100%;text-align:center;"> Tools</h2>
+                </NavLink>
+            </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/chat" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-chat text-muted text-truncate titleText hackerAnimation" data-value="ChatBot!" data-id="5" aria-hidden="true" style="width:100%;">&nbsp ChatBot!</h2>
+                    <h2 class="oi oi-chat text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp ChatBot!</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/navBot" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-chat text-muted text-truncate titleText hackerAnimation" data-value="AI Assistant!" data-id="6" aria-hidden="true" style="width:100%;">&nbsp AI Assistant!</h2>
+                    <h2 class="oi oi-chat text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp AI Assistant!</h2>
                 </NavLink>
             </div>
             <div class="item-fader dropdown-divider divider"></div>
-            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                <NavLink class="p-1 nav-link text-muted lastLink" href="/all" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-info text-muted text-truncate titleText hackerAnimation" data-value="Wiki:" data-id="7" aria-hidden="true" style="width:100%;">&nbsp Wiki:</h2>
+            <div class="p-1 item-fader px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Wiki" data-id="2" aria-hidden="true" style="width:100%;text-align:center;"> Wiki</h2>
                 </NavLink>
             </div>
             @if (contentState.Value.Contents != null)
@@ -137,6 +142,7 @@
     </nav>
     <div id="popupTip" class="popupTip">
         <div class="oi up-arrow"></div>
+        <div class="popMessage">Start mouse from top!</div>
         <div class="oi down-arrow"></div>
     </div>
 </div>
