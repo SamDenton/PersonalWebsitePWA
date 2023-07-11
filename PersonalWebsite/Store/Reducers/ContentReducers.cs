@@ -33,29 +33,29 @@ namespace PersonalWebsite.Store.Reducers
 			return state with { Contents = updatedContents, IsEditing = updatedIsEditing, LoadedFilesCount = state.LoadedFilesCount + 1 };
 		}
 
-		[ReducerMethod]
-		public static ContentState ReduceUpdateTempContentAction(ContentState state, UpdateTempContentAction action)
-		{
-			var updatedContents = new List<contentHolder>(state.Contents);
-			var updatedIsEditing = new List<bool>(state.IsEditing);
-			var indexToUpdate = updatedContents.FindIndex(c => c.id == action.Id);
-			if (indexToUpdate != -1)
-			{
-				var contentToUpdate = updatedContents[indexToUpdate];
-				updatedContents[indexToUpdate] = new contentHolder
-				{
-					page = contentToUpdate.page,
-					section = contentToUpdate.section,
-					subSection = contentToUpdate.subSection,
-					content = action.UpdatedContent,
-					id = contentToUpdate.id
-				};
+		//[ReducerMethod]
+		//public static ContentState ReduceUpdateTempContentAction(ContentState state, UpdateTempContentAction action)
+		//{
+		//	var updatedContents = new List<contentHolder>(state.Contents);
+		//	var updatedIsEditing = new List<bool>(state.IsEditing);
+		//	var indexToUpdate = updatedContents.FindIndex(c => c.id == action.Id);
+		//	if (indexToUpdate != -1)
+		//	{
+		//		var contentToUpdate = updatedContents[indexToUpdate];
+		//		updatedContents[indexToUpdate] = new contentHolder
+		//		{
+		//			page = contentToUpdate.page,
+		//			section = contentToUpdate.section,
+		//			subSection = contentToUpdate.subSection,
+		//			content = action.UpdatedContent,
+		//			id = contentToUpdate.id
+		//		};
 
-				updatedIsEditing[indexToUpdate] = action.IsEditing;
-			}
+		//		updatedIsEditing[indexToUpdate] = action.IsEditing;
+		//	}
 
-			return new ContentState(updatedContents, updatedIsEditing, state.FileCount, state.LoadedFilesCount);
-		}
+		//	return new ContentState(updatedContents, updatedIsEditing, state.FileCount, state.LoadedFilesCount);
+		//}
 		[ReducerMethod]
 		public static ContentState ReduceUpdateIsEditingAction(ContentState state, UpdateIsEditingAction action)
 		{

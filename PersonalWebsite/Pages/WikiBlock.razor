@@ -1,238 +1,301 @@
 ﻿@inject MyStateContainer myStateContainer
 @inject IState<ContentState> contentState
 @inject IDispatcher Dispatcher
+@inject IJSRuntime JSRuntime;
 @using Newtonsoft.Json;
 @using PersonalWebsite.Shared.Model;
 @using PersonalWebsite.Store.Actions;
 @using PersonalWebsite.Store.State;
 @using Fluxor;
 
-@if (type == "all" && lastPage != contentState.Value.Contents[indexParsed].page)
+@if (contentState.Value.Contents[indexParsed] != null)
 {
-	<h1 class="kudosTextInline">@contentState.Value.Contents[indexParsed].page</h1>
-	lastPage = contentState.Value.Contents[indexParsed].page;
-}
-@if (type == "add")
-{
-	if (inline == true)
+	@if (type == "all" && lastPage != contentState.Value.Contents[indexParsed].page)
 	{
-		<tr>
-			<td>
-				<h3 class="kudosTextInline">New Section: </h3>
-				<div class="dotted-lines" @onfocusout="(() => Save(true))">
-					<Editor Id="@count.ToString()"
-						Inline=true
-						CloudChannel="5"
-						Disable=false
-						Conf="@editorConfInline"
-						ApiKey="@TinyAPIKey"
-						ClassName="counterEditor"
-						Value="@contentState.Value.Contents.Last().content"
-							ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-				</div>
-			</td>
-		</tr>
+		<h1 class="kudosTextInline">@contentState.Value.Contents[indexParsed].page</h1>
+		lastPage = contentState.Value.Contents[indexParsed].page;
 	}
-	else
+	@if (type == "add")
 	{
-		<tr>
-			<td class="kudosText">New Section: </td>
-			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-			<td hidden="@contentState.Value.IsEditing[indexParsed]">@(new MarkupString(contentState.Value.Contents.Last().content!))</td>
-			<td hidden="@(!contentState.Value.IsEditing[indexParsed])">
-				<div class="dotted-lines tinymce-editor">
-					<Editor Id="@count.ToString()"
-							Inline=false
-							CloudChannel="5"
-							Disable=false
-							Conf="@editorConf"
-							ApiKey="@TinyAPIKey"
-							ClassName="counterEditor"
-							Value="@contentState.Value.Contents.Last().content"
-							ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-				</div>
-			</td>
-		</tr>
-		<tr>
-			<td>
-				@*Spacing*@
-			</td>
-			@* Button bank to be generated per section.  Using lambda expression to parse value to function *@
-			@{var clearText = "";}
-			<td>
-				<button class="btn btn-outline-warning" @onclick="()=> contentState.Value.Contents.Last().content = clearText">Clear</button>
-				<button class="btn btn-outline-primary" @onclick="(() => Save(true))" hidden="@(!contentState.Value.IsEditing[indexParsed])">Save</button>
-				<button class="btn btn-outline-primary" @onclick="(() => Cancel())" hidden="@(!contentState.Value.IsEditing[indexParsed])">Cancel</button>
-			</td>
-	</tr>
-	}
-}
-else
-{
-	@if (inline == true)
-	{
-		<tr>
-			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-			<td>
-				@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
-				{
-					<h3 class="kudosTextInline" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
-						<Editor Id="@($"{count}-1")"
-						Inline=true
-						CloudChannel="5"
-						Disable=false
-						Conf="@editorConfHeaders"
-						ApiKey="@TinyAPIKey"
-						ClassName="counterEditor"
-						Value="@contentState.Value.Contents[indexParsed].section"
-								ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-						<small>
-							<div class="text-muted">
-								<Editor Id="@($"{count}-2")"
+		if (inline == true)
+		{
+			<tr>
+				<td>
+					<h3 class="kudosTextInline">New Section: </h3>
+					@if (!contentState.Value.IsEditing[indexParsed])
+					{
+						<div class="dotted-lines" @onclick="(() => Edit(indexParsed))">@(new MarkupString(contentState.Value.Contents.Last().content!))</div>
+					}
+					else
+					{
+						<div class="dotted-lines" @onfocusout="(() => Save(true))">
+							<Editor Id="@($"{indexParsed}-content")"
 								Inline=true
 								CloudChannel="5"
 								Disable=false
-								Conf="@editorConfHeaders"
+								Conf="@GetEditorConfInline($"{indexParsed}-content")"
 								ApiKey="@TinyAPIKey"
 								ClassName="counterEditor"
-								Value="@contentState.Value.Contents[indexParsed].subSection"
-										ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-							</div>
-						</small>
-					</h3>
-				}
-				else if (!matchTypeSectionsSubSections && matchTypeSections)
+								@bind-Value="@tempContent.content" />
+						</div>
+					}
+				</td>
+			</tr>
+		}
+		else
+		{
+			<tr>
+				<td class="kudosText">New Section: </td>
+				@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
+				@if (!contentState.Value.IsEditing[indexParsed])
 				{
-					<h3 class="kudosTextInline" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
-						<small>
-							<div class="text-muted">
-								<Editor Id="@($"{count}-2")"
-									Inline=true
-									CloudChannel="5"
-									Disable=false
-									Conf="@editorConfHeaders"
-									ApiKey="@TinyAPIKey"
-									ClassName="counterEditor"
-									Value="@contentState.Value.Contents[indexParsed].subSection"
-										ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-							</div>
-						</small>
-					</h3>
+					<td>@(new MarkupString(contentState.Value.Contents.Last().content!))</td>
 				}
 				else
 				{
-					<h3 class="kudosTextInline">
-						<small class="text-muted">
-
-						</small>
-					</h3>
+					<td>
+						<div class="dotted-lines tinymce-editor">
+							<Editor Id="@($"{indexParsed}-content")"
+									Inline=false
+									CloudChannel="5"
+									Disable=false
+									Conf="@GetEditorConf($"{indexParsed}-content")"
+									ApiKey="@TinyAPIKey"
+									ClassName="counterEditor"
+									@bind-Value="@tempContent.content" />
+						</div>
+					</td>
 				}
-				<div class="dotted-lines" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
-					<Editor Id="@count.ToString()"
-						Inline=true
-						CloudChannel="5"
-						Disable=false
-						Conf="@editorConfInline"
-						ApiKey="@TinyAPIKey"
-						ClassName="counterEditor"
-						Value="@contentState.Value.Contents[indexParsed].content"
-							ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-					<button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection.InvokeAsync((indexParsed, username!)))">Delete</button>
-				</div>
-			</td>
-		</tr>
-	}
-	else
-	{
-		<tr>
-			@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
-			@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
-			{
-				<td class="kudosText col-1">
-					<h4 @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
-					<Editor Id="@($"{count}-1")"
-						Inline=true
-						CloudChannel="5"
-						Disable=false
-						Conf="@editorConfHeaders"
-						ApiKey="@TinyAPIKey"
-						ClassName="counterEditor"
-						Value="@contentState.Value.Contents[indexParsed].section"
-								ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-						<br><small>
-							<div class="text-muted">
-								<Editor Id="@($"{count}-2")"
-								Inline=true
-								CloudChannel="5"
-								Disable=false
-								Conf="@editorConfHeaders"
-								ApiKey="@TinyAPIKey"
-								ClassName="counterEditor"
-								Value="@contentState.Value.Contents[indexParsed].subSection"
-										ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-							</div>
-						</small>
-					</h4>
-				</td>
-			}
-			else if (!matchTypeSectionsSubSections && matchTypeSections)
-			{
-				<td class="kudosText col-1">
-					<h4>
-					@if (contentState.Value.Contents[indexParsed].subSection != null)
-						{
-							<h3 class="kudosTextInline" @onfocusin="(() => Edit(localCount, indexParsed))" @onfocusout="(() => Save(false))">
-								<Editor Id="@($"{count}-2")"
-								Inline=true
-								CloudChannel="5"
-								Disable=false
-								Conf="@editorConfHeaders"
-								ApiKey="@TinyAPIKey"
-								ClassName="counterEditor"
-								Value="@contentState.Value.Contents[indexParsed].subSection"
-										ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-							</h3>
-						}
-					</h4>
-				</td>
-			}
-			else if (matchTypeSectionsSubSections)
-			{
-				
-			}
-			
-			@* Render the de-serialized JSON string as HTML, including styling.  I need some sanitisation here but AntiXss from Microsoft is broken ATM... *@
-			<td hidden="@contentState.Value.IsEditing[indexParsed]">@(new MarkupString(@contentState.Value.Contents[indexParsed].content!))</td>
-			@* When IsEditing is true, render the WYSIWYG editor, i'm using TinyMCE *@
-			<td hidden="@(!contentState.Value.IsEditing[indexParsed])">
-				<div class="dotted-lines tinymce-editor">
-					<Editor Id="@count.ToString()"
-						Inline=false
-						CloudChannel="5"
-						Disable=false
-						Conf="@editorConf"
-						ApiKey="@TinyAPIKey"
-						ClassName="counterEditor"
-						Value="@contentState.Value.Contents[indexParsed].content"
-							ValueChanged="@(async (newValue) => Dispatcher.Dispatch(new UpdateTempContentAction(indexParsed, newValue.ToString(), true)))" />
-				</div>
-			</td>
-		</tr>
-		<tr>
-			@if (!matchTypeSectionsSubSections)
-			{
+			</tr>
+			<tr>
 				<td>
 					@*Spacing*@
 				</td>
-			}
-			<td>
-				<button class="btn btn-outline-warning" @onclick="(() => ClearContent.InvokeAsync((localCount, indexParsed)))">Clear</button>
-				<button class="btn btn-outline-danger" @onclick="(() => RemoveSection.InvokeAsync((indexParsed, username!)))">Delete</button>
-				<button class="btn btn-outline-primary" @onclick="(() => Edit(localCount, indexParsed))" hidden="@contentState.Value.IsEditing[indexParsed]">Edit</button>
-				<button class="btn btn-outline-primary" @onclick="(() => Save(false))" hidden="@(!contentState.Value.IsEditing[indexParsed])">Save</button>
-				<button class="btn btn-outline-primary" @onclick="(() => Cancel())" hidden="@(!contentState.Value.IsEditing[indexParsed])">Cancel</button>
-			</td>
-		</tr>
+				@* Button bank to be generated per section.  Using lambda expression to parse value to function *@
+				@{
+					var clearText = "";
+				}
+				<td>
+					<button class="btn btn-outline-warning" @onclick="()=> contentState.Value.Contents.Last().content = clearText">Clear</button>
+					<button class="btn btn-outline-primary" @onclick="(() => Save(true))" hidden="@(!contentState.Value.IsEditing[indexParsed])">Save</button>
+					<button class="btn btn-outline-primary" @onclick="(() => Cancel())" hidden="@(!contentState.Value.IsEditing[indexParsed])">Cancel</button>
+				</td>
+			</tr>
+		}
+	}
+	else
+	{
+		@if (inline == true)
+		{
+			<tr>
+				@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+				<td>
+					@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
+					{
+						@if (!contentState.Value.IsEditing[indexParsed])
+						{
+							<h3 class="kudosTextInline" @onclick="(() => Edit(indexParsed))">
+								@(new MarkupString(@contentState.Value.Contents[indexParsed].section))
+								<small>
+									<div class="text-muted">@(new MarkupString(@contentState.Value.Contents[indexParsed].subSection))</div>
+								</small>
+							</h3>
+						}
+						else
+						{
+							<h3 class="kudosTextInline" @onfocusout="(() => Save(true))">
+								<Editor Id="@($"{indexParsed}-section")"
+								Inline=true
+								CloudChannel="5"
+								Disable=false
+								Conf="@GetEditorConfHeaders($"{indexParsed}-section")"
+								ApiKey="@TinyAPIKey"
+								ClassName="counterEditor"
+								@bind-Value="@tempContent.section" />
+								<small>
+									<div class="text-muted">
+										<Editor Id="@($"{indexParsed}-subSection")"
+										Inline=true
+										CloudChannel="5"
+										Disable=false
+										Conf="@GetEditorConfHeaders($"{indexParsed}-subSection")"
+										ApiKey="@TinyAPIKey"
+										ClassName="counterEditor"
+										@bind-Value="@tempContent.subSection" />
+									</div>
+								</small>
+							</h3>
+						}
+					}
+					else if (!matchTypeSectionsSubSections && matchTypeSections)
+					{
+						@if (!contentState.Value.IsEditing[indexParsed])
+						{
+							<h3 class="kudosTextInline" @onclick="(() => Edit(indexParsed))">
+								<small>
+									<div class="text-muted">@(new MarkupString(contentState.Value.Contents[indexParsed].subSection))</div>
+								</small>
+							</h3>
+						}
+						else
+						{
+							<h3 class="kudosTextInline" @onfocusout="(() => Save(false))">
+								<small>
+									<div class="text-muted">
+										<Editor Id="@($"{indexParsed}-subSection")"
+											Inline=true
+											CloudChannel="5"
+											Disable=false
+											Conf="@GetEditorConfHeaders($"{indexParsed}-subSection")"
+											ApiKey="@TinyAPIKey"
+											ClassName="counterEditor"
+								@bind-Value="@tempContent.subSection" />
+									</div>
+								</small>
+							</h3>
+						}
+					}
+					else
+					{
+						<h3 class="kudosTextInline">
+							<small class="text-muted">
+
+							</small>
+						</h3>
+					}
+					@if (!contentState.Value.IsEditing[indexParsed])
+					{
+						<div class="dotted-lines" @onclick="(() => Edit(indexParsed))">@(new MarkupString(@contentState.Value.Contents[indexParsed].content))</div>
+					}
+					else
+					{
+						<div class="dotted-lines" @onfocusout="(() => Save(true))">
+							<Editor Id="@($"{indexParsed}-content")"
+								Inline=true
+								CloudChannel="5"
+								Disable=false
+								Conf="@GetEditorConfInline($"{indexParsed}-content")"
+								ApiKey="@TinyAPIKey"
+								ClassName="counterEditor"
+								@bind-Value="@tempContent.content" />
+							<button class="btn btn-outline-primary inlineBTN" @onclick="(() => RemoveSection(indexParsed, username!))">Delete</button>
+						</div>
+					}
+				</td>
+			</tr>
+		}
+		else
+		{
+			<tr>
+				@* Currently showing all details about the section, but once I split into multiple pages, this will likley be hidden *@
+				@if (type == "all" || type == "Search" || (!matchTypeSections && matchType))
+				{
+					@if (!contentState.Value.IsEditing[indexParsed])
+					{
+						<td class="kudosText col-1">
+							<h4 @onclick="(() => Edit(indexParsed))">@(new MarkupString(@contentState.Value.Contents[indexParsed].section))
+								<br>
+								<small>
+									<div class="text-muted">@(new MarkupString(@contentState.Value.Contents[indexParsed].subSection))</div>
+								</small>
+							</h4>
+						</td>
+					}
+					else
+					{
+						<td class="kudosText col-1">
+							<h4 @onfocusout="(() => Save(false))">
+								<Editor Id="@($"{indexParsed}-section")"
+								Inline=true
+								CloudChannel="5"
+								Disable=false
+								Conf="@GetEditorConfHeaders($"{indexParsed}-section")"
+								ApiKey="@TinyAPIKey"
+								ClassName="counterEditor"
+								@bind-Value="@tempContent.section" />
+								<br><small>
+									<div class="text-muted">
+										<Editor Id="@($"{indexParsed}-subSection")"
+										Inline=true
+										CloudChannel="5"
+										Disable=false
+										Conf="@GetEditorConfHeaders($"{indexParsed}-subSection")"
+										ApiKey="@TinyAPIKey"
+										ClassName="counterEditor"
+										@bind-Value="@tempContent.subSection" />
+									</div>
+								</small>
+							</h4>
+						</td>
+					}
+				}
+				else if (!matchTypeSectionsSubSections && matchTypeSections)
+				{
+					@if (!contentState.Value.IsEditing[indexParsed])
+					{
+						<td class="kudosText col-1">
+							<h3 @onclick="(() => Edit(indexParsed))">
+								<div class="text-muted">@(new MarkupString(@contentState.Value.Contents[indexParsed].subSection))</div>
+							</h3>
+						</td>
+					}
+					else
+					{
+						<td class="kudosText col-1">
+							<h3 class="kudosTextInline" @onfocusout="(() => Save(false))">
+								<Editor Id="@($"{indexParsed}-subSection")"
+								Inline=true
+								CloudChannel="5"
+								Disable=false
+								Conf="@GetEditorConfHeaders($"{indexParsed}-subSection")"
+								ApiKey="@TinyAPIKey"
+								ClassName="counterEditor"
+								@bind-Value="@tempContent.subSection" />
+							</h3>
+						</td>
+					}
+				}
+				else if (matchTypeSectionsSubSections)
+				{
+
+				}
+
+				@if (!contentState.Value.IsEditing[indexParsed])
+				{
+					<td>@(new MarkupString(@contentState.Value.Contents[indexParsed].content!))</td>
+				}
+				else
+				{
+					<td>
+						<div class="dotted-lines tinymce-editor">
+							<Editor Id="@($"{indexParsed}-content")"
+								Inline=false
+								CloudChannel="5"
+								Disable=false
+								Conf="@GetEditorConf($"{indexParsed}-content")"
+								ApiKey="@TinyAPIKey"
+								ClassName="counterEditor"
+								@bind-Value="@tempContent.content" />
+						</div>
+					</td>
+				}
+			</tr>
+			<tr>
+				@if (!matchTypeSectionsSubSections)
+				{
+					<td>
+						@*Spacing*@
+					</td>
+				}
+				<td>
+					<button class="btn btn-outline-warning" @onclick="(() => ClearContent(indexParsed))">Clear</button>
+					<button class="btn btn-outline-danger" @onclick="(() => RemoveSection(indexParsed, username!))">Delete</button>
+					<button class="btn btn-outline-primary" @onclick="(() => Edit(indexParsed))" hidden="@contentState.Value.IsEditing[indexParsed]">Edit</button>
+					<button class="btn btn-outline-primary" @onclick="(() => Save(false))" hidden="@(!contentState.Value.IsEditing[indexParsed])">Save</button>
+					<button class="btn btn-outline-primary" @onclick="(() => Cancel())" hidden="@(!contentState.Value.IsEditing[indexParsed])">Cancel</button>
+				</td>
+			</tr>
+		}
 	}
 }
 
@@ -249,23 +312,24 @@ else
 	[Parameter] public string TinyAPIKey { get; set; }
 	[Parameter] public int count { get; set; }
 	//[Parameter] public bool[] IsEditing { get; set; }
-	[Parameter] public int localCount { get; set; }
+	//[Parameter] public int localCount { get; set; }
 	[Parameter] public int indexParsed { get; set; }
 	[Parameter] public string username { get; set; }
 	//[Parameter] public EventCallback<(string, int)> inlineEdit { get; set; }
 	//[Parameter] public EventCallback<(int, int)> Edit { get; set; }
 	//[Parameter] public EventCallback<(int, string, int, bool)> Save { get; set; }
-	[Parameter] public EventCallback<(int, string)> RemoveSection { get; set; }
-	[Parameter] public EventCallback<(int, int)> ClearContent { get; set; }
+	//[Parameter] public EventCallback<(int, string)> RemoveSection { get; set; }
+	//[Parameter] public EventCallback<(int, int)> ClearContent { get; set; }
 	//[Parameter] public EventCallback<(int, int)> Cancel { get; set; }
 	//[Parameter] public EventCallback<int> CancelNew { get; set; }
-	[Parameter] public EventCallback<contentHolder[]> OnDataChanged { get; set; }
+	//[Parameter] public EventCallback<contentHolder[]> OnDataChanged { get; set; }
 
 	private string? lastPage;
 	private contentHolder? tempContent;
 
 	protected override async Task OnInitializedAsync()
 	{
+		tempContent = CloneContentHolder(contentState.Value.Contents![indexParsed]);
 		contentState.StateChanged += HandleStateChanged;
 	}
 	private void HandleStateChanged(object sender, EventArgs e)
@@ -275,15 +339,18 @@ else
 			InvokeAsync(StateHasChanged);
 		}
 	}
-	private void Edit(int localSectionNo, int globalSectionNo)
+	private async Task Edit(int globalSectionNo)
 	{
 		Console.WriteLine($"IsEditing size: {contentState.Value.IsEditing.Count}, updating index: {globalSectionNo}");
-		// When you click edit, save the current state so 'Cancel' button can revert changes
-		tempContent = CloneContentHolder(contentState.Value.Contents![globalSectionNo]);
-		// Open the editor for the selected section
 		Dispatcher.Dispatch(new UpdateIsEditingAction(globalSectionNo, true));
 	}
 
+	@* Method to clear specific sections content *@
+	private void ClearContent(int globalSectionNo)
+	{
+		tempContent.content = "";
+		Dispatcher.Dispatch(new UpdateIsEditingAction(globalSectionNo, false));
+	}
 
 	// Creates a deep copy of a content holder
 	private contentHolder CloneContentHolder(contentHolder original)
@@ -300,89 +367,146 @@ else
 
 		Console.WriteLine("Test save, updated content: " + tempContent.content.ToString());
 
-		tempContent = null;
+		tempContent = CloneContentHolder(contentState.Value.Contents![indexParsed]);
+		StateHasChanged();
 	}
 
 	private void Cancel()
 	{
 		Dispatcher.Dispatch(new ResetIsEditingAction());
-		tempContent = null;
+		tempContent = CloneContentHolder(contentState.Value.Contents![indexParsed]);
+		StateHasChanged();
+	}
+
+	private async Task RemoveSection(int sectionNo, string username)
+	{
+		//code to remove section.  Most of this will move to reducer and effect
+		//int sectionNo = parameters.sectionNo;
+		//string username = parameters.username;
+		//bool responce = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete the subSection: " + contentState.Value.Contents[sectionNo].subSection);
+		//if (responce == true)
+		//{
+		//	if (contentState.Value.Contents!.Count > 1)
+		//	{
+		//		string? localSection = contentState.Value.Contents[sectionNo].page + contentState.Value.Contents[sectionNo].section;
+		//		string? types = contentState.Value.Contents[sectionNo].page;
+		//		string? sections = contentState.Value.Contents[sectionNo].section;
+		//		@* Easiest way to remove an element from middle of array is to build a new array from the old, skipping the line to remove, then setting it back to main array *@
+		//		contentHolder[] newArray = new contentHolder[contentState.Value.Contents.Count - 1];
+		//		int newArrayIndex = 0;
+		//		for (int i = 0; i < contentState.Value.Contents.Count; i++)
+		//		{
+		//			if (i != sectionNo)
+		//			{
+		//				newArray[newArrayIndex++] = contentState.Value.Contents[i];
+		//			}
+		//		}
+		//		//add this back
+		//		//contentState.Value.Contents = newArray;
+		//		ReInitialize();
+		//		myStateContainer.SetValue();
+		//		myStateContainer.OnStateChange += RefreshMe;
+		//		@* Serialize and upload to GitHub *@
+
+		//		contentHolder[] localContentHolderList = contentState.Value.Contents.Where(holder => holder.page == types && holder.section == sections).ToArray();
+		//		var jsonString = JsonConvert.SerializeObject(localContentHolderList);
+		//		if (jsonString == "[]")
+		//		{
+		//			commitText = "Section removed by: " + username + "";
+		//			Console.WriteLine("Section Empty, Should remove JSON from db");
+		//			await DeleteFile(commitText, localSection!);
+		//		}
+		//		else
+		//		{
+		//			commitText = "subSection removed by : " + username + "";
+		//			await UpdateJSONOnGitHub(jsonString, commitText!, localSection!);
+		//		}
+		//	}
+		//}
+		//InitializeContentHolderList();
 	}
 
 	    @* Define properties for TinyMCE WYSIWYG editor *@
-    private Dictionary<string, object> editorConf = new Dictionary<string, object>  {
-        {"menubar", "edit insert format table tools help"},
-    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
-        {"toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize blocks | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media template link anchor codesample | ltr rtl"},
-        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
-        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
-        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
-        {"quickbars_selection_toolbar", "bold italic underline | fontfamily fontsize blocks | bullist numlist | blockquote quicklink"},
-        {"quickbars_insert_toolbar", "quicktable image media codesample" },
-        {"toolbar_mode", "floating"},
-        {"toolbar_location", "top"},
-        {"width", "100%"},
-        {"min_width", "100%"},
-        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
-        {"min_height", 100},
-        {"autoresize_bottom_margin", 30},
-        {"skin", "oxide-dark"},
-        {"content_css", "dark"},
-        {"autosave_ask_before_unload", "true"},
-        {"paste_data_images", "false"},
-        {"paste_as_text", "true"},
-		{"browser_spellcheck", "true"},
-        {"resize", "true"}
-    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
-    };
-    private Dictionary<string, object> editorConfInline = new Dictionary<string, object>  {
-    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
-        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
-        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
-        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
-        {"quickbars_selection_toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize | blocks | bullist numlist | alignleft aligncenter alignright alignjustify | outdent indent | forecolor backcolor | blockquote quicklink | charmap emoticons | print | insertfile image media template link anchor codesample | removeformat"},
-        {"toolbar", "false"},
-        {"menubar", "false"},
-        {"block_formats", "Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;"},
-        {"quickbars_insert_toolbar", "quicktable image media codesample" },
-        {"width", "100%"},
-        {"min_width", "100%"},
-        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
-        {"min_height", 100},
-        {"autoresize_bottom_margin", 30},
-        {"skin", "oxide-dark"},
-        {"content_css", "dark"},
-        {"autosave_ask_before_unload", "true"},
-        {"paste_data_images", "false"},
-        {"paste_as_text", "true"},
-		{"browser_spellcheck", "true"},
-        {"resize", "true"}
-    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
-    };
-    private Dictionary<string, object> editorConfHeaders = new Dictionary<string, object>  {
-    @* Would like to condence toolbar in to a few dropdowns, but converting JS syntax to C# is a pain *@
-        {"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
-        {"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
-        {"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
-        {"quickbars_selection_toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize | blocks | bullist numlist | alignleft aligncenter alignright alignjustify | outdent indent | forecolor backcolor | blockquote quicklink | charmap emoticons | print | insertfile image media template link anchor codesample | removeformat"},
-        {"toolbar", "false"},
-        {"menubar", "false"},
-        {"block_formats", "Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;"},
-        {"quickbars_insert_toolbar", "quicktable image media codesample" },
-        {"width", "100%"},
-        {"min_width", "100%"},
-        {"height", "100%"}, @* Using autosize plugin, height property should be ignored. Min_height still respected *@
-        {"min_height", 100},
-        {"autoresize_bottom_margin", 30},
-        {"skin", "oxide-dark"},
-        {"content_css", "dark"},
-        {"autosave_ask_before_unload", "true"},
-        {"paste_data_images", "false"},
-        {"paste_as_text", "true"},
-        {"resize", "true"},
-		{"browser_spellcheck", "true"},
-        {"forced_root_block", ""}
-    @* Allows user to resize using bottom right corner.  Should still respect min height and width *@
-    };
+	private Dictionary<string, object> GetEditorConf(string id)
+	{
+		return new Dictionary<string, object> {
+			{"menubar", "edit insert format table tools help"},
+			{"toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize blocks | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media template link anchor codesample | ltr rtl"},
+			{"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
+			{"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
+			{"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
+			{"quickbars_selection_toolbar", "bold italic underline | fontfamily fontsize blocks | bullist numlist | blockquote quicklink"},
+			{"quickbars_insert_toolbar", "quicktable image media codesample" },
+			{"toolbar_mode", "floating"},
+			{"toolbar_location", "top"},
+			{"width", "100%"},
+			{"min_width", "100%"},
+			{"height", "100%"},
+			{"min_height", 100},
+			{"autoresize_bottom_margin", 30},
+			{"skin", "oxide-dark"},
+			{"content_css", "dark"},
+			{"autosave_ask_before_unload", "true"},
+			{"paste_data_images", "false"},
+			{"paste_as_text", "true"},
+			{"browser_spellcheck", "true"},
+			{"auto_focus", id},
+			{"resize", "true"}
+		};
+	}
 
+	private Dictionary<string, object> GetEditorConfInline(string id)
+	{
+		return new Dictionary<string, object> {
+			{"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
+			{"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
+			{"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
+			{"quickbars_selection_toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize | blocks | bullist numlist | alignleft aligncenter alignright alignjustify | outdent indent | forecolor backcolor | blockquote quicklink | charmap emoticons | print | insertfile image media template link anchor codesample | removeformat"},
+			{"toolbar", "false"},
+			{"menubar", "false"},
+			{"block_formats", "Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;"},
+			{"quickbars_insert_toolbar", "quicktable image media codesample" },
+			{"width", "100%"},
+			{"min_width", "100%"},
+			{"height", "100%"}, 
+			{"min_height", 100},
+			{"autoresize_bottom_margin", 30},
+			{"skin", "oxide-dark"},
+			{"content_css", "dark"},
+			{"autosave_ask_before_unload", "true"},
+			{"paste_data_images", "false"},
+			{"paste_as_text", "true"},
+			{"browser_spellcheck", "true"},
+			{"highlight_on_focus", "true"},
+			{"auto_focus", id},
+			{"resize", "true"}
+		};
+	}
+	private Dictionary<string, object> GetEditorConfHeaders(string id)
+	{
+		return new Dictionary<string, object> {
+			{"plugins", "autolink media link image table lists advlist code emoticons wordcount importcss autoresize quickbars codesample help"}, //imagetools spellchecker - Removed as imagetools now premium and spellchecker depricated
+			{"contextmenu", "copy paste | link image imagetools table lists undo redo | inserttable | cell row column deletetable | help"},
+			{"table_toolbar", "tableprops tabledelete | tableinsertrowbefore tableinsertrowafter tabledeleterow | tableinsertcolbefore tableinsertcolafter tabledeletecol"},
+			{"quickbars_selection_toolbar", "undo redo | bold italic underline strikethrough | fontfamily fontsize | blocks | bullist numlist | alignleft aligncenter alignright alignjustify | outdent indent | forecolor backcolor | blockquote quicklink | charmap emoticons | print | insertfile image media template link anchor codesample | removeformat"},
+			{"toolbar", "false"},
+			{"menubar", "false"},
+			{"block_formats", "Paragraph=p; Heading 1=h1; Heading 2=h2; Heading 3=h3; Heading 4=h4; Heading 5=h5; Heading 6=h6;"},
+			{"quickbars_insert_toolbar", "quicktable image media codesample" },
+			{"width", "100%"},
+			{"min_width", "100%"},
+			{"height", "100%"}, 
+			{"min_height", 100},
+			{"autoresize_bottom_margin", 30},
+			{"skin", "oxide-dark"},
+			{"content_css", "dark"},
+			{"autosave_ask_before_unload", "true"},
+			{"paste_data_images", "false"},
+			{"paste_as_text", "true"},
+			{"resize", "true"},
+			{"browser_spellcheck", "true"},
+			{"highlight_on_focus", "true"},
+			{"forced_root_block", ""}
+		};
+	}
 }

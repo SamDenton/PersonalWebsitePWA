@@ -37,7 +37,7 @@ namespace PersonalWebsite.Store.Actions
         }
     }
     public record AllFilesFetchedAction();
-	public record UpdateTempContentAction(int Id, string UpdatedContent, bool IsEditing);
+	//public record UpdateTempContentAction(int Id, string UpdatedContent, bool IsEditing);
 	public record UpdateIsEditingAction(int Index, bool IsEditing);
 	public record ResetIsEditingAction();
 	public class SaveContentAction

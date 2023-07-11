@@ -117,10 +117,7 @@
                                             count="@count"
                                             localCount=localCount
                                             indexParsed="@indexParsed"
-                                            username="@username"
-                                            RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                            ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                            OnDataChanged="UpdateContentHolderList"     />
+                                            username="@username" />
                                         <p>Search Score: @item.searchResult.Score</p>
                                         @* Increment global count *@
                                         count++;
@@ -138,11 +135,8 @@
                                         subSections="@subSections"
                                         TinyAPIKey="@TinyAPIKey"
                                         count="0"
-                                        localCount=0
                                         indexParsed=0
-                                        username="@username"
-                                        RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                        ClearContent="@(e => ClearContent((e.Item1, e.Item2)))" />
+                                        username="@username" />
                                 }
                                 else
                                 {
@@ -188,12 +182,8 @@
                                                     subSections="@subSections"
                                                     TinyAPIKey="@TinyAPIKey"
                                                     count="@count"
-                                                    localCount=localCount
                                                     indexParsed="@indexParsed"
                                                     username="@username"
-                                                    RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                                    ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                                    OnDataChanged="UpdateContentHolderList"
                                                 />
 
                                                 @* Increment global count *@
@@ -204,21 +194,17 @@
                                                 var localCount = count;
 
                                                 <WikiBlock
-                                            inline="@inline"
-                                            matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
-                                            matchTypeSections="@matchTypeSections"
-                                            matchType="@matchType"
-                                            type="@type"
-                                            sections="@sections"
-                                            subSections="@subSections"
-                                            TinyAPIKey="@TinyAPIKey"
-                                            count="@count"
-                                            localCount=localCount
-                                            indexParsed="@indexParsed"
-                                            username="@username"
-                                            RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                            ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                            OnDataChanged="UpdateContentHolderList" />
+                                                    inline="@inline"
+                                                    matchTypeSectionsSubSections="@matchTypeSectionsSubSections"
+                                                    matchTypeSections="@matchTypeSections"
+                                                    matchType="@matchType"
+                                                    type="@type"
+                                                    sections="@sections"
+                                                    subSections="@subSections"
+                                                    TinyAPIKey="@TinyAPIKey"
+                                                    count="@count"
+                                                    indexParsed="@indexParsed"
+                                                    username="@username" />
 
                                                 @* Increment global count *@
                                                 count++;
@@ -237,12 +223,8 @@
                                             subSections="@subSections"
                                             TinyAPIKey="@TinyAPIKey"
                                             count="@count"
-                                            localCount=localCount
                                             indexParsed="@indexParsed"
-                                            username="@username"
-                                            RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                            ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                            OnDataChanged="UpdateContentHolderList" />
+                                            username="@username" />
 
                                                 @* Increment global count *@
                                                 count++;
@@ -261,13 +243,8 @@
                                                     subSections="@subSections"
                                                     TinyAPIKey="@TinyAPIKey"
                                                     count="@count"
-                                                    localCount=localCount
                                                     indexParsed="@indexParsed"
-                                                    username="@username"
-                                                    RemoveSection="@(e => RemoveSection((e.Item1, e.Item2)))"
-                                                    ClearContent="@(e => ClearContent((e.Item1, e.Item2)))"
-                                                    OnDataChanged="UpdateContentHolderList"
-                                                />
+                                                    username="@username" />
 
                                                 @* Increment global count *@
                                                 count++;
@@ -845,14 +822,14 @@
         return score;
     }
 
-    @* Method to clear specific sections content *@
+@*   
     private void ClearContent((int localSectionNo, int globalSectionNo) parameters)
     {
         int localSectionNo = parameters.localSectionNo;
         int globalSectionNo = parameters.globalSectionNo;
         contentState.Value.Contents![globalSectionNo].content = "";
         IsEditing![localSectionNo] = true;
-    }
+    }*@
 
     @* Set selected sections IsEditing to True, which should render the editor. It tries to check before opening the editor if the content is up to date with DB, if its not, it should update then open. 
         This is way over-complicated at the moment.  Given I have an update event every minuite, I really dont need to check for changes when clicking edit.  It makes the came check every minuite, and when you save...
@@ -1008,11 +985,10 @@
     }
 
     @* Set sections IsEditing to false, and set the content to the stored previous state *@
-    private async void Cancel((int localSectionNo, int globalSectionNo) parameters)
+@*    private async void Cancel((int localSectionNo, int globalSectionNo) parameters)
     {
         int localSectionNo = parameters.localSectionNo;
         int globalSectionNo = parameters.globalSectionNo;
-        @* If statement needed here so canceling on a newly added section will remove it *@
         if (initialContent![globalSectionNo] != null)
         {
             contentState.Value.Contents![globalSectionNo].content = initialContent[globalSectionNo].content!;
@@ -1023,7 +999,7 @@
         }
         IsEditing![localSectionNo] = false;
         InitializeContentHolderList();
-    }
+    }*@
     private void CancelNew(int localSectionNo)
     {
         IsEditing![localSectionNo] = false;
@@ -1089,7 +1065,7 @@
     }
 
     @* Method to remove selected section *@
-    private async Task RemoveSection((int sectionNo, string username) parameters)
+@*    private async Task RemoveSection((int sectionNo, string username) parameters)
     {
         int sectionNo = parameters.sectionNo;
         string username = parameters.username;
@@ -1101,7 +1077,7 @@
                 string? localSection = contentState.Value.Contents[sectionNo].page + contentState.Value.Contents[sectionNo].section;
                 string? types = contentState.Value.Contents[sectionNo].page;
                 string? sections = contentState.Value.Contents[sectionNo].section;
-                @* Easiest way to remove an element from middle of array is to build a new array from the old, skipping the line to remove, then setting it back to main array *@
+
                 contentHolder[] newArray = new contentHolder[contentState.Value.Contents.Count - 1];
                 int newArrayIndex = 0;
                 for (int i = 0; i < contentState.Value.Contents.Count; i++)
@@ -1116,7 +1092,7 @@
                 ReInitialize();
                 myStateContainer.SetValue();
                 myStateContainer.OnStateChange += RefreshMe;
-                @* Serialize and upload to GitHub *@
+
 
                 contentHolder[] localContentHolderList = contentState.Value.Contents.Where(holder => holder.page == types && holder.section == sections).ToArray();
                 var jsonString = JsonConvert.SerializeObject(localContentHolderList);
@@ -1134,7 +1110,7 @@
             }
         }
         InitializeContentHolderList();
-    }
+    }*@
     @* This method should reset lengths of different variables and re-load the page.  Called after a number of state changes *@
     private void ReInitialize()
     {
