@@ -13,7 +13,6 @@
 @inject IDispatcher Dispatcher
 @inject HttpClient Http;
 @inject NavigationManager Navigation;
-@inject MyStateContainer myStateContainer;
 @inject IJSRuntime JSRuntime;
 @* Using Authorize View to only load content when user is authenticated. The editor is disabled when not authenticated *@
 
@@ -548,8 +547,6 @@
             @* Call method to make GET request *@
             //await Task.WhenAll(GetAllContentFromGitHubRepo<contentHolder>(false));
             contentState.StateChanged += ContentStateChanged;
-            myStateContainer.OnStateChange += StateHasChanged;
-            //myStateContainer.SetValue();
             @* Initialize control variables after populating contentState.Value.Contents *@
 
             @* Add event handler to nagigation change event to reset IsEditing array *@
@@ -897,9 +894,6 @@
                     Console.WriteLine("saving new section");
                     IsEditing![sectionNo] = false;
                     commitText = "Content change made by: " + username + "";
-                    @* Update the array for navigation *@
-                    myStateContainer.SetValue();
-                    myStateContainer.OnStateChange += RefreshMe;
                     @* Serialize current object array to a JSON String *@
                     contentHolder[] localContentHolderList = contentState.Value.Contents!.Where(holder => holder.page == contentState.Value.Contents.Last().page && holder.section == contentState.Value.Contents.Last().section).ToArray();
                     var jsonString = JsonConvert.SerializeObject(localContentHolderList);
@@ -919,9 +913,6 @@
                         Console.WriteLine("saving");
                         IsEditing![sectionNo] = false;
                         commitText = "Content change made by: " + username + "";
-                        @* Update the array for navigation *@
-                        myStateContainer.SetValue();
-                        myStateContainer.OnStateChange += RefreshMe;
 
                         @* Check if Type or Section names have changes, then Serialize current object array to a JSON String *@
                         if (types != oldTypes || sections != oldSections)

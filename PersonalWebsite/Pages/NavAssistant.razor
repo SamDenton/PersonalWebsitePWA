@@ -1,14 +1,16 @@
 ﻿@page "/navBot"
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
-@inject contentHolder contentHolder
-@inject MyStateContainer myStateContainer
+@inject IState<ContentState> contentState
+@inject IDispatcher Dispatcher
 @inject NavigationManager navigationManager
+@using PersonalWebsite.Store.State;
 @using System.Text.RegularExpressions;
 @using System.Net
 @using System.Net.Http;
 @using System.Net.Http.Headers;
 @using Newtonsoft.Json;
+@using Fluxor;
 
 <SearchBar 
     type="chat"
@@ -72,11 +74,11 @@
     private string userRequest = "Tell me about Sam's 3d printing projects";
     private string prePromptSiteStructure;
     private string userRequestPrePrompt;
-    private string summaryPrePrompt = "You are a summary assistant.  You will be given a long string of data and a user request.  You will summaries the data in the way best matching the request.  You can mention any insights about the data, if relevant to the request.  Data to summaries: ";
+    private string summaryPrePrompt = "You are a summary assistant.  You will be given a long string of data and a user request.  You will summaries the data in the way best matching the request.  You can mention any insights about the data, if relevant to the request.  The data will have all tags and punctuations stripped, so will follow the format 'page xyz section xyz subSection xyz content xyz page x section x subSection...'.  ##Start Of Data## ";
     private bool loading = false;
     private string producedSearchTerm = "This will be replaced by a search term";
     private string summaryOfContent;
-    private contentHolder[]? contentHolderList;
+    //private contentHolder[]? contentHolderList;
     private List<SearchResult> returnedData;
 
     protected override async Task OnInitializedAsync()
@@ -84,7 +86,7 @@
         loading = true;
         await GetContentFromGitHubRepo<contentHolder>();
         // Use LINQ to group your data
-        var groupedData = contentHolderList
+        var groupedData = contentState.Value.Contents
             .GroupBy(ch => ch.page)
             .Select(pageGroup => new
             {
@@ -150,7 +152,7 @@
             producedSearchTerm = outputText;
 
             Console.WriteLine("First bot output: " + outputText);
-            returnedData = PerformSearch(outputText, contentHolderList);
+            returnedData = PerformSearch(outputText, contentState.Value.Contents);
             StateHasChanged();
             string resultsString = ConvertSearchResultsToString(returnedData);
             Console.WriteLine("Search results: " + resultsString);
@@ -166,11 +168,11 @@
     }
 
     @* Build a list of search results including scores *@
-    private List<SearchResult> PerformSearch(string searchTerm, contentHolder[] contentList)
+    private List<SearchResult> PerformSearch(string searchTerm, List<contentHolder> contentList)
     {
         var results = new List<SearchResult>();
 
-        for (int i = 0; i < contentList.Length; i++)
+        for (int i = 0; i < contentList.Count; i++)
         {
             var content = contentList[i];
             int score = CalculateMatchScore(searchTerm, content);
@@ -257,8 +259,12 @@
 
             sb.Append(contentString);
         }
-
-        string finalString = LimitToTokens(sb.ToString(), 3000);
+        string unfilteredString = sb.ToString();
+        // Strip out HTML tags
+        string noHtml = Regex.Replace(unfilteredString, "<.*?>", String.Empty);
+        // Keep only alphanumeric characters, periods and white space
+        string sanitizedWikiData = Regex.Replace(noHtml, "[^a-zA-Z0-9\\.\\s]", "");
+        string finalString = LimitToTokens(sanitizedWikiData, 1000);
 
         return finalString;
     }
@@ -290,7 +296,7 @@
             var requestBody = new
             {
                 model = "text-davinci-003",
-                prompt = summaryPrePrompt + "" + wikiData + " User Request: " + userRequest + " Answer: ",
+                prompt = summaryPrePrompt + "" + wikiData + " ##End Of Data## User Request: " + userRequest + " Answer: ",
                 max_tokens = 1000,
                 temperature = 1
             };
@@ -308,7 +314,7 @@
 
             Console.WriteLine("Summary: " + outputText);
             loading = false;
-            StateHasChanged();;
+            StateHasChanged(); ;
         }
         catch (Exception ex)
         {
@@ -318,53 +324,54 @@
         }
     }
 
+
     public async Task GetContentFromGitHubRepo<T>()
     {
-        using (var client = new HttpClient())
-        {
-            // Send the GET request to the PHP proxy
-            var response = await client.GetAsync("https://samdenton.tech/GithubGetAll-proxy.php");
+        //using (var client = new HttpClient())
+        //{
+        //    // Send the GET request to the PHP proxy
+        //    var response = await client.GetAsync("https://samdenton.tech/GithubGetAll-proxy.php");
 
-            try
-            {
-                var content = await response.Content.ReadAsStringAsync();
-                var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
-                if (content.StartsWith(bom))
-                {
-                    content = content.Remove(0, bom.Length);
-                }
-                var gitContents = JsonConvert.DeserializeObject<List<ContentParser>>(content);
+        //    try
+        //    {
+        //        var content = await response.Content.ReadAsStringAsync();
+        //        var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
+        //        if (content.StartsWith(bom))
+        //        {
+        //            content = content.Remove(0, bom.Length);
+        //        }
+        //        var gitContents = JsonConvert.DeserializeObject<List<ContentParser>>(content);
 
-                List<contentHolder> localContentHolderList = new List<contentHolder>();
+        //        List<contentHolder> localContentHolderList = new List<contentHolder>();
 
-                foreach (var gitContent in gitContents)
-                {
-                    if (gitContent.type == "file" && gitContent.name.EndsWith(".json"))
-                    {
-                        // Send the GET request to the GitHub API to get the content of the individual file
-                        var fileResponse = await client.GetAsync($"https://samdenton.tech/GithubGetFile-proxy.php?url={WebUtility.UrlEncode(gitContent.url)}");
-                        // Remove potential Byte Order Mark (BOM)
-                        var fileContent = await fileResponse.Content.ReadAsStringAsync();
-                        if (fileContent.StartsWith(bom))
-                        {
-                            fileContent = fileContent.Remove(0, bom.Length);
-                        }
-                        var fileGitContent = JsonConvert.DeserializeObject<ContentParser>(fileContent);
+        //        foreach (var gitContent in gitContents)
+        //        {
+        //            if (gitContent.type == "file" && gitContent.name.EndsWith(".json"))
+        //            {
+        //                // Send the GET request to the GitHub API to get the content of the individual file
+        //                var fileResponse = await client.GetAsync($"https://samdenton.tech/GithubGetFile-proxy.php?url={WebUtility.UrlEncode(gitContent.url)}");
+        //                // Remove potential Byte Order Mark (BOM)
+        //                var fileContent = await fileResponse.Content.ReadAsStringAsync();
+        //                if (fileContent.StartsWith(bom))
+        //                {
+        //                    fileContent = fileContent.Remove(0, bom.Length);
+        //                }
+        //                var fileGitContent = JsonConvert.DeserializeObject<ContentParser>(fileContent);
 
-                        var contentBytes = Convert.FromBase64String(fileGitContent.content);
-                        var jsonContent = Encoding.UTF8.GetString(contentBytes);
-                        var array = JsonConvert.DeserializeObject<List<contentHolder>>(jsonContent);
+        //                var contentBytes = Convert.FromBase64String(fileGitContent.content);
+        //                var jsonContent = Encoding.UTF8.GetString(contentBytes);
+        //                var array = JsonConvert.DeserializeObject<List<contentHolder>>(jsonContent);
 
-                        localContentHolderList.AddRange(array);
-                    }
-                }
-                contentHolderList = localContentHolderList!.ToArray();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error: " + ex.Message + " If this message does not help, its possible the file size is getting too large");
-            }
-        }
+        //                localContentHolderList.AddRange(array);
+        //            }
+        //        }
+        //        contentHolderList = localContentHolderList!.ToArray();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine("Error: " + ex.Message + " If this message does not help, its possible the file size is getting too large");
+        //    }
+        //}
     }
 
     void NavigateToPage(string page, string section, string subsection)

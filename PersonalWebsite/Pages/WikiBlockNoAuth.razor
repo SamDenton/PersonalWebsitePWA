@@ -1,5 +1,4 @@
-﻿@inject MyStateContainer myStateContainer
-@inject IState<ContentState> contentState
+﻿@inject IState<ContentState> contentState
 @inject IDispatcher Dispatcher
 @using PersonalWebsite.Shared.Model;
 @using PersonalWebsite.Store.Actions;
@@ -134,7 +133,6 @@ else
 
 	protected override async Task OnInitializedAsync()
 	{
-		myStateContainer.OnStateChange += async () => await RefreshMe();
 		contentState.StateChanged += HandleStateChanged;
 	}
 	private void HandleStateChanged(object sender, EventArgs e)
@@ -143,9 +141,5 @@ else
 		{
 			InvokeAsync(StateHasChanged);
 		}
-	}
-	private async Task RefreshMe()
-	{
-		StateHasChanged();
 	}
 }

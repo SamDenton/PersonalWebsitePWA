@@ -1,5 +1,4 @@
-﻿@inject MyStateContainer myStateContainer
-@inject IState<ContentState> contentState
+﻿@inject IState<ContentState> contentState
 @inject IDispatcher Dispatcher
 @inject IJSRuntime JSRuntime;
 @using Newtonsoft.Json;
@@ -404,8 +403,7 @@
 		//		//add this back
 		//		//contentState.Value.Contents = newArray;
 		//		ReInitialize();
-		//		myStateContainer.SetValue();
-		//		myStateContainer.OnStateChange += RefreshMe;
+
 		//		@* Serialize and upload to GitHub *@
 
 		//		contentHolder[] localContentHolderList = contentState.Value.Contents.Where(holder => holder.page == types && holder.section == sections).ToArray();
