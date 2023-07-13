@@ -98,14 +98,14 @@ const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 let interval = null;
 //Control variables:
 const momentumFactor = 0.95;
-const bounceFactor = 0.5; 
-const maxSpeed = 0.3; 
+const bounceFactor = 0.5;
+const maxSpeed = 0.35;
+const smoothingFactor = 0.05;
 
 
 function initScrollingMenu(navContainerSelector, navSelector) {
     navContainer = document.querySelector(navContainerSelector);
     nav = document.querySelector(navSelector);
-
     popupTip = document.querySelector('#popupTip');
 
     navContainer.addEventListener("mouseenter", onMouseEnter);
@@ -166,13 +166,18 @@ function initScrollingMenu(navContainerSelector, navSelector) {
 
 function calculateScrollSpeed(mouseY, startY) {
     const distanceToStart = Math.abs(mouseY - startY);
-    const speed = (distanceToStart / (containerHeight / 1)) / 1;
+    const speed = distanceToStart / containerHeight;
 
     if (speed > maxSpeed) {
         return maxSpeed;
     }
 
     return speed;
+}
+
+const clearAnimationIntervals = (intervals) => {
+    intervals.forEach(interval => clearInterval(interval));
+    intervals.clear();
 }
 
 function onMouseEnter(event) {
@@ -235,7 +240,6 @@ function animateMouseMove(event) {
 
 function updatePosition(targetTop) {
     if (isTouchActive) { return };
-    const smoothingFactor = 0.05; // Change this value to control the smoothness of the animation
     prevTop = currentTop; // Store the current top position before updating
 
     // Calculate the new position
@@ -311,9 +315,11 @@ function onTouchStart(event) {
 
 let touchEndTimeout = null;
 function onTouchEnd(event) {
-    navContainer.classList.remove("nav-container-touch");
-    navContainer.classList.add("nav-container");
-    touchEndTimeout = setTimeout(() => { isTouchActive = false; }, 500);
+    touchEndTimeout = setTimeout(() => {
+        navContainer.classList.remove("nav-container-touch");
+        navContainer.classList.add("nav-container");
+        isTouchActive = false;
+    }, 500);
 }
 
 

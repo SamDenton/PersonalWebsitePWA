@@ -122,7 +122,7 @@
                                         count++;
                                     }
                                 }
-                                else if (type == "add" && IsEditing![0] == true && contentState.Value.Contents != null)
+                                else if (type == "add" && contentState.Value.IsEditing[0] == true && contentState.Value.Contents != null)
                                 {
                                     <WikiBlock
                                         inline="@inline"
@@ -276,13 +276,13 @@
                                 }
                                 @if (type == "add")
                                 {
-                                    @if (contentState.Value.Contents == null || isContentLoaded == false || IsEditing == null)
+                                    @if (contentState.Value.Contents == null)
                                     {
                                         <p><em> </em></p>
                                     }
                                     else
                                     {
-                                        IsEditing[0] = false;
+                                        contentState.Value.IsEditing[0] = false;
                                         <div class="bg-dark text-primary container-fluid">
                                             <div class="row">
                                                 <div class="col-6">
@@ -504,9 +504,9 @@
 @code {
     @* Declare custom object array will change this for a dictionary *@
     //public contentHolder[]? contentState.Value.Contents;
-    public contentHolder[]? tempContentHolderList;
-    public contentHolder? tempContent;
-    public string? tempContentSection;
+    //public contentHolder[]? tempContentHolderList;
+    //public contentHolder? tempContent;
+    //public string? tempContentSection;
     public List<SearchResult> searchResults = new List<SearchResult>(); 
     public string? searchTerm { get; set; }
     private string Logo = "Logo.png";
@@ -520,8 +520,8 @@
     public string? subSections { get; set; }
     @* Declare Global Vars *@
     private bool? inline { get; set; } = true;
-    private List<contentHolder> initialContent;
-    private bool[]? IsEditing;
+    //private List<contentHolder> initialContent;
+    //private bool[]? IsEditing;
     private string? typeDropdown;
     private string? newTypeDropdown;
     private string? sectionName;
@@ -531,10 +531,10 @@
     private string TinyAPIKey = "7so5re0foy5ocvnv7m3m3rznoi0hiar7wrg9w0hk2bkgfshl";
     @* Declare/Initialize variables for API communication *@
     private string? commitText = "Test From Wiki";
-    public Dictionary<string, string> shaDictionary = new Dictionary<string, string>();
-    private int? updateCount = 0;
-    private bool isContentLoaded { get; set; } = false;
-    private bool initiating = true;
+    //public Dictionary<string, string> shaDictionary = new Dictionary<string, string>();
+    //private int? updateCount = 0;
+    //private bool isContentLoaded { get; set; } = false;
+    //private bool initiating = true;
 
     [Inject] public AuthenticationStateProvider? AuthenticationStateProvider { get; set; }
 
@@ -542,8 +542,8 @@
     protected override async Task OnInitializedAsync()
     {
         Console.WriteLine("mainContent.razor initialised");
-        try
-        {
+        //try
+        //{
             @* Call method to make GET request *@
             //await Task.WhenAll(GetAllContentFromGitHubRepo<contentHolder>(false));
             contentState.StateChanged += ContentStateChanged;
@@ -552,13 +552,13 @@
             @* Add event handler to nagigation change event to reset IsEditing array *@
             Navigation.LocationChanged += LocationChanged!;
             base.OnInitialized();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error: " + ex.Message);
-            loadingMSG += "Error Loading Content: " + ex.Message;
-            StateHasChanged();
-        }
+        //}
+        //catch (Exception ex)
+        //{
+        //    Console.WriteLine("Error: " + ex.Message);
+        //    loadingMSG += "Error Loading Content: " + ex.Message;
+        //    StateHasChanged();
+        //}
     }
 
     private void ContentStateChanged(object? sender, EventArgs e)
@@ -569,12 +569,12 @@
             //var orderedContentHolderList = contentState.Value.Contents.OrderBy(x => x.page).ThenBy(x => x.section).ThenBy(x => x.subSection);
             //Add this back
             //contentState.Value.Contents = orderedContentHolderList.ToArray();
-            InitializeContentHolderList();
-            Array.Resize(ref tempContentHolderList, contentState.Value.Contents.Count);
-            timer();
+            //InitializeContentHolderList();
+            //Array.Resize(ref tempContentHolderList, contentState.Value.Contents.Count);
+            //timer();
             //Add this back
             //Array.Resize(ref initialContent, contentState.Value.Contents!.Count);
-            IsEditing = new bool[contentState.Value.Contents.Count];
+            //IsEditing = new bool[contentState.Value.Contents.Count];
             InvokeAsync(StateHasChanged); // Update the UI
         }
     }
@@ -589,64 +589,64 @@
         base.OnAfterRender(firstRender);
     }
 
-    public void InitializeContentHolderList()
-    {
-        for (int i = 0; i < contentState.Value.Contents?.Count; i++)
-        {
-            contentState.Value.Contents[i].id = i;
-        }
-    }
+    //public void InitializeContentHolderList()
+    //{
+    //    for (int i = 0; i < contentState.Value.Contents?.Count; i++)
+    //    {
+    //        contentState.Value.Contents[i].id = i;
+    //    }
+    //}
 
-    public void timer()
-    {
-        Timer timer = new Timer(60000); // 60000 milliseconds = 1 minute
-        timer.Elapsed += Timer_Elapsed;
-        timer.Start();
-    }
+    //public void timer()
+    //{
+    //    Timer timer = new Timer(60000); // 60000 milliseconds = 1 minute
+    //    timer.Elapsed += Timer_Elapsed;
+    //    timer.Start();
+    //}
 
-    private async void Timer_Elapsed(object? sender, ElapsedEventArgs? e)
-    {
-        @* Updated section *@
-        Dictionary<string, string> tempShaDictionary = new Dictionary<string, string>();
-        tempShaDictionary = new Dictionary<string, string>(shaDictionary); // Use a copy of the dictionary to prevent reference issues
-        await GetAllContentFromGitHubRepo<contentHolder>(true);
+    //private async void Timer_Elapsed(object? sender, ElapsedEventArgs? e)
+    //{
+    //    @* Updated section *@
+    //    Dictionary<string, string> tempShaDictionary = new Dictionary<string, string>();
+    //    tempShaDictionary = new Dictionary<string, string>(shaDictionary); // Use a copy of the dictionary to prevent reference issues
+    //    await GetAllContentFromGitHubRepo<contentHolder>(true);
 
-        @* Updated code to compare dictionaries *@
-        List<string> mismatchedKeys = new List<string>();
+    //    @* Updated code to compare dictionaries *@
+    //    List<string> mismatchedKeys = new List<string>();
 
-        foreach (var entry in tempShaDictionary)
-        {
-            if (shaDictionary.ContainsKey(entry.Key) && shaDictionary[entry.Key] != entry.Value)
-            {
-                mismatchedKeys.Add(entry.Key);
-            }
-        }
+    //    foreach (var entry in tempShaDictionary)
+    //    {
+    //        if (shaDictionary.ContainsKey(entry.Key) && shaDictionary[entry.Key] != entry.Value)
+    //        {
+    //            mismatchedKeys.Add(entry.Key);
+    //        }
+    //    }
 
-        if (mismatchedKeys.Count > 0)
-        {
-            Console.WriteLine("Found out of date section, updating...");
-            if (IsEditing!.All(x => x == false))
-            {
-                //Add this back
-                //Array.Copy(tempContentHolderList, contentState.Value.Contents, contentState.Value.Contents.Count);
-            }
-            else
-            {
-                await JSRuntime.InvokeVoidAsync("alert", "Content is out of date with database, refreshing");
-                for (int i = 0; i < IsEditing!.Length; i++)
-                {
-                    if (IsEditing[i] == true)
-                    {
-                        tempContentSection = contentState.Value.Contents?[i].content;
-                        //add this back
-                        //Array.Copy(tempContentHolderList, contentState.Value.Contents, contentState.Value.Contents.Count);
-                        contentState.Value.Contents[i].content = tempContentSection;
-                    }
-                }
-            }
-            InitializeContentHolderList();
-        }
-    }
+    //    if (mismatchedKeys.Count > 0)
+    //    {
+    //        Console.WriteLine("Found out of date section, updating...");
+    //        if (IsEditing!.All(x => x == false))
+    //        {
+    //            //Add this back
+    //            //Array.Copy(tempContentHolderList, contentState.Value.Contents, contentState.Value.Contents.Count);
+    //        }
+    //        else
+    //        {
+    //            await JSRuntime.InvokeVoidAsync("alert", "Content is out of date with database, refreshing");
+    //            for (int i = 0; i < IsEditing!.Length; i++)
+    //            {
+    //                if (IsEditing[i] == true)
+    //                {
+    //                    tempContentSection = contentState.Value.Contents?[i].content;
+    //                    //add this back
+    //                    //Array.Copy(tempContentHolderList, contentState.Value.Contents, contentState.Value.Contents.Count);
+    //                    contentState.Value.Contents[i].content = tempContentSection;
+    //                }
+    //            }
+    //        }
+    //        InitializeContentHolderList();
+    //    }
+    //}
     @* Checks current authenticaiton state *@
     private async Task GetAuthenticationState()
     {
@@ -669,26 +669,20 @@
     @* Method called in a few places, but should close all open editors, and save any content thats being edited currently *@
     private void ClearIsEditingArray()
     {
-        if (IsEditing != null)
-        {
-            for (int i = 0; i < IsEditing!.Length; i++)
-            {
-                IsEditing[i] = false;
-                StateHasChanged();
-            }
-            if (!IsEditing!.All(x => x == false))
-            {
-                Save((0, "Internal save by navigating away", sectionBeingEdited, true));
-            }
-        }
+        Dispatcher.Dispatch(new ResetIsEditingAction());
+        //if (!IsEditing!.All(x => x == false))
+        //{
+        //    Save((0, "Internal save by navigating away", sectionBeingEdited, true));
+        //}
+        
     }
-
+@*
     private void UpdateContentHolderList(contentHolder[] newContentHolder)
     {
         //add this back
         //contentState.Value.Contents = newContentHolder;
         InitializeContentHolderList();
-    }
+    }*@
     @* Detects when text changes in the search component, and triggers search methods *@
     private void SearchTermChanged(string searchPhrase)
     {
@@ -831,7 +825,7 @@
     @* Set selected sections IsEditing to True, which should render the editor. It tries to check before opening the editor if the content is up to date with DB, if its not, it should update then open. 
         This is way over-complicated at the moment.  Given I have an update event every minuite, I really dont need to check for changes when clicking edit.  It makes the came check every minuite, and when you save...
     *@
-    private void Edit((int localSectionNo, int globalSectionNo) parameters)
+@*    private void Edit((int localSectionNo, int globalSectionNo) parameters)
     {
         int localSectionNo = parameters.localSectionNo;
         int globalSectionNo = parameters.globalSectionNo;
@@ -843,26 +837,26 @@
         IsEditing![localSectionNo] = true;
 
         StateHasChanged();
-    }
+    }*@
 
     // Creates a deep copy of a content holder
-    private contentHolder CloneContentHolder(contentHolder original)
+@*    private contentHolder CloneContentHolder(contentHolder original)
     {
         return JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(original));
-    }
+    }*@
 
     @* Old method, not in use *@
-    private void inlineEdit((string username, int globalSectionNo) parameters)
+@*    private void inlineEdit((string username, int globalSectionNo) parameters)
     {
         string username = parameters.username;
         int globalSectionNo = parameters.globalSectionNo;
         initialContent![globalSectionNo] = JsonConvert.DeserializeObject<contentHolder>(JsonConvert.SerializeObject(contentState.Value.Contents![globalSectionNo]));
-    }
+    }*@
 
     @* 
         as I am moving to fluxor and simplifying things, I also need to dramatically simplify this before translating it.  I have decided I think to not worry about sha matching at the moment, and just always update, since its just me using this app...
     *@
-    private async void Save((int sectionNo, string username, int globalSectionNo, bool newSec) parameters)
+@*    private async void Save((int sectionNo, string username, int globalSectionNo, bool newSec) parameters)
     {
         int sectionNo = parameters.sectionNo;
         string username = parameters.username;
@@ -894,7 +888,7 @@
                     Console.WriteLine("saving new section");
                     IsEditing![sectionNo] = false;
                     commitText = "Content change made by: " + username + "";
-                    @* Serialize current object array to a JSON String *@
+
                     contentHolder[] localContentHolderList = contentState.Value.Contents!.Where(holder => holder.page == contentState.Value.Contents.Last().page && holder.section == contentState.Value.Contents.Last().section).ToArray();
                     var jsonString = JsonConvert.SerializeObject(localContentHolderList);
                     await UpdateJSONOnGitHub(jsonString, commitText!, localSection!);
@@ -914,7 +908,7 @@
                         IsEditing![sectionNo] = false;
                         commitText = "Content change made by: " + username + "";
 
-                        @* Check if Type or Section names have changes, then Serialize current object array to a JSON String *@
+                        @* Check if Type or Section names have changes, then Serialize current object array to a JSON String 
                         if (types != oldTypes || sections != oldSections)
                         {
                             contentHolder[] oldLocalContentHolderList = contentState.Value.Contents.Where(holder => holder.page == oldTypes && holder.section == oldSections).ToArray();
@@ -968,12 +962,12 @@
         }
         InitializeContentHolderList();
         StateHasChanged();
-    }
+    }*@
 
-    private void RefreshMe()
+@*    private void RefreshMe()
     {
         StateHasChanged();
-    }
+    }*@
 
     @* Set sections IsEditing to false, and set the content to the stored previous state *@
 @*    private async void Cancel((int localSectionNo, int globalSectionNo) parameters)
@@ -991,10 +985,10 @@
         IsEditing![localSectionNo] = false;
         InitializeContentHolderList();
     }*@
-    private void CancelNew(int localSectionNo)
+@*    private void CancelNew(int localSectionNo)
     {
         IsEditing![localSectionNo] = false;
-    }
+    }*@
 
     @* Add a new object to my array from user input *@
     private async Task AddNewSection(string username)
@@ -1021,11 +1015,11 @@
         {
             finalName = sectionName!;
         }
-        if (!String.IsNullOrWhiteSpace(finalType) && !String.IsNullOrWhiteSpace(finalName) && !String.IsNullOrWhiteSpace(subName))
+       @* if (!String.IsNullOrWhiteSpace(finalType) && !String.IsNullOrWhiteSpace(finalName) && !String.IsNullOrWhiteSpace(subName))
         {
-            if (!contentState.Value.Contents.Any(item => item.subSection.Contains(subName)))
+            if (!ContentState.Value.Contents.Any(item => item.subSection.Contains(subName)))
             {
-                @* Best way to add to an array is to resize then initialize the new index *@
+                @* Best way to add to an array is to resize then initialize the new index 
                 //add this back
                 //Array.Resize(ref contentState.Value.Contents, contentState.Value.Contents!.Count + 1);
                 Array.Resize(ref tempContentHolderList, contentState.Value.Contents!.Count);
@@ -1038,7 +1032,7 @@
                         content = "<p>Enter some details about " + subName + " here.</p>"
                     }; 
                 ReInitialize();
-                @* Initialize new index on control variables *@
+                @* Initialize new index on control variables 
                 IsEditing[0] = true;
                 sectionBeingEdited = contentState.Value.Contents.Count;
             }
@@ -1052,7 +1046,7 @@
         else
         {
             await JSRuntime.InvokeVoidAsync("alert", "Each box must have an entry");
-        }
+        }*@
     }
 
     @* Method to remove selected section *@
@@ -1103,16 +1097,16 @@
         InitializeContentHolderList();
     }*@
     @* This method should reset lengths of different variables and re-load the page.  Called after a number of state changes *@
-    private void ReInitialize()
+@*    private void ReInitialize()
     {
         //Add this back
         //Array.Resize(ref initialContent, contentState.Value.Contents!.Count);
         IsEditing = new bool[contentState.Value.Contents.Count];
         InitializeContentHolderList();
         StateHasChanged();
-    }
+    }*@
     @* Method for uploading content to GitHub API via PUT *@
-    private async Task UpdateJSONOnGitHub(string jsonString, string commitMessage, string section)
+@*    private async Task UpdateJSONOnGitHub(string jsonString, string commitMessage, string section)
     {
         try
         {
@@ -1148,13 +1142,13 @@
 
                 // Convert bytes to string
                 var responceHeaders = Encoding.UTF8.GetString(responseBytes);
-                @* Get new sha value from PUT response headers *@
+                @* Get new sha value from PUT response headers 
                 Console.WriteLine("response before parsing too root: " + responceHeaders);
                 var gitContent = JsonConvert.DeserializeObject<PUTContentParser>(responceHeaders);
                 Console.WriteLine("response before parsing to content: " + gitContent);
                 shaDictionary[section] = gitContent.content.sha;
                 Console.WriteLine("sha after: " + shaDictionary[section]);
-                @* Ensure the request was successful *@
+                @* Ensure the request was successful 
                 response.EnsureSuccessStatusCode();
                 if (!response.IsSuccessStatusCode)
                 {
@@ -1169,20 +1163,20 @@
             loadingMSG += "Error Loading Content: " + ex.Message;
             StateHasChanged();
         }
-    }
+    }*@
     @* Retrieve content from GitHub as a JSON string *@
     @* I should look to split this into a number of functions for each section *@
     @* need to think about weather I want 2 functions, 1 for all sections and one of indevidual, or if I can work out both in 1 *@
     @* Think im limted to 1000 files per request, but that might be 1000 files total for the dir to be acessable *@
     @* I'm hoping to get the whole directory in a single API call to initialise and build menu etc, but might have to get each file with sepotate calls, which till be slow... *@
-    public async Task GetContentFromGitHubRepo<T>(bool checking, string section)
+   @* public async Task GetContentFromGitHubRepo<T>(bool checking, string section)
     {
         using (var client = new HttpClient())
         {
             // Send the GET request to the PHP proxy
             var response = await client.GetAsync($"https://samdenton.tech/GithubGet-proxy.php?section={section}");
 
-            @* Read the response content, parse the content and convert it from base64, then de-serialize the content with my custom class *@
+            @* Read the response content, parse the content and convert it from base64, then de-serialize the content with my custom class 
             try
             {
                 var content = await response.Content.ReadAsStringAsync();
@@ -1196,7 +1190,7 @@
                 var contentBytes = Convert.FromBase64String(gitContent!.content!);
                 var jsonContent = Encoding.UTF8.GetString(contentBytes);
                 var array = JsonConvert.DeserializeObject<contentHolder[]>(jsonContent);
-                @* Get the sha of the retrieved file *@
+                @* Get the sha of the retrieved file 
                 shaDictionary[section] = gitContent.sha!;
 
                 if (checking != true)
@@ -1250,9 +1244,9 @@
             StateHasChanged();
             updateCount++;
         }
-    }
+    }*@
 
-    public async Task GetAllContentFromGitHubRepo<T>(bool checking)
+  @*  public async Task GetAllContentFromGitHubRepo<T>(bool checking)
     {
         using (var client = new HttpClient())
         {
@@ -1379,8 +1373,8 @@
             updateCount++;
         }
     }
-
-    private async Task DeleteFile(string commitMessage, string section)
+*@
+@*    private async Task DeleteFile(string commitMessage, string section)
     {
         var sha = shaDictionary[section];
         var client = new HttpClient();
@@ -1397,7 +1391,7 @@
         {
             throw new Exception("Error deleting file: " + response.ReasonPhrase);
         }
-    }
+    }*@
 
     public void Dispose()
     {
