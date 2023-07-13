@@ -18,7 +18,7 @@
         <div class="nav-items-container">
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
-                <NavLink class="p-1 nav-link text-muted lastLink" href="/" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                <NavLink class="p-1 nav-link text-muted">
                     <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Documents" data-id="1" aria-hidden="true" style="width:100%;text-align:center;"> Documents</h2>
                 </NavLink>
             </div>
@@ -39,7 +39,7 @@
             </div>
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
-                <NavLink class="p-1 nav-link text-muted lastLink" href="/" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                <NavLink class="p-1 nav-link text-muted">
                     <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Tools" data-id="2" aria-hidden="true" style="width:100%;text-align:center;"> Tools</h2>
                 </NavLink>
             </div>
@@ -55,8 +55,8 @@
             </div>
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
-                <NavLink class="p-1 nav-link text-muted lastLink" href="/" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Wiki" data-id="2" aria-hidden="true" style="width:100%;text-align:center;"> Wiki</h2>
+                <NavLink class="p-1 nav-link text-muted" href="/all">
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Wiki" data-id="3" aria-hidden="true" style="width:100%;text-align:center;"> Wiki</h2>
                 </NavLink>
             </div>
             @if (contentState.Value.Contents != null)

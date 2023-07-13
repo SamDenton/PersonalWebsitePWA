@@ -56,6 +56,7 @@ function initNavbarMobile() {
     var navbar = document.querySelector('.sidebarController');
     var links = document.querySelectorAll('.lastLink');
     var icon = document.querySelector('.icon');
+    var content = document.querySelector('.content');
     links.forEach(function (link) {
         // Listen for clicks on the link
         link.addEventListener('click', function () {
@@ -301,17 +302,19 @@ function onMouseLeave(event) {
 }
 
 function onTouchStart(event) {
+    clearTimeout(touchEndTimeout);
     isTouchActive = true;
     navContainer.classList.remove("nav-container");
     navContainer.classList.add("nav-container-touch");
 }
 
+
+let touchEndTimeout = null;
 function onTouchEnd(event) {
     navContainer.classList.remove("nav-container-touch");
     navContainer.classList.add("nav-container");
-    currentTop = ((containerHeight - navItemsHeight) / 2) + 110; // Update currentTop calculation
-    nav.style.top = `${currentTop}px`;
-    isTouchActive = false;
+    touchEndTimeout = setTimeout(() => { isTouchActive = false; }, 500);
 }
+
 
 window.initScrollingMenu = initScrollingMenu;
