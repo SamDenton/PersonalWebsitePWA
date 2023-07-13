@@ -26,13 +26,11 @@ namespace PersonalWebsite.Store.Actions
     public record FileContentFetchedAction
     {
         public string FileNameWithoutSuffix { get; init; }
-        public string FileSha { get; init; }
         public List<contentHolder> FileContents { get; init; }
 
-        public FileContentFetchedAction(string fileNameWithoutSuffix, string fileSha, List<contentHolder> fileContents)
+        public FileContentFetchedAction(string fileNameWithoutSuffix, List<contentHolder> fileContents)
         {
             FileNameWithoutSuffix = fileNameWithoutSuffix;
-            FileSha = fileSha;
             FileContents = fileContents;
         }
     }
@@ -42,21 +40,44 @@ namespace PersonalWebsite.Store.Actions
 	public record ResetIsEditingAction();
 	public class SaveContentAction
 	{
-		public string Username { get; set; }
-		public int GlobalSectionNo { get; set; }
-		public bool NewSec { get; set; }
-
-		public SaveContentAction(string username, int globalSectionNo, bool newSec)
+		public SaveContentAction(string username, int index, contentHolder tempContent)
 		{
 			Username = username;
-			GlobalSectionNo = globalSectionNo;
-			NewSec = newSec;
+			Index = index;
+			TempContent = tempContent;
 		}
-	}
-	public record SaveNewSectionAction(int GlobalSectionNo, string Username, List<contentHolder> Content, string Sha);
-	public record SaveExistingSectionAction(int GlobalSectionNo, string Username, List<contentHolder> Content, string Sha);
-	public record SaveOutdatedSectionAction(int GlobalSectionNo, string Username, List<contentHolder> Content, string Sha);
-	public record UpdateContentOnGithubAction(string JsonString, string CommitMessage, string Section, string Sha);
-	public record DeleteFileOnGithubAction(string CommitMessage, string Section, string Sha);
 
+		public string Username { get; }
+		public int Index { get; }
+		public contentHolder TempContent { get; }
+	}
+	public class UpdateGitHubContentAction
+	{
+		public UpdateGitHubContentAction(List<contentHolder> contentHolders, string commitMessage, string page, string section, Dictionary<string, string> shaDictionary)
+		{
+			ContentHolders = contentHolders;
+			CommitMessage = commitMessage;
+			Page = page;
+			Section = section;
+			ShaDictionary = shaDictionary;
+		}
+
+		public List<contentHolder> ContentHolders { get; }
+		public string CommitMessage { get; }
+		public string Page { get; }
+		public string Section { get; }
+		public Dictionary<string, string> ShaDictionary { get; }
+	}
+	public record DeleteFileOnGithubAction(string CommitMessage, string Section, string Sha);
+	public class UpdateShaDictionaryAction
+	{
+		public UpdateShaDictionaryAction(string section, string sha)
+		{
+			Section = section;
+			Sha = sha;
+		}
+
+		public string Section { get; }
+		public string Sha { get; }
+	}
 }

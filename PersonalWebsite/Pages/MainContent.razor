@@ -719,7 +719,7 @@
             else
             {
                 //add this back
-                //searchResults = PerformSearch(searchTerm, contentState.Value.Contents);
+                searchResults = PerformSearch(searchTerm, contentState.Value.Contents);
             }
         }
         if (type != "Search")
@@ -739,11 +739,11 @@
 
     }
     @* Build a list of search results including scores *@
-    private List<SearchResult> PerformSearch(string searchTerm, contentHolder[] contentList)
+    private List<SearchResult> PerformSearch(string searchTerm, List<contentHolder> contentList)
     {
         var results = new List<SearchResult>();
 
-        for (int i = 0; i < contentList.Length; i++)
+        for (int i = 0; i < contentList.Count; i++)
         {
             var content = contentList[i];
             int score = CalculateMatchScore(searchTerm, content);
@@ -1419,14 +1419,14 @@
     }*@
 
     @* Class for tying search results to their score *@
-    public class SearchResult
+@*    public class SearchResult
     {
         public contentHolder Content { get; set; }
         public int Score { get; set; }
-    }
+    }*@
 
     @* Class for creating an object from GET response. content here will still be JSON string, so needs de-serializing further using previous class *@
-    public class ContentParser
+@*    public class ContentParser
     {
         public string? content { get; set; }
         public string? encoding { get; set; }
@@ -1435,9 +1435,9 @@
         public string? type { get; set; }
         public string? name { get; set; }
         public string? url { get; set; }
-    }
+    }*@
     @* Class structure to get sha from PUT response headers *@
-    public class PUTContentParser
+@*    public class PUTContentParser
     {
         public Content content { get; set; }
         public Commit commit { get; set; }
@@ -1451,5 +1451,5 @@
     public class Commit
     {
         public string sha { get; set; }
-    }
+    }*@
 }

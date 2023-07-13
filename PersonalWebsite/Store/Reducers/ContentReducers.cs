@@ -51,6 +51,29 @@ namespace PersonalWebsite.Store.Reducers
 			}
 			return state with { IsEditing = updatedIsEditing };
 		}
+		[ReducerMethod]
+		public static ContentState ReduceSaveContentAction(ContentState state, SaveContentAction action)
+		{
+			var updatedContents = new List<contentHolder>(state.Contents);
 
+			var index = updatedContents.FindIndex(x => x.id == action.Index);
+			if (index != -1 && !Equals(updatedContents[index], action.TempContent))
+			{
+				updatedContents[index] = action.TempContent;
+			}
+
+			return state with { Contents = updatedContents };
+		}
+		[ReducerMethod]
+		public static ContentState ReduceUpdateShaDictionaryAction(ContentState state, UpdateShaDictionaryAction action)
+		{
+			var updatedShaDictionary = state.ShaDictionary is null
+				? new Dictionary<string, string>()
+				: new Dictionary<string, string>(state.ShaDictionary);
+
+			updatedShaDictionary[action.Section] = action.Sha;
+
+			return state with { ShaDictionary = updatedShaDictionary };
+		}
 	}
 }

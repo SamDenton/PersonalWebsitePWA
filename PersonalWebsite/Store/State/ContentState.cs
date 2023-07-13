@@ -10,7 +10,7 @@ namespace PersonalWebsite.Store.State
 		public List<bool> IsEditing { get; init; }
 		public int FileCount { get; init; }
 		public int LoadedFilesCount { get; init; }
-
+		public Dictionary<string, string> ShaDictionary { get; init; }
 		public ContentState()
 		{
 			Contents = new List<contentHolder>();

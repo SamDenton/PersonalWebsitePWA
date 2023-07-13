@@ -168,7 +168,7 @@
 					}
 					else
 					{
-						<div class="dotted-lines" @onfocusout="(() => Save(true))">
+						<div class="dotted-lines" @onfocusout="(() => Save(false))">
 							<Editor Id="@($"{indexParsed}-content")"
 								Inline=true
 								CloudChannel="5"
@@ -361,14 +361,27 @@
 	{
 		Dispatcher.Dispatch(new ResetIsEditingAction());
 
-		Dispatcher.Dispatch(new SaveContentAction(username, indexParsed, newSec));
+		if (!newSec)
+		{
+			Dispatcher.Dispatch(new SaveContentAction(username, indexParsed, tempContent));
 
+			// Getting the current state after dispatching the SaveContentAction
+			var currentState = contentState.Value;
+
+			// Identifying the updated contents
+			var updatedContent = currentState.Contents[indexParsed];
+			var matchingSectionContents = currentState.Contents.Where(ch => ch.page == updatedContent.page && ch.section == updatedContent.section).ToList();
+
+			// Dispatching UpdateGitHubContentAction
+			Dispatcher.Dispatch(new UpdateGitHubContentAction(matchingSectionContents, $"Content change made by: {username}", updatedContent.page, updatedContent.section, currentState.ShaDictionary));
+		}
 
 		Console.WriteLine("Test save, updated content: " + tempContent.content.ToString());
 
 		tempContent = CloneContentHolder(contentState.Value.Contents![indexParsed]);
 		StateHasChanged();
 	}
+
 
 	private void Cancel()
 	{

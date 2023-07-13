@@ -3,6 +3,11 @@
     background-color: #212529;
 }
 
+.assistantDiv {
+    overflow: scroll !important;
+    height: 85vh;
+}
+
 .search-container {
     background-color: #1c5380;
     padding: 20px;

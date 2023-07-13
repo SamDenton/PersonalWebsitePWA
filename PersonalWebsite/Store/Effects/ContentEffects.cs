@@ -62,7 +62,7 @@ namespace PersonalWebsite.Store.Effects
         [EffectMethod]
         public async Task HandleFetchFileContentsAction(FetchFileContentsAction action, IDispatcher dispatcher)
         {
-            _logger.LogInformation($"Fetching file content: {action.FileNameWithoutSuffix}...");
+            Console.WriteLine($"Fetching file content: {action.FileNameWithoutSuffix}...");
 
             try
             {
@@ -81,8 +81,10 @@ namespace PersonalWebsite.Store.Effects
                 var contentBytes = Convert.FromBase64String(fileGitContent.content);
                 var jsonContent = Encoding.UTF8.GetString(contentBytes);
                 var array = JsonConvert.DeserializeObject<List<contentHolder>>(jsonContent);
+				dispatcher.Dispatch(new FileContentFetchedAction(action.FileNameWithoutSuffix, array));
 
-                dispatcher.Dispatch(new FileContentFetchedAction(action.FileNameWithoutSuffix, fileGitContent.sha, array));
+                var newSha = fileGitContent.sha;
+				dispatcher.Dispatch(new UpdateShaDictionaryAction(action.FileNameWithoutSuffix, newSha));
             }
             catch (Exception ex)
             {
@@ -90,9 +92,48 @@ namespace PersonalWebsite.Store.Effects
             }
         }
 		[EffectMethod]
-		public async Task HandleUpdateContentOnGithubAction(UpdateContentOnGithubAction action, IDispatcher dispatcher)
+		public async Task Handle(UpdateGitHubContentAction action, IDispatcher dispatcher)
 		{
-			// Your HTTP PUT request logic here
+            //try
+            //{
+                var filename = action.Page + action.Section;
+				Console.WriteLine("PUT'ing: " + filename);
+				var jsonString = JsonConvert.SerializeObject(action.ContentHolders);
+				var Sha = action.ShaDictionary[filename];
+
+				var body = new
+				{
+					message = action.CommitMessage,
+					content = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString)),
+					sha = Sha
+				};
+
+				var json = JsonConvert.SerializeObject(body);
+				var contentAndMessage = new StringContent(json, Encoding.UTF8, "application/json");
+
+				var response = await _httpClient.PutAsync($"https://samdenton.tech/GithubPut-proxy.php?section={filename}", contentAndMessage);
+				var responseBytes = await response.Content.ReadAsByteArrayAsync();
+				var bom = Encoding.UTF8.GetPreamble();
+				if (responseBytes.Take(bom.Length).SequenceEqual(bom))
+				{
+					responseBytes = responseBytes.Skip(bom.Length).ToArray();
+				}
+
+				var responceHeaders = Encoding.UTF8.GetString(responseBytes);
+				var gitContent = JsonConvert.DeserializeObject<PUTContentParser>(responceHeaders);
+				var newSha = gitContent.content.sha;
+				dispatcher.Dispatch(new UpdateShaDictionaryAction(filename, newSha));
+
+				response.EnsureSuccessStatusCode();
+				if (!response.IsSuccessStatusCode)
+				{
+					throw new Exception("Error updating content: " + response.ReasonPhrase);
+				}
+			//}
+			//catch (Exception ex)
+			//{
+			//	Console.WriteLine("Error: " + ex.Message);
+			//}
 		}
 		[EffectMethod]
 		public async Task HandleDeleteFileOnGithubAction(DeleteFileOnGithubAction action, IDispatcher dispatcher)
