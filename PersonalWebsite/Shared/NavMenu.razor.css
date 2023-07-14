@@ -23,11 +23,15 @@ body {
 }
 
 #nav-container {
+    border-top: 1px solid #212529b2;
     position: relative;
     height: 100%;
     width: 100%;
 }
 
+.text-muted {
+    text-shadow: 1px 2px 4px #00000078;
+}
 
 nav {
     position: absolute;
@@ -70,8 +74,11 @@ nav {
 }
 
 .titleTextMenu {
+    width: 100%;
+    text-align: center;
     font-size: xx-large !important;
     font-weight: 700;
+    text-shadow: 1px 2px 4px #000000d6 !important;
 }
 
 oi-inner-text-right {

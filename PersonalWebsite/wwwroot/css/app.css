@@ -136,8 +136,9 @@ a, .btn-link {
 
 /* Track */
 ::-webkit-scrollbar-track {
-    margin-top: 56px;
-    border-radius: 0px;
+   /* margin-top: 56px;*/
+   margin: 5px;
+   border-radius: 0px;
 }
 
 /* Handle */

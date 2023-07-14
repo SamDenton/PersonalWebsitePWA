@@ -4,48 +4,126 @@
 }
 
 .assistantDiv {
+    padding-top: 10px;
     overflow: scroll !important;
-    height: 85vh;
+    height: calc(100vh - 75px);
+    width: 100%;
 }
 
-.search-container {
-    background-color: #1c5380;
+.headers {
+    font-size: 22px; 
+    font-weight: bold; 
+    color: #cecece;
+    text-shadow: 2px 2px 4px #000000; 
+}
+
+.queryBox {
+    background: #212529;
+    color: #e0e0e0;
+    margin-right: 2px;
+    box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.2), 1px 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.search-container, .result-container, .output-container {
     padding: 20px;
     border-radius: 5px;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
+    background: linear-gradient(180deg, #0d385b 5%, #212529 95%);
+    color: #e0e0e0; /* Softer color for text */
+    box-shadow: 0px 3px 15px rgba(0,0,0,0.2); /* Adding shadow for depth */
 }
 
-.result-container, .output-container {
-    background-color: #0d385b;
-    padding: 20px;
-    border-radius: 5px;
-    margin-bottom: 20px;
+.input-group, .btn {
+    border: none;
+    box-shadow: 0px 3px 15px rgba(0,0,0,0.2);
 }
 
-.output-box {
-    height: 200px;
+.output-box, .result-box {
+    height: 60vh;
     overflow-y: auto;
     border: 1px solid #f8f9fa;
     padding: 10px;
-    color: #f8f9fa;
+    color: #e0e0e0;
     border-radius: 5px;
+    box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.4), 1px 1px 5px rgba(0, 0, 0, 0.7);
+    background-color: rgba(255,255,255,0.05); /* Adding a hint of white for visibility against the background */
 }
 
-.result-box {
-    height: 200px;
-    overflow-y: auto;
+@media (max-width: 1199px) {
+    .output-box, .result-box {
+        height: 28vh;
+    }
+
+    .search-container, .result-container, .output-container {
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 2px;
+    }
+}
+
+.linkList {
+    padding: 0 0 0 5px !important;
+}
+
+.objectLink {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
     border: 1px solid #f8f9fa;
-    padding: 10px;
-    color: #f8f9fa;
+    padding: 5px 10px 5px 10px;
     border-radius: 5px;
+    transition: all 0.3s ease;
+    box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.4), 1px 2px 5px rgba(0, 0, 0, 0.7);
+}
+
+    .objectLink:hover {
+        background-color: rgba(255,255,255,0.1);
+        cursor: pointer;
+    }
+
+    .objectLink a {
+        color: #e0e0e0;
+        flex-grow: 1;
+        padding-top: 6px;
+        overflow: hidden; /* Required for ellipsis to work */
+        white-space: nowrap; /* Required for ellipsis to work */
+        text-overflow: ellipsis; /* This adds the '...' */
+    }
+
+        .objectLink a:hover {
+            color: #f8f9fa;
+            text-decoration: none;
+        }
+
+.listNumber {
+    margin-right: 10px; /* Add some space between the number and the link */
 }
 
 button {
     background-color: #212529;
     color: #f8f9fa;
     border: none;
+    transition: all 0.3s ease; /* Smoother transition for hover effect */
 }
 
     button:hover {
         background-color: #0d385b;
+        color: #e0e0e0;
     }
+
+.loaderContiner {
+    margin-top: 50px;
+}
+
+/* Invisible scrollbar by default */
+::-webkit-scrollbar {
+    width: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent; /* make scrollbar track transparent */
+}
+
+::-webkit-scrollbar-thumb {
+    background: transparent; /* make scrollbar thumb transparent */
+}

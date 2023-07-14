@@ -246,13 +246,13 @@ function updatePosition(targetTop) {
     let newTop = currentTop + (targetTop - currentTop) * smoothingFactor;
 
     // Adjust the target position if the new position is beyond the top boundary
-    if (newTop > 10 && !hasBouncedTop) {
+    if (newTop > 0 && !hasBouncedTop && !isMouseOverNav) {
         targetTop = currentTop - Math.abs(newTop) * (bounceFactor + 0.2);
         hasBouncedTop = true;
     }
 
     // Adjust the target position if the new position is beyond the bottom boundary
-    if (newTop < window.innerHeight - navHeight - 56 && !hasBouncedBottom) {
+    if (newTop < window.innerHeight - navHeight - 56 && !hasBouncedBottom && !isMouseOverNav) {
         targetTop = currentTop - (newTop - (window.innerHeight - navHeight)) * bounceFactor;
         hasBouncedBottom = true;
     }
@@ -268,6 +268,9 @@ function applyMomentum(targetTop, momentum) {
     if (isTouchActive) { return };
     if (Math.abs(momentum) < 0.001) {
         return targetTop;
+    } else {
+        hasBouncedTop = false;
+        hasBouncedBottom = false;
     }
 
     const newTargetTop = targetTop + momentum;
@@ -300,8 +303,6 @@ function onMouseLeave(event) {
         // Reset the animationStarted flag when the momentum effect has ended
         animationStarted = false;
     }
-    hasBouncedTop = false;
-    hasBouncedBottom = false;
     popupTip.style.display = 'none';  // Hide the tooltip when the mouse leaves the navbar
 }
 

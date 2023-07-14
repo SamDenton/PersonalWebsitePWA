@@ -16,57 +16,69 @@
     type="chat"
     IsSearchDisabled="true" />
 
-<h3>AI Navigation Assistant</h3>
 @*<AuthorizeView>
     <Authorized>
     </Authorized>
     <NotAuthorized>*@
-        <div class="container assistantDiv">
-            <p>This tool is designed to assist in searching this website for specific content, and summarizing it where practical.</p>
-
+<div class="container assistantDiv">
+    <div class="row mainRow">
+        <div class="col-12 mb-3">
             <div class="search-container">
-                <label for="searchInput">What do you want to search for?</label>
+                <label for="searchInput" class="headers">What do you want to search for?</label>
                 <div class="input-group mb-3">
-                    <input type="text" class="form-control" id="searchInput" @bind="userRequest" placeholder="Enter search term here..." />
+                    <input type="text" class="form-control queryBox" id="searchInput" @bind="userRequest" placeholder="Enter search term here..." />
                     <div class="input-group-append">
                         <button class="btn btn-outline-light generateBTN" @onclick="(() => GenerateSearch())" disabled="@loading">Generate!</button>
                     </div>
                 </div>
             </div>
-            <div class="loaderContiner">
-                @if (loading)
-                {
-                    <div class="loader">
-                        <div class="loaderBar"></div>
-                    </div>
-                }
-            </div>
+        </div>
+
+        <div class="col-xl-4 mb-3">
             <div class="result-container">
-                <p>Top Search Results:</p>
+                <p class="headers">Top Search Results:</p>
                 <div class="result-box">
                     @if (returnedData != null)
                     {
-                        <ol>
-                        @foreach (var item in returnedData)
-                        {
-                            <li>
-                                <a href="/@item.Content.page/@item.Content.section/@item.Content.subSection" class="d-block mb-2 text-light text-decoration-none">
-                                    @item.Content.page - @item.Content.section - @item.Content.subSection
-                                </a>
-                            </li>
-                        }
+                        int index = 1;
+                        <ol style="list-style: none;" class="linkList">
+                            @foreach (var item in returnedData)
+                            {
+                                <li class="objectLink" title="@item.Content.page - @item.Content.section - @item.Content.subSection">
+                                    <span class="listNumber">@index.</span>
+                                    <a href="/@item.Content.page/@item.Content.section/@item.Content.subSection" class="d-block mb-2 text-light text-decoration-none">
+                                        @item.Content.section - @item.Content.subSection
+                                    </a>
+                                </li>
+                                index++;
+                            }
                         </ol>
                     }
                 </div>
             </div>
+        </div>
 
+        <div class="col-xl-8">
             <div class="output-container">
-                <p>Summary of Content:</p>
+                <p class="headers">Summary of Content:</p>
                 <div class="output-box">
-                    <p>@summaryOfContent</p>
+                    @if (loading)
+                    {
+                        <div class="loaderContiner">
+                            <div class="loader">
+                                <div class="loaderBar"></div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p>@summaryOfContent</p>
+                    }
                 </div>
             </div>
         </div>
+    </div>
+</div>
 @*    </NotAuthorized>
 </AuthorizeView>*@
 

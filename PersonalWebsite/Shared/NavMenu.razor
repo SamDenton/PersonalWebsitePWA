@@ -19,7 +19,7 @@
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted">
-                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Documents" data-id="1" aria-hidden="true" style="width:100%;text-align:center;"> Documents</h2>
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Documents" data-id="1" aria-hidden="true"> Documents</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
@@ -40,7 +40,7 @@
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted">
-                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Tools" data-id="2" aria-hidden="true" style="width:100%;text-align:center;"> Tools</h2>
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Tools" data-id="2" aria-hidden="true"> Tools</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
@@ -56,7 +56,7 @@
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted" href="/all">
-                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Wiki" data-id="3" aria-hidden="true" style="width:100%;text-align:center;"> Wiki</h2>
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Wiki" data-id="3" aria-hidden="true"> Wiki</h2>
                 </NavLink>
             </div>
             @if (contentState.Value.Contents != null)
@@ -172,7 +172,7 @@
         {
             uniqueSectionsCount = contentState.Value.Contents.GroupBy(x => x.section).Count();
             Array.Resize(ref showSubSections, uniqueSectionsCount);
-            Array.Fill(showSubSections, false);
+            //Array.Fill(showSubSections, false);
             InvokeAsync(StateHasChanged);
         }
     }
