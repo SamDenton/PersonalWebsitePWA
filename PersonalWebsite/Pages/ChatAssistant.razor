@@ -7,17 +7,17 @@
     IsSearchDisabled="true" />
 <div class="container">
     <section class="side-bar">
-        <AuthorizeView>
-            <Authorized>
+@*        <AuthorizeView>
+            <Authorized>*@
                 <button @onclick="SaveConversationAndStartNew" class="newChatBtn" disabled="@loading">New chat</button>
-            </Authorized>
+@*            </Authorized>
             <NotAuthorized>
                 <button class="newChatBtn" disabled>New Chat (login first)</button>
             </NotAuthorized>
-        </AuthorizeView>
+        </AuthorizeView>*@
 
-        <AuthorizeView>
-            <Authorized>
+@*        <AuthorizeView>
+            <Authorized>*@
                 <div class="history">
                     @foreach (var item in history)
                     {
@@ -41,13 +41,13 @@
                         }
                     }
                 </div>
-            </Authorized>
+@*            </Authorized>
             <NotAuthorized>
                 <div class="history">
                     <p>Login to see conversation history</p>
                 </div>
             </NotAuthorized>
-        </AuthorizeView>
+        </AuthorizeView>*@
         <nav>
             <p>Chat History (Currently Deleted on refresh)</p>
         </nav>
@@ -102,6 +102,49 @@
             <section class="main">
                 <h1>GPTSam</h1>
                 <div class="conversation">
+                    @foreach (var message in currentConversation)
+                    {
+                        if (message.role == "user")
+                        {
+                            <div class="message-container user">
+                                <div class="text-bubble">@message.content</div>
+                                <div class="name">Unknown User</div>
+                            </div>
+                        }
+                        else if (message.role == "assistant")
+                        {
+                            <div class="message-container assistant">
+                                <div class="text-bubble">@message.content</div>
+                                <div class="name">GPTSam</div>
+                            </div>
+                        }
+                        else if (message.role == "error")
+                        {
+                            <div class="message-container error">
+                                <div class="text-bubble">@message.content</div>
+                                <div class="name">GPTSam</div>
+                            </div>
+                        }
+                    }
+                </div>
+                @{
+                    var placeholderText = loading ? "" : "Type a message";
+                }
+                <div class="bottom-section">
+                    <div class="input-container">
+                        <input @bind="inputText" class="inputText" disabled="@loading" @onkeydown="@(args => HandleKeyPress(args))" placeholder="@placeholderText" />
+                        @if (loading)
+                        {
+                            <div class="loader"></div>
+                        }
+                        <div @onclick="GetMessage" id="submit" class="oi oi-chevron-right" disabled="@loading"></div>
+                    </div>
+                </div>
+                <p class="info">ChatGPT Mar 4 Version</p>
+            </section>
+@*            <section class="main">
+                <h1>GPTSam</h1>
+                <div class="conversation">
                     @foreach (var message in exampleConversation)
                     {
                         if (message.role == "user")
@@ -128,7 +171,7 @@
                     </div>
                 </div>
                 <p class="info">ChatGPT Mar 4 Version</p>
-            </section>
+            </section>*@
         </NotAuthorized>
     </AuthorizeView>
 </div>

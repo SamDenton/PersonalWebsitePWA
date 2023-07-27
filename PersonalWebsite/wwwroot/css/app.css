@@ -127,30 +127,45 @@ a, .btn-link {
         content: "An error has occurred."
     }
 
+/*Old scroll bars*/
 /* width */
-::-webkit-scrollbar {
+/*::-webkit-scrollbar {
     height: 100%;
     width: 5px;
     border-radius: 0px;
-}
+}*/
 
 /* Track */
-::-webkit-scrollbar-track {
+/*::-webkit-scrollbar-track {*/
    /* margin-top: 56px;*/
-   margin: 5px;
+   /*margin: 5px;
    border-radius: 0px;
-}
+}*/
 
 /* Handle */
-::-webkit-scrollbar-thumb {
+/*::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 5px;
-}
+}*/
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    /*::-webkit-scrollbar-thumb:hover {
         background: #555;
-    }
+    }*/
+
+/*making all scrollbars hidden*/
+::-webkit-scrollbar {
+    height: 100%;
+    width: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent; /* make scrollbar track transparent */
+}
+
+::-webkit-scrollbar-thumb {
+    background: transparent; /* make scrollbar thumb transparent */
+}
 
 /*
 ::-webkit-scrollbar {

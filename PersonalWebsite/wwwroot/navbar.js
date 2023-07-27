@@ -2,7 +2,7 @@
     var navbar = document.querySelector('.sidebarController');
     var icon = document.querySelector('.icon');
     var content = document.querySelector('.content');
-    var mq = window.matchMedia('(max-width: 689.98px)');
+    var mq = window.matchMedia('(max-width: 10000px)');
 
     // Set initial state based on screen size
     if (mq.matches) {
@@ -93,13 +93,13 @@ let isMouseOverNav, isTouchActive, animationStarted, hasBouncedTop, hasBouncedBo
 //Positions
 let currentTop = 0, prevTop = 0, startY = 0, startX = 0;
 //Shared vars
-let maxTop, containerHeight, navHeight, navItemsHeight, initialY, tooltipTimeout;
+let maxTop, containerHeight, navHeight, navItemsHeight, initialY, tooltipTimeout, navItemsContainer;
 const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 let interval = null;
 //Control variables:
 const momentumFactor = 0.95;
 const bounceFactor = 0.5;
-const maxSpeed = 0.35;
+const maxSpeed = 0.3;
 const smoothingFactor = 0.05;
 
 
@@ -152,12 +152,12 @@ function initScrollingMenu(navContainerSelector, navSelector) {
     });
 
     setTimeout(() => {
-        const navItemsContainer = nav.querySelector('.nav-items-container');
+        navItemsContainer = nav.querySelector('.nav-items-container');
 
-        containerHeight = navContainer.offsetHeight;
-        navHeight = nav.offsetHeight;
-        navItemsHeight = navItemsContainer.offsetHeight;
-        maxTop = containerHeight - ((navHeight * 3) / 2);
+        //containerHeight = navContainer.offsetHeight;
+        //navHeight = nav.offsetHeight;
+        //navItemsHeight = navItemsContainer.offsetHeight;
+        //maxTop = containerHeight - ((navHeight * 3) / 2);
         //removed this for now as it causes the nav bar to jump up and down when a section is expanded.  I might need to switch back to my logic that resets the starting position to the first mouse Y pos.
         //currentTop = ((containerHeight - navItemsHeight) / 2) + 110; // Update currentTop calculation
         //nav.style.top = `${currentTop}px`;
@@ -182,9 +182,13 @@ const clearAnimationIntervals = (intervals) => {
 
 function onMouseEnter(event) {
     if (isTouchActive) { return };
+    containerHeight = navContainer.offsetHeight;
+    navHeight = nav.offsetHeight;
+    navItemsHeight = navItemsContainer.offsetHeight;
+    maxTop = containerHeight - ((navHeight * 3) / 2);
     const navContainerRect = navContainer.getBoundingClientRect();
     //startY = event.clientY - navContainerRect.top;
-    startY = containerHeight / 2;
+    startY = containerHeight/2.5;
     startX = event.clientX - navContainerRect.left;
     // Show the tooltip
     popupTip.style.display = 'block';
