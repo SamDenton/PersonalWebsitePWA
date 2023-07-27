@@ -104,7 +104,6 @@ const bounceFactor = 0.5;
 const maxSpeed = 0.3;
 const smoothingFactor = 0.05;
 
-
 function initScrollingMenu(navContainerSelector, navSelector) {
     navContainer = document.querySelector(navContainerSelector);
     nav = document.querySelector(navSelector);
