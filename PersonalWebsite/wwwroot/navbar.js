@@ -5,15 +5,15 @@
     var mq = window.matchMedia('(max-width: 10000px)');
 
     // Set initial state based on screen size
-    if (mq.matches) {
-        navbar.classList.add('navHider');
-        icon.classList.remove('rotateLeft');
-        icon.classList.add('rotateRight');
-    } else {
-        navbar.classList.add('navShower');
-        icon.classList.remove('rotateRight');
-        icon.classList.add('rotateLeft');
-    }
+    //if (mq.matches) {
+    //    navbar.classList.add('navHider');
+    //    icon.classList.remove('rotateLeft');
+    //    icon.classList.add('rotateRight');
+    //} else {
+    //    navbar.classList.add('navShower');
+    //    icon.classList.remove('rotateRight');
+    //    icon.classList.add('rotateLeft');
+    //}
 
     // Listen for clicks on the icon
     icon.addEventListener('click', function () {
@@ -25,6 +25,8 @@
             icon.classList.add('rotateRight');
             content.classList.remove('contentHider')
         } else {
+            currentTop = ((containerHeight - navItemsHeight) / 2) + 110;
+            navbar.classList.remove('sidebarController-start');
             navbar.classList.remove('navHider');
             navbar.classList.add('navShower');
             navbar.classList.add('sidebarController-max');

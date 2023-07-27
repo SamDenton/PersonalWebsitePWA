@@ -25,7 +25,8 @@ main {
     overflow: scroll;
 }
 
-.sidebarContainer {
+.sidebarController-start {
+    display: none !important;
 }
 
 .topBlock {
