@@ -24,6 +24,8 @@
             icon.classList.remove('rotateLeft');
             icon.classList.add('rotateRight');
             content.classList.remove('contentHider')
+            content.classList.remove('content-menu-open')
+            content.classList.add('content-menu-closed')
         } else {
             navbar.classList.remove('sidebarController-start');
             navbar.classList.remove('navHider');
@@ -32,6 +34,8 @@
             icon.classList.remove('rotateRight');
             icon.classList.add('rotateLeft');
             content.classList.add('contentHider')
+            content.classList.add('content-menu-open')
+            content.classList.remove('content-menu-closed')
         }
     });
 

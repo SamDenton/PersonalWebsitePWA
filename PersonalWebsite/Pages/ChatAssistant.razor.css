@@ -150,7 +150,7 @@ body {
     }
 }
 
-.loader:after {
+.loadElipsis:after {
     content: "";
     animation: ellipsis 1s infinite;
 }
@@ -204,7 +204,7 @@ input {
         z-index: 999;
     }
 
-    .input-container .loader {
+    .input-container .loadElipsis {
         position: absolute;
         font-size: 100px;
         margin-top: 15px;

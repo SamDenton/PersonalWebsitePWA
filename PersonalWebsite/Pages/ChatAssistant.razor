@@ -88,10 +88,6 @@
                 <div class="bottom-section">
                     <div class="input-container">
                         <input @bind="inputText" class="inputText" disabled="@loading" @onkeydown="@(args => HandleKeyPress(args))" placeholder="@placeholderText" />
-                        @if (loading)
-                        {
-                            <div class="loader"></div>
-                        }
                         <div @onclick="GetMessage" id="submit" class="oi oi-chevron-right" disabled="@loading"></div>
                     </div>
                 </div>
@@ -135,7 +131,7 @@
                         <input @bind="inputText" class="inputText" disabled="@loading" @onkeydown="@(args => HandleKeyPress(args))" placeholder="@placeholderText" />
                         @if (loading)
                         {
-                            <div class="loader"></div>
+                            <div class="loadElipsis"></div>
                         }
                         <div @onclick="GetMessage" id="submit" class="oi oi-chevron-right" disabled="@loading"></div>
                     </div>

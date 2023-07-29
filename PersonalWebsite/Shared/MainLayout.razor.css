@@ -18,7 +18,8 @@ main {
     background-image: linear-gradient(180deg, #0d385b 10%, #212529 70%);
     max-height: 100vh;
     width: 250px;
-    z-index: 999;
+    z-index: 11;
+    padding-right: 0px;
 }
 
 .smallNavBar {
@@ -27,20 +28,69 @@ main {
     text-align: center;
     background-image: linear-gradient(180deg, #0d385b 10%, #212529 70%);
     border-top: 1px solid #212529b2;
-    position: inherit;
+    position: fixed;
     top: 56px !important;
     left: 0;
     height: 100vh !important;
-    width: 75px;
-    overflow: hidden;
+    width: 50px;
+    overflow: visible;
     display: block;
-    z-index: 99;
+    z-index: 10;
 }
+
+.oi-document, .oi-person, .oi-chat, .oi-info {
+    font-size: 20px !important;
+}
+
+.nav-item {
+    font-size: 0.3rem;
+    padding-bottom: 0.4rem;
+}
+
+    .nav-item:first-of-type {
+        padding-top: 1rem;
+    }
+
+    .nav-item:last-of-type {
+        padding-bottom: 1rem;
+    }
+
+    .nav-item ::deep a {
+        text-shadow: 1px 2px 4px #000000a6 !important;
+        color: #d7d7d7;
+        border-radius: 50%;
+        height: 2rem;
+        padding: 0.7rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        overflow: visible; 
+    }
+
+        .nav-item ::deep a.active {
+            font-size: larger;
+            background-color: rgba(255,255,255,0.25);
+            color: white;
+        }
+
+        .nav-item ::deep a:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
 
 /*think i need to overflow scroll this, and add a max height*/
 .content {
     margin-left: 0px;
     overflow: scroll;
+}
+
+.content-menu-closed {
+    padding-left: 70px !important;
+}
+
+.content-menu-open {
+    padding-left: 10px !important;
 }
 
 .sidebarController-start {
@@ -51,10 +101,17 @@ main {
     background-color: #212529;
     width: 100vh;
     text-shadow: 1px 2px 4px #000000a6 !important;
+/*    z-index: 12;*/
 }
 
 .topLeftBlock {
     padding-top: 0px;
+    margin-left: -30px;
+}
+
+.menu-toggle {
+    margin-top: 24px;
+    margin-left: -23px;
 }
 
 .logindisp {
@@ -85,12 +142,13 @@ main {
 }
 
 .top-row {
-    background-image: linear-gradient(90deg, #0d385b 10%, #212529 90%);
+    background-image: linear-gradient(90deg, #0d385b 50%, #212529 90%);
     /*border-bottom: 1px solid #0d385b;*/
     justify-content: flex-end;
     height: 3.5rem;
     display: flex;
     align-items: center;
+    z-index: 999;
 }
 
     .top-row ::deep a, .top-row ::deep .btn-link {
@@ -175,11 +233,7 @@ main {
     }
 }
 
-@media (max-width: 1162px) {
-    .sidebar {
-        background-image: linear-gradient(180deg, #0d3759 10%, #212529 50%);
-    }
-
+@media (max-width: 1000px) {
     .top-row.auth {
         justify-content: flex-end;
         margin-left: -250px;
@@ -233,29 +287,6 @@ main {
         padding-right: 1.5rem !important;
     }
 }
-/* width */
-/*::-webkit-scrollbar {
-    background: #212529;
-    width: 10px;
-    border-radius: 0px;
-}*/
-
-/* Track */
-/*::-webkit-scrollbar-track {
-    background: #212529;
-    border-radius: 0px;
-}*/
-
-/* Handle */
-/*::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 5px;
-}*/
-
-    /* Handle on hover */
-    /*::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }*/
 
 #navToggle {
     position: fixed;
@@ -268,11 +299,13 @@ main {
     position: fixed;
     top: 10px;
     left: 80px;
-    color: #566674;
+    color: #778a9a;
+    margin-left: 15px;
+    margin-top: 2px;
     z-index: 999;
 }
 
-.topLeftBlockTextMuted {
+.topLeftTextMuted {
     color: #56667475;
 }
 
@@ -300,12 +333,12 @@ input[type="checkbox"] {
 
 .rotateRight {
     transition: transform 0.3s ease-in-out;
-    transform: rotate(180deg);
+    transform: rotate(0deg);
 }
 
 .rotateLeft {
     transition: transform 0.3s ease-in-out;
-    transform: rotate(0deg);
+    transform: rotate(-180deg);
 }
 
 .navHider {
