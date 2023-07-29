@@ -32,6 +32,7 @@ namespace PersonalWebsite.Store.Effects
             {
                 var response = await _httpClient.GetAsync("https://samdenton.tech/GithubGetAll-proxy.php");
                 var content = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation("contents from repo..." + content);
                 var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
                 if (content.StartsWith(bom))
                 {
