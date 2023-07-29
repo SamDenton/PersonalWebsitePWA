@@ -20,6 +20,7 @@ body {
 
 .nav-container-touch {
     overflow: scroll;
+    -webkit-overflow-scrolling: touch;
 }
 
 #nav-container {

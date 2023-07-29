@@ -25,7 +25,6 @@
             icon.classList.add('rotateRight');
             content.classList.remove('contentHider')
         } else {
-            currentTop = ((containerHeight - navItemsHeight) / 2) + 110;
             navbar.classList.remove('sidebarController-start');
             navbar.classList.remove('navHider');
             navbar.classList.add('navShower');
@@ -189,7 +188,7 @@ function onMouseEnter(event) {
     maxTop = containerHeight - ((navHeight * 3) / 2);
     const navContainerRect = navContainer.getBoundingClientRect();
     //startY = event.clientY - navContainerRect.top;
-    startY = containerHeight/2.5;
+    startY = containerHeight/2;
     startX = event.clientX - navContainerRect.left;
     // Show the tooltip
     popupTip.style.display = 'block';

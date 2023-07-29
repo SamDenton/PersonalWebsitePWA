@@ -18,10 +18,28 @@ main {
     background-image: linear-gradient(180deg, #0d385b 10%, #212529 70%);
     max-height: 100vh;
     width: 250px;
+    z-index: 999;
+}
+
+.smallNavBar {
+    padding-top: 20px;
+    align-content: center;
+    text-align: center;
+    background-image: linear-gradient(180deg, #0d385b 10%, #212529 70%);
+    border-top: 1px solid #212529b2;
+    position: inherit;
+    top: 56px !important;
+    left: 0;
+    height: 100vh !important;
+    width: 75px;
+    overflow: hidden;
+    display: block;
+    z-index: 99;
 }
 
 /*think i need to overflow scroll this, and add a max height*/
 .content {
+    margin-left: 0px;
     overflow: scroll;
 }
 
@@ -33,6 +51,10 @@ main {
     background-color: #212529;
     width: 100vh;
     text-shadow: 1px 2px 4px #000000a6 !important;
+}
+
+.topLeftBlock {
+    padding-top: 0px;
 }
 
 .logindisp {
@@ -250,7 +272,7 @@ main {
     z-index: 999;
 }
 
-.topLeftTextMuted {
+.topLeftBlockTextMuted {
     color: #56667475;
 }
 
