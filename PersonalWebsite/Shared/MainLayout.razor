@@ -12,6 +12,11 @@
         <nav class="d-flex flex-column text-light" id="navSmall">
             <div class="nav-items-container">
                 <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                    <NavLink class="p-1 nav-link text-muted" href="/" title="Home">
+                        <h2 class="oi oi-home text-muted text-truncate titleText" aria-hidden="true"></h2>
+                    </NavLink>
+                </div>
+                <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                     <NavLink class="p-1 nav-link text-muted" href="/Dissertation/Dissertation" title="My Dissertation">
                         <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true"></h2>
                     </NavLink>
@@ -91,7 +96,7 @@
 
 @code {
     private bool isChecked { get; set; }
-    private string versionNo = "V1.1.2";
+    private string versionNo = "V1.1.4";
 
     protected override void OnInitialized()
     {

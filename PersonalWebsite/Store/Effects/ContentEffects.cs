@@ -33,11 +33,11 @@ namespace PersonalWebsite.Store.Effects
                 var response = await _httpClient.GetAsync("https://samdenton.tech/GithubGetAll-proxy.php");
                 var content = await response.Content.ReadAsStringAsync();
                 _logger.LogInformation("contents from repo..." + content);
-                var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
-                if (content.StartsWith(bom))
-                {
-                    content = content.Remove(0, bom.Length);
-                }
+                //var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
+                //if (content.StartsWith(bom))
+                //{
+                //    content = content.Remove(0, bom.Length);
+                //}
 
                 var gitContents = JsonConvert.DeserializeObject<List<ContentParser>>(content);
                 var fileCount = 0;
@@ -71,11 +71,11 @@ namespace PersonalWebsite.Store.Effects
                 var fileContent = await fileResponse.Content.ReadAsStringAsync();
 
                 // Remove potential Byte Order Mark (BOM)
-                var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
-                if (fileContent.StartsWith(bom))
-                {
-                    fileContent = fileContent.Remove(0, bom.Length);
-                }
+                //var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
+                //if (fileContent.StartsWith(bom))
+                //{
+                //    fileContent = fileContent.Remove(0, bom.Length);
+                //}
 
                 var fileGitContent = JsonConvert.DeserializeObject<ContentParser>(fileContent);
 
