@@ -17,13 +17,13 @@
 @* Using Authorize View to only load content when user is authenticated. The editor is disabled when not authenticated *@
 
 <PageTitle>Wiki</PageTitle>
-@* Moved the searchBar marup and logic to a component so it's on all pages *@
-<SearchBar 
-    type="@type"
-    SearchTermChanged="SearchTermChanged"
-    IsSearchDisabled="false"  />
 @* Using bootstrap container for layout on main content.  Using some grid layout elements *@
-<div class="container-fluid mx-0 ps-0">
+<div class="container-fluid mx-0 ps-0 mainContentContainer">
+    @* Moved the searchBar marup and logic to a component so it's on all pages *@
+    <SearchBar 
+        type="@type"
+        SearchTermChanged="SearchTermChanged"
+        IsSearchDisabled="false"  />
     <div class="row mx-0 ps-0 gx-3">
         <div class="col">
             @* Toggle between the 2 editor types.  This can be moved to one of the other conditionals doing the same. *@

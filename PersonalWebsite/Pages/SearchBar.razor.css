@@ -1,11 +1,11 @@
 ﻿.searchBar {
+    z-index: 999 !important;
     text-align: center;
     pointer-events: none;
-    margin-top: -74px;
-    position: fixed;
+    position: fixed !important;
     width: 40vw !important;
     max-width: 600px;
-    top: 74px;
+    top: 0px;
     margin-left: auto;
     margin-right: auto;
 }

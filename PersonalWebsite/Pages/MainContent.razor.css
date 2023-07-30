@@ -6,6 +6,11 @@
     #1c5380 Dark
 
 */
+
+.mainContentContainer {
+    position: relative !important;
+}
+
 .mainTable {
     height: calc(100vh - 156px) !important;
     width: 100%;

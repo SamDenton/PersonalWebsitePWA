@@ -12,7 +12,18 @@
 
 main {
     flex: 1;
+    background-image: linear-gradient(120deg, #0d385b 5%, #212529 10%) !important;
+    z-index: 98;
 }
+
+.main-Nav-Open {
+    margin-left: 0px;
+}
+
+.main-Nav-Closed {
+    margin-left: 50px;
+}
+
 
 .sidebar {
     background-image: linear-gradient(180deg, #0d385b 10%, #212529 70%);
@@ -27,7 +38,7 @@ main {
     align-content: center;
     text-align: center;
     background-image: linear-gradient(180deg, #0d385b 10%, #212529 70%);
-    border-top: 1px solid #212529b2;
+    /*border-top: 1px solid #212529b2;*/
     position: fixed;
     top: 56px !important;
     left: 0;
@@ -38,7 +49,35 @@ main {
     z-index: 10;
 }
 
-.oi-document, .oi-person, .oi-chat, .oi-info {
+.content {
+    position: relative !important;
+    z-index: 99;
+    margin: 0px 10px 0px 10px;
+    margin-left: 0px;
+    overflow: scroll;
+    background-color: rgba(33, 37, 41, 1) !important;
+    border-radius: 20px;
+    height: 91vh;
+    box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.5), 0px 1px 2px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease-in-out;
+}
+
+    .content:hover {
+        position: relative !important;
+        box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.7), 0px 5px 10px rgba(0, 0, 0, 0.5);
+        /*border: 1px solid rgba(108, 117, 125, 0.2);*/
+        /*background-color: rgba(33, 37, 41, 0.9) !important;*/
+    }
+
+/*.content-menu-closed {
+    padding-left: 10px !important;
+}
+
+.content-menu-open {
+    padding-left: 10px !important;
+}*/
+
+.oi-document, .oi-person, .oi-chat, .oi-info, .oi-home {
     font-size: 20px !important;
 }
 
@@ -79,20 +118,6 @@ main {
             color: white;
         }
 
-/*think i need to overflow scroll this, and add a max height*/
-.content {
-    margin-left: 0px;
-    overflow: scroll;
-}
-
-.content-menu-closed {
-    padding-left: 70px !important;
-}
-
-.content-menu-open {
-    padding-left: 10px !important;
-}
-
 .sidebarController-start {
     display: none !important;
 }
@@ -101,7 +126,6 @@ main {
     background-color: #212529;
     width: 100vh;
     text-shadow: 1px 2px 4px #000000a6 !important;
-/*    z-index: 12;*/
 }
 
 .topLeftBlock {
@@ -127,6 +151,7 @@ main {
 }
 
 .userNameDisp {
+    z-index: 999;
     height: 20px;
     position: fixed;
     right: 15px;
@@ -148,7 +173,8 @@ main {
     height: 3.5rem;
     display: flex;
     align-items: center;
-    z-index: 999;
+    z-index: 1 !important;
+    position: static !important;
 }
 
     .top-row ::deep a, .top-row ::deep .btn-link {
@@ -205,7 +231,7 @@ main {
     .top-row {
         position: sticky;
         top: 0;
-        z-index: 1;
+        z-index: 1 !important;
     }
 
     .logindispSmall {
@@ -272,7 +298,7 @@ main {
     .top-row {
         position: sticky;
         top: 0;
-        z-index: 1;
+        z-index: 1 !important;
         margin-left: -250px;
     }
 
@@ -292,7 +318,7 @@ main {
     position: fixed;
     top: 0px;
     left: 0px;
-    z-index: 999;
+    z-index: 97;
 }
 
 #topLeftText {
@@ -302,7 +328,7 @@ main {
     color: #778a9a;
     margin-left: 15px;
     margin-top: 2px;
-    z-index: 999;
+    z-index: 97;
 }
 
 .topLeftTextMuted {

@@ -2,6 +2,7 @@
     var navbar = document.querySelector('.sidebarController');
     var icon = document.querySelector('.icon');
     var content = document.querySelector('.content');
+    var main = document.querySelector('.topBlock');
     var mq = window.matchMedia('(max-width: 10000px)');
 
     // Set initial state based on screen size
@@ -24,8 +25,10 @@
             icon.classList.remove('rotateLeft');
             icon.classList.add('rotateRight');
             content.classList.remove('contentHider')
-            content.classList.remove('content-menu-open')
-            content.classList.add('content-menu-closed')
+            //content.classList.remove('content-menu-open')
+            //content.classList.add('content-menu-closed')
+            main.classList.remove('main-Nav-Open')
+            main.classList.add('main-Nav-Closed')
         } else {
             navbar.classList.remove('sidebarController-start');
             navbar.classList.remove('navHider');
@@ -34,8 +37,10 @@
             icon.classList.remove('rotateRight');
             icon.classList.add('rotateLeft');
             content.classList.add('contentHider')
-            content.classList.add('content-menu-open')
-            content.classList.remove('content-menu-closed')
+            //content.classList.add('content-menu-open')
+            //content.classList.remove('content-menu-closed')
+            main.classList.add('main-Nav-Open')
+            main.classList.remove('main-Nav-Closed')
         }
     });
 

@@ -24,7 +24,7 @@ body {
 }
 
 #nav-container {
-    border-top: 1px solid #212529b2;
+    /*border-top: 1px solid #212529b2;*/
     position: relative;
     height: 100%;
     width: 100%;
@@ -327,7 +327,7 @@ navlink {
 
 
 /* width */
-::-webkit-scrollbar {
+/*::-webkit-scrollbar {
     background: #212529;
     width: 5px;
     border-radius: 0px;
@@ -336,10 +336,10 @@ navlink {
     padding: 0px !important;
     height: 100%;
     z-index: 999;
-}
+}*/
 
 /* Track */
-::-webkit-scrollbar-track {
+/*::-webkit-scrollbar-track {
     margin-top: 0px !important;
     margin-bottom: 0px !important;
     padding: 0px !important;
@@ -347,15 +347,15 @@ navlink {
     background: #212529;
     border-radius: 0px;
     z-index: 999;
-}
+}*/
 
 /* Handle */
-::-webkit-scrollbar-thumb {
+/*::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 5px;
-}
+}*/
 
     /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
+    /*::-webkit-scrollbar-thumb:hover {
         background: #555;
-    }
+    }*/
