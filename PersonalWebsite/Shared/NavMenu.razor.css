@@ -72,9 +72,9 @@ nav {
 }
 
 .titleTextMenu {
-    margin: 0px !important;
+    margin: -5px 0px 5px 0px !important;
     width: 100%;
-    text-align: center;
+    text-align: left;
     font-size: x-large !important;
     font-weight: 700;
     text-shadow: 1px 2px 4px #000000d6 !important;
@@ -96,22 +96,12 @@ nav {
     font-size: 0.85rem !important;
 }
 
-oi-inner-text-right {
-    position: absolute;
-    margin-top: -13px;
-}
-
 .oi-caret-bottom {
     margin-top: 4px;
 }
 
 .oi {
     margin-top: auto;
-}
-
-.oi-inner-text {
-    position: absolute;
-    margin-top: -2px;
 }
 
 navlink {

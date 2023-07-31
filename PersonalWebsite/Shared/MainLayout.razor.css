@@ -331,10 +331,11 @@ main {
 }
 
 #topLeftText {
-    font-size: 27px !important;
+    text-shadow: 2px 3px 3.5px #000000d6 !important;
     font-weight: 500;
+    font-size: 2rem !important;
     position: fixed;
-    top: 10px;
+    top: 2px;
     left: 65px;
     color: #6c757d;
     z-index: 97;

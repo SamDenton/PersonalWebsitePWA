@@ -18,44 +18,44 @@
         <div class="nav-items-container">
             <div class="p-1 item-fader px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted">
-                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Documents" data-id="1" aria-hidden="true"> Documents</h2>
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Documents" data-id="1" aria-hidden="true">Documents</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/Dissertation" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Dissertation</h2>
+                    &nbsp<span class="oi oi-document"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> Dissertation</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/Artifact" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp Artifact</h2>
+                    &nbsp<span class="oi oi-document"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> Artifact</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/Dissertation/CV" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-person text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp CV</h2>
+                    &nbsp<span class="oi oi-person"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> CV</h2>
                 </NavLink>
             </div>
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted">
-                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Tools" data-id="2" aria-hidden="true"> Tools</h2>
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Tools" data-id="2" aria-hidden="true">Tools</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/chat" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-chat text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp ChatBot</h2>
+                    &nbsp<span class="oi oi-chat"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> ChatBot</h2>
                 </NavLink>
             </div>
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/navBot" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    <h2 class="oi oi-chat text-muted text-truncate titleText" aria-hidden="true" style="width:100%;">&nbsp AI Assistant</h2>
+                    &nbsp<span class="oi oi-chat"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> AI Assistant</h2>
                 </NavLink>
             </div>
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted" href="/all">
-                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Wiki" data-id="3" aria-hidden="true"> Wiki</h2>
+                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Wiki" data-id="3" aria-hidden="true">Wiki</h2>
                 </NavLink>
             </div>
             @if (contentState.Value.Contents != null)
@@ -72,7 +72,7 @@
                     var type = typeGroup.Key;
                     <div class="p-1 item-fader nav-item px-2 font-weight-bold" @onclick="(() => { Array.Fill(showSubSections!, false); })">
                         <NavLink class="p-1 nav-link text-muted lastLink" href=@($"/{type}/all/all")>
-                            &nbsp&nbsp<h2 class="oi oi-list-rich text-muted text-truncate typeText" style="width:100%;">&nbsp @type</h2>
+                            &nbsp<span class="oi oi-list-rich"></span><h2 class="text-muted text-truncate typeText" style="width:100%;"> @type</h2>
                         </NavLink>
                     </div>
                     Console.WriteLine($"Page: {typeGroup.Key}, Count: {typeGroup.Count()}");
@@ -89,7 +89,7 @@
                         <div class="item-fader navSubContainer @(showSubSections![localCount] == true ? "show" : "hide")">
                             <div class="p-1 item-fader nav-item px-1 font-weight-bold" @onclick="(async () => { Array.Fill(showSubSections!, false, 0, localCount); if (showSubSections[localCount] == false) {showSubSections[localCount] = !showSubSections[localCount];} else {await FadeOut(); await Task.Delay(500); showSubSections[localCount] = !showSubSections[localCount];} Array.Fill(showSubSections, false, localCount+1, showSubSections.Length-localCount-1); StateHasChanged(); Console.WriteLine(showSubSections[localCount]); } )">
                                 <NavLink class="p-1 nav-link" href=@($"/{type}/{sectionName}/all")>
-                                    &nbsp<h3 class="oi text-nowrap text-truncate @(showSubSections![localCount] == true ? "oi-caret-bottom" : "oi-caret-right text-muted")" style="width:100%;"><span class="oi sectionText @(showSubSections![localCount] == true ? "oi-inner-text" : "oi-inner-text-right")"> &nbsp&nbsp&nbsp&nbsp @sectionName</span> </h3>
+                                    &nbsp&nbsp<span class="oi text-nowrap text-truncate @(showSubSections![localCount] == true ? "oi-caret-bottom" : "oi-caret-right text-muted")"></span><span class="sectionText text-muted"> @sectionName</span>
                                 </NavLink>
                             </div>
                             @if (showSubSections![localCount])
@@ -101,7 +101,7 @@
                                     <div class="item-fader nav-item px-1 fade-in" id="fader">
                                         @*@(showSubSections[localCount] == true ? "" : "fade-out")*@
                                         <NavLink class="nav-link text-muted lastLink" href=@($"/{type}/{sectionName}/{contentHolder.subSection}")>
-                                            &nbsp<h5 class="oi oi-minus text-muted text-truncate subSectionText" aria-hidden="true" style="width:100%;"> &nbsp @contentHolder.subSection </h5>
+                                            &nbsp<span class="oi oi-minus"></span>&nbsp<h5 class="text-muted text-truncate subSectionText" aria-hidden="true" style="width:100%;"> @contentHolder.subSection </h5>
                                         </NavLink>
                                     </div>
                                 }
@@ -115,7 +115,7 @@
             {
                 <div class="item-fader nav-item px-3">
                     <NavLink class="nav-link text-light text-muted">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span> Loading...
+                        &nbsp<span class="oi oi-list-rich" aria-hidden="true"></span> Loading...
                     </NavLink>
                 </div>
             }
@@ -123,14 +123,14 @@
                 <Authorized>
                     <div class="item-fader nav-item px-3">
                         <NavLink class="nav-link text-light text-muted lastLink" href="/add" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                            <span class="oi oi-plus" aria-hidden="true"></span> Add New Section
+                            &nbsp<span class="oi oi-plus"></span><span aria-hidden="true"></span> Add New Section
                         </NavLink>
                     </div>
                 </Authorized>
                 <NotAuthorized>
                     <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                         <NavLink class="p-1 nav-link text-muted lastLink" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                            <h2 class="oi oi-plus text-muted text-truncate" aria-hidden="true" style="width:100%;">&nbsp Login to contribute</h2>
+                            &nbsp<span class="oi oi-plus"></span><h2 class="text-muted text-truncate typeText" aria-hidden="true"> Login to contribute</h2>
                         </NavLink>
                     </div>
                 </NotAuthorized>
