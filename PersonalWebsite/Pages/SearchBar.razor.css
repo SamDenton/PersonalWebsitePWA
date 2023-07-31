@@ -8,11 +8,11 @@
     top: 0px;
     margin-left: auto;
     margin-right: auto;
+    left: 0;
+    right: 0;
 }
-@media (min-width: 689.98px) {
+/*@media (min-width: 689.98px) {
     .searchBar {
-        left: 100px;
-        right: -100px;
     }
 }
 @media (max-width: 689.98px) {
@@ -20,7 +20,15 @@
         left: 0;
         right: 0;
     }
+}*/
+.form-control {
+    border: hidden;
+    border-radius: 10px !important;
+    box-shadow: 0px 3px 15px rgba(0, 0, 0, 0.3), 0px 1px 10px rgba(0, 0, 0, 0.2);
 }
-input::placeholder {
+    .form-control:hover {
+        box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.7), 0px 2px 10px rgba(0, 0, 0, 0.5);
+    }
+input:: placeholder {
     /*text-align: center;*/
 }

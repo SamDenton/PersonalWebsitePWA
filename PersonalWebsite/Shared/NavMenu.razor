@@ -89,7 +89,7 @@
                         <div class="item-fader navSubContainer @(showSubSections![localCount] == true ? "show" : "hide")">
                             <div class="p-1 item-fader nav-item px-1 font-weight-bold" @onclick="(async () => { Array.Fill(showSubSections!, false, 0, localCount); if (showSubSections[localCount] == false) {showSubSections[localCount] = !showSubSections[localCount];} else {await FadeOut(); await Task.Delay(500); showSubSections[localCount] = !showSubSections[localCount];} Array.Fill(showSubSections, false, localCount+1, showSubSections.Length-localCount-1); StateHasChanged(); Console.WriteLine(showSubSections[localCount]); } )">
                                 <NavLink class="p-1 nav-link" href=@($"/{type}/{sectionName}/all")>
-                                    &nbsp<h3 class="oi text-nowrap text-truncate @(showSubSections![localCount] == true ? "oi-caret-bottom" : "oi-caret-right text-muted")" style="width:100%;"><span class="oi @(showSubSections![localCount] == true ? "oi-inner-text" : "oi-inner-text-right")"> &nbsp&nbsp&nbsp&nbsp @sectionName</span> </h3>
+                                    &nbsp<h3 class="oi text-nowrap text-truncate @(showSubSections![localCount] == true ? "oi-caret-bottom" : "oi-caret-right text-muted")" style="width:100%;"><span class="oi sectionText @(showSubSections![localCount] == true ? "oi-inner-text" : "oi-inner-text-right")"> &nbsp&nbsp&nbsp&nbsp @sectionName</span> </h3>
                                 </NavLink>
                             </div>
                             @if (showSubSections![localCount])
@@ -101,7 +101,7 @@
                                     <div class="item-fader nav-item px-1 fade-in" id="fader">
                                         @*@(showSubSections[localCount] == true ? "" : "fade-out")*@
                                         <NavLink class="nav-link text-muted lastLink" href=@($"/{type}/{sectionName}/{contentHolder.subSection}")>
-                                            &nbsp<h5 class="oi oi-minus text-muted text-truncate" aria-hidden="true" style="width:100%;"> &nbsp @contentHolder.subSection </h5>
+                                            &nbsp<h5 class="oi oi-minus text-muted text-truncate subSectionText" aria-hidden="true" style="width:100%;"> &nbsp @contentHolder.subSection </h5>
                                         </NavLink>
                                     </div>
                                 }

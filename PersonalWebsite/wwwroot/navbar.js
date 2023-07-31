@@ -77,13 +77,22 @@ function initNavbarMobile() {
                 icon.classList.remove('rotateLeft');
                 icon.classList.add('rotateRight');
                 content.classList.remove('contentHider')
+                //content.classList.remove('content-menu-open')
+                //content.classList.add('content-menu-closed')
+                main.classList.remove('main-Nav-Open')
+                main.classList.add('main-Nav-Closed')
             } else {
+                navbar.classList.remove('sidebarController-start');
                 navbar.classList.remove('navHider');
                 navbar.classList.add('navShower');
                 navbar.classList.add('sidebarController-max');
                 icon.classList.remove('rotateRight');
                 icon.classList.add('rotateLeft');
                 content.classList.add('contentHider')
+                //content.classList.add('content-menu-open')
+                //content.classList.remove('content-menu-closed')
+                main.classList.add('main-Nav-Open')
+                main.classList.remove('main-Nav-Closed')
             }
         });
     });
@@ -109,7 +118,7 @@ let interval = null;
 //Control variables:
 const momentumFactor = 0.95;
 const bounceFactor = 0.5;
-const maxSpeed = 0.3;
+const maxSpeed = 0.26;
 const smoothingFactor = 0.05;
 
 function initScrollingMenu(navContainerSelector, navSelector) {
@@ -221,18 +230,18 @@ function onMouseMove(event) {
     popupTip.style.left = `${moveX - 10}px`;
     isMouseOverNav = true;
     navHeight = nav.offsetHeight;
-    containerHeight = navContainer.offsetHeight;
-    if (navHeight > containerHeight) {
-        const mouseY = event.clientY - navContainerRect.top;
-        const scrollPosition = (mouseY - startY) / (containerHeight / 2);
-
-        // Calculate scrolling speed based on the mouse position
-        const speed = calculateScrollSpeed(mouseY, startY);
-        const newTop = maxTop * scrollPosition * speed - (navHeight - containerHeight) / 2;
-
-        updatePosition(newTop);
-
+    const viewportHeight = window.innerHeight - 56;
+    if (navHeight <= viewportHeight) {
+        isMouseOverNav = false;
+        return;  // if navHeight is not greater than viewportHeight, return.
     }
+    const mouseY = event.clientY - navContainerRect.top;
+    const scrollPosition = (mouseY - startY) / (viewportHeight / 2);
+    // Calculate scrolling speed based on the mouse position
+    const speed = calculateScrollSpeed(mouseY, startY);
+    const newTop = maxTop * scrollPosition * speed - (navHeight - viewportHeight) / 2;
+
+    updatePosition(newTop);
 
     // Start the animation loop only if it has not been started
     if (!animationStarted) {
@@ -240,6 +249,8 @@ function onMouseMove(event) {
         animateMouseMove(event);
     }
 }
+
+
 
 function animateMouseMove(event) {
     if (isTouchActive) { return };
@@ -253,6 +264,10 @@ function animateMouseMove(event) {
 
 function updatePosition(targetTop) {
     if (isTouchActive) { return };
+    const viewportHeight = window.innerHeight - 56;
+    if (navHeight <= viewportHeight) {
+        return;
+    }
     prevTop = currentTop; // Store the current top position before updating
 
     // Calculate the new position
@@ -276,6 +291,7 @@ function updatePosition(targetTop) {
     currentTop = newTop;
     nav.style.top = `${currentTop}px`;
 }
+
 
 function applyMomentum(targetTop, momentum) {
     if (isTouchActive) { return };
@@ -319,6 +335,8 @@ function onMouseLeave(event) {
     popupTip.style.display = 'none';  // Hide the tooltip when the mouse leaves the navbar
 }
 
+let touchEndTimeout = null;
+
 function onTouchStart(event) {
     clearTimeout(touchEndTimeout);
     isTouchActive = true;
@@ -326,8 +344,6 @@ function onTouchStart(event) {
     navContainer.classList.add("nav-container-touch");
 }
 
-
-let touchEndTimeout = null;
 function onTouchEnd(event) {
     touchEndTimeout = setTimeout(() => {
         navContainer.classList.remove("nav-container-touch");
@@ -335,6 +351,5 @@ function onTouchEnd(event) {
         isTouchActive = false;
     }, 500);
 }
-
 
 window.initScrollingMenu = initScrollingMenu;

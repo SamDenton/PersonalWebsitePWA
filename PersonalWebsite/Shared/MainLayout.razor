@@ -16,6 +16,7 @@
                         <h2 class="oi oi-home text-muted text-truncate titleText" aria-hidden="true"></h2>
                     </NavLink>
                 </div>
+                <div class="item-fader dropdown-divider divider"></div>
                 <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                     <NavLink class="p-1 nav-link text-muted" href="/Dissertation/Dissertation" title="My Dissertation">
                         <h2 class="oi oi-document text-muted text-truncate titleText" aria-hidden="true"></h2>
@@ -61,10 +62,8 @@
                 </label>
             </div>
             <div id="topLeftText" @onclick="GoHome">
-                <h4>
                     @*<img src="@icon" alt="Icon" height="30" width="30" class="mx-2 img-fluid homeImg" />*@
-                    Sam <small class="topLeftTextMuted @(isChecked == false ? "internalWiki" : "")">Interactive Portfolio</small>
-                </h4>
+                    Sam <small class="topLeftTextMuted @(isChecked == false ? "internalWiki" : "")">Portfolio</small>
             </div>
         </div>
 

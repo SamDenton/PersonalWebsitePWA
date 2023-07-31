@@ -44,11 +44,14 @@
                         <ol style="list-style: none;" class="linkList">
                             @foreach (var item in returnedData)
                             {
-                                <li class="objectLink" title="@item.Content.page - @item.Content.section - @item.Content.subSection">
-                                    <span class="listNumber">@index.</span>
-                                    <a href="/@item.Content.page/@item.Content.section/@item.Content.subSection" class="d-block mb-2 text-light text-decoration-none">
-                                        @item.Content.section - @item.Content.subSection
-                                    </a>
+                                <li class="objectLinkWrapper" title="@item.Content.page - @item.Content.section - @item.Content.subSection">
+                                    <div class="objectLink">
+                                        <span class="listNumber">@index.</span>
+                                        <a href="/@item.Content.page/@item.Content.section/@item.Content.subSection" class="d-block mb-2 text-light text-decoration-none">
+                                            @item.Content.section - @item.Content.subSection
+                                        </a>
+                                    </div>
+                                    <div class="objectLinkOutline"></div>
                                 </li>
                                 index++;
                             }

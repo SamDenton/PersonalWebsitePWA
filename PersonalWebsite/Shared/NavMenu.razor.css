@@ -16,6 +16,7 @@ body {
 
 .nav-container {
     overflow: hidden;
+    height: 100%;
 }
 
 .nav-container-touch {
@@ -49,7 +50,7 @@ nav {
 }
 
 .oi {
-    padding: 0px !important;
+    padding: 2px 0px 0px 0px !important;
     margin: 0px !important;
     height: 100%;
 }
@@ -65,21 +66,34 @@ nav {
     border-width: 2px !important;
 }
 
-.typeText {
-    font-size: x-large !important;
-    /*margin: 1rem 1rem 0 1rem;*/
-}
-
 .titleText {
-    font-size: x-large !important;
+    font-weight: 500;
+    font-size: 1.2rem !important;
 }
 
 .titleTextMenu {
+    margin: 0px !important;
     width: 100%;
     text-align: center;
-    font-size: xx-large !important;
+    font-size: x-large !important;
     font-weight: 700;
     text-shadow: 1px 2px 4px #000000d6 !important;
+}
+
+.typeText {
+    font-weight: 500;
+    font-size: 1.2rem !important;
+    /*margin: 1rem 1rem 0 1rem;*/
+}
+
+.sectionText {
+    font-weight: 500;
+    font-size: 0.95rem !important;
+}
+
+.subSectionText {
+    font-weight: 500;
+    font-size: 0.85rem !important;
 }
 
 oi-inner-text-right {
@@ -229,10 +243,10 @@ navlink {
     .nav-item ::deep a {
         color: #d7d7d7;
         border-radius: 4px;
-        height: 3rem;
+        height: 2rem;
         display: flex;
         align-items: center;
-        line-height: 3rem;
+        line-height: 2rem;
     }
 
         .nav-item ::deep a.active {

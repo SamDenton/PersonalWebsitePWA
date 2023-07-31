@@ -136,7 +136,6 @@
                         <div @onclick="GetMessage" id="submit" class="oi oi-chevron-right" disabled="@loading"></div>
                     </div>
                 </div>
-                <p class="info">ChatGPT Mar 4 Version</p>
             </section>
 @*            <section class="main">
                 <h1>GPTSam</h1>
@@ -185,7 +184,7 @@
     private Dictionary<string, string> conversationNames = new Dictionary<string, string>();
     private List<Message> preConversationText = new List<Message>();
     private List<Message> summaryConversationText = new List<Message>();
-    private string systemMessageChat = "You are a helpful, polite chatbot assistant built by Kudos Software to assist our customers with issues before they are raised to the support team.  You will only answer questions related to EPoS systems, tills, printers and gift aid.  If other questions are asked, you will reply: Sorry, that query is outside my scope, please contact support.";
+    private string systemMessageChat = "You are a helpful, polite chatbot assistant built by Sam Denton to assist our users of his interactive portfolio with issues.";
     private string systemMessageSearch = "You are a search assistant that takes a query written in natural English and summarizing it in a quick search phrase, between 1 and 5 words.";
     private string systemMessageSummary = "You are a summary assistant that takes a conversation in natural English and summarizes it into a conversation title, no more than 6 words.";
     private string systemMessageExample = "You are not a real bot, you are an example";
