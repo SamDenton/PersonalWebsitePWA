@@ -81,19 +81,20 @@ function initNavbarMobile() {
                 //content.classList.add('content-menu-closed')
                 main.classList.remove('main-Nav-Open')
                 main.classList.add('main-Nav-Closed')
-            } else {
-                navbar.classList.remove('sidebarController-start');
-                navbar.classList.remove('navHider');
-                navbar.classList.add('navShower');
-                navbar.classList.add('sidebarController-max');
-                icon.classList.remove('rotateRight');
-                icon.classList.add('rotateLeft');
-                content.classList.add('contentHider')
-                //content.classList.add('content-menu-open')
-                //content.classList.remove('content-menu-closed')
-                main.classList.add('main-Nav-Open')
-                main.classList.remove('main-Nav-Closed')
             }
+            // else {
+            //    navbar.classList.remove('sidebarController-start');
+            //    navbar.classList.remove('navHider');
+            //    navbar.classList.add('navShower');
+            //    navbar.classList.add('sidebarController-max');
+            //    icon.classList.remove('rotateRight');
+            //    icon.classList.add('rotateLeft');
+            //    content.classList.add('contentHider')
+            //    //content.classList.add('content-menu-open')
+            //    //content.classList.remove('content-menu-closed')
+            //    main.classList.add('main-Nav-Open')
+            //    main.classList.remove('main-Nav-Closed')
+            //}
         });
     });
 }
@@ -340,14 +341,14 @@ let touchEndTimeout = null;
 function onTouchStart(event) {
     clearTimeout(touchEndTimeout);
     isTouchActive = true;
-    navContainer.classList.remove("nav-container");
+    navContainer.classList.remove("nav-container-no-touch");
     navContainer.classList.add("nav-container-touch");
 }
 
 function onTouchEnd(event) {
     touchEndTimeout = setTimeout(() => {
         navContainer.classList.remove("nav-container-touch");
-        navContainer.classList.add("nav-container");
+        navContainer.classList.add("nav-container-no-touch");
         isTouchActive = false;
     }, 500);
 }

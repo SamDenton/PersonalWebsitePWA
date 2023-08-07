@@ -15,14 +15,18 @@ body {
 }
 
 .nav-container {
-    overflow: hidden;
     height: 100%;
 }
 
-.nav-container-touch {
-    overflow: scroll;
-    -webkit-overflow-scrolling: touch;
+.nav-container-no-touch {
+    overflow: hidden;
 }
+
+.nav-container-touch {
+    overflow: scroll !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
 
 #nav-container {
     /*border-top: 1px solid #212529b2;*/
