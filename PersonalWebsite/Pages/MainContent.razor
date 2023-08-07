@@ -67,21 +67,46 @@
                 <div class="container-fluid bg-dark text-light">
                     <div class="row">
                         <div class="col-12 text-center">
-                            <img src="@Logo" alt="Company Logo" height="165" width="272" class="mx-auto d-block img-fluid homeImg" />
+                            <img src="@Logo" alt="Company Logo" height="149" width="245" class="mx-auto d-block img-fluid homeImg" />
                             <h1 class="mt-3">Welcome to my Interactive Portfolio</h1>
                         </div>
                     </div>
-                    <div class="loaderContiner">
-                        @if (contentState.Value.Contents == null)
-                        {
-                            <div class="loader">
-                                <div class="loaderBar"></div>
-                            </div>
-                        }
-                    </div>
                     <div class="row">
-                        <div class="col-12 text-center">
-                            <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.  Over time I will populate it with different projects i'm working on.  The site is structured as a Wiki, so while logged in, most of the content is editable.  It's also a Progressive Web App(PWA), so feel free to install locally!</p>
+                        <div class="col-12 col-sm-6 col-md-4">
+                            <div class="card-container">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">AI Assistant!</h5>
+                                        <p class="card-text">Search the site faster with AI</p>
+                                        <a href="#" class="card-link btn btn-outline-light">Try It Out!</a>
+                                    </div>
+                                </div>
+                                <div class="card-outline"></div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-4">
+                            <div class="card-container">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">ChatBot!</h5>
+                                        <p class="card-text">Try out GPT-4 for free!</p>
+                                        <a href="#" class="card-link btn btn-outline-light">Try It Out!</a>
+                                    </div>
+                                </div>
+                                <div class="card-outline"></div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-4">
+                            <div class="card-container">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Wiki!</h5>
+                                        <p class="card-text">View or edit articles about me!</p>
+                                        <a href="#" class="card-link btn btn-outline-light">Try It Out!</a>
+                                    </div>
+                                </div>
+                                <div class="card-outline"></div>
+                            </div>
                         </div>
                     </div>
                 </div>

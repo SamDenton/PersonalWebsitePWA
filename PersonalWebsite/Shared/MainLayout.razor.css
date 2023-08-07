@@ -176,8 +176,8 @@ main {
 }
 
 .top-row {
-    background-image: linear-gradient(90deg, #0d385b 50%, #212529 90%);
     /*border-bottom: 1px solid #0d385b;*/
+    background-image: linear-gradient(90deg, #0d385b 50%, #212529 90%);
     justify-content: flex-end;
     height: 3.5rem;
     display: flex;
@@ -207,16 +207,25 @@ main {
     }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 420px) {
+    .top-row {
+        background-color: #0d385b !important;
+    }
+
+    #topLeftText {
+        margin-left: 0px !important;
+    }
+
     .sidebarController-max {
         width: 100vw !important;
     }
+
     .contentHider {
         display: none;
     }
 }
 
-@media (max-width: 689.98px) {
+@media (max-width: 789.98px) {
     .page {
         flex-direction: row;
     }
@@ -247,10 +256,6 @@ main {
         margin-left: 0px;
         width: 100%;
         justify-content: flex-end;
-    }
-
-    #topLeftText {
-        margin-left: -15px;
     }
 
     .internalWiki {
@@ -290,7 +295,7 @@ main {
     }
 }
 
-@media (min-width: 690px) {
+@media (min-width: 790px) {
     .page {
         flex-direction: row;
     }
@@ -336,7 +341,8 @@ main {
     font-size: 2rem !important;
     position: fixed;
     top: 2px;
-    left: 65px;
+    left: 45px;
+    margin-left: 10px;
     color: #6c757d;
     z-index: 97;
 }

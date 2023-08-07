@@ -4,13 +4,14 @@
     type="chat"
     IsSearchDisabled="true" />
 
-<h3 class="title">@title</h3>
+<div class="pdfViewer">
+    <h3 class="title">@title</h3>
+    <iframe class="viewerIframe" src="@filePath" type="application/pdf">
+        This browser does not support PDFs. Please download the PDF to view it:
+        <a href="@filePath">Download PDF</a>.
+    </iframe>
+</div>
 
-<object class="pdfViewer" data="@filePath" type="application/pdf">
-    <embed src="@filePath">
-    This browser does not support PDFs. Please download the PDF to view it:
-    <a href="@filePath">Download PDF</a>.
-</object>
 
 
 @code {
@@ -36,5 +37,6 @@
             filePath = "Samuel Denton - CV.pdf";
             title = "Curriculum Vitae";
         }
+        StateHasChanged();
     }
 }
