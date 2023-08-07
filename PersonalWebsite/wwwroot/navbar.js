@@ -24,11 +24,9 @@
             navbar.classList.add('navHider');
             icon.classList.remove('rotateLeft');
             icon.classList.add('rotateRight');
-            content.classList.remove('contentHider')
-            //content.classList.remove('content-menu-open')
-            //content.classList.add('content-menu-closed')
-            main.classList.remove('main-Nav-Open')
-            main.classList.add('main-Nav-Closed')
+            content.classList.remove('contentHider');
+            main.classList.remove('main-Nav-Open');
+            main.classList.add('main-Nav-Closed');
         } else {
             navbar.classList.remove('sidebarController-start');
             navbar.classList.remove('navHider');
@@ -36,11 +34,9 @@
             navbar.classList.add('sidebarController-max');
             icon.classList.remove('rotateRight');
             icon.classList.add('rotateLeft');
-            content.classList.add('contentHider')
-            //content.classList.add('content-menu-open')
-            //content.classList.remove('content-menu-closed')
-            main.classList.add('main-Nav-Open')
-            main.classList.remove('main-Nav-Closed')
+            content.classList.add('contentHider');
+            main.classList.add('main-Nav-Open');
+            main.classList.remove('main-Nav-Closed');
         }
     });
 
@@ -67,6 +63,7 @@ function initNavbarMobile() {
     var links = document.querySelectorAll('.lastLink');
     var icon = document.querySelector('.icon');
     var content = document.querySelector('.content');
+    var main = document.querySelector('.topBlock');
     links.forEach(function (link) {
         // Listen for clicks on the link
         link.addEventListener('click', function () {
@@ -76,25 +73,10 @@ function initNavbarMobile() {
                 navbar.classList.add('navHider');
                 icon.classList.remove('rotateLeft');
                 icon.classList.add('rotateRight');
-                content.classList.remove('contentHider')
-                //content.classList.remove('content-menu-open')
-                //content.classList.add('content-menu-closed')
-                main.classList.remove('main-Nav-Open')
-                main.classList.add('main-Nav-Closed')
+                content.classList.remove('contentHider');
+                main.classList.remove('main-Nav-Open');
+                main.classList.add('main-Nav-Closed');
             }
-            // else {
-            //    navbar.classList.remove('sidebarController-start');
-            //    navbar.classList.remove('navHider');
-            //    navbar.classList.add('navShower');
-            //    navbar.classList.add('sidebarController-max');
-            //    icon.classList.remove('rotateRight');
-            //    icon.classList.add('rotateLeft');
-            //    content.classList.add('contentHider')
-            //    //content.classList.add('content-menu-open')
-            //    //content.classList.remove('content-menu-closed')
-            //    main.classList.add('main-Nav-Open')
-            //    main.classList.remove('main-Nav-Closed')
-            //}
         });
     });
 }
