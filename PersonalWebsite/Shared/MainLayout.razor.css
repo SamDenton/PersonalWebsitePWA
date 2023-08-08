@@ -5,7 +5,7 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    color: white;
+    color: #c1c4c7 !important;
     overflow: hidden;
     height: 100vh;
 }

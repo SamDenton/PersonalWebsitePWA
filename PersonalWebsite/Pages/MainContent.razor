@@ -64,45 +64,48 @@
             @*add back 'isContentLoaded == false || ' to conditional*@
             @if (contentState.Value.Contents == null || type == null)
             {
-                <div class="container-fluid bg-dark text-light">
+                <div class="container-fluid bg-dark home-container">
                     <div class="row">
-                        <div class="col-12 text-center">
+                        <div class="col-12 text-center home-image-container">
                             <img src="@Logo" alt="Company Logo" height="149" width="245" class="mx-auto d-block img-fluid homeImg" />
-                            <h1 class="mt-3">Welcome to my Interactive Portfolio</h1>
+                            <h1 class="mt-3 site-title">Explore My Interactive Portfolio</h1>
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-12 col-sm-6 col-md-4">
+                        <div class="col-12 col-sm-6 col-md-4 card-column">
                             <div class="card-container">
-                                <div class="card">
+                                @{var assistantText = "/navBot";}
+                                <div class="card" @onclick="() => { Navigation.NavigateTo(assistantText); }">
                                     <div class="card-body">
                                         <h5 class="card-title">AI Assistant!</h5>
                                         <p class="card-text">Search the site faster with AI</p>
-                                        <a href="#" class="card-link btn btn-outline-light">Try It Out!</a>
+                                        <a href="/navBot" class="card-link btn btn-outline-light">Try It Out!</a>
                                     </div>
                                 </div>
                                 <div class="card-outline"></div>
                             </div>
                         </div>
-                        <div class="col-12 col-sm-6 col-md-4">
+                        <div class="col-12 col-sm-6 col-md-4 card-column">
                             <div class="card-container">
-                                <div class="card">
+                                @{var chatText = "/chat";}
+                                <div class="card" @onclick="() => { Navigation.NavigateTo(chatText); }">
                                     <div class="card-body">
                                         <h5 class="card-title">ChatBot!</h5>
                                         <p class="card-text">Try out GPT-4 for free!</p>
-                                        <a href="#" class="card-link btn btn-outline-light">Try It Out!</a>
+                                        <a href="/chat" class="card-link btn btn-outline-light">Try It Out!</a>
                                     </div>
                                 </div>
                                 <div class="card-outline"></div>
                             </div>
                         </div>
-                        <div class="col-12 col-sm-6 col-md-4">
+                        <div class="col-12 col-sm-6 col-md-4 card-column">
                             <div class="card-container">
-                                <div class="card">
+                                @{var allText = "/all";}
+                                <div class="card" @onclick="() => { Navigation.NavigateTo(allText); }">
                                     <div class="card-body">
                                         <h5 class="card-title">Wiki!</h5>
                                         <p class="card-text">View or edit articles about me!</p>
-                                        <a href="#" class="card-link btn btn-outline-light">Try It Out!</a>
+                                        <a href="/all" class="card-link btn btn-outline-light">Try It Out!</a>
                                     </div>
                                 </div>
                                 <div class="card-outline"></div>
