@@ -72,43 +72,24 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-12 col-sm-6 col-md-4 card-column">
-                            <div class="card-container">
-                                @{var assistantText = "/navBot";}
-                                <div class="card" @onclick="() => { Navigation.NavigateTo(assistantText); }">
-                                    <div class="card-body">
-                                        <h5 class="card-title">AI Assistant!</h5>
-                                        <p class="card-text">Search the site faster with AI</p>
-                                        <a href="/navBot" class="card-link btn btn-outline-light">Try It Out!</a>
+                        <div class="carousel-container">
+                            <div class="cards-wrapper" style="@myStyle">
+                                @foreach (var card in DisplayCards)
+                                {
+                                    <div class="col-12 col-sm-6 col-md-4 card-column">
+                                        <div class="card-container">
+                                            <div class="card" @onclick="() => { Navigation.NavigateTo(card.Link); }">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">@card.Title</h5>
+                                                    <p class="card-text">@card.Text</p>
+                                                    <a href="@card.Link" class="card-link btn btn-outline-light">@card.ButtonText</a>
+                                                </div>
+                                            </div>
+                                            <div class="card-outline"></div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="card-outline"></div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-4 card-column">
-                            <div class="card-container">
-                                @{var chatText = "/chat";}
-                                <div class="card" @onclick="() => { Navigation.NavigateTo(chatText); }">
-                                    <div class="card-body">
-                                        <h5 class="card-title">ChatBot!</h5>
-                                        <p class="card-text">Try out GPT-4 for free!</p>
-                                        <a href="/chat" class="card-link btn btn-outline-light">Try It Out!</a>
-                                    </div>
-                                </div>
-                                <div class="card-outline"></div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-4 card-column">
-                            <div class="card-container">
-                                @{var allText = "/all";}
-                                <div class="card" @onclick="() => { Navigation.NavigateTo(allText); }">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Wiki!</h5>
-                                        <p class="card-text">View or edit articles about me!</p>
-                                        <a href="/all" class="card-link btn btn-outline-light">Try It Out!</a>
-                                    </div>
-                                </div>
-                                <div class="card-outline"></div>
+                                }
+                                
                             </div>
                         </div>
                     </div>
@@ -564,6 +545,64 @@
     //private bool isContentLoaded { get; set; } = false;
     //private bool initiating = true;
 
+    private ElementReference cardsWrapper; // This holds reference to our cards container
+    private int currentIndex = 0; // Keeps track of current slide
+    private int totalCards => cards.Count;
+    private string myStyle = ""; // Style string that we'll bind to
+    private double cardWidth = 0;
+    private int visibleCards = 0;
+    private string transitionStyle = "transition: transform 0.3s ease;";
+    private CancellationTokenSource cts = new CancellationTokenSource();
+    private List<Card> DisplayCards => cards.Concat(cards.Take(visibleCards)).ToList();
+    private List<Card> cards = new List<Card>
+    {
+        new Card
+        {
+            Title = "AI Assistant!",
+            Text = "Search the site faster with AI",
+            Link = "/navBot",
+            ButtonText = "Try It Out!"
+        },
+        new Card
+        {
+            Title = "ChatBot!",
+            Text = "Try out GPT-4 for free!",
+            Link = "/chat",
+            ButtonText = "Try It Out!"
+        },
+        new Card
+        {
+            Title = "Wiki!",
+            Text = "View or edit articles about me!",
+            Link = "/all",
+            ButtonText = "Try It Out!"
+        },
+        new Card
+        {
+            Title = "My Dissertation",
+            Text = "Read my degree dissertation on AI Interpretability!",
+            Link = "/Dissertation/Dissertation",
+            ButtonText = "Read Here!"
+        },
+        new Card
+        {
+            Title = "C.V.",
+            Text = "Read my CV to find see my qualifications!",
+            Link = "/Dissertation/CV",
+            ButtonText = "Read Here!"
+        },
+        new Card
+        {
+            Title = "Genetic Evolution",
+            Text = "(Coming Soon!) An environment for testing neural network architectures",
+            Link = "/#",
+            ButtonText = "Try It Out!"
+        }
+    };
+
+
+
+
     [Inject] public AuthenticationStateProvider? AuthenticationStateProvider { get; set; }
 
     @* Initialize page.  Using Async initialization as I want to load content from API before rendering *@
@@ -577,9 +616,9 @@
             contentState.StateChanged += ContentStateChanged;
             @* Initialize control variables after populating contentState.Value.Contents *@
 
-            @* Add event handler to nagigation change event to reset IsEditing array *@
-            Navigation.LocationChanged += LocationChanged!;
-            base.OnInitialized();
+        @* Add event handler to nagigation change event to reset IsEditing array *@
+        Navigation.LocationChanged += LocationChanged!;
+        base.OnInitialized();
         //}
         //catch (Exception ex)
         //{
@@ -587,9 +626,48 @@
         //    loadingMSG += "Error Loading Content: " + ex.Message;
         //    StateHasChanged();
         //}
+
+        while (true)
+        {
+            try
+            {
+                await Task.Delay(5000, cts.Token);  // Use the token here
+            }
+            catch (TaskCanceledException)
+            {
+                // Reset the CancellationTokenSource for future delays
+                await Task.Delay(150);
+                cts = new CancellationTokenSource();
+            }
+            SlideCards();
+            StateHasChanged();
+        }
     }
 
-    private void ContentStateChanged(object? sender, EventArgs e)
+    private void SlideCards()
+    {
+        currentIndex++;
+
+        // Check if the next slide would be the start (after the duplicate cards are fully in view)
+        if (currentIndex + visibleCards == totalCards + visibleCards)
+        {
+            cts.Cancel();  // Reset the delay
+        }
+
+        // Now handle the jump back to the start
+        if (currentIndex + visibleCards > totalCards + visibleCards)
+        {
+            currentIndex = 0;
+            myStyle = $"transform: translateX(0px);";
+            StateHasChanged();
+            return;
+        }
+
+        myStyle = $"transform: translateX({currentIndex * -cardWidth}px); {transitionStyle}";
+    }
+
+
+    private async void ContentStateChanged(object? sender, EventArgs e)
     {
         if (contentState.Value.FileCount == contentState.Value.LoadedFilesCount)
         {
@@ -604,7 +682,26 @@
             //Array.Resize(ref initialContent, contentState.Value.Contents!.Count);
             //IsEditing = new bool[contentState.Value.Contents.Count];
             InvokeAsync(StateHasChanged); // Update the UI
+            await Task.Delay(500);
+            cardWidth = await JSRuntime.InvokeAsync<double>("carouselHelper.getCardWidth");
+            visibleCards = await JSRuntime.InvokeAsync<int>("carouselHelper.getVisibleCards");
+            await JSRuntime.InvokeVoidAsync("carouselHelper.addResizeListener", DotNetObjectReference.Create(this));
         }
+    }
+
+    [JSInvokable]
+    public async Task RecalculateSizes()
+    {
+        cardWidth = await JSRuntime.InvokeAsync<double>("carouselHelper.getCardWidth");
+        visibleCards = await JSRuntime.InvokeAsync<int>("carouselHelper.getVisibleCards");
+    }
+
+    public class Card
+    {
+        public string Title { get; set; }
+        public string Text { get; set; }
+        public string Link { get; set; }
+        public string ButtonText { get; set; }
     }
 
     protected override async void OnAfterRender(bool firstRender)
