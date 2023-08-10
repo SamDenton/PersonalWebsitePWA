@@ -166,18 +166,18 @@
             var outputText = dataOut.choices[0].text;
             producedSearchTerm = outputText;
 
-            Console.WriteLine("First bot output: " + outputText);
+            //Console.WriteLine("First bot output: " + outputText);
             returnedData = PerformSearch(outputText, contentState.Value.Contents);
             StateHasChanged();
             string resultsString = ConvertSearchResultsToString(returnedData);
-            Console.WriteLine("Search results: " + resultsString);
+            //Console.WriteLine("Search results: " + resultsString);
             StateHasChanged();
             await GenerateSummary(resultsString);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
-            Console.WriteLine("OpenAI API unavailable or out of credits");
+            //Console.WriteLine($"Error: {ex.Message}");
+            //Console.WriteLine("OpenAI API unavailable or out of credits");
             loading = false;
         }
     }
@@ -327,7 +327,7 @@
             var outputText = dataOut.choices[0].text;
             summaryOfContent = outputText;
 
-            Console.WriteLine("Summary: " + outputText);
+            //Console.WriteLine("Summary: " + outputText);
             loading = false;
             StateHasChanged(); ;
         }

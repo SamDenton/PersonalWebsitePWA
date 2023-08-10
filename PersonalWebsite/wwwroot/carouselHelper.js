@@ -25,9 +25,9 @@ function triggerRecalculateSizes() {
     if (componentInstance) {
         componentInstance.invokeMethodAsync('RecalculateSizes')
             .then(result => {
-                console.log('Recalculation triggered');
+                //console.log('Recalculation triggered');
             }).catch(err => {
-                console.error('Error triggering recalculation:', err);
+                //console.error('Error triggering recalculation:', err);
             });
     }
 }

@@ -35,7 +35,7 @@ namespace PersonalWebsite.Store.Reducers
 		[ReducerMethod]
 		public static ContentState ReduceUpdateIsEditingAction(ContentState state, UpdateIsEditingAction action)
 		{
-			Console.WriteLine($"IsEditing size: {state.IsEditing.Count}, received index: {action.Index}");
+			//Console.WriteLine($"IsEditing size: {state.IsEditing.Count}, received index: {action.Index}");
 			var updatedIsEditing = new List<bool>(state.IsEditing);
 			updatedIsEditing[action.Index] = action.IsEditing;
 

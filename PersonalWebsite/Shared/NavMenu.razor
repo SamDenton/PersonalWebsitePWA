@@ -75,11 +75,11 @@
                             &nbsp<span class="oi oi-list-rich"></span><h2 class="text-muted text-truncate typeText" style="width:100%;"> @type</h2>
                         </NavLink>
                     </div>
-                    Console.WriteLine($"Page: {typeGroup.Key}, Count: {typeGroup.Count()}");
+                    //Console.WriteLine($"Page: {typeGroup.Key}, Count: {typeGroup.Count()}");
                     @* Loop through the page groups for each Section *@ 
                     @foreach (var sectionGroup in typeGroup.GroupBy(c => c.section))
                     {
-                        Console.WriteLine($"Section: {sectionGroup.Key}, Count: {sectionGroup.Count()}");
+                        //Console.WriteLine($"Section: {sectionGroup.Key}, Count: {sectionGroup.Count()}");
                         var localCount = count;
                         var sectionName = "";
                         if (sectionGroup.Key != null)
@@ -87,7 +87,7 @@
                             sectionName = sectionGroup.Key;
                         }
                         <div class="item-fader navSubContainer @(showSubSections![localCount] == true ? "show" : "hide")">
-                            <div class="p-1 item-fader nav-item px-1 font-weight-bold" @onclick="(async () => { Array.Fill(showSubSections!, false, 0, localCount); if (showSubSections[localCount] == false) {showSubSections[localCount] = !showSubSections[localCount];} else {await FadeOut(); await Task.Delay(500); showSubSections[localCount] = !showSubSections[localCount];} Array.Fill(showSubSections, false, localCount+1, showSubSections.Length-localCount-1); StateHasChanged(); Console.WriteLine(showSubSections[localCount]); } )">
+                            <div class="p-1 item-fader nav-item px-1 font-weight-bold" @onclick="(async () => { Array.Fill(showSubSections!, false, 0, localCount); if (showSubSections[localCount] == false) {showSubSections[localCount] = !showSubSections[localCount];} else {await FadeOut(); await Task.Delay(500); showSubSections[localCount] = !showSubSections[localCount];} Array.Fill(showSubSections, false, localCount+1, showSubSections.Length-localCount-1); StateHasChanged(); /*Console.WriteLine(showSubSections[localCount]);*/ } )">
                                 <NavLink class="p-1 nav-link" href=@($"/{type}/{sectionName}/all")>
                                     &nbsp&nbsp<span class="oi text-nowrap text-truncate @(showSubSections![localCount] == true ? "oi-caret-bottom" : "oi-caret-right text-muted")"></span><span class="sectionText text-muted"> @sectionName</span>
                                 </NavLink>
@@ -97,7 +97,7 @@
                                 @* If the section is expanded, loop through the section groups for subSections *@
                                 @foreach (var contentHolder in sectionGroup)
                                 {
-                                    Console.WriteLine("subSection: " + @contentHolder.subSection + ". id assigned on initiation: " + @contentHolder.id);
+                                    //Console.WriteLine("subSection: " + @contentHolder.subSection + ". id assigned on initiation: " + @contentHolder.id);
                                     <div class="item-fader nav-item px-1 fade-in" id="fader">
                                         @*@(showSubSections[localCount] == true ? "" : "fade-out")*@
                                         <NavLink class="nav-link text-muted lastLink" href=@($"/{type}/{sectionName}/{contentHolder.subSection}")>

@@ -208,8 +208,8 @@ main {
 }*/
 
 @media (max-width: 559px) {
-    .top-row {
-        background-image: none;
+    .top-row-menu-open {
+        background-image: none !important;
         background-color: #0d385b !important;
     }
 

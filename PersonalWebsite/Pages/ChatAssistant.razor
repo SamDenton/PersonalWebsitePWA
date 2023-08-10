@@ -240,7 +240,7 @@
 
             loading = false;
             StateHasChanged();
-            Console.WriteLine(outputText);
+            //Console.WriteLine(outputText);
         }
         catch (Exception ex)
         {
@@ -262,7 +262,7 @@
             }
 
             string conversationString = conversationStringBuilder.ToString();
-            Console.WriteLine(conversationString);
+            //Console.WriteLine(conversationString);
             preConversationText.Add(new Message { role = "user", content = conversationString });
             var requestBody = new
             {
@@ -285,7 +285,7 @@
             currentConversation.Add(new Message { role = "assistant", content = outputText });
 
             StateHasChanged();
-            Console.WriteLine(outputText);
+            //Console.WriteLine(outputText);
         }
         catch (Exception ex)
         {
@@ -307,7 +307,7 @@
             }
 
             string conversationString = conversationStringBuilder.ToString();
-            Console.WriteLine(conversationString);
+            //Console.WriteLine(conversationString);
             summaryConversationText.Add(new Message { role = "user", content = conversationString });
             var requestBody = new
             {
@@ -330,7 +330,7 @@
             //summaryConversationText.Add(new Message { role = "assistant", content = outputText });
 
             //StateHasChanged();
-            Console.WriteLine(outputText);
+            //Console.WriteLine(outputText);
             return outputText;
         }
         catch (Exception ex)

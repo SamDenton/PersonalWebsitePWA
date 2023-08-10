@@ -27,8 +27,8 @@
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 0; /* or top: 0; for overline */
-    height: 3px;
+    bottom: -5px;
+    height: 5px;
     background-color: #0d385b;
 }
 

@@ -26,13 +26,13 @@ namespace PersonalWebsite.Store.Effects
         [EffectMethod]
         public async Task HandleLoadContentsFromRepoAction(LoadContentsFromRepoAction action, IDispatcher dispatcher)
         {
-            _logger.LogInformation("Loading contents from repo...");
+            //_logger.LogInformation("Loading contents from repo...");
 
             try
             {
                 var response = await _httpClient.GetAsync("https://samdenton.tech/GithubGetAll-proxy.php");
                 var content = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("contents from repo..." + content);
+                //_logger.LogInformation("contents from repo..." + content);
                 //var bom = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
                 //if (content.StartsWith(bom))
                 //{
@@ -63,7 +63,7 @@ namespace PersonalWebsite.Store.Effects
         [EffectMethod]
         public async Task HandleFetchFileContentsAction(FetchFileContentsAction action, IDispatcher dispatcher)
         {
-            Console.WriteLine($"Fetching file content: {action.FileNameWithoutSuffix}...");
+            //Console.WriteLine($"Fetching file content: {action.FileNameWithoutSuffix}...");
 
             try
             {
@@ -98,7 +98,7 @@ namespace PersonalWebsite.Store.Effects
             //try
             //{
                 var filename = action.Page + action.Section;
-				Console.WriteLine("PUT'ing: " + filename);
+				//Console.WriteLine("PUT'ing: " + filename);
 				var jsonString = JsonConvert.SerializeObject(action.ContentHolders);
 				var Sha = action.ShaDictionary[filename];
 

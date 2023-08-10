@@ -13,7 +13,7 @@ function initNavbar() {
     var content = document.querySelector('.content');
     var main = document.querySelector('.topBlock');
     var mq = window.matchMedia('(max-width: 10000px)');
-
+    var topRow = document.querySelector('.top-row');
     // Set initial state based on screen size
     //if (mq.matches) {
     //    navbar.classList.add('navHider');
@@ -36,6 +36,7 @@ function initNavbar() {
             content.classList.remove('contentHider');
             main.classList.remove('main-Nav-Open');
             main.classList.add('main-Nav-Closed');
+            topRow.classList.remove("top-row-menu-open")
         } else {
             navbar.classList.remove('sidebarController-start');
             navbar.classList.remove('navHider');
@@ -46,6 +47,7 @@ function initNavbar() {
             content.classList.add('contentHider');
             main.classList.add('main-Nav-Open');
             main.classList.remove('main-Nav-Closed');
+            topRow.classList.add("top-row-menu-open")
         }
         triggerRecalculateSizes();
     });

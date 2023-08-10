@@ -608,7 +608,7 @@
     @* Initialize page.  Using Async initialization as I want to load content from API before rendering *@
     protected override async Task OnInitializedAsync()
     {
-        Console.WriteLine("mainContent.razor initialised");
+        //Console.WriteLine("mainContent.razor initialised");
         //try
         //{
             @* Call method to make GET request *@
@@ -663,7 +663,7 @@
             return;
         }
 
-        Console.WriteLine("Moving by" + currentIndex * cardWidth);
+        //Console.WriteLine("Moving by" + currentIndex * cardWidth);
         myStyle = $"transform: translateX({currentIndex * -cardWidth}px); {transitionStyle}";
     }
 
@@ -695,14 +695,14 @@
     [JSInvokable("RecalculateSizes")]
     public async Task RecalculateSizes()
     {
-        Console.WriteLine(cardWidth + ": before");
+        //Console.WriteLine(cardWidth + ": before");
         currentIndex = 0;
         myStyle = $"transform: translateX(0px);";
         StateHasChanged();
         await Task.Delay(500);
         cardWidth = await JSRuntime.InvokeAsync<double>("carouselHelper.getCardWidth");
         visibleCards = await JSRuntime.InvokeAsync<int>("carouselHelper.getVisibleCards");
-        Console.WriteLine(cardWidth + ": after");
+        //Console.WriteLine(cardWidth + ": after");
     }
 
     public void Dispose()
