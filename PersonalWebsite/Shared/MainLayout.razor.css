@@ -207,8 +207,9 @@ main {
     }
 }*/
 
-@media (max-width: 520px) {
+@media (max-width: 559px) {
     .top-row {
+        background-image: none;
         background-color: #0d385b !important;
     }
 
