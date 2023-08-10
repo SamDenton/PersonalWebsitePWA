@@ -109,6 +109,7 @@
                 <div class="row">
                     <div class="col-12 text-center">
                         <p>This is a personal site for projects. A space for me to learn and develop skills, as well as display my credentials.</p>
+                        <p>If the sites does not load within a few seconds, your firewall or policy is blocking PWA installation or Service Workers</p>
                     </div>
                 </div>
             </div>
@@ -124,8 +125,8 @@
     <script src="_content/TinyMCE.Blazor/tinymce-blazor.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
     <script src="navbar.js"></script>
-    <script src="customRefresh.js"></script>
     <script src="carouselHelper.js"></script>
+    <script src="customRefresh.js"></script>
     <!--I have disabled the service worker for now to try to improve caching behaviour, but if load times are a lot worse, I will have to look to implement database led updates.-->
     <!--Re-enabled, but attempting to only cache static core files that should never need updating-->
     <script>navigator.serviceWorker.register('/service-worker.js');</script>

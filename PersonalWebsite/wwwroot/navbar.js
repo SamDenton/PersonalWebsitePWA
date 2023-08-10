@@ -1,4 +1,13 @@
-﻿function initNavbar() {
+﻿if ('serviceWorker' in navigator) {
+    console.log('Service Workers supported by browser');
+} else {
+    // Service Workers are NOT supported
+    alert('This app might not work properly in your environment due to restrictions. Please contact your IT department.');
+}
+
+
+
+function initNavbar() {
     var navbar = document.querySelector('.sidebarController');
     var icon = document.querySelector('.icon');
     var content = document.querySelector('.content');
@@ -38,6 +47,7 @@
             main.classList.add('main-Nav-Open');
             main.classList.remove('main-Nav-Closed');
         }
+        triggerRecalculateSizes();
     });
 
     // Listen for screen size changes

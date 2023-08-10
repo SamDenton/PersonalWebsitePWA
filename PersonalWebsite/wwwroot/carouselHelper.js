@@ -14,3 +14,25 @@ window.carouselHelper = {
         });
     }
 }
+
+let componentInstance = null;
+
+function registerComponentInstance(instance) {
+    componentInstance = instance;
+}
+
+function triggerRecalculateSizes() {
+    if (componentInstance) {
+        componentInstance.invokeMethodAsync('RecalculateSizes')
+            .then(result => {
+                console.log('Recalculation triggered');
+            }).catch(err => {
+                console.error('Error triggering recalculation:', err);
+            });
+    }
+}
+
+function unregisterComponentInstance() {
+    componentInstance = null;
+}
+

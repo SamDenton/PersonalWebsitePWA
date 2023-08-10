@@ -76,7 +76,7 @@
                             <div class="cards-wrapper" style="@myStyle">
                                 @foreach (var card in DisplayCards)
                                 {
-                                    <div class="col-12 col-sm-6 col-md-4 card-column">
+                                    <div class="col-12 col-sm-12 col-md-6 col-lg-4 col-xl-3 card-column">
                                         <div class="card-container">
                                             <div class="card" @onclick="() => { Navigation.NavigateTo(card.Link); }">
                                                 <div class="card-body">
@@ -663,6 +663,7 @@
             return;
         }
 
+        Console.WriteLine("Moving by" + currentIndex * cardWidth);
         myStyle = $"transform: translateX({currentIndex * -cardWidth}px); {transitionStyle}";
     }
 
@@ -686,15 +687,30 @@
             cardWidth = await JSRuntime.InvokeAsync<double>("carouselHelper.getCardWidth");
             visibleCards = await JSRuntime.InvokeAsync<int>("carouselHelper.getVisibleCards");
             await JSRuntime.InvokeVoidAsync("carouselHelper.addResizeListener", DotNetObjectReference.Create(this));
+            await JSRuntime.InvokeVoidAsync("registerComponentInstance", DotNetObjectReference.Create(this));
+
         }
     }
 
-    [JSInvokable]
+    [JSInvokable("RecalculateSizes")]
     public async Task RecalculateSizes()
     {
+        Console.WriteLine(cardWidth + ": before");
+        currentIndex = 0;
+        myStyle = $"transform: translateX(0px);";
+        StateHasChanged();
+        await Task.Delay(500);
         cardWidth = await JSRuntime.InvokeAsync<double>("carouselHelper.getCardWidth");
         visibleCards = await JSRuntime.InvokeAsync<int>("carouselHelper.getVisibleCards");
+        Console.WriteLine(cardWidth + ": after");
     }
+
+    public void Dispose()
+    {
+        JSRuntime.InvokeVoidAsync("carouselHelper.unregisterComponentInstance");
+        contentState.StateChanged -= ContentStateChanged;
+    }
+
 
     public class Card
     {
@@ -1517,11 +1533,6 @@
             throw new Exception("Error deleting file: " + response.ReasonPhrase);
         }
     }*@
-
-    public void Dispose()
-    {
-        contentState.StateChanged -= ContentStateChanged; // Clean up to avoid memory leaks
-    }
 
     @* Class for creating custom objects from JSON string *@
 @*    public class contentHolder

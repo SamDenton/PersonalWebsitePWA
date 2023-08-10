@@ -200,14 +200,14 @@ main {
             overflow: hidden;
             text-overflow: ellipsis;
         }
-
-@media (max-width: 500px) {
+/*
+@media (max-width: 600px) {
     .sidebarController-max {
         width: 50vw !important;
     }
-}
+}*/
 
-@media (max-width: 420px) {
+@media (max-width: 520px) {
     .top-row {
         background-color: #0d385b !important;
     }
