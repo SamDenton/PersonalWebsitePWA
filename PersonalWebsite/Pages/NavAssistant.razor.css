@@ -13,14 +13,15 @@
 .headers {
     font-size: 22px;
     font-weight: bold;
-    color: #9da3a9;
+    color: #f8f9fa;
     text-shadow: 2px 2px 4px #000000;
 }
 
 .queryBox {
     border: 2px hidden #0d385b;
+    border-radius: 5px 0px 0px 5px;
     background: #212529;
-    color: #9da3a9;
+    color: #f8f9fac4;
     margin-right: 2px;
     transition: all 0.3s ease;
     box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.3), 0px 5px 15px rgba(6, 28, 46, 0.2), 0px 7px 20px rgba(13, 56, 91, 0.1);
@@ -33,13 +34,23 @@
     }
 
 .search-container, .result-container, .output-container {
+    height: 100%;
+    position: relative;
     padding: 20px;
     border-radius: 5px;
     margin-bottom: 10px;
-    background-color: #1c242b;
-    border: 1px solid #0d385b;
-    color: #d3d3d3;
-    box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.3), 0px 5px 15px rgba(6, 28, 46, 0.2), 0px 7px 20px rgba(13, 56, 91, 0.1);
+    background-color: #212529;
+    border: 1px solid #c1c4c7;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    color: #f8f9fa;
+    box-shadow: 3px 4px 6px rgba(0, 0, 0, 0.5), 2px 3px 5px rgba(0, 0, 0, 0.8);
+    z-index: 10;
+}
+
+.search-container:hover, .result-container:hover, .output-container:hover {
+    transform: translate(-3px, -3px);
+    background-color: #32373c;
 }
 
 .input-group, .btn {
@@ -132,8 +143,9 @@ li.objectLinkWrapper {
 }
 
 button {
-    background-color: #212529;
-    color: #9da3a9;
+    border-radius: 0px 5px 5px 0px;
+    background-color: #0d385b;
+    color: #f8f9fa;
     border: none;
     transition: all 0.3s ease; /* Smoother transition for hover effect */
 }
@@ -142,6 +154,24 @@ button {
         background-color: #0d385b;
         color: #e0e0e0;
     }
+
+.card-container {
+    position: relative;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.card-outline {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: black;
+    border: 1px solid #c1c4c7;
+    border-radius: 5px;
+    z-index: 0;
+}
 
 .loaderContiner {
     margin-top: 50px;
