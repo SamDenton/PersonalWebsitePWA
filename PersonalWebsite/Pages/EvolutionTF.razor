@@ -1,0 +1,35 @@
+﻿@page "/EvolutionTF"
+@inject IJSRuntime JSRuntime
+
+
+<h3>EvolutionTF</h3>
+<div id="canvas-container"></div>
+
+@code {
+    private Stage stage = new Stage();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY);
+            await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
+
+        }
+    }
+
+    public class Stage
+    {
+        public float Width { get; set; } = 800;  // Example width
+        public float Height { get; set; } = 400;  // Example height
+        public float GroundY { get; set; } = 350;  // Y position of the ground in the canvas
+    }
+
+    private object agentProperties = new
+    {
+        numAgents = 1,
+        numLimbs = 2
+        // ... other properties as needed
+    };
+}
+

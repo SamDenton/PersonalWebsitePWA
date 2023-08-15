@@ -152,9 +152,11 @@ main {
     .nav-item ::deep a:hover .nav-link-title {
         opacity: 1;
     }*/
+
 .titleText {
     font-size: 1.25rem;
 }
+
 .nav-item {
     position: relative;
     border-radius: 0px;
@@ -195,7 +197,7 @@ main {
         border-radius: 0px;
        /* border-left: 5px solid #6c757d;*/
         box-shadow: none;
-        transform: translate(3px, 3px);
+        transform: translate(0px, 0px);
         transition: all 0.5s ease-out;
         background: linear-gradient(to right, #0d385b, #212529);
         width: 300px;
@@ -209,9 +211,9 @@ main {
             opacity: 1;
         }
 
-    .nav-item:not(a.active):hover {
-        border-left: 5px solid #6c757d;
-    }
+        .nav-item:hover:not(:has(a.active)) {
+            border-left: 5px solid #6c757d;
+        }
 
 .nav-link-title {
     white-space: nowrap;
