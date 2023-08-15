@@ -121,6 +121,9 @@
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.17.1/matter.min.js"></script>
     <script src="_content/Microsoft.Authentication.WebAssembly.Msal/AuthenticationService.js"></script>
     <script src="_content/TinyMCE.Blazor/tinymce-blazor.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
@@ -128,8 +131,6 @@
     <script src="carouselHelper.js"></script>
     <script src="customRefresh.js"></script>
     <script src="p5Sketch.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <!--I have disabled the service worker for now to try to improve caching behaviour, but if load times are a lot worse, I will have to look to implement database led updates.-->
     <!--Re-enabled, but attempting to only cache static core files that should never need updating-->
     <script>navigator.serviceWorker.register('/service-worker.js');</script>

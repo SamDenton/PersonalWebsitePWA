@@ -4,6 +4,7 @@
 
 <h3>EvolutionTF</h3>
 <div id="canvas-container"></div>
+<button @onclick="ResetSimulation">Reset</button>
 
 @code {
     private Stage stage = new Stage();
@@ -28,8 +29,13 @@
     private object agentProperties = new
     {
         numAgents = 1,
-        numLimbs = 2
+        numLimbs = 3
         // ... other properties as needed
     };
+
+    private async Task ResetSimulation()
+    {
+        await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
+    }
 }
 
