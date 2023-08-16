@@ -4,7 +4,8 @@
 <div id="canvas-container"></div>
 <p>Number of Agents</p>
 <select @bind="agentProperties.numAgents">
-    @for (int i = 1; i <= 10; i++)  
+    <option value="1">1</option>
+    @for (int i = 20; i <= 200; i+= 20)  
     {
         <option value="@i">@i</option>
     }
@@ -32,6 +33,13 @@
         <option value="@n">@n</option>
     }
 </select>
+<p>Round Length</p>
+<select @bind="stage.SimulationLength">
+    @for (int i = 500; i <= 5000; i += 100)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
 
 <button @onclick="ResetSimulation">Reset</button>
 
@@ -43,7 +51,7 @@
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction);
+            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength);
             await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
 
         }
@@ -56,11 +64,12 @@
         public float GroundY { get; set; } = 350;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
+        public int SimulationLength { get; set; } = 1000;  // Assuming it's tick-based and set to 1000 frames
     }
 
     public class AgentProperties
     {
-        public int numAgents { get; set; } = 2;
+        public int numAgents { get; set; } = 20;
         public int numLimbs { get; set; } = 5;
     }
 

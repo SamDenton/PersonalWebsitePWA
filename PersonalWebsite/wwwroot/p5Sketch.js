@@ -12,6 +12,13 @@ let Engine = Matter.Engine,
 let engine;
 let ground;
 let limbA, limbB, muscle;
+let delay;
+let categoryAgent = 0x0001;
+let categoryGround = 0x0002;
+let MAX_ADJUSTMENT = 1;
+
+let tickCount = 0;
+let simulationLength;
 
 let sketch = function (p) {
     let lastMuscleUpdate = 0;
@@ -58,6 +65,9 @@ let sketch = function (p) {
 
             // Update and render agents with offset
             for (let agent of agents) {
+                let inputs = agent.collectInputs();  // This function should gather and return all the required inputs for the neural network
+                agent.makeDecision(inputs);
+                // I should implement some logic to only renter the top 10% scoring agents to save computation
                 agent.render(p, offsetX);
             }
 
@@ -67,47 +77,36 @@ let sketch = function (p) {
                 }
                 lastMuscleUpdate = p.millis();
             }
-        }
-    };
 
-    p.keyPressed = function () {
-        if (p.keyCode === p.RIGHT_ARROW) {
-            // Apply a force to the current agent's Matter.js body
-            //let forceMagnitude = 0.01;
-            //Body.applyForce(agents[currentAgentIndex].centerBody, { x: agents[currentAgentIndex].centerBody.position.x, y: agents[currentAgentIndex].centerBody.position.y }, { x: forceMagnitude, y: -forceMagnitude });
-            for (let muscle of agents[currentAgentIndex].muscles) {
-                // We target only the muscles, not the attachment constraints, by checking the stiffness
-                if (muscle.stiffness < 1 && muscle.length < muscle.originalLength * 1.7) {
-                    let adjustment = 5;
-                    muscle.length += adjustment;
-                }
+            // Run the Matter.JS engine
+            Engine.update(engine);
+
+            // Render NN for leading agent
+            leadingAgent.renderNN(p, canvasWidth - 500, (canvasHeight / 2) - 100);
+
+            // Logic to end the simulation after set number of frames
+            tickCount++;
+            if (tickCount >= simulationLength) {
+                endSimulation(p);
             }
-            // Move to the next agent, loop back to the first agent if at the end
-            currentAgentIndex = (currentAgentIndex + 1) % agents.length;
-        }
-        else if (p.keyCode === p.LEFT_ARROW) {
-            // Apply a force to the current agent's Matter.js body
-            //let forceMagnitude = 0.01;
-            //Body.applyForce(agents[currentAgentIndex].centerBody, { x: agents[currentAgentIndex].centerBody.position.x, y: agents[currentAgentIndex].centerBody.position.y }, { x: forceMagnitude, y: -forceMagnitude });
-            for (let muscle of agents[currentAgentIndex].muscles) {
-                // We target only the muscles, not the attachment constraints, by checking the stiffness
-                if (muscle.stiffness < 1 && muscle.length > muscle.originalLength * 0.8) {
-                    let adjustment = 5; 
-                    muscle.length -= adjustment;
-                }
-            }
-            // Move to the next agent, loop back to the first agent if at the end
-            currentAgentIndex = (currentAgentIndex + 1) % agents.length;
         }
     };
 };
 
-function initializeSketch(width, height, groundYPosition, gravityStrength, frictionStrength) {
+function initializeSketch(width, height, groundYPosition, gravityStrength, frictionStrength, simLength) {
     canvasWidth = width;
     canvasHeight = height;
     groundY = groundYPosition;
     GravityStrength = gravityStrength;
     FrictionStrength = frictionStrength;
+    simulationLength = simLength;
+
+    // If there are existing agents with models, dispose of them
+    for (let agent of agents) {
+        if (agent.brain) {
+            agent.brain.dispose();
+        }
+    }
 
     // If there's an existing p5 instance, remove it
     if (p5Instance) {
@@ -123,9 +122,9 @@ function initializeSketch(width, height, groundYPosition, gravityStrength, frict
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and exolving complexity based on randomness and fitness might work.
 function Agent(numLimbs) {
     this.numLimbs = numLimbs;
-    let categoryAgent = 0x0001;
-    let categoryGround = 0x0002;
-
+    let color1 = Math.floor(Math.random() * 256);
+    let color2 = Math.floor(Math.random() * 256);
+    let color3 = Math.floor(Math.random() * 256);
     this.centerBody = Bodies.circle(100, 300, 20, {
         friction: FrictionStrength,
         collisionFilter: {
@@ -136,6 +135,7 @@ function Agent(numLimbs) {
 
     this.limbs = [];
     this.muscles = [];
+    this.joints = [];
 
     let angleIncrement = 2 * Math.PI / numLimbs;
     let limbLength = 40;
@@ -144,13 +144,22 @@ function Agent(numLimbs) {
     let bodyRadius = bodyDiameter / 2;
     let distanceFromCenter = bodyRadius + limbLength / 2;   // half the diameter of centerBody + half the length of a limb
 
+    let nnConfig;
+
     for (let i = 0; i < numLimbs; i++) {
         // Calculate limb position
         let limbX = this.centerBody.position.x + distanceFromCenter * Math.cos(i * angleIncrement);
         let limbY = this.centerBody.position.y + distanceFromCenter * Math.sin(i * angleIncrement);
 
         // Create the limb with 90-degree rotation
-        let limb = Bodies.rectangle(limbX, limbY, limbWidth, limbLength, { angle: i * angleIncrement + Math.PI / 2 });
+        let limb = Bodies.rectangle(limbX, limbY, limbWidth, limbLength, {
+            angle: i * angleIncrement + Math.PI / 2,
+            friction: FrictionStrength,
+            collisionFilter: {
+                category: categoryAgent,
+                mask: categoryGround
+            }
+        });
         this.limbs.push(limb);
 
         // Calculate the attachment point
@@ -176,7 +185,7 @@ function Agent(numLimbs) {
             stiffness: 1,
             length: 0
         });
-        this.muscles.push(attachment);
+        this.joints.push(attachment);
 
         // Muscle constraint
         let muscle = Constraint.create({
@@ -191,8 +200,11 @@ function Agent(numLimbs) {
     }
 
     // Add the agent's bodies and constraints to the Matter.js world
-    World.add(engine.world, [this.centerBody, ...this.limbs, ...this.muscles]);
+    World.add(engine.world, [this.centerBody, ...this.limbs, ...this.muscles, ...this.joints]);
 
+    // Give the agent a brain!
+    this.nnConfig = nnConfig || new NeuralNetworkConfig(numLimbs); 
+    this.brain = createNeuralNetwork(this.nnConfig);
 
     this.getScore = function () {
         this.Score = Math.floor(this.centerBody.position.x / 10);
@@ -203,15 +215,14 @@ function Agent(numLimbs) {
         for (let muscle of this.muscles) {
             // We target only the muscles, not the attachment constraints, by checking the stiffness
             if (muscle.stiffness < 1 && muscle.length < offset) {
-                muscle.length *= 1.1;
+               // muscle.length *= 1.1;
             }
         }
     };
 
     this.render = function (p, offsetX) {
-        p.fill(0, 255, 0);
+        p.fill(color1, color2, color3);
         p.ellipse(this.centerBody.position.x + offsetX, this.centerBody.position.y, 40, 40);  // Render center body
-
         for (let limb of this.limbs) {
             p.push();
             p.translate(limb.position.x + offsetX, limb.position.y);
@@ -248,12 +259,15 @@ function Agent(numLimbs) {
 }
 
 function initializeAgents(agentProperties) {
+    delay = delay || 50;
     for (let agent of agents) {
         World.remove(engine.world, agent.centerBody);
     }
     agents = [];  // Reset the agents array
     for (let i = 0; i < agentProperties.numAgents; i++) {
-        agents.push(new Agent(agentProperties.numLimbs));
+        setTimeout(() => {
+            agents.push(new Agent(agentProperties.numLimbs));
+        }, i * delay);
     }
     offsetX = 0;
 }
@@ -267,14 +281,180 @@ function getLeadingAgent() {
     );
 }
 
+function endSimulation(p) {
+    // Here, you can save the scores of all agents, proceed to the selection phase, etc.
+    // If you want to visualize the end, you can also pause the sketch.
+    p.noLoop();
+    nextGeneration(p);
+}
+
+function nextGeneration(p) {
+    let leadingAgent = getLeadingAgent();
+    let topScore = leadingAgent.getScore();
+
+    // Selection, Crossover, Mutation
+    alert("Simulation finished, top agent score was: " + topScore);
+    // Reset and start new generation
+    tickCount = 0;
+    p.loop();  // Restart the p5 draw loop
+}
+
 function setupMatterEngine() {
-    engine = Engine.create();
+    engine = Engine.create({
+        positionIterations: 10,
+        velocityIterations: 10
+    });
     engine.world.gravity.y = GravityStrength;
-    ground = Bodies.rectangle(canvasWidth / 2, groundY + 10, canvasWidth * 1000, 20, { isStatic: true });
+    ground = Bodies.rectangle(canvasWidth / 2, groundY + 10, canvasWidth * 1000, 20, {
+        isStatic: true,
+        collisionFilter: {
+            category: categoryGround
+        }
+    });
     World.add(engine.world, [ground]);
-    Engine.run(engine);
+    //Engine.run(engine);
     //engine.enabled = false;
 }
+
+/*            Neural Network Functions                     */
+
+function NeuralNetworkConfig(numLimbs) {
+    console.log('Number of tensors:', tf.memory().numTensors);
+    this.inputNodes = numLimbs + 6; // Muscle lengths, agent x,y, agent velosity x,y, score, agent orientation
+    this.hiddenLayers = [{ nodes: 10, activation: 'relu' }, { nodes: 5, activation: 'relu' }];
+    this.outputNodes = numLimbs;
+    this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
+}
+
+function createNeuralNetwork(config) {
+    const model = tf.sequential();
+
+    // Input layer
+    model.add(tf.layers.dense({ units: config.hiddenLayers[0].nodes, activation: config.hiddenLayers[0].activation, inputShape: [config.inputNodes] }));
+
+    // Hidden layers
+    for (let i = 1; i < config.hiddenLayers.length; i++) {
+        model.add(tf.layers.dense({ units: config.hiddenLayers[i].nodes, activation: config.hiddenLayers[i].activation }));
+    }
+
+    // Output layer
+    model.add(tf.layers.dense({ units: config.outputNodes, activation: 'sigmoid' }));  // Sigmoid to get values between 0 and 1
+
+    return model;
+}
+
+function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
+    let layerGap = 25; // horizontal space between layers
+    let nodeGap = 15;   // vertical space between nodes
+
+    let inputLabels = [
+        ...Array(nnConfig.inputNodes - 6).fill(null).map((_, idx) => `Muscle ${idx + 1}`),
+        "Agent's X",
+        "Agent's Y",
+        "Velocity X",
+        "Velocity Y",
+        "Score",
+        "Agent's Orientation"
+    ];
+
+    let outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Muscle ${idx + 1}`);
+
+    // Loop through each layer
+    let x = offsetX;
+    for (let i = 0; i < nnConfig.hiddenLayers.length + 2; i++) { // +2 to account for input and output layers
+        let nodes = 0;
+        let labels = [];
+        if (i === 0) {
+            nodes = nnConfig.inputNodes;
+            labels = inputLabels;
+        } else if (i === nnConfig.hiddenLayers.length + 1) {
+            nodes = nnConfig.outputNodes;
+            labels = outputLabels;
+        } else {
+            nodes = nnConfig.hiddenLayers[i - 1].nodes;
+        }
+
+        let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
+        for (let j = 0; j < nodes; j++) {
+            let y = startY + j * nodeGap;
+            p.ellipse(x, y, 10, 10);
+
+            // Add labels to the side of input and output nodes
+            if (labels.length > 0) {
+                p.textSize(12);
+                if (i === 0) {
+                    p.text(labels[j], x - 70, y + 4);
+                } else if (i === nnConfig.hiddenLayers.length + 1) {
+                    p.text(labels[j], x + 15, y + 4);
+
+                    // Display the current muscle length as an indication
+                    if (agent) {
+                        let muscleLength = agent.muscles[j].length.toFixed(2); // *2 + 1 to get the actual muscle constraints
+                        p.text(`Length: ${muscleLength}`, x + 70, y + 4);
+                    }
+                }
+            }
+        }
+        x += layerGap;
+    }
+}
+
+
+Agent.prototype.makeDecision = function (inputs) {
+    return tf.tidy(() => {
+        const output = this.brain.predict(tf.tensor([inputs])).dataSync();
+        for (let i = 0; i < this.muscles.length; i++) {
+            // Constraints on moving muscles too far
+            let currentMuscle = this.muscles[i];
+            if (currentMuscle.length < currentMuscle.originalLength * 1.7 && currentMuscle.length > currentMuscle.originalLength * 0.8) {
+                let adjustment = output[i] * MAX_ADJUSTMENT;  // Scales the adjustment based on the output
+                this.muscles[i].length += adjustment;
+            }
+        }
+    });
+}
+
+Agent.prototype.collectInputs = function () {
+    let inputs = [];
+    // 1. Muscle lengths
+    for (let muscle of this.muscles) {
+
+        // Error alert
+        if (isNaN(muscle.length) && muscle.stiffness < 1) {
+            alert("Muscle length is NaN!");
+        }
+
+        if (muscle.stiffness < 1) {
+            inputs.push(muscle.length);
+        }
+    }
+
+    // 2. Agent's position (x,y)
+    inputs.push(this.centerBody.position.x);
+    inputs.push(this.centerBody.position.y);
+
+    // 3. Agent's velocity (x,y)
+    inputs.push(this.centerBody.velocity.x);
+    inputs.push(this.centerBody.velocity.y);
+
+    // 4. Score
+    inputs.push(this.getScore());
+
+    // 5. Agent's orientation
+    inputs.push(this.centerBody.angle);
+
+    return inputs;
+};
+
+Agent.prototype.updateMuscles = function () {
+    let inputs = this.collectInputs();
+    let outputs = this.makeDecision(inputs);
+};
+
+Agent.prototype.renderNN = function (p, offsetX, offsetY) {
+    renderNeuralNetwork(p, this.nnConfig, this, offsetX, offsetY);
+};
+
 
 //Not using this reset, I call initializeAgents from C# to reset
 window.resetSimulation = function () {
