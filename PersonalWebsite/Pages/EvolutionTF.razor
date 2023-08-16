@@ -1,19 +1,49 @@
 ﻿@page "/EvolutionTF"
 @inject IJSRuntime JSRuntime
 
-
-<h3>EvolutionTF</h3>
 <div id="canvas-container"></div>
+<p>Number of Agents</p>
+<select @bind="agentProperties.numAgents">
+    @for (int i = 1; i <= 10; i++)  
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Number of limbs per agent</p>
+<select @bind="agentProperties.numLimbs">
+    @for (int i = 1; i <= 10; i++) 
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Gravity Strength</p>
+<select @bind="stage.Gravity">
+    @for (double i = 0.4; i <= 5; i+=0.2)
+    {
+        double n = Math.Round(i, 2);
+        <option value="@n">@n</option>
+    }
+</select>
+<p>Friction Strength</p>
+<select @bind="stage.Friction">
+    @for (double i = 0; i <= 5; i += 0.2)
+    {
+        double n = Math.Round(i, 2);
+        <option value="@n">@n</option>
+    }
+</select>
+
 <button @onclick="ResetSimulation">Reset</button>
 
 @code {
     private Stage stage = new Stage();
+    private AgentProperties agentProperties = new AgentProperties();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY);
+            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction);
             await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
 
         }
@@ -21,20 +51,22 @@
 
     public class Stage
     {
-        public float Width { get; set; } = 800;  // Example width
-        public float Height { get; set; } = 400;  // Example height
+        public float Width { get; set; } = 800;  // Cnavas width
+        public float Height { get; set; } = 400;  // Canvas height
         public float GroundY { get; set; } = 350;  // Y position of the ground in the canvas
+        public float Gravity { get; set; } = 1;
+        public double Friction { get; set; } = 0.4;
     }
 
-    private object agentProperties = new
+    public class AgentProperties
     {
-        numAgents = 1,
-        numLimbs = 3
-        // ... other properties as needed
-    };
+        public int numAgents { get; set; } = 2;
+        public int numLimbs { get; set; } = 5;
+    }
 
     private async Task ResetSimulation()
     {
+        await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction);
         await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
     }
 }
