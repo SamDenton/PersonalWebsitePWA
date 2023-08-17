@@ -1,4 +1,4 @@
-let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength;
+let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, renderedAgents, simulationSpeed, popSize, topPerformerNo;
 let currentAgentIndex = 0;
 let agents = [];
 let offsetX = 0;
@@ -9,6 +9,7 @@ let Engine = Matter.Engine,
     Body = Matter.Body,
     Constraint = Matter.Constraint;
 
+let shouldUpdatePhysics = true;
 let engine;
 let ground;
 let limbA, limbB, muscle;
@@ -23,13 +24,63 @@ let simulationLength;
 let sketch = function (p) {
     let lastMuscleUpdate = 0;
     let muscleUpdateInterval = 1000; // Update every 100 ms
+
+    let fixedTimeStep = 1000 / simulationSpeed; // 60 updates per second for physics
+    let accumulator = 0;
+    let lastTime = 0;
+
     p.setup = function () {
         p.createCanvas(canvasWidth, canvasHeight);
         setupMatterEngine(); // Initialize the Matter.js engine
+        lastTime = p.millis();
     };
 
     p.draw = function () {
+        if (!shouldUpdatePhysics) return;
         p.background(200);
+
+        let currentTime = p.millis();
+        let delta = currentTime - lastTime;
+        lastTime = currentTime;
+
+        accumulator += delta;
+
+        while (accumulator >= fixedTimeStep) {
+            updatePhysics();
+            accumulator -= fixedTimeStep;
+        }
+
+        renderScene(p);
+    };
+
+
+    function updatePhysics() {
+        let leadingAgent = getLeadingAgent();
+        if (leadingAgent) {
+            if (p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
+                for (let agent of agents) {
+                    agent.updateMuscles();
+                }
+                lastMuscleUpdate = p.millis();
+            }
+
+            for (let agent of agents) {
+                let inputs = agent.collectInputs();
+                agent.makeDecision(inputs);
+            }
+
+            // Run the Matter.JS engine
+            Engine.update(engine);
+
+            // Logic to end the simulation after set number of frames
+            tickCount++;
+            if (tickCount >= simulationLength) {
+                endSimulation(p);
+            }
+        }
+    }
+
+    function renderScene(p) {
 
         let leadingAgent = getLeadingAgent();
         if (leadingAgent) {
@@ -63,43 +114,35 @@ let sketch = function (p) {
             p.text(`Leading Agent Score: ${leadingAgentScore}`, 10, groundY + 30);  // Displaying the score just below the ground
 
 
-            // Update and render agents with offset
+            agents.sort((a, b) => b.getScore() - a.getScore());  // Sorts the agents in descending order based on score
+            let leadingAgents = agents.slice(0, renderedAgents);
             for (let agent of agents) {
-                let inputs = agent.collectInputs();  // This function should gather and return all the required inputs for the neural network
-                agent.makeDecision(inputs);
-                // I should implement some logic to only renter the top 10% scoring agents to save computation
-                agent.render(p, offsetX);
-            }
-
-            if (p.millis() - p.lastMuscleUpdate > muscleUpdateInterval) {
-                for (let agent of agents) {
-                    agent.updateMuscles();
+                if (leadingAgents.includes(agent)) {
+                    agent.render(p, offsetX);
                 }
-                lastMuscleUpdate = p.millis();
             }
 
-            // Run the Matter.JS engine
-            Engine.update(engine);
+            // Display frame rate
+            p.fill(255);  // White color for the text
+            p.textSize(18);  // Font size
+            p.text(`FPS: ${p.round(p.frameRate())}`, 10, 20);  // Displaying the frame rate at the top-left corner
 
             // Render NN for leading agent
             leadingAgent.renderNN(p, canvasWidth - 500, (canvasHeight / 2) - 100);
-
-            // Logic to end the simulation after set number of frames
-            tickCount++;
-            if (tickCount >= simulationLength) {
-                endSimulation(p);
-            }
         }
     };
 };
 
-function initializeSketch(width, height, groundYPosition, gravityStrength, frictionStrength, simLength) {
+function initializeSketch(width, height, groundYPosition, gravityStrength, frictionStrength, simLength, renderedAgentsNo, simSpeed, topPerformerNumber) {
     canvasWidth = width;
     canvasHeight = height;
     groundY = groundYPosition;
     GravityStrength = gravityStrength;
     FrictionStrength = frictionStrength;
     simulationLength = simLength;
+    renderedAgents = renderedAgentsNo;
+    simulationSpeed = simSpeed;
+    topPerformerNo = topPerformerNumber;
 
     // If there are existing agents with models, dispose of them
     for (let agent of agents) {
@@ -211,15 +254,6 @@ function Agent(numLimbs) {
         return this.Score;  // 1 point for every 10px
     };
 
-    this.updateMuscles = function () {
-        for (let muscle of this.muscles) {
-            // We target only the muscles, not the attachment constraints, by checking the stiffness
-            if (muscle.stiffness < 1 && muscle.length < offset) {
-               // muscle.length *= 1.1;
-            }
-        }
-    };
-
     this.render = function (p, offsetX) {
         p.fill(color1, color2, color3);
         p.ellipse(this.centerBody.position.x + offsetX, this.centerBody.position.y, 40, 40);  // Render center body
@@ -259,14 +293,16 @@ function Agent(numLimbs) {
 }
 
 function initializeAgents(agentProperties) {
+    popSize = agentProperties.numAgents;
+    limbsPerAgent = agentProperties.numLimbs;
     delay = delay || 50;
     for (let agent of agents) {
         World.remove(engine.world, agent.centerBody);
     }
     agents = [];  // Reset the agents array
-    for (let i = 0; i < agentProperties.numAgents; i++) {
+    for (let i = 0; i < popSize; i++) {
         setTimeout(() => {
-            agents.push(new Agent(agentProperties.numLimbs));
+            agents.push(new Agent(limbsPerAgent));
         }, i * delay);
     }
     offsetX = 0;
@@ -282,21 +318,9 @@ function getLeadingAgent() {
 }
 
 function endSimulation(p) {
-    // Here, you can save the scores of all agents, proceed to the selection phase, etc.
-    // If you want to visualize the end, you can also pause the sketch.
+    shouldUpdatePhysics = false;
     p.noLoop();
     nextGeneration(p);
-}
-
-function nextGeneration(p) {
-    let leadingAgent = getLeadingAgent();
-    let topScore = leadingAgent.getScore();
-
-    // Selection, Crossover, Mutation
-    alert("Simulation finished, top agent score was: " + topScore);
-    // Reset and start new generation
-    tickCount = 0;
-    p.loop();  // Restart the p5 draw loop
 }
 
 function setupMatterEngine() {
@@ -319,21 +343,22 @@ function setupMatterEngine() {
 /*            Neural Network Functions                     */
 
 function NeuralNetworkConfig(numLimbs) {
-    console.log('Number of tensors:', tf.memory().numTensors);
     this.inputNodes = numLimbs + 6; // Muscle lengths, agent x,y, agent velosity x,y, score, agent orientation
     this.hiddenLayers = [{ nodes: 10, activation: 'relu' }, { nodes: 5, activation: 'relu' }];
     this.outputNodes = numLimbs;
     this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
+    // console.log('Number of tensors:', tf.memory().numTensors);
 }
 
 function createNeuralNetwork(config) {
     const model = tf.sequential();
+    // console.log(model instanceof tf.Sequential);  // Should log "true"
 
     // Input layer
     model.add(tf.layers.dense({ units: config.hiddenLayers[0].nodes, activation: config.hiddenLayers[0].activation, inputShape: [config.inputNodes] }));
 
     // Hidden layers
-    for (let i = 1; i < config.hiddenLayers.length; i++) {
+    for (let i = 0; i < config.hiddenLayers.length; i++) {
         model.add(tf.layers.dense({ units: config.hiddenLayers[i].nodes, activation: config.hiddenLayers[i].activation }));
     }
 
@@ -342,6 +367,126 @@ function createNeuralNetwork(config) {
 
     return model;
 }
+
+async function nextGeneration(p) {
+    let newAgents = [];
+
+    // Keep top 10% agents without changes
+    for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
+        newAgents.push(agents[i]);
+    }
+
+    // Generate offspring
+    while (newAgents.length < popSize) {
+        let parent1 = selectAgent(agents);
+        let parent2 = selectAgent(agents);
+        let childBrain = await crossover(parent1, parent2);
+        // console.log('Child brain after crossover: ' + childBrain);
+        let childAgent = new Agent(limbsPerAgent);
+        childAgent.brain = childBrain;
+        mutate(childAgent, this.mutationRate);
+        // console.log('Child brain after mutations: ' + childAgent.brain);
+        newAgents.push(childAgent);
+    }
+
+    // Dispose old agents and set the new ones
+    agents.forEach(agent => {
+        if (!newAgents.includes(agent) && agent.brain) {
+            agent.brain.dispose();
+        }
+    });
+    agents = newAgents;
+    console.log('Restarting simulation with evolved agents!');
+    // Reset simulation
+    shouldUpdatePhysics = true;
+    tickCount = 0;
+    p.loop();
+}
+
+
+function selectAgent(agents) {
+    let totalFitness = agents.reduce((sum, agent) => sum + agent.getScore(), 0);
+    let threshold = Math.random() * totalFitness;
+    let sum = 0;
+    for (let agent of agents) {
+        sum += agent.getScore();
+        if (sum > threshold) {
+            return agent;
+        }
+    }
+    return agents[agents.length - 1];
+}
+
+async function crossover(agent1, agent2) {
+    let childBrain = await cloneModel(agent1.brain);
+
+    let agent1Weights = agent1.brain.getWeights();
+    let agent2Weights = agent2.brain.getWeights();
+    let newWeights = [];
+
+    for (let i = 0; i < agent1Weights.length; i++) {
+        let weight1 = agent1Weights[i];
+        let weight2 = agent2Weights[i];
+        let shape = weight1.shape;
+        let values1 = weight1.dataSync();
+        let values2 = weight2.dataSync();
+        let newValues = [];
+
+        for (let j = 0; j < values1.length; j++) {
+            if (Math.random() < 0.5) {
+                newValues[j] = values1[j];
+            } else {
+                newValues[j] = values2[j];
+            }
+        }
+
+        let newWeight = tf.tensor(newValues, shape);
+        newWeights.push(newWeight);
+    }
+
+    // Log shapes
+    // console.log("New Weights Shapes:", newWeights.map(w => w.shape));
+
+    childBrain.setWeights(newWeights);
+
+    return childBrain;
+}
+
+
+
+function mutate(agent, mutationRate) {
+    function mutateValues(values) {
+        for (let i = 0; i < values.length; i++) {
+            if (Math.random() < mutationRate) {
+                let adjustment = (Math.random() - 0.5) * 0.1;  // Adjust by max +/- 0.05
+                values[i] += adjustment;
+            }
+        }
+    }
+    // console.log('Child brain after mutation' + agent.brain)
+    let weights = agent.brain.getWeights();
+    weights.forEach(w => {
+        let values = w.arraySync();
+        mutateValues(values);
+        w.assign(tf.tensor(values));
+    });
+}
+
+async function cloneModel(model) {
+    const modelName = 'temp-model';
+
+    // Save the model to indexedDB
+    await model.save(`indexeddb://${modelName}`);
+
+    // Load the model back from indexedDB
+    const clonedModel = await tf.loadLayersModel(`indexeddb://${modelName}`);
+
+    // Clean up by removing the model from indexedDB
+    await tf.io.removeModel(`indexeddb://${modelName}`);
+
+    return clonedModel;
+}
+
 
 function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
     let layerGap = 25; // horizontal space between layers
@@ -448,21 +593,10 @@ Agent.prototype.collectInputs = function () {
 
 Agent.prototype.updateMuscles = function () {
     let inputs = this.collectInputs();
-    let outputs = this.makeDecision(inputs);
+    this.makeDecision(inputs);
+    //let outputs = this.makeDecision(inputs);
 };
 
 Agent.prototype.renderNN = function (p, offsetX, offsetY) {
     renderNeuralNetwork(p, this.nnConfig, this, offsetX, offsetY);
 };
-
-
-//Not using this reset, I call initializeAgents from C# to reset
-window.resetSimulation = function () {
-    // Remove all existing agents from Matter world
-    for (let agent of agents) {
-        World.remove(engine.world, agent.centerBody);
-    }
-
-    // Reinitialize agents
-    initializeAgents({ numAgents: 3, numLimbs: 2 }); // This is just a placeholder. You'd call this with actual properties from C#.
-}
