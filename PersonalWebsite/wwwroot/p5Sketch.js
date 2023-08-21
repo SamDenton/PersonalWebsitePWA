@@ -28,6 +28,7 @@ let sketch = function (p) {
     let fixedTimeStep = 1000 / simulationSpeed; // 60 updates per second for physics
     let accumulator = 0;
     let lastTime = 0;
+    let leadingAgent = getLeadingAgent();
 
     p.setup = function () {
         p.createCanvas(canvasWidth, canvasHeight);
@@ -55,18 +56,12 @@ let sketch = function (p) {
 
 
     function updatePhysics() {
-        let leadingAgent = getLeadingAgent();
         if (leadingAgent) {
             if (p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
                 for (let agent of agents) {
                     agent.updateMuscles();
                 }
                 lastMuscleUpdate = p.millis();
-            }
-
-            for (let agent of agents) {
-                let inputs = agent.collectInputs();
-                agent.makeDecision(inputs);
             }
 
             // Run the Matter.JS engine
@@ -81,8 +76,6 @@ let sketch = function (p) {
     }
 
     function renderScene(p) {
-
-        let leadingAgent = getLeadingAgent();
         if (leadingAgent) {
             offsetX = p.width / 4 - leadingAgent.centerBody.position.x;  // Center the leading agent on the canvas
 
@@ -156,7 +149,7 @@ function initializeSketch(width, height, groundYPosition, gravityStrength, frict
         p5Instance.remove();
         p5Instance = null;
     }
-
+    console.log('Number of tensors at start of sim:', tf.memory().numTensors, 'Tensor Mem at start of sim', tf.memory().numBytes);
     // Create a new p5 instance and assign it to the global reference
     p5Instance = new p5(sketch, 'canvas-container');
 }
@@ -347,7 +340,6 @@ function NeuralNetworkConfig(numLimbs) {
     this.hiddenLayers = [{ nodes: 10, activation: 'relu' }, { nodes: 5, activation: 'relu' }];
     this.outputNodes = numLimbs;
     this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
-    // console.log('Number of tensors:', tf.memory().numTensors);
 }
 
 function createNeuralNetwork(config) {
@@ -371,20 +363,25 @@ function createNeuralNetwork(config) {
 async function nextGeneration(p) {
     let newAgents = [];
 
-    // Keep top 10% agents without changes
-    for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
+    let topPerformersCount = Math.round(topPerformerNo * popSize);
+    topPerformersCount = Math.max(topPerformersCount, 2); // Ensure at least 2 top performers are selected
+
+    for (let i = 0; i < topPerformersCount; i++) {
         newAgents.push(agents[i]);
     }
-
+    console.log('Number of tensors before generating offspring:', tf.memory().numTensors, 'Tensor Mem before generating offspring', tf.memory().numBytes);
     // Generate offspring
     while (newAgents.length < popSize) {
         let parent1 = selectAgent(agents);
         let parent2 = selectAgent(agents);
         let childBrain = await crossover(parent1, parent2);
+        console.log('Number of tensors after crossover and clone:', tf.memory().numTensors, 'Tensor Mem after crossover and clone', tf.memory().numBytes);
+        childBrain = mutate(childBrain, this.mutationRate);
+        console.log('Number of tensors after mutate:', tf.memory().numTensors, 'Tensor Mem after mutate:', tf.memory().numBytes);
         // console.log('Child brain after crossover: ' + childBrain);
         let childAgent = new Agent(limbsPerAgent);
+        console.log('Number of tensors after creating new child:', tf.memory().numTensors, 'Tensor Mem after creating new child:', tf.memory().numBytes);
         childAgent.brain = childBrain;
-        mutate(childAgent, this.mutationRate);
         // console.log('Child brain after mutations: ' + childAgent.brain);
         newAgents.push(childAgent);
     }
@@ -395,8 +392,10 @@ async function nextGeneration(p) {
             agent.brain.dispose();
         }
     });
+
     agents = newAgents;
     console.log('Restarting simulation with evolved agents!');
+    console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
     // Reset simulation
     shouldUpdatePhysics = true;
     tickCount = 0;
@@ -418,71 +417,89 @@ function selectAgent(agents) {
 }
 
 async function crossover(agent1, agent2) {
-    let childBrain = await cloneModel(agent1.brain);
+    // let childBrain = await cloneModel(agent1.brain, agent1.nnConfig);
+    let childBrain = await createNeuralNetwork(agent1.nnConfig);
+    let newWeights = tf.tidy(() => {
+        let agent1Weights = agent1.brain.getWeights();
+        let agent2Weights = agent2.brain.getWeights();
+        let newWeightList = [];
+        for (let i = 0; i < agent1Weights.length; i++) {
 
-    let agent1Weights = agent1.brain.getWeights();
-    let agent2Weights = agent2.brain.getWeights();
-    let newWeights = [];
-
-    for (let i = 0; i < agent1Weights.length; i++) {
-        let weight1 = agent1Weights[i];
-        let weight2 = agent2Weights[i];
-        let shape = weight1.shape;
-        let values1 = weight1.dataSync();
-        let values2 = weight2.dataSync();
-        let newValues = [];
-
-        for (let j = 0; j < values1.length; j++) {
-            if (Math.random() < 0.5) {
-                newValues[j] = values1[j];
-            } else {
-                newValues[j] = values2[j];
+            let weight1 = agent1Weights[i];
+            let weight2 = agent2Weights[i];
+            let shape = weight1.shape;
+            let values1 = weight1.dataSync();
+            let values2 = weight2.dataSync();
+            let newValues = [];
+            for (let j = 0; j < values1.length; j++) {
+                if (Math.random() < 0.5) {
+                    newValues[j] = values1[j];
+                } else {
+                    newValues[j] = values2[j];
+                }
             }
+            let newWeight = tf.tensor(newValues, shape);
+            newWeightList.push(newWeight);
         }
-
-        let newWeight = tf.tensor(newValues, shape);
-        newWeights.push(newWeight);
-    }
-
-    // Log shapes
-    // console.log("New Weights Shapes:", newWeights.map(w => w.shape));
-
+        return newWeightList;
+    });
+    // let oldWeights = childBrain.getWeights();
     childBrain.setWeights(newWeights);
-
+    // oldWeights.forEach(tensor => tensor.dispose());
+    newWeights.forEach(weight => weight.dispose()); // Dispose of these tensors manually
     return childBrain;
 }
 
-
-
-function mutate(agent, mutationRate) {
-    function mutateValues(values) {
-        for (let i = 0; i < values.length; i++) {
-            if (Math.random() < mutationRate) {
-                let adjustment = (Math.random() - 0.5) * 0.1;  // Adjust by max +/- 0.05
-                values[i] += adjustment;
+function mutate(childBrain, mutationRate) {
+    console.log('Number of tensors 1:', tf.memory().numTensors);
+    tf.tidy(() => {
+        function mutateValues(values) {
+            for (let i = 0; i < values.length; i++) {
+                if (Math.random() < mutationRate) {
+                    let adjustment = (Math.random() - 0.5) * 0.1;  // Adjust by max +/- 0.05
+                    values[i] += adjustment;
+                }
             }
         }
-    }
-    // console.log('Child brain after mutation' + agent.brain)
-    let weights = agent.brain.getWeights();
-    weights.forEach(w => {
-        let values = w.arraySync();
-        mutateValues(values);
-        w.assign(tf.tensor(values));
+        console.log('Number of tensors 2:', tf.memory().numTensors);
+        let originalWeights = childBrain.getWeights();
+        console.log('Number of tensors 3:', tf.memory().numTensors);
+        let mutatedWeights = originalWeights.map(w => {
+            let values = w.arraySync();
+            mutateValues(values);
+            return tf.tensor(values);
+        });
+        console.log('Number of tensors 4:', tf.memory().numTensors);
+        childBrain.setWeights(mutatedWeights);
+        console.log('Number of tensors 5:', tf.memory().numTensors);
+        // Now that mutatedWeights have been set to the agent's brain, we can dispose of them
+        originalWeights.forEach(w => w.dispose());
+        mutatedWeights.forEach(w => w.dispose());
     });
+    console.log('Number of tensors 6:', tf.memory().numTensors);
+    return childBrain; // Return the mutated childBrain
 }
 
-async function cloneModel(model) {
-    const modelName = 'temp-model';
 
-    // Save the model to indexedDB
-    await model.save(`indexeddb://${modelName}`);
+async function cloneModel(model, config) {
+    // Create a new model with the same architecture
+    const clonedModel = createNeuralNetwork(config);
 
-    // Load the model back from indexedDB
-    const clonedModel = await tf.loadLayersModel(`indexeddb://${modelName}`);
+    // Deep copy the weights of the original model to the cloned model
+    const originalWeights = model.getWeights();
+    const weightCopies = originalWeights.map(weight => weight.clone());
 
-    // Clean up by removing the model from indexedDB
-    await tf.io.removeModel(`indexeddb://${modelName}`);
+    const oldWeights = clonedModel.getWeights();
+
+    // Set the cloned weights to the clonedModel
+    clonedModel.setWeights(weightCopies);
+
+    // Print out the weights of the clonedModel for verification
+    console.log(clonedModel.getWeights());
+
+    // Dispose of the cloned weights to free up memory
+    oldWeights.forEach(tensor => tensor.dispose());
+    weightCopies.forEach(weight => weight.dispose());
 
     return clonedModel;
 }
@@ -499,7 +516,7 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
         "Velocity X",
         "Velocity Y",
         "Score",
-        "Agent's Orientation"
+        "Orientation"
     ];
 
     let outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Muscle ${idx + 1}`);
@@ -534,7 +551,7 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
 
                     // Display the current muscle length as an indication
                     if (agent) {
-                        let muscleLength = agent.muscles[j].length.toFixed(2); // *2 + 1 to get the actual muscle constraints
+                        let muscleLength = agent.muscles[j].length.toFixed(2);
                         p.text(`Length: ${muscleLength}`, x + 70, y + 4);
                     }
                 }
@@ -543,7 +560,6 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
         x += layerGap;
     }
 }
-
 
 Agent.prototype.makeDecision = function (inputs) {
     return tf.tidy(() => {
@@ -594,7 +610,6 @@ Agent.prototype.collectInputs = function () {
 Agent.prototype.updateMuscles = function () {
     let inputs = this.collectInputs();
     this.makeDecision(inputs);
-    //let outputs = this.makeDecision(inputs);
 };
 
 Agent.prototype.renderNN = function (p, offsetX, offsetY) {

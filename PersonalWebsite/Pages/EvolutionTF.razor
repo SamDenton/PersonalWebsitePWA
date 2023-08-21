@@ -35,6 +35,7 @@
 </select>
 <p>Round Length</p>
 <select @bind="stage.SimulationLength">
+    <option value="100">100</option>
     @for (int i = 500; i <= 5000; i += 100)
     {
         <option value="@i">@i</option>
@@ -72,20 +73,20 @@
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed);
-            await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
+            await Task.Delay(500);
+            await ResetSimulation();
 
         }
     }
 
     public class Stage
     {
-        public float Width { get; set; } = 800;  // Cnavas width
+        public float Width { get; set; } = 800;  // Canvas width
         public float Height { get; set; } = 400;  // Canvas height
         public float GroundY { get; set; } = 350;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 500;  // Assuming it's tick-based and set to 1000 frames
+        public int SimulationLength { get; set; } = 100;  // Assuming it's tick-based and set to 1000 frames
         public int renderedAgents { get; set; } = 5;
         public int simSpeed { get; set; } = 6;
         public double topPerformerNo { get; set; } = 20;
@@ -99,7 +100,7 @@
 
     private async Task ResetSimulation()
     {
-        await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed, stage.topPerformerNo/100);
+        await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed, stage.topPerformerNo / 100);
         await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
     }
 }
