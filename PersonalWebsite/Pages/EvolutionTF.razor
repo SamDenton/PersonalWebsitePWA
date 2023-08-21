@@ -73,9 +73,9 @@
     {
         if (firstRender)
         {
-            await Task.Delay(500);
-            await ResetSimulation();
-
+            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed, stage.topPerformerNo / 100);
+            //await Task.Delay(500);
+            await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
         }
     }
 
@@ -86,7 +86,7 @@
         public float GroundY { get; set; } = 350;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 100;  // Assuming it's tick-based and set to 1000 frames
+        public int SimulationLength { get; set; } = 100;  
         public int renderedAgents { get; set; } = 5;
         public int simSpeed { get; set; } = 6;
         public double topPerformerNo { get; set; } = 20;
