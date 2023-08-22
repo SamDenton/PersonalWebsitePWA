@@ -3,21 +3,15 @@ let currentAgentIndex = 0;
 let agents = [];
 let offsetX = 0;
 let p5Instance = null;
-let Engine = Matter.Engine,
-    World = Matter.World,
-    Bodies = Matter.Bodies,
-    Body = Matter.Body,
-    Constraint = Matter.Constraint;
-
-let shouldUpdatePhysics = true;
-let engine;
-let ground;
-let limbA, limbB, muscle;
 let delay;
-let categoryAgent = 0x0001;
-let categoryGround = 0x0002;
+
 let MAX_ADJUSTMENT = 1;
 
+/* Box2D vars */
+let world;
+
+
+let shouldUpdatePhysics = true;
 let genCount;
 let displayedFPS = 0;
 let displayedTimeLeft;
@@ -34,7 +28,9 @@ let sketch = function (p) {
     let lastMuscleUpdate = 0;
     let muscleUpdateInterval = 1000; // Update every 100 ms
 
-    let fixedTimeStep = 1000 / simulationSpeed; // 'simulationSpeed' updates per second for physics
+    let fixedTimeStep = 1.0 / simulationSpeed; // 'simulationSpeed' updates per second for physics
+    let velocityIterations = 8; // Typical value for Box2D
+    let positionIterations = 3; // Typical value for Box2D
     let accumulator = 0;
     let lastTime = 0;
     let leadingAgent;
@@ -42,7 +38,7 @@ let sketch = function (p) {
     p.setup = function () {
         p.frameRate(60);
         p.createCanvas(canvasWidth, canvasHeight);
-        setupMatterEngine(); // Initialize the Matter.js engine
+        setupBox2DWorld();
         lastTime = p.millis();
     };
 
@@ -75,8 +71,8 @@ let sketch = function (p) {
                 lastMuscleUpdate = p.millis();
             }
 
-            // Run the Matter.JS engine
-            Engine.update(engine);
+            // Step the Box2D world
+            box2dWorld.Step(fixedTimeStep, velocityIterations, positionIterations);
 
             // Logic to end the simulation after set number of frames
             tickCount++;
@@ -89,7 +85,7 @@ let sketch = function (p) {
     function renderScene(p) {
         leadingAgent = getLeadingAgent();
         if (leadingAgent) {
-            offsetX = p.width / 4 - leadingAgent.centerBody.position.x;  // Center the leading agent on the canvas
+            offsetX = p.width / 4 - leadingAgent.mainBody.position.x;  // Center the leading agent on the canvas
 
             // Scrolling background
             p.fill(100);  // Grey color for the rectangle
@@ -149,7 +145,7 @@ let sketch = function (p) {
     };
 };
 
-function initializeSketch(width, height, groundYPosition, gravityStrength, frictionStrength, simLength, renderedAgentsNo, simSpeed, topPerformerNumber) {
+function initializeSketchBox2D(width, height, groundYPosition, gravityStrength, frictionStrength, simLength, renderedAgentsNo, simSpeed, topPerformerNumber) {
     canvasWidth = width;
     canvasHeight = height;
     groundY = groundYPosition;
@@ -195,85 +191,37 @@ function calculateFPS(p) {
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and exolving complexity based on randomness and fitness might work.
 function Agent(numLimbs, existingBrain = null) {
     this.numLimbs = numLimbs;
-    let color1 = Math.floor(Math.random() * 256);
-    let color2 = Math.floor(Math.random() * 256);
-    let color3 = Math.floor(Math.random() * 256);
-    this.centerBody = Bodies.circle(100, 300, 20, {
-        friction: FrictionStrength,
-        collisionFilter: {
-            category: categoryAgent,
-            mask: categoryGround  // This means the agent will only collide with the ground
-        }
-    });  // Central body
+    let mainBodyRadius = 20;
+    let startingX = 100;
+    let startingY = 300;
+
+    this.mainBody = createMainBody(world, startingX, startingY, mainBodyRadius);
 
     this.limbs = [];
     this.muscles = [];
     this.joints = [];
 
-    let angleIncrement = 2 * Math.PI / numLimbs;
-    let limbLength = 40;
-    let limbWidth = 10;
-    let bodyDiameter = this.centerBody.bounds.max.x - this.centerBody.bounds.min.x;
-    let bodyRadius = bodyDiameter / 2;
-    let distanceFromCenter = bodyRadius + limbLength / 2;   // half the diameter of centerBody + half the length of a limb
+    const limbWidth = 10; // Example limb width
+    const limbLength = 40; // Example limb length
+    let smallestAngle = -(Math.PI / 4);
+    let largestAngle = Math.PI / 4;
 
     let nnConfig;
 
     for (let i = 0; i < numLimbs; i++) {
-        // Calculate limb position
-        let limbX = this.centerBody.position.x + distanceFromCenter * Math.cos(i * angleIncrement);
-        let limbY = this.centerBody.position.y + distanceFromCenter * Math.sin(i * angleIncrement);
+        let angle = (i * TWO_PI) / numLimbs;
+        let limbX = startingX + Math.cos(angle) * (mainBodyRadius + limbLength / 2);
+        let limbY = startingY + Math.sin(angle) * (mainBodyRadius + limbLength / 2);
 
-        // Create the limb with 90-degree rotation
-        let limb = Bodies.rectangle(limbX, limbY, limbWidth, limbLength, {
-            angle: i * angleIncrement + Math.PI / 2,
-            friction: FrictionStrength,
-            collisionFilter: {
-                category: categoryAgent,
-                mask: categoryGround
-            }
-        });
+        let limb = createLimb(world, limbX, limbY, limbWidth, limbLength);
         this.limbs.push(limb);
 
-        // Calculate the attachment point
-        let attachX = Math.cos(i * angleIncrement) * bodyRadius;
-        let attachY = Math.sin(i * angleIncrement) * bodyRadius;
+        let jointX = startingX + Math.cos(angle) * mainBodyRadius;
+        let jointY = startingY + Math.sin(angle) * mainBodyRadius;
 
-        // Calculate the muscle attachment point
-        let adjustedAngle = i * angleIncrement - (angleIncrement / 2);
-        let attachMuscleX = Math.cos(adjustedAngle) * bodyRadius;
-        let attachMuscleY = Math.sin(adjustedAngle) * bodyRadius;
-
-        // Calculate the muscle length
-        let dx = this.centerBody.position.x + attachX - (limb.position.x + limbWidth / 2 * Math.sin(i * angleIncrement));
-        let dy = this.centerBody.position.y + attachY - (limb.position.y - limbWidth / 2 * Math.cos(i * angleIncrement));
-        let originalLength = Math.sqrt(dx * dx + dy * dy);
-
-        // Create an attachment constraint between the central body's boundary and the limb's edge
-        let attachment = Constraint.create({
-            bodyA: this.centerBody,
-            bodyB: limb,
-            pointA: { x: attachX, y: attachY },
-            pointB: { x: -limbWidth / 0.5 * Math.cos(i * angleIncrement), y: -limbWidth / 0.5 * Math.sin(i * angleIncrement) },  // Center of the short edge of the limb
-            stiffness: 1,
-            length: 0
-        });
-        this.joints.push(attachment);
-
-        // Muscle constraint
-        let muscle = Constraint.create({
-            bodyA: this.centerBody,
-            bodyB: limb,
-            pointA: { x: attachMuscleX, y: attachMuscleY },
-            pointB: { x: limbWidth / 2 * Math.sin(i * angleIncrement), y: -limbWidth / 2 * Math.cos(i * angleIncrement) },  // Center of the limb
-            stiffness: 0.5,
-            originalLength: originalLength 
-        });
-        this.muscles.push(muscle);
+        let joint = createRevoluteJoint(world, this.mainBody, limb, jointX, jointY, smallestAngle, largestAngle);
+        this.joints.push(joint);
     }
-
-    // Add the agent's bodies and constraints to the Matter.js world
-    World.add(engine.world, [this.centerBody, ...this.limbs, ...this.muscles, ...this.joints]);
 
     // Give the agent a brain!
     this.nnConfig = nnConfig || new NeuralNetworkConfig(numLimbs);
@@ -284,71 +232,109 @@ function Agent(numLimbs, existingBrain = null) {
     }
 
     this.getScore = function () {
-        this.Score = Math.floor(this.centerBody.position.x / 10);
+        this.Score = Math.floor(this.mainBody.position.x / 10);
         if (this.Score > topScoreEver) {
             topScoreEver = this.Score;
         }
         return this.Score;  // 1 point for every 10px
     };
 
-    this.render = function (p, offsetX) {
-        p.fill(color1, color2, color3);
-        p.ellipse(this.centerBody.position.x + offsetX, this.centerBody.position.y, 40, 40);  // Render center body
-        for (let limb of this.limbs) {
+    this.render = function (p) {  // Assuming you're using p5.js, so 'p' is the p5 object
+        // Render the main body
+        let mainPos = this.mainBody.GetPosition();
+        let mainAngle = this.mainBody.GetAngle();
+        p.push();
+        p.translate(mainPos.get_x(), mainPos.get_y());
+        p.rotate(mainAngle);
+        p.ellipse(0, 0, mainBodyRadius * 2, mainBodyRadius * 2);
+        p.pop();
+
+        // Render the limbs
+        for (let i = 0; i < numLimbs; i++) {
+            let limb = this.limbs[i];
+            let limbPos = limb.GetPosition();
+            let limbAngle = limb.GetAngle();
+
             p.push();
-            p.translate(limb.position.x + offsetX, limb.position.y);
-            p.rotate(limb.angle);
-            p.rectMode(p.CENTER);
-            p.rect(0, 0, 10, 40);  // Render each limb
+            p.translate(limbPos.get_x(), limbPos.get_y());
+            p.rotate(limbAngle);
+            p.rect(0, 0, limbWidth, limbLength);
             p.pop();
         }
-
-        // Render the constraints (attachments and muscles)
-        for (let constraint of this.muscles) {
-            let startPoint = constraint.bodyA.position;
-            let endPoint = constraint.bodyB.position;
-
-            // Adjusting for local offsets (attachment points on the bodies)
-            let offsetXStart = constraint.pointA.x;
-            let offsetYStart = constraint.pointA.y;
-            let offsetXEnd = constraint.pointB.x;
-            let offsetYEnd = constraint.pointB.y;
-
-            // Check if it's an attachment
-            if (constraint.stiffness === 1) {
-                p.fill(255, 0, 0);  // Red color for the attachment points
-                p.ellipse(startPoint.x + offsetX + offsetXStart, startPoint.y + offsetYStart, 5);  // Small circle
-                p.ellipse(endPoint.x + offsetX + offsetXEnd, endPoint.y + offsetYEnd, 5);  // Small circle
-            } else {  // It's a muscle
-                p.stroke(0, 0, 255);  // Blue color for the muscles
-                p.line(startPoint.x + offsetX + offsetXStart, startPoint.y + offsetYStart,
-                    endPoint.x + offsetX + offsetXEnd, endPoint.y + offsetYEnd);
-            }
-        }
-
     };
 }
 
-function initializeAgents(agentProperties) {
+function createMainBody(world, x, y, radius) {
+    let bodyDef = new Box2D.b2BodyDef();
+    bodyDef.set_type(Box2D.b2_dynamicBody);
+    bodyDef.set_position(new Box2D.b2Vec2(x, y));
+
+    let body = world.CreateBody(bodyDef);
+
+    let shape = new Box2D.b2CircleShape();
+    shape.set_m_radius(radius);
+
+    body.CreateFixture(shape, 1); // density = 1
+
+    return body;
+}
+
+function createLimb(world, x, y, width, height) {
+    let bodyDef = new Box2D.b2BodyDef();
+    bodyDef.set_type(Box2D.b2_dynamicBody);
+    bodyDef.set_position(new Box2D.b2Vec2(x, y));
+
+    let body = world.CreateBody(bodyDef);
+
+    let shape = new Box2D.b2PolygonShape();
+    shape.SetAsBox(width / 2, height / 2);
+
+    body.CreateFixture(shape, 1); // density = 1
+
+    return body;
+}
+
+function createRevoluteJoint(world, bodyA, bodyB, anchorX, anchorY, lowerAngle, upperAngle) {
+    let jointDef = new Box2D.b2RevoluteJointDef();
+    jointDef.Initialize(bodyA, bodyB, new Box2D.b2Vec2(anchorX, anchorY));
+
+    jointDef.set_enableMotor(true);
+    jointDef.enableLimit = true;  // Enable the joint limits
+    jointDef.lowerAngle = lowerAngle;  // Set the lower angle limit in radians
+    jointDef.upperAngle = upperAngle;  // Set the upper angle limit in radians
+    return world.CreateJoint(jointDef);
+}
+
+function initializeAgentsBox2D(agentProperties) {
     popSize = agentProperties.numAgents;
     limbsPerAgent = agentProperties.numLimbs;
     genCount = 1;
     delay = delay || 50;
+
+    // Remove existing agents from the Box2D world
     for (let agent of agents) {
-        World.remove(engine.world, [agent.centerBody, ...agent.limbs]);
-        for (let muscle of agent.muscles) {
-            World.remove(engine.world, muscle);
+        box2dWorld.DestroyBody(agent.mainBody);  // Destroy the main body
+
+        // Destroy limbs
+        for (let limb of agent.limbs) {
+            box2dWorld.DestroyBody(limb);
         }
+
+        // Destroy joints (revolute joints in this case)
         for (let joint of agent.joints) {
-            World.remove(engine.world, joint);
+            box2dWorld.DestroyJoint(joint);
         }
     }
+
     agents = [];  // Reset the agents array
+
+    // Create and add new agents to the Box2D world
     for (let i = 0; i < popSize; i++) {
         setTimeout(() => {
             agents.push(new Agent(limbsPerAgent));
         }, i * delay);
     }
+
     offsetX = 0;
 }
 
@@ -356,46 +342,60 @@ function getLeadingAgent() {
     if (agents.length === 0) return null;
 
     return agents.reduce((leading, agent) =>
-        (agent.centerBody.position.x > leading.centerBody.position.x ? agent : leading),
+        (agent.mainBody.position.x > leading.mainBody.position.x ? agent : leading),
         agents[0]
     );
 }
 
+/*
 function endSimulation(p) {
     shouldUpdatePhysics = false;
     p.noLoop();
 
-    // Remove only the agents' bodies and constraints from the world
+    // Remove existing agents from the Box2D world
     for (let agent of agents) {
-        World.remove(engine.world, [agent.centerBody, ...agent.limbs]);
-        for (let muscle of agent.muscles) {
-            World.remove(engine.world, muscle);
+        box2dWorld.DestroyBody(agent.mainBody);  // Destroy the main body
+
+        // Destroy limbs
+        for (let limb of agent.limbs) {
+            box2dWorld.DestroyBody(limb);
         }
+
+        // Destroy joints (revolute joints in this case)
         for (let joint of agent.joints) {
-            World.remove(engine.world, joint);
+            box2dWorld.DestroyJoint(joint);
         }
     }
 
     nextGeneration(p);
 }
+*/
 
-function setupMatterEngine() {
-    engine = Engine.create({
-        positionIterations: 10,
-        velocityIterations: 10
+function setupBox2DWorld() {
+    Box2D().then(function (Box2D) {
+        // Now, within this scope, you have access to the initialized Box2D library
+
+        // Create the Box2D world
+        var gravity = new Box2D.b2Vec2(0.0, GravityStrength);
+        world = new Box2D.b2World(gravity);
+
+        // Create the ground body
+        let groundBodyDef = new Box2D.b2BodyDef();
+        groundBodyDef.set_position(new Box2D.b2Vec2(canvasWidth / 2, groundY + 10));
+
+        let groundBody = world.CreateBody(groundBodyDef);
+
+        let groundShape = new Box2D.b2PolygonShape();
+        groundShape.SetAsBox(canvasWidth * 1000, 10); // half width, half height
+
+        groundBody.CreateFixture(groundShape, 0); // 0 density makes it static
+
+        // ... rest of your code ...
     });
-    engine.world.gravity.y = GravityStrength;
-    ground = Bodies.rectangle(canvasWidth / 2, groundY + 10, canvasWidth * 1000, 20, {
-        isStatic: true,
-        collisionFilter: {
-            category: categoryGround
-        }
-    });
-    World.add(engine.world, [ground]);
 }
 
 /*            Neural Network Functions                     */
-
+/*
 function NeuralNetworkConfig(numLimbs) {
     this.inputNodes = numLimbs + 6; // Muscle lengths, agent x,y, agent velosity x,y, score, agent orientation
     this.hiddenLayers = [{ nodes: 10, activation: 'relu' }, { nodes: 5, activation: 'relu' }];
@@ -419,6 +419,7 @@ function createNeuralNetwork(config) {
 
     return model;
 }
+*/
 
 async function nextGeneration(p) {
     let newAgents = [];
@@ -464,7 +465,7 @@ async function nextGeneration(p) {
     genCount++;
     p.loop();
 }
-
+/*
 function selectAgent(agents) {
     let totalFitness = agents.reduce((sum, agent) => sum + agent.getScore(), 0);
     let threshold = Math.random() * totalFitness;
@@ -617,48 +618,49 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
 Agent.prototype.makeDecision = function (inputs) {
     return tf.tidy(() => {
         const output = this.brain.predict(tf.tensor([inputs])).dataSync();
-        for (let i = 0; i < this.muscles.length; i++) {
-            // Constraints on moving muscles too far
-            let currentMuscle = this.muscles[i];
-            if (currentMuscle.length < currentMuscle.originalLength * 1.7 && currentMuscle.length > currentMuscle.originalLength * 0.8) {
-                let adjustment = output[i] * MAX_ADJUSTMENT;  // Scales the adjustment based on the output
-                this.muscles[i].length += adjustment;
-            }
+        for (let i = 0; i < this.joints.length; i++) {
+            let adjustment = output[i] * MAX_ADJUSTMENT;  // Scales the adjustment based on the output
+            let currentSpeed = this.joints[i].GetMotorSpeed();
+            this.joints[i].SetMotorSpeed(currentSpeed + adjustment);
         }
     });
-}
+};
+
 
 Agent.prototype.collectInputs = function () {
     let inputs = [];
-    // 1. Muscle lengths
-    for (let muscle of this.muscles) {
+
+    // 1. Muscle lengths (using joint angles as a proxy)
+    for (let joint of this.joints) {
+        let jointAngle = joint.GetJointAngle();
 
         // Error alert
-        if (isNaN(muscle.length) && muscle.stiffness < 1) {
-            alert("Muscle length is NaN!");
+        if (isNaN(jointAngle)) {
+            alert("Joint angle is NaN!");
         }
 
-        if (muscle.stiffness < 1) {
-            inputs.push(muscle.length);
-        }
+        inputs.push(jointAngle);
     }
 
     // 2. Agent's position (x,y)
-    inputs.push(this.centerBody.position.x);
-    inputs.push(this.centerBody.position.y);
+    let position = this.mainBody.GetPosition();
+    inputs.push(position.x);
+    inputs.push(position.y);
 
     // 3. Agent's velocity (x,y)
-    inputs.push(this.centerBody.velocity.x);
-    inputs.push(this.centerBody.velocity.y);
+    let velocity = this.mainBody.GetLinearVelocity();
+    inputs.push(velocity.x);
+    inputs.push(velocity.y);
 
     // 4. Score
     inputs.push(this.getScore());
 
     // 5. Agent's orientation
-    inputs.push(this.centerBody.angle);
+    inputs.push(this.mainBody.GetAngle());
 
     return inputs;
 };
+
 
 Agent.prototype.updateMuscles = function () {
     let inputs = this.collectInputs();
@@ -667,34 +669,4 @@ Agent.prototype.updateMuscles = function () {
 
 Agent.prototype.renderNN = function (p, offsetX, offsetY) {
     renderNeuralNetwork(p, this.nnConfig, this, offsetX, offsetY);
-};
-
-Agent.prototype.reset = function () {
-    // Reset center body
-    Body.setPosition(this.centerBody, { x: 100, y: 300 });
-    Body.setVelocity(this.centerBody, { x: 0, y: 0 });
-    Body.setAngularVelocity(this.centerBody, 0);
-    this.Score = 0;
-
-    // Reset limbs
-    let angleIncrement = 2 * Math.PI / this.numLimbs;
-    let limbWidth = 10;
-    let bodyDiameter = this.centerBody.bounds.max.x - this.centerBody.bounds.min.x;
-    let bodyRadius = bodyDiameter / 2;
-    let distanceFromCenter = bodyRadius + 40 / 2; // 40 is the limb length
-
-    for (let i = 0; i < this.numLimbs; i++) {
-        let limbX = this.centerBody.position.x + distanceFromCenter * Math.cos(i * angleIncrement);
-        let limbY = this.centerBody.position.y + distanceFromCenter * Math.sin(i * angleIncrement);
-
-        Body.setPosition(this.limbs[i], { x: limbX, y: limbY });
-        Body.setAngle(this.limbs[i], i * angleIncrement + Math.PI / 2);
-        Body.setVelocity(this.limbs[i], { x: 0, y: 0 });
-        Body.setAngularVelocity(this.limbs[i], 0);
-    }
-
-    // Reset muscles to original lengths
-    for (let muscle of this.muscles) {
-        muscle.length = muscle.originalLength;
-    }
-};
+};*/

@@ -2,6 +2,9 @@
 @inject IJSRuntime JSRuntime
 
 <div id="canvas-container"></div>
+<label for="physicsToggle" class="form-check-label text-muted">
+    <input type="checkbox" class="form-check-input" id="physicsToggle" value="box2dPhysics" />
+</label>
 <p>Number of Agents</p>
 <select @bind="agentProperties.numAgents">
     <option value="2">2</option>
@@ -68,14 +71,13 @@
 @code {
     private Stage stage = new Stage();
     private AgentProperties agentProperties = new AgentProperties();
+    public bool box2dPhysics { get; set; } = true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed, stage.topPerformerNo / 100);
-            //await Task.Delay(500);
-            await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
+            await ResetSimulation();
         }
     }
 
@@ -100,8 +102,16 @@
 
     private async Task ResetSimulation()
     {
-        await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed, stage.topPerformerNo / 100);
-        await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
+        if (box2dPhysics)
+        {
+            await JSRuntime.InvokeVoidAsync("initializeSketchBox2D", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed, stage.topPerformerNo / 100);
+            await JSRuntime.InvokeVoidAsync("initializeAgentsBox2D", agentProperties);
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed, stage.topPerformerNo / 100);
+            await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
+        }
     }
 }
 
