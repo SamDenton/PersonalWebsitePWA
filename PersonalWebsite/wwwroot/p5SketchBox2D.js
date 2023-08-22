@@ -9,6 +9,8 @@ let MAX_ADJUSTMENT = 1;
 
 /* Planck vars */
 let world;
+const CATEGORY_GROUND = 0x0001;  // 0001 in binary
+const CATEGORY_AGENT = 0x0002;  // 0010 in binary
 
 let shouldUpdatePhysics = true;
 let genCount;
@@ -265,7 +267,11 @@ function Agent(numLimbs, existingBrain = null) {
 function createMainBody(world, x, y, radius) {
     let bodyDef = {
         type: 'dynamic',
-        position: planck.Vec2(x, y)
+        position: planck.Vec2(x, y),
+        filter: {
+            categoryBits: CATEGORY_AGENT,
+            maskBits: CATEGORY_GROUND
+        }
     };
 
     let body = world.createBody(bodyDef);
@@ -278,7 +284,11 @@ function createMainBody(world, x, y, radius) {
 function createLimb(world, x, y, width, height) {
     let bodyDef = {
         type: 'dynamic',
-        position: planck.Vec2(x, y)
+        position: planck.Vec2(x, y),
+        filter: {
+            categoryBits: CATEGORY_AGENT,
+            maskBits: CATEGORY_GROUND
+        }
     };
 
     let body = world.createBody(bodyDef);
@@ -369,7 +379,11 @@ function setupPlanckWorld() {
     // Create the ground body
     const groundBodyDef = {
         type: 'static',
-        position: planck.Vec2(canvasWidth / 2, groundY + 10)
+        position: planck.Vec2(canvasWidth / 2, groundY + 10),
+        filter: {
+            categoryBits: CATEGORY_GROUND,
+            maskBits: CATEGORY_AGENT
+        }
     };
     const groundBody = world.createBody(groundBodyDef);
 
