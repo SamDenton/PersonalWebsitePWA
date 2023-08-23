@@ -10,7 +10,9 @@ let MAX_ADJUSTMENT = 1;
 /* Planck vars */
 let world;
 const CATEGORY_GROUND = 0x0001;  // 0001 in binary
-const CATEGORY_AGENT = 0x0002;  // 0010 in binary
+const CATEGORY_AGENT_BODY = 0x0002;  // 0010 in binary
+const CATEGORY_AGENT_LIMB = 0x0004;  // 0100 in binary
+let groundBody;
 
 let shouldUpdatePhysics = true;
 let genCount;
@@ -83,6 +85,7 @@ let sketch = function (p) {
     function renderScene(p) {
         leadingAgent = getLeadingAgent();
         if (leadingAgent) {
+
             offsetX = p.width / 4 - leadingAgent.position.x;  // Center the leading agent on the canvas
 
             // Scrolling background
@@ -98,13 +101,12 @@ let sketch = function (p) {
 
             // Render stage with offset
             p.stroke(50);
-            // Looping ground
-            let groundSpacing = 100;  // Space between ground lines
-            let numGroundLines = Math.ceil(canvasWidth / groundSpacing) + 2;  // Number of lines to cover the canvas + extras for scrolling
-            for (let i = 0; i < numGroundLines; i++) {
-                let xPosition = i * groundSpacing + (offsetX % groundSpacing);
-                p.line(xPosition, groundY, xPosition + groundSpacing, groundY);
-            }
+
+            // Ground
+            let groundPosition = groundBody.getPosition();
+            let groundStartX = groundPosition.x - offsetX;  // Adjust for camera offset
+            let groundEndX = groundStartX + canvasWidth * 1000;  // Length of ground
+            p.line(groundStartX, groundPosition.y - 10, groundEndX, groundPosition.y);
 
             // Display the score of the leading agent
             let leadingAgentScore = leadingAgent.getScore();
@@ -187,14 +189,14 @@ function calculateFPS(p) {
 //this agent will do for now, but I intend to replace with with a dynamic body plan that can 'evolve' over time.
 //I think a JSON file defining a series of body and limb shapes, possibly with limbs connected to limbs etc
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and exolving complexity based on randomness and fitness might work.
-function Agent(numLimbs, existingBrain = null) {
+function Agent(numLimbs, agentNo, existingBrain = null) {
     this.numLimbs = numLimbs;
     let mainBodyRadius = 20;
     let startingX = 100;
     let startingY = 300;
 
 
-    this.mainBody = createMainBody(world, startingX, startingY, mainBodyRadius);
+    this.mainBody = createMainBody(world, startingX, startingY, mainBodyRadius, agentNo);
     this.position = this.mainBody.getPosition();
 
     this.limbs = [];
@@ -210,16 +212,26 @@ function Agent(numLimbs, existingBrain = null) {
 
     for (let i = 0; i < numLimbs; i++) {
         let angle = (i * 2 * Math.PI) / numLimbs;
-        let limbX = startingX + Math.cos(angle) * (mainBodyRadius + limbLength / 2);
-        let limbY = startingY + Math.sin(angle) * (mainBodyRadius + limbLength / 2);
+        let limbX = startingX + Math.cos(angle) * (mainBodyRadius + limbLength);
+        let limbY = startingY + Math.sin(angle) * (mainBodyRadius + limbLength);
 
-        let limb = createLimb(world, limbX, limbY, limbWidth, limbLength);
+        let limb = createLimb(world, limbX, limbY, limbWidth, limbLength, angle - Math.PI / 2, agentNo, i);
         this.limbs.push(limb);
 
-        let jointX = startingX + Math.cos(angle) * mainBodyRadius;
-        let jointY = startingY + Math.sin(angle) * mainBodyRadius;
+        // Calculate local anchor for bodyA (main body)
+        let localAnchorA = planck.Vec2(
+            mainBodyRadius * Math.cos(angle),
+            mainBodyRadius * Math.sin(angle)
+        );
 
-        let joint = createRevoluteJoint(world, this.mainBody, limb, jointX, jointY, smallestAngle, largestAngle);
+        // Calculate local anchor for bodyB (limb) before rotation
+        let x = 0;
+        let y = -limbLength / 2; // Assuming the limb's anchor is at the top edge
+
+        // Calculate the point after rotation
+        let localAnchorB = planck.Vec2(0, -limbLength / 2);
+
+        let joint = createRevoluteJoint(world, this.mainBody, limb, localAnchorA, localAnchorB, smallestAngle, largestAngle);
         this.joints.push(joint);
     }
 
@@ -247,6 +259,7 @@ function Agent(numLimbs, existingBrain = null) {
         p.translate(mainPos.x, mainPos.y);
         p.rotate(mainAngle);
         p.ellipse(0, 0, mainBodyRadius * 2, mainBodyRadius * 2);
+        p.fill(0, 0, 0);
         p.pop();
 
         // Render the limbs
@@ -258,51 +271,74 @@ function Agent(numLimbs, existingBrain = null) {
             p.push();
             p.translate(limbPos.x, limbPos.y);
             p.rotate(limbAngle);
-            p.rect(0, 0, limbWidth, limbLength);
+            p.rect(-limbWidth / 2, -limbLength / 2, limbWidth, limbLength);
             p.pop();
+        }
+
+        // Render the joints
+        for (let i = 0; i < numLimbs; i++) {
+            let jointPos = this.joints[i].getAnchorA();  // Assuming getAnchorA() gives the joint position attached to the main body
+            p.fill(255, 0, 0);  // Fill with red color for visibility
+            p.ellipse(jointPos.x, jointPos.y, 7, 7);  // Draw a small ellipse for each joint
+        }
+        for (let i = 0; i < numLimbs; i++) {
+            let jointPos = this.joints[i].getAnchorB();  // Assuming getAnchorA() gives the joint position attached to the main body
+            p.fill(0, 255, 0);  // Fill with red color for visibility
+            p.ellipse(jointPos.x, jointPos.y, 3, 3);  // Draw a small ellipse for each joint
         }
     };
 }
 
-function createMainBody(world, x, y, radius) {
+function createMainBody(world, x, y, radius, agentNo) {
     let bodyDef = {
         type: 'dynamic',
-        position: planck.Vec2(x, y),
-        filter: {
-            categoryBits: CATEGORY_AGENT,
-            maskBits: CATEGORY_GROUND
-        }
+        position: planck.Vec2(x, y)
     };
 
     let body = world.createBody(bodyDef);
     let shape = planck.Circle(radius);
-    body.createFixture(shape, 1); // density = 1
-
+    let fixtureDef = {
+        shape: shape,
+        density: 1,
+        filter: {
+            categoryBits: CATEGORY_AGENT_BODY,
+            maskBits: CATEGORY_GROUND  // Only allow collision with the ground
+        }
+    };
+    body.createFixture(fixtureDef);
+    body.setUserData("Agent " + agentNo + " Main Body");
     return body;
 }
 
-function createLimb(world, x, y, width, height) {
+function createLimb(world, x, y, width, height, angle, agentNo, limbNo) {
     let bodyDef = {
         type: 'dynamic',
         position: planck.Vec2(x, y),
-        filter: {
-            categoryBits: CATEGORY_AGENT,
-            maskBits: CATEGORY_GROUND
-        }
+        angle: angle
     };
 
     let body = world.createBody(bodyDef);
     let shape = planck.Box(width / 2, height / 2);
-    body.createFixture(shape, 1); // density = 1
+    let fixtureDef = {
+        shape: shape,
+        density: 1,
+        filter: {
+            categoryBits: CATEGORY_AGENT_LIMB,
+            maskBits: CATEGORY_GROUND  // Only allow collision with the ground
+        }
+    };
+    body.createFixture(fixtureDef);
+    body.setUserData("Agent " + agentNo + " Limb " + limbNo);
 
     return body;
 }
 
-function createRevoluteJoint(world, bodyA, bodyB, anchorX, anchorY, lowerAngle, upperAngle) {
+function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lowerAngle, upperAngle) {
     let jointDef = {
         bodyA: bodyA,
         bodyB: bodyB,
-        anchor: planck.Vec2(anchorX, anchorY),
+        localAnchorA: localAnchorA,
+        localAnchorB: localAnchorB,
         lowerAngle: lowerAngle,
         upperAngle: upperAngle,
         enableLimit: true,
@@ -311,9 +347,8 @@ function createRevoluteJoint(world, bodyA, bodyB, anchorX, anchorY, lowerAngle, 
         enableMotor: true
     };
 
-    return world.createJoint(planck.RevoluteJoint(jointDef, bodyA, bodyB, bodyA.getWorldCenter()));
+    return world.createJoint(planck.RevoluteJoint(jointDef, bodyA, bodyB));
 }
-
 
 function initializeAgentsBox2D(agentProperties) {
     popSize = agentProperties.numAgents;
@@ -339,7 +374,7 @@ function initializeAgentsBox2D(agentProperties) {
     // Create and add new agents to the Planck world
     for (let i = 0; i < popSize; i++) {
         setTimeout(() => {
-            agents.push(new Agent(limbsPerAgent));
+            agents.push(new Agent(limbsPerAgent, i));
         }, i * delay);
     }
 
@@ -373,20 +408,29 @@ function endSimulation(p) {
 
 function setupPlanckWorld() {
     // Create the Planck.js world
-    const gravity = planck.Vec2(0.0, GravityStrength);
+    const gravity = planck.Vec2(0.0, GravityStrength * 9.8);
     world = planck.World(gravity);
+
+    world.on('begin-contact', function (contact) {
+        let fixtureA = contact.getFixtureA();
+        let fixtureB = contact.getFixtureB();
+        let bodyA = fixtureA.getBody();
+        let bodyB = fixtureB.getBody();
+
+        console.log("Collision between:", bodyA.getUserData(), "and", bodyB.getUserData());
+    });
 
     // Create the ground body
     const groundBodyDef = {
         type: 'static',
-        position: planck.Vec2(canvasWidth / 2, groundY + 10),
+        position: planck.Vec2(0, groundY + 10),
         filter: {
             categoryBits: CATEGORY_GROUND,
-            maskBits: CATEGORY_AGENT
+            maskBits: CATEGORY_AGENT_BODY | CATEGORY_AGENT_LIMB
         }
     };
-    const groundBody = world.createBody(groundBodyDef);
-
+    groundBody = world.createBody(groundBodyDef);
+    groundBody.setUserData("Ground");
     // Define the ground shape and add it as a fixture to the ground body
     const groundShape = planck.Box(canvasWidth * 1000, 10); // half width, half height
     groundBody.createFixture(groundShape); // Static bodies like the ground don't need a density, it's ignored
