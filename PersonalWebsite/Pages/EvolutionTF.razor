@@ -2,9 +2,7 @@
 @inject IJSRuntime JSRuntime
 
 <div id="canvas-container"></div>
-<label for="physicsToggle" class="form-check-label text-muted">
-    <input type="checkbox" class="form-check-input" id="physicsToggle" value="box2dPhysics" />
-</label>
+
 <p>Number of Agents</p>
 <select @bind="agentProperties.numAgents">
     <option value="2">2</option>
@@ -66,20 +64,20 @@
     }
 </select>
 
-<button @onclick="ResetSimulation">Reset</button>
+<button @onclick="ResetSimulation">Start/Reset</button>
 
 @code {
     private Stage stage = new Stage();
     private AgentProperties agentProperties = new AgentProperties();
     public bool box2dPhysics { get; set; } = true;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await ResetSimulation();
-        }
-    }
+    //protected override async Task OnAfterRenderAsync(bool firstRender)
+    //{
+    //    if (firstRender)
+    //    {
+    //        await ResetSimulation();
+    //    }
+    //}
 
     public class Stage
     {
@@ -88,9 +86,9 @@
         public float GroundY { get; set; } = 350;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 500;  
+        public int SimulationLength { get; set; } = 5000;  
         public int renderedAgents { get; set; } = 5;
-        public int simSpeed { get; set; } = 6;
+        public int simSpeed { get; set; } = 60;
         public double topPerformerNo { get; set; } = 20;
     }
 

@@ -5,7 +5,7 @@ let offsetX = 0;
 let p5Instance = null;
 let delay;
 
-let MAX_ADJUSTMENT = 1;
+let MAX_ADJUSTMENT = 10;
 
 /* Planck vars */
 let world;
@@ -24,13 +24,14 @@ let tickCount = 0;
 let simulationLength;
 let lastUIUpdateTime = 0;
 let UIUpdateInterval = 500; 
-
+let initializationStartTime;
+let DELAY_DURATION = 0; // Delay starting physics to allow agents to spawn.  Disabled for now as it causes issues
 let topScoreEver = 0;
 
 let sketch = function (p) {
     let lastMuscleUpdate = 0;
     let muscleUpdateInterval = 1000; // Update every 100 ms
-
+    initializationStartTime = 0;
     let fixedTimeStep = (1.0 / simulationSpeed) * 1000; // 'simulationSpeed' updates per second for physics
     let accumulator = 0;
     let lastTime = 0;
@@ -46,18 +47,18 @@ let sketch = function (p) {
     p.draw = function () {
         if (!shouldUpdatePhysics) return;
         p.background(200);
+        if (!(Date.now() - initializationStartTime < DELAY_DURATION)) {
+            let currentTime = p.millis();
+            let delta = currentTime - lastTime;
+            lastTime = currentTime;
 
-        let currentTime = p.millis();
-        let delta = currentTime - lastTime;
-        lastTime = currentTime;
+            accumulator += delta;
 
-        accumulator += delta;
-
-        while (accumulator >= fixedTimeStep) {
-            updatePhysics();
-            accumulator -= fixedTimeStep;
+            while (accumulator >= fixedTimeStep) {
+                updatePhysics();
+                accumulator -= fixedTimeStep;
+            }
         }
-
         renderScene(p);
     };
 
@@ -140,7 +141,7 @@ let sketch = function (p) {
             p.text(`Top Score: ${topScoreEver}`, 10, 110);
 
             // Render NN for leading agent
-            leadingAgent.renderNN(p, canvasWidth - 500, (canvasHeight / 2) - 100);
+            leadingAgent.renderNN(p, canvasWidth - 400, (canvasHeight / 2) - 50);
         }
     };
 };
@@ -251,7 +252,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         return this.Score;  // 1 point for every 10px
     };
 
-    this.render = function (p) {  // Assuming you're using p5.js, so 'p' is the p5 object
+    this.render = function (p) {
         // Render the main body
         let mainPos = this.position;
         let mainAngle = this.mainBody.getAngle();
@@ -299,11 +300,9 @@ function createMainBody(world, x, y, radius, agentNo) {
     let shape = planck.Circle(radius);
     let fixtureDef = {
         shape: shape,
-        density: 1,
-        filter: {
-            categoryBits: CATEGORY_AGENT_BODY,
-            maskBits: CATEGORY_GROUND  // Only allow collision with the ground
-        }
+        density: 0.1,
+        filterCategoryBits: CATEGORY_AGENT_BODY,
+        filterMaskBits: CATEGORY_GROUND  // Only allow collision with the ground
     };
     body.createFixture(fixtureDef);
     body.setUserData("Agent " + agentNo + " Main Body");
@@ -321,11 +320,9 @@ function createLimb(world, x, y, width, height, angle, agentNo, limbNo) {
     let shape = planck.Box(width / 2, height / 2);
     let fixtureDef = {
         shape: shape,
-        density: 1,
-        filter: {
-            categoryBits: CATEGORY_AGENT_LIMB,
-            maskBits: CATEGORY_GROUND  // Only allow collision with the ground
-        }
+        density: 0.1,
+        filterCategoryBits: CATEGORY_AGENT_LIMB,
+        filterMaskBits: CATEGORY_GROUND  // Only allow collision with the ground
     };
     body.createFixture(fixtureDef);
     body.setUserData("Agent " + agentNo + " Limb " + limbNo);
@@ -343,7 +340,7 @@ function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lo
         upperAngle: upperAngle,
         enableLimit: true,
         motorSpeed: 0.0,
-        maxMotorTorque: 10.0,
+        maxMotorTorque: 100000.0,
         enableMotor: true
     };
 
@@ -365,6 +362,8 @@ function initializeAgentsBox2D(agentProperties) {
             agent.mainBody = null;
         }
     }
+
+    initializationStartTime = Date.now();
 
     // Initialize the world with gravity
     // world = planck.World(planck.Vec2(0, -10));  // Adjust gravity as needed
@@ -394,8 +393,21 @@ function endSimulation(p) {
     shouldUpdatePhysics = false;
     p.noLoop();
 
-    // Clear references to bodies and joints
+    // Destroy bodies and joints
     for (let agent of agents) {
+        // Destroy the joints first
+        for (let joint of agent.joints) {
+            world.destroyJoint(joint);
+        }
+
+        // Destroy the limbs
+        for (let limb of agent.limbs) {
+            world.destroyBody(limb);
+        }
+
+        // Destroy the main body
+        world.destroyBody(agent.mainBody);
+
         agent.joints = [];
         agent.limbs = [];
         agent.mainBody = null;
@@ -404,7 +416,6 @@ function endSimulation(p) {
     // Continue to the next generation
     nextGeneration(p);
 }
-
 
 function setupPlanckWorld() {
     // Create the Planck.js world
@@ -417,29 +428,30 @@ function setupPlanckWorld() {
         let bodyA = fixtureA.getBody();
         let bodyB = fixtureB.getBody();
 
-        console.log("Collision between:", bodyA.getUserData(), "and", bodyB.getUserData());
+        //console.log("Collision between:", bodyA.getUserData(), "and", bodyB.getUserData());
     });
 
     // Create the ground body
     const groundBodyDef = {
         type: 'static',
-        position: planck.Vec2(0, groundY + 10),
-        filter: {
-            categoryBits: CATEGORY_GROUND,
-            maskBits: CATEGORY_AGENT_BODY | CATEGORY_AGENT_LIMB
-        }
+        position: planck.Vec2(0, groundY + 10)
     };
     groundBody = world.createBody(groundBodyDef);
     groundBody.setUserData("Ground");
     // Define the ground shape and add it as a fixture to the ground body
     const groundShape = planck.Box(canvasWidth * 1000, 10); // half width, half height
-    groundBody.createFixture(groundShape); // Static bodies like the ground don't need a density, it's ignored
+    let fixtureDef = {
+        shape: groundShape,
+        filterCategoryBits: CATEGORY_GROUND,
+        filterMaskBits: CATEGORY_AGENT_BODY | CATEGORY_AGENT_LIMB 
+    }
+    groundBody.createFixture(fixtureDef); // Static bodies like the ground don't need a density, it's ignored
 }
 
 /*            Neural Network Functions                     */
 
 function NeuralNetworkConfig(numLimbs) {
-    this.inputNodes = numLimbs + 6; // Muscle lengths, agent x,y, agent velosity x,y, score, agent orientation
+    this.inputNodes = (numLimbs * 2) + 6; // Muscle angles, speeds, agent x,y, agent velosity x,y, score, agent orientation
     this.hiddenLayers = [{ nodes: 10, activation: 'relu' }, { nodes: 5, activation: 'relu' }];
     this.outputNodes = numLimbs;
     this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
@@ -500,7 +512,10 @@ async function nextGeneration(p) {
     agents = newAgents;
     console.log('Restarting simulation with evolved agents!');
     console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
+    console.log("Number of bodies:", world.getBodyCount());
+    console.log("Number of joints:", world.getJointCount());
     // Reset simulation
+    initializationStartTime = Date.now();
     shouldUpdatePhysics = true;
     tickCount = 0;
     genCount++;
@@ -603,7 +618,8 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
     let nodeGap = 15;   // vertical space between nodes
 
     let inputLabels = [
-        ...Array(nnConfig.inputNodes - 6).fill(null).map((_, idx) => `Muscle ${idx + 1}`),
+        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`),
+        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`),
         "Agent's X",
         "Agent's Y",
         "Velocity X",
@@ -612,7 +628,7 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
         "Orientation"
     ];
 
-    let outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Muscle ${idx + 1}`);
+    let outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Joint ${idx + 1}`);
 
     // Loop through each layer
     let x = offsetX;
@@ -638,14 +654,14 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
             if (labels.length > 0) {
                 p.textSize(12);
                 if (i === 0) {
-                    p.text(labels[j], x - 70, y + 4);
+                    p.text(labels[j], x - 80, y + 4);
                 } else if (i === nnConfig.hiddenLayers.length + 1) {
                     p.text(labels[j], x + 15, y + 4);
 
                     // Display the current muscle length as an indication
                     if (agent) {
                         let currentSpeed = agent.joints[j].getMotorSpeed();
-                        p.text(`Length: ${currentSpeed}`, x + 70, y + 4);
+                        p.text(`Speed: ${currentSpeed.toFixed(4)}`, x + 60, y + 4);
                     }
                 }
             }
@@ -660,7 +676,7 @@ Agent.prototype.makeDecision = function (inputs) {
         for (let i = 0; i < this.joints.length; i++) {
             let adjustment = output[i] * MAX_ADJUSTMENT;  // Scales the adjustment based on the output
             let currentSpeed = this.joints[i].getMotorSpeed();
-            this.joints[i].setMotorSpeed(currentSpeed + adjustment);
+            this.joints[i].setMotorSpeed(adjustment);
         }
     });
 };
@@ -669,7 +685,7 @@ Agent.prototype.makeDecision = function (inputs) {
 Agent.prototype.collectInputs = function () {
     let inputs = [];
 
-    // 1. Muscle lengths (using joint angles as a proxy)
+    // 1. Joint angles
     for (let joint of this.joints) {
         let jointAngle = joint.getJointAngle();
 
@@ -681,20 +697,32 @@ Agent.prototype.collectInputs = function () {
         inputs.push(jointAngle);
     }
 
-    // 2. Agent's position (x,y)
+    // 2. Joint speeds
+    for (let joint of this.joints) {
+        let jointSpeed = joint.getJointSpeed();
+
+        // Error alert
+        if (isNaN(jointSpeed)) {
+            alert("Joint speed is NaN!");
+        }
+
+        inputs.push(jointSpeed);
+    }
+
+    // 3. Agent's position (x,y)
     let position = this.mainBody.getPosition();
     inputs.push(position.x);
     inputs.push(position.y);
 
-    // 3. Agent's velocity (x,y)
+    // 4. Agent's velocity (x,y)
     let velocity = this.mainBody.getLinearVelocity();
     inputs.push(velocity.x);
     inputs.push(velocity.y);
 
-    // 4. Score
+    // 5. Score
     inputs.push(this.getScore());
 
-    // 5. Agent's orientation
+    // 6. Agent's orientation
     inputs.push(this.mainBody.getAngle());
 
     return inputs;
