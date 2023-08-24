@@ -42,7 +42,7 @@
         <option value="@i">@i</option>
     }
 </select>
-<p>Number of agents rendered (top scorers)</p>
+<p>No random agents per group, plus group leader, to render</p>
 <select @bind="stage.renderedAgents">
     @for (int i = 1; i <= 40; i += 1)
     {
@@ -87,7 +87,7 @@
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
         public int SimulationLength { get; set; } = 5000;  
-        public int renderedAgents { get; set; } = 5;
+        public int renderedAgents { get; set; } = 2;
         public int simSpeed { get; set; } = 60;
         public double topPerformerNo { get; set; } = 20;
     }
