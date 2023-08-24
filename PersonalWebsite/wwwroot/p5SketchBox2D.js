@@ -1,7 +1,6 @@
 let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, renderedAgents, simulationSpeed, popSize, topPerformerNo;
 let currentAgentIndex = 0;
 let agents = [];
-let promises = [];
 let isInitializationComplete;
 let offsetX = 0;
 let p5Instance = null;
@@ -35,19 +34,19 @@ let tickCount = 0;
 let simulationLength;
 let lastUIUpdateTime = 0;
 let UIUpdateInterval = 500; 
-let initializationStartTime;
-let DELAY_DURATION = 0; // Delay starting physics to allow agents to spawn.  Disabled for now as it causes issues
 let topScoreEver = 0;
 let randomlySelectedAgents = [];
 
 let sketch = function (p) {
     let lastMuscleUpdate = 0;
     let muscleUpdateInterval = 1000; // Update every 100 ms
-    initializationStartTime = 0;
     let fixedTimeStep = (1.0 / simulationSpeed) * 1000; // 'simulationSpeed' updates per second for physics
     let accumulator = 0;
     let lastTime = 0;
     let leadingAgent;
+    let currentPhysicsBatch = 0;
+    const BATCH_SIZE = 10;  // Number of agents per batch
+    let SOME_DELAY_FRAME_COUNT = 5;
 
     p.setup = function () {
         p.frameRate(60);
@@ -57,20 +56,27 @@ let sketch = function (p) {
     };
 
     p.draw = function () {
-        if (!isInitializationComplete || !shouldUpdatePhysics) return;
         p.background(200);
-        if (!(Date.now() - initializationStartTime < DELAY_DURATION)) {
-            let currentTime = p.millis();
-            let delta = currentTime - lastTime;
-            lastTime = currentTime;
-
-            accumulator += delta;
-
-            while (accumulator >= fixedTimeStep) {
-                updatePhysics();
-                accumulator -= fixedTimeStep;
-            }
+        if (!isInitializationComplete || !shouldUpdatePhysics) {
+            lastTime = p.millis();  // Update lastTime even if the simulation is paused
+            return;
         }
+        let currentTime = p.millis();
+        let delta = currentTime - lastTime;
+        lastTime = currentTime;
+
+        accumulator += delta;
+
+        while (accumulator >= fixedTimeStep) {
+            updatePhysics();
+            accumulator -= fixedTimeStep;
+        }
+
+        // If enough time has passed, move to the next batch
+        if (p.frameCount % SOME_DELAY_FRAME_COUNT == 0 && currentPhysicsBatch * BATCH_SIZE < agents.length) {
+            currentPhysicsBatch++;
+        }
+
         renderScene(p);
     };
 
@@ -78,12 +84,12 @@ let sketch = function (p) {
         leadingAgent = getLeadingAgent();
         if (leadingAgent) {
             if (p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
-                for (let agent of agents) {
-                    agent.updateMuscles();
+                // Update muscles only for the current batch of agents
+                for (let i = currentPhysicsBatch * BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * BATCH_SIZE, agents.length); i++) {
+                    agents[i].updateMuscles();
                 }
                 lastMuscleUpdate = p.millis();
             }
-
             // Step the Planck world
             world.step(fixedTimeStep / 1000);
 
@@ -209,7 +215,7 @@ function calculateFPS(p) {
 function Agent(numLimbs, agentNo, existingBrain = null) {
     this.numLimbs = numLimbs;
     this.group = null;
-
+    console.log("a new agent");
     let mainBodyRadius = 20;
     let startingX = 100;
     let startingY = 200;
@@ -397,13 +403,13 @@ function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lo
     return world.createJoint(planck.RevoluteJoint(jointDef, bodyA, bodyB));
 }
 
-function initializeAgentsBox2D(agentProperties) {
+async function initializeAgentsBox2D(agentProperties) {
+    let BATCH_SIZE = 50;
     popSize = agentProperties.numAgents;
     limbsPerAgent = agentProperties.numLimbs;
     genCount = 1;
-    promises = [];
     isInitializationComplete = false;
-    delay = delay || 50;
+    delay = delay || 25;
 
     // If the world is already initialized, clean up the previous state
     if (world) {
@@ -414,8 +420,6 @@ function initializeAgentsBox2D(agentProperties) {
             agent.mainBody = null;
         }
     }
-
-    initializationStartTime = Date.now();
 
     const MIN_GROUP_SIZE = 20;  // Minimum number of agents per pop group
     const MAX_GROUP_SIZE = 50;  // this is an upper limit, can adjust based on tests
@@ -432,39 +436,51 @@ function initializeAgentsBox2D(agentProperties) {
 
     agents = [];  // Reset the agents array
 
-    for (let i = 0; i < popSize; i++) {
-        promises.push(new Promise(resolve => {
-            setTimeout(() => {
-                let agent = new Agent(limbsPerAgent, i);
-                agent.group = Math.floor(i / agentsPerGroup);  // Assign group
-                agents.push(agent);
-                resolve();
-            }, i * delay);
-        }));
+    // Initialize agents in batches
+    for (let i = 0; i < popSize; i += BATCH_SIZE) {
+        await initializeAgentBatch(i, Math.min(i + BATCH_SIZE, popSize), agentsPerGroup);
     }
 
-    Promise.all(promises).then(() => {
-        // Randomly select agents to render for each group
-        randomlySelectedAgents = [];
-        for (let groupId = 0; groupId < numGroups; groupId++) {
-            let groupAgents = agents.filter(agent => agent.group === groupId);
+    // Randomly select agents to render for each group
+    randomlySelectedAgents = [];
+    for (let groupId = 0; groupId < numGroups; groupId++) {
+        let groupAgents = agents.filter(agent => agent.group === groupId);
 
-            // Select leading agent
-            let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
-            randomlySelectedAgents.push(leadingAgent);
+        // Select leading agent
+        let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
+        randomlySelectedAgents.push(leadingAgent);
 
-            // Select few random agents
-            for (let i = 0; i < renderedAgents; i++) {
-                let randomIndex = Math.floor(Math.random() * groupAgents.length);
-                randomlySelectedAgents.push(groupAgents[randomIndex]);
-            }
+        // Select few random agents
+        for (let i = 0; i < renderedAgents; i++) {
+            let randomIndex = Math.floor(Math.random() * groupAgents.length);
+            randomlySelectedAgents.push(groupAgents[randomIndex]);
         }
+    }
 
-        isInitializationComplete = true;
-        promises = [];
-    });
+    isInitializationComplete = true;
 
     offsetX = 0;
+}
+
+// Function to initialize a batch of agents
+async function initializeAgentBatch(startIndex, endIndex, agentsPerGroup) {
+    let promises = [];
+    for (let i = startIndex; i < endIndex; i++) {
+        promises.push(initializeAgent(i, agentsPerGroup));
+    }
+    await Promise.all(promises);
+}
+
+// Function to initialize a single agent
+function initializeAgent(i, agentsPerGroup) {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            let agent = new Agent(limbsPerAgent, i);
+            agent.group = Math.floor(i / agentsPerGroup);  // Assign group
+            agents.push(agent);
+            resolve();
+        }, i * delay);
+    });
 }
 
 function getLeadingAgent() {
@@ -480,20 +496,25 @@ function endSimulation(p) {
     shouldUpdatePhysics = false;
     p.noLoop();
 
-    // Destroy bodies and joints
     for (let agent of agents) {
         // Destroy the joints first
         for (let joint of agent.joints) {
-            world.destroyJoint(joint);
+            if (joint) { // Check if joint exists and is in the world
+                world.destroyJoint(joint);
+            }
         }
 
         // Destroy the limbs
         for (let limb of agent.limbs) {
-            world.destroyBody(limb);
+            if (limb) { // Check if body exists and is in the world
+                world.destroyBody(limb);
+            }
         }
 
         // Destroy the main body
-        world.destroyBody(agent.mainBody);
+        if (agent.mainBody) {
+            world.destroyBody(agent.mainBody);
+        }
 
         agent.joints = [];
         agent.limbs = [];
@@ -565,7 +586,6 @@ function createNeuralNetwork(config) {
 
 async function nextGeneration(p) {
     let newAgents = [];
-    promises = [];
     isInitializationComplete = false;
 
     agents.sort((a, b) => b.getScore() - a.getScore()); // Sort in descending order of score
@@ -577,31 +597,10 @@ async function nextGeneration(p) {
         topPerformersCount = Math.max(topPerformersCount, 2); // Ensure at least 2 top performers are selected
 
         // Create new agents, but assign them the brains of previous top performers from the group
-        for (let i = 0; i < topPerformersCount; i++) {
-            promises.push(new Promise(resolve => {
-                let newAgent = new Agent(groupAgents[i].numLimbs, groupAgents[i].brain);
-                newAgent.group = groupId; // Assign group
-                newAgents.push(newAgent);
-                resolve();
-            }));
-        }
+        await createTopPerformers(groupAgents, topPerformersCount, groupId, newAgents);
 
         // Generate offspring within the group
-        while (newAgents.filter(agent => agent.group === groupId).length < groupAgents.length) {
-            let parent1 = selectAgent(groupAgents, agents);
-            let parent2 = selectAgent(groupAgents, agents, parent1);
-
-            let childBrain = await crossover(parent1, parent2);
-            childBrain = mutate(childBrain, this.mutationRate);
-            promises.push(new Promise(resolve => {
-                let childAgent = new Agent(limbsPerAgent);
-                childAgent.brain.dispose();
-                childAgent.brain = childBrain;
-                childAgent.group = groupId; // Assign group
-                newAgents.push(childAgent);
-                resolve();
-            }));
-        }
+        await generateOffspring(groupAgents, newAgents, groupId);
     }
 
     // Get a list of brains in the new generation
@@ -617,37 +616,70 @@ async function nextGeneration(p) {
 
     agents = newAgents;
 
-    Promise.all(promises).then(() => {
-        // Randomly select agents to render for each group
-        randomlySelectedAgents = [];
-        for (let groupId = 0; groupId < numGroups; groupId++) {
-            let groupAgents = agents.filter(agent => agent.group === groupId);
+    // Randomly select agents to render for each group
+    randomlySelectedAgents = [];
+    for (let groupId = 0; groupId < numGroups; groupId++) {
+        let groupAgents = agents.filter(agent => agent.group === groupId);
 
-            // Select leading agent
-            let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
-            randomlySelectedAgents.push(leadingAgent);
+        // Select leading agent
+        let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
+        randomlySelectedAgents.push(leadingAgent);
 
-            // Select few random agents
-            for (let i = 0; i < renderedAgents; i++) {
-                let randomIndex = Math.floor(Math.random() * groupAgents.length);
-                randomlySelectedAgents.push(groupAgents[randomIndex]);
-            }
+        // Select few random agents
+        for (let i = 0; i < renderedAgents; i++) {
+            let randomIndex = Math.floor(Math.random() * groupAgents.length);
+            randomlySelectedAgents.push(groupAgents[randomIndex]);
         }
+    }
 
-        isInitializationComplete = true;
-        promises = [];
-    });
+    isInitializationComplete = true;
 
     console.log('Restarting simulation with evolved agents!');
     console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
     console.log("Number of bodies:", world.getBodyCount());
     console.log("Number of joints:", world.getJointCount());
     // Reset simulation
-    initializationStartTime = Date.now();
+    // await new Promise(resolve => setTimeout(resolve, 1000));
     shouldUpdatePhysics = true;
     tickCount = 0;
     genCount++;
     p.loop();
+}
+
+// Function to create top performers for the next generation
+async function createTopPerformers(groupAgents, topPerformersCount, groupId, newAgents) {
+    for (let i = 0; i < topPerformersCount; i++) {
+        await new Promise(resolve => {
+            setTimeout(() => {
+                let newAgent = new Agent(groupAgents[i].numLimbs, groupAgents[i].brain);
+                newAgent.group = groupId; // Assign group
+                newAgents.push(newAgent);
+                resolve();
+            }, i * delay);
+        });
+    }
+}
+
+// Function to generate offspring for the next generation
+async function generateOffspring(groupAgents, newAgents, groupId) {
+    while (newAgents.filter(agent => agent.group === groupId).length < groupAgents.length) {
+        let parent1 = selectAgent(groupAgents, agents);
+        let parent2 = selectAgent(groupAgents, agents, parent1);
+
+        let childBrain = await crossover(parent1, parent2);
+        childBrain = mutate(childBrain, this.mutationRate);
+
+        await new Promise(resolve => {
+            setTimeout(() => {
+                let childAgent = new Agent(limbsPerAgent);
+                childAgent.brain.dispose();
+                childAgent.brain = childBrain;
+                childAgent.group = groupId; // Assign group
+                newAgents.push(childAgent);
+                resolve();
+            }, delay);
+        });
+    }
 }
 
 function selectAgent(agents, allAgents, excludedAgent = null) {
@@ -700,7 +732,7 @@ async function crossover(agent1, agent2) {
     // let oldWeights = childBrain.getWeights();
     childBrain.setWeights(newWeights);
     // oldWeights.forEach(tensor => tensor.dispose());
-    newWeights.forEach(weight => weight.dispose()); // Dispose of these tensors manually
+    newWeights.forEach(weight => weight.dispose()); // Dispose of these tensors manually.  Might not need as well as tf.tidy
     return childBrain;
 }
 
@@ -794,9 +826,10 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
                 } else if (i === nnConfig.hiddenLayers.length + 1) {
                     p.text(labels[j], x + 15, y + 4);
 
-                    // Display the current muscle length as an indication
-                    if (agent) {
-                        let currentSpeed = agent.joints[j].getMotorSpeed();
+                    // Display the current joint speed as an indication
+                    let joint = agent.joints[j];
+                    if (joint) {
+                        let currentSpeed = joint.getMotorSpeed();
                         p.text(`Speed: ${currentSpeed.toFixed(4)}`, x + 60, y + 4);
                     }
                 }
