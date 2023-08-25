@@ -641,6 +641,7 @@ async function nextGeneration(p) {
     // Reset simulation
     // await new Promise(resolve => setTimeout(resolve, 1000));
     shouldUpdatePhysics = true;
+    currentPhysicsBatch = 0;
     tickCount = 0;
     genCount++;
     p.loop();
