@@ -73,10 +73,10 @@ let sketch = function (p) {
             accumulator -= fixedTimeStep;
         }
 
-        // If enough time has passed, move to the next batch
-        if (p.frameCount % SOME_DELAY_FRAME_COUNT == 0 && currentPhysicsBatch * BATCH_SIZE < agents.length) {
-            currentPhysicsBatch++;
-        }
+        //// If enough time has passed, move to the next batch
+        //if (p.frameCount % SOME_DELAY_FRAME_COUNT == 0 && currentPhysicsBatch * BATCH_SIZE < agents.length) {
+        //    currentPhysicsBatch++;
+        //}
 
         renderScene(p);
     };
@@ -87,8 +87,11 @@ let sketch = function (p) {
             // If initialization is complete, then update muscles
             if (isInitializationComplete && p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
                 // Update muscles only for the current batch of agents
-                for (let i = currentPhysicsBatch * BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * BATCH_SIZE, agents.length); i++) {
-                    agents[i].updateMuscles();
+                //for (let i = currentPhysicsBatch * BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * BATCH_SIZE, agents.length); i++) {
+                //    agents[i].updateMuscles();
+                //}
+                for (let agent of agents) {
+                    agent.updateMuscles();
                 }
                 lastMuscleUpdate = p.millis();
             }
