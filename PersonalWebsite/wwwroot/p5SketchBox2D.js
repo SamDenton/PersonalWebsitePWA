@@ -23,8 +23,6 @@ let groundBody;
 const TOURNAMENT_SIZE = 5; // Pick x number of agents from each group to compete to be parent during crossover
 const CROSS_GROUP_PROBABILITY = 0.05; // 5% chance to select from the entire population instead of within the same group
 
-
-let shouldUpdatePhysics = true;
 let genCount;
 let displayedFPS = 0;
 let displayedTimeLeft;
@@ -57,10 +55,13 @@ let sketch = function (p) {
 
     p.draw = function () {
         p.background(200);
-        if (!isInitializationComplete || !shouldUpdatePhysics) {
-            lastTime = p.millis();  // Update lastTime even if the simulation is paused
+
+        // Only update lastTime if the simulation is paused
+        if (!isInitializationComplete) {
+            lastTime = p.millis();
             return;
         }
+
         let currentTime = p.millis();
         let delta = currentTime - lastTime;
         lastTime = currentTime;
@@ -83,20 +84,24 @@ let sketch = function (p) {
     function updatePhysics() {
         leadingAgent = getLeadingAgent();
         if (leadingAgent) {
-            if (p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
+            // If initialization is complete, then update muscles
+            if (isInitializationComplete && p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
                 // Update muscles only for the current batch of agents
                 for (let i = currentPhysicsBatch * BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * BATCH_SIZE, agents.length); i++) {
                     agents[i].updateMuscles();
                 }
                 lastMuscleUpdate = p.millis();
             }
+
             // Step the Planck world
             world.step(fixedTimeStep / 1000);
 
-            // Logic to end the simulation after set number of frames
-            tickCount++;
-            if (tickCount >= simulationLength) {
-                endSimulation(p);
+            // If initialization is complete, increment the tick count
+            if (isInitializationComplete) {
+                tickCount++;
+                if (tickCount >= simulationLength) {
+                    endSimulation(p);
+                }
             }
         }
     }
@@ -493,7 +498,6 @@ function getLeadingAgent() {
 }
 
 function endSimulation(p) {
-    shouldUpdatePhysics = false;
     p.noLoop();
 
     for (let agent of agents) {
@@ -640,11 +644,10 @@ async function nextGeneration(p) {
     console.log("Number of joints:", world.getJointCount());
     // Reset simulation
     // await new Promise(resolve => setTimeout(resolve, 1000));
-    shouldUpdatePhysics = true;
+    p.loop();
     currentPhysicsBatch = 0;
     tickCount = 0;
     genCount++;
-    p.loop();
 }
 
 // Function to create top performers for the next generation
