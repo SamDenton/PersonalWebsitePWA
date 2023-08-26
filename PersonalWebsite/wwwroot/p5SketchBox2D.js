@@ -35,6 +35,9 @@ let UIUpdateInterval = 500;
 let topScoreEver = 0;
 let randomlySelectedAgents = [];
 
+
+/*              I should Turn most of my global vars into an object, or multiple, and pass that between the functions that require it             */
+
 let sketch = function (p) {
     let lastMuscleUpdate = 0;
     let muscleUpdateInterval = 1000; // Update every 100 ms
@@ -42,9 +45,9 @@ let sketch = function (p) {
     let accumulator = 0;
     let lastTime = 0;
     let leadingAgent;
-    //let currentPhysicsBatch = 0;
-    //const BATCH_SIZE = 10;  // Number of agents per batch
-    //let SOME_DELAY_FRAME_COUNT = 5;
+    let currentPhysicsBatch = 0;
+    const BATCH_SIZE = 10;  // Number of agents per batch
+    let SOME_DELAY_FRAME_COUNT = 5;
 
     p.setup = function () {
         p.frameRate(60);
@@ -67,10 +70,14 @@ let sketch = function (p) {
             accumulator -= fixedTimeStep;
         }
 
-        //// If enough time has passed, move to the next batch
-        //if (p.frameCount % SOME_DELAY_FRAME_COUNT == 0 && currentPhysicsBatch * BATCH_SIZE < agents.length) {
-        //    currentPhysicsBatch++;
-        //}
+        // If enough time has passed, move to the next batch
+        if (p.frameCount % SOME_DELAY_FRAME_COUNT == 0) {
+            if (currentPhysicsBatch * BATCH_SIZE >= agents.length) {
+                currentPhysicsBatch = 0;  // Reset to the start
+            } else {
+                currentPhysicsBatch++;
+            }
+        }
 
         renderScene(p);
     };
@@ -79,14 +86,14 @@ let sketch = function (p) {
         leadingAgent = getLeadingAgent();
         if (leadingAgent) {
             // If initialization is complete, then update muscles
-            if (isInitializationComplete && p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
+            if (isInitializationComplete && areAllAgentsStable() && p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
                 // Update muscles only for the current batch of agents
-                //for (let i = currentPhysicsBatch * BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * BATCH_SIZE, agents.length); i++) {
-                //    agents[i].updateMuscles();
-                //}
-                for (let agent of agents) {
-                    agent.updateMuscles();
+                for (let i = currentPhysicsBatch * BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * BATCH_SIZE, agents.length); i++) {
+                    agents[i].updateMuscles();
                 }
+                //for (let agent of agents) {
+                //    agent.updateMuscles();
+                //}
                 lastMuscleUpdate = p.millis();
             }
 
@@ -94,7 +101,7 @@ let sketch = function (p) {
             world.step(fixedTimeStep / 1000);
 
             // If initialization is complete, increment the tick count
-            if (isInitializationComplete) {
+            if (isInitializationComplete && areAllAgentsStable()) {
                 tickCount++;
                 if (tickCount >= simulationLength) {
                     endSimulation(p);
@@ -130,10 +137,14 @@ let sketch = function (p) {
             p.line(groundStartX, groundPosition.y - 10, groundEndX, groundPosition.y);
 
             // Display the score of the leading agent
-            let leadingAgentScore = leadingAgent.getScore();
+            let leadingAgentScores = leadingAgent.getScore();
+            let leadingAgentScore = leadingAgentScores[0];
+            let leadingAgentXScore = leadingAgentScores[1];
+            let leadingAgentYScore = leadingAgentScores[2];
+            let leadingAgentMovementScore = leadingAgentScores[3];
             p.fill(0);  // Black text
-            p.textSize(20);  // Font size
-            p.text(`Leading Agent Score: ${leadingAgentScore}`, 10, groundY + 30);  // Displaying the score just below the ground
+            p.textSize(16);  // Font size
+            p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Score: ${leadingAgentMovementScore})`, 10, groundY + 30);  // Displaying the score just below the ground
 
             let agentsToRender = new Set(randomlySelectedAgents);  // Use a Set to ensure uniqueness
             agentsToRender.add(leadingAgent);  // Always add the leading agent
@@ -143,6 +154,13 @@ let sketch = function (p) {
                     agent.render(p, offsetX);
                 }
             }
+
+            //let agentsToRender = randomlySelectedAgents;  // Use a Set to ensure uniqueness
+            //agentsToRender.push(leadingAgent);  // Always add the leading agent
+            //agentsToRender.sort((a, b) => a.leadingAgentScore - b.leadingAgentScore);
+            //for (let agent of agentsToRender) {
+            //    agent.render(p, offsetX);
+            //}
 
             calculateFPS(p);
 
@@ -167,7 +185,7 @@ let sketch = function (p) {
             p.text(`Top Score: ${topScoreEver.toFixed(2)}`, 10, 110);
             p.text(`Distinct Population groups: ${numGroups}`, 10, 140);
 
-            if (!isInitializationComplete) {
+            if (!isInitializationComplete && areAllAgentsStable()) {
                 p.text(`Loading in agents!`, 10, 170);
             }
             else {
@@ -181,16 +199,29 @@ let sketch = function (p) {
     };
 };
 
-function initializeSketchBox2D(width, height, groundYPosition, gravityStrength, frictionStrength, simLength, renderedAgentsNo, simSpeed, topPerformerNumber) {
-    canvasWidth = width;
-    canvasHeight = height;
-    groundY = groundYPosition;
-    GravityStrength = gravityStrength;
-    FrictionStrength = frictionStrength;
-    simulationLength = simLength;
-    renderedAgents = renderedAgentsNo;
-    simulationSpeed = simSpeed;
-    topPerformerNo = topPerformerNumber;
+function areAllAgentsStable() {
+    const stabilityThreshold = 0.001;  // Define a small threshold value for stability
+    for (let agent of agents) {
+        if (agent.mainBody) {
+            if (Math.abs(agent.mainBody.getLinearVelocity()) > stabilityThreshold) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+function initializeSketchBox2D(stageProperties) {
+    canvasWidth = stageProperties.width;
+    canvasHeight = stageProperties.height;
+    groundY = stageProperties.groundY;
+    GravityStrength = stageProperties.gravity;
+    FrictionStrength = stageProperties.fiction;
+    simulationLength = stageProperties.simulationLength;
+    renderedAgents = stageProperties.renderedAgents;
+    simulationSpeed = stageProperties.simSpeed;
+    topPerformerNo = stageProperties.topPerformerNo;
+    spawnDelay = stageProperties.delay;
     frameCountSinceLastFPS = 0;
     lastFPSCalculationTime = 0;
     tickCount = 0;
@@ -231,7 +262,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
     console.log("a new agent");
     let mainBodyRadius = 20;
     let startingX = 100;
-    let startingY = 200;
+    let startingY = 300;
 
 
     this.mainBody = createMainBody(world, startingX, startingY, mainBodyRadius, agentNo);
@@ -309,7 +340,12 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         if (this.Score > topScoreEver) {
             topScoreEver = this.Score;
         }
-        return this.Score.toFixed(2);
+        return [
+            this.Score.toFixed(2),
+            XPosScore.toFixed(2),
+            YPosScore.toFixed(2),
+            jointMovementReward.toFixed(2)
+        ];
     };
 
     this.render = function (p) {
@@ -422,7 +458,6 @@ function initializeAgentsBox2D(agentProperties) {
     limbsPerAgent = agentProperties.numLimbs;
     genCount = 1;
     isInitializationComplete = false;
-    delay = delay || 50;
 
     // If the world is already initialized, clean up the previous state
     if (world) {
@@ -473,23 +508,8 @@ function initializeAgentsBox2D(agentProperties) {
         initializeAgentBatch(i, Math.min(i + BATCH_SIZE, popSize), agentsPerGroup);
     }
 
-    // Randomly select agents to render for each group
-    if (isInitializationComplete) {
-        randomlySelectedAgents = [];
-        for (let groupId = 0; groupId < numGroups; groupId++) {
-            let groupAgents = agents.filter(agent => agent.group === groupId);
+    waitForFirstInitializationCompletion();
 
-            // Select leading agent
-            let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
-            randomlySelectedAgents.push(leadingAgent);
-
-            // Select few random agents
-            for (let i = 0; i < renderedAgents; i++) {
-                let randomIndex = Math.floor(Math.random() * groupAgents.length);
-                randomlySelectedAgents.push(groupAgents[randomIndex]);
-            }
-        }
-    }
     displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
     offsetX = 0;
 }
@@ -513,6 +533,30 @@ function initializeAgent(i, agentsPerGroup) {
             isInitializationComplete = true;
         }
     }, i * delay);
+}
+
+function waitForFirstInitializationCompletion() {
+    // Check if agents initialised
+    if (isInitializationComplete) {
+        // Randomly select agents to render for each group
+        randomlySelectedAgents = [];
+        for (let groupId = 0; groupId < numGroups; groupId++) {
+            let groupAgents = agents.filter(agent => agent.group === groupId);
+
+            // Select leading agent
+            let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
+            randomlySelectedAgents.push(leadingAgent);
+
+            // Select few random agents
+            for (let i = 0; i < renderedAgents; i++) {
+                let randomIndex = Math.floor(Math.random() * groupAgents.length);
+                randomlySelectedAgents.push(groupAgents[randomIndex]);
+            }
+        }
+    } else {
+        // If the agents not initialised, wait for some time and check again
+        setTimeout(waitForFirstInitializationCompletion, 100); // Checking every 100ms
+    }
 }
 
 function getLeadingAgent() {
@@ -619,14 +663,15 @@ function createNeuralNetwork(config) {
 function nextGeneration(p) {
     let newAgents = [];
     let groupAgents;
+    let topPerformersCount;
     agents.sort((a, b) => b.getScore() - a.getScore()); // Sort in descending order of score
 
     for (let groupId = 0; groupId < numGroups; groupId++) {
-        console.log("building group: " + groupId);
+
         groupAgents = agents.filter(agent => agent.group === groupId); // Filter agents of this group
 
-        let topPerformersCount = Math.round(topPerformerNo * groupAgents.length);
-        console.log("top Perfomer Count: " + topPerformersCount);
+        topPerformersCount = Math.round(topPerformerNo * groupAgents.length);
+
         topPerformersCount = Math.max(topPerformersCount, 2); // Ensure at least 2 top performers are selected
 
         // Create new agents, but assign them the brains of previous top performers from the group
@@ -636,42 +681,10 @@ function nextGeneration(p) {
         generateOffspring(groupAgents, newAgents, groupId);
     }
 
-    // Get a list of brains in the new generation
-    let newBrains = newAgents.map(agent => agent.brain);
-
-    // Dispose old agents and set the new ones
-    agents.forEach(agent => {
-        // Dispose the brain only if it's not being reused in the new generation
-        if (!newBrains.includes(agent.brain) && agent.brain) {
-            agent.brain.dispose();
-        }
-    });
-
-    agents = newAgents;
-
-    if (agents.length >= popSize) {
-        isInitializationComplete = true;
-    }
-
-    // Randomly select agents to render for each group
-    randomlySelectedAgents = [];
-    for (let groupId = 0; groupId < numGroups; groupId++) {
-
-        // Select leading agent
-        let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
-        randomlySelectedAgents.push(leadingAgent);
-
-        // Select few random agents
-        for (let i = 0; i < renderedAgents; i++) {
-            let randomIndex = Math.floor(Math.random() * groupAgents.length);
-            randomlySelectedAgents.push(groupAgents[randomIndex]);
-        }
-    }
+    waitForInitializationCompletion(newAgents);
 
     console.log('Restarting simulation with evolved agents!');
-    console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
-    console.log("Number of bodies:", world.getBodyCount());
-    console.log("Number of joints:", world.getJointCount());
+
     // Reset simulation
     // await new Promise(resolve => setTimeout(resolve, 1000));
     displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
@@ -711,7 +724,7 @@ function generateOffspring(groupAgents, newAgents, groupId) {
         childAgent.brain = childBrain;
         childAgent.group = groupId; // Assign group
         newAgents.push(childAgent);
-        console.log("generating agent: " + groupAgents.length + "in batch: " + groupId);
+        // console.log("generating agent: " + newAgents.length + "total for this group: " + groupAgents.length + "in group: " + groupId);
         setTimeout(createChildAgent, delay);
     }
 
@@ -765,7 +778,7 @@ function crossover(agent1, agent2) {
         }
         return newWeightList;
     });
-    // let oldWeights = childBrain.getWeights();
+
     childBrain.setWeights(newWeights);
     // oldWeights.forEach(tensor => tensor.dispose());
     newWeights.forEach(weight => weight.dispose()); // Dispose of these tensors manually.  Might not need as well as tf.tidy
@@ -794,6 +807,53 @@ function mutate(childBrain, mutationRate) {
         mutatedWeights.forEach(w => w.dispose());
     });
     return childBrain; // Return the mutated childBrain
+}
+
+// Recursive function checking if agents have finished loading into world
+function waitForInitializationCompletion(newAgents) {
+    // Check if the condition is met
+    if (newAgents.length >= popSize) {
+
+        // Get a list of brains in the new generation
+        let newBrains = newAgents.map(agent => agent.brain);
+
+        isInitializationComplete = true;
+        // Dispose old agents
+        agents.forEach(agent => {
+            // Dispose the brain only if it's not being reused in the new generation
+            if (!newBrains.includes(agent.brain) && agent.brain) {
+                agent.brain.dispose();
+            }
+        });
+
+        agents = newAgents;
+
+        // Randomly select agents to render for each group
+        randomlySelectedAgents = [];
+        for (let groupId = 0; groupId < numGroups; groupId++) {
+
+            // Re-filter by group
+            groupAgents = agents.filter(agent => agent.group === groupId);
+
+            // Select leading agent
+            let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
+            randomlySelectedAgents.push(leadingAgent);
+
+            // Select few random agents
+            for (let i = 0; i < renderedAgents; i++) {
+                let randomIndex = Math.floor(Math.random() * groupAgents.length);
+                randomlySelectedAgents.push(groupAgents[randomIndex]);
+            }
+        }
+
+        console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
+        console.log("Number of bodies:", world.getBodyCount());
+        console.log("Number of joints:", world.getJointCount());
+
+    } else {
+        // If the condition is not met, wait for some time and check again
+        setTimeout(() => waitForInitializationCompletion(newAgents), 100); // Checking every 100ms for example
+    }
 }
 
 function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
@@ -863,7 +923,6 @@ Agent.prototype.makeDecision = function (inputs) {
             let currentSpeed = this.joints[i].getMotorSpeed();
             if (adjustment != currentSpeed) {
                 this.joints[i].setMotorSpeed(adjustment);
-                // console.log("adjusting joint speed to: " + adjustment);
             }
         }
     });
@@ -916,6 +975,7 @@ Agent.prototype.collectInputs = function () {
     // 7 Time remaining
     inputs.push(displayedTimeLeft);
 
+    // Want to add to this; sensors for distance to ground?
     return inputs;
 };
 

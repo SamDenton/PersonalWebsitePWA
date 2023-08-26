@@ -2,11 +2,12 @@
 @inject IJSRuntime JSRuntime
 
 <div id="canvas-container"></div>
-
+<p>My version of a genetic evolution simulation.  Select suitable starting conditions and click start.  I recomed seeing how it runs with a few agents and low physics speed and increase if stable</p>
 <p>Number of Agents</p>
 <select @bind="agentProperties.numAgents">
     <option value="2">2</option>
-    @for (int i = 10; i <= 200; i+= 10)  
+    <option value="50">50</option>
+    @for (int i = 50; i <= 1000; i+= 50)  
     {
         <option value="@i">@i</option>
     }
@@ -18,46 +19,57 @@
         <option value="@i">@i</option>
     }
 </select>
-<p>Gravity Strength</p>
-<select @bind="stage.Gravity">
-    @for (double i = 0.4; i <= 5; i+=0.2)
+<p>Gravity Strength Multiplyer</p>
+<select @bind="stageProperties.Gravity">
+    @for (double i = 0; i <= 5; i+=0.2)
     {
         double n = Math.Round(i, 2);
         <option value="@n">@n</option>
     }
 </select>
-<p>Friction Strength</p>
-<select @bind="stage.Friction">
+<p>Friction Strength Multiplyer</p>
+<select @bind="stageProperties.Friction">
     @for (double i = 0; i <= 5; i += 0.2)
     {
         double n = Math.Round(i, 2);
         <option value="@n">@n</option>
     }
 </select>
-<p>Round Length</p>
-<select @bind="stage.SimulationLength">
+<p>Physics ticks per round, set alongside physics speed</p>
+<select @bind="stageProperties.SimulationLength">
     <option value="100">100</option>
-    @for (int i = 500; i <= 5000; i += 100)
+    @for (int i = 500; i <= 10000; i += 500)
     {
         <option value="@i">@i</option>
     }
 </select>
-<p>No random agents per group, plus group leader, to render</p>
-<select @bind="stage.renderedAgents">
-    @for (int i = 1; i <= 40; i += 1)
+<p>Physics Speed, the number of physics ticks per 60 rendered frames, approx 1 second (try slower speeds on slow computers)</p>
+<select @bind="stageProperties.simSpeed">
+    @for (int i = 6; i <= 240; i += 6)
     {
         <option value="@i">@i</option>
     }
 </select>
-<p>Physics Speed (try slower speeds on slow computers)</p>
-<select @bind="stage.simSpeed">
-    @for (int i = 6; i <= 120; i += 6)
+<p>Number of random agents per group, plus the group leader, to render</p>
+<select @bind="stageProperties.renderedAgents">
+    @for (int i = 1; i <= 9; i += 1)
+    {
+        <option value="@i">@i</option>
+    }
+    @for (int i = 10; i <= 50; i += 10)
     {
         <option value="@i">@i</option>
     }
 </select>
 <p>Percentage of top agents kept between generations</p>
-<select @bind="stage.topPerformerNo">
+<select @bind="stageProperties.topPerformerNo">
+    @for (int i = 5; i <= 50; i += 5)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Spawn Delay Between batches (ms)</p>
+<select @bind="stageProperties.delay">
     @for (int i = 5; i <= 50; i += 5)
     {
         <option value="@i">@i</option>
@@ -67,7 +79,7 @@
 <button @onclick="ResetSimulation">Start/Reset</button>
 
 @code {
-    private Stage stage = new Stage();
+    private StageProperties stageProperties = new StageProperties();
     private AgentProperties agentProperties = new AgentProperties();
     public bool box2dPhysics { get; set; } = true;
 
@@ -79,7 +91,7 @@
     //    }
     //}
 
-    public class Stage
+    public class StageProperties
     {
         public float Width { get; set; } = 800;  // Canvas width
         public float Height { get; set; } = 400;  // Canvas height
@@ -90,6 +102,7 @@
         public int renderedAgents { get; set; } = 2;
         public int simSpeed { get; set; } = 60;
         public double topPerformerNo { get; set; } = 20;
+        public int delay { get; set; } = 100;
     }
 
     public class AgentProperties
@@ -102,12 +115,12 @@
     {
         if (box2dPhysics)
         {
-            await JSRuntime.InvokeVoidAsync("initializeSketchBox2D", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed, stage.topPerformerNo / 100);
+            await JSRuntime.InvokeVoidAsync("initializeSketchBox2D", stageProperties);
             await JSRuntime.InvokeVoidAsync("initializeAgentsBox2D", agentProperties);
         }
         else
         {
-            await JSRuntime.InvokeVoidAsync("initializeSketch", stage.Width, stage.Height, stage.GroundY, stage.Gravity, stage.Friction, stage.SimulationLength, stage.renderedAgents, stage.simSpeed, stage.topPerformerNo / 100);
+            await JSRuntime.InvokeVoidAsync("initializeSketch", stageProperties);
             await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
         }
     }
