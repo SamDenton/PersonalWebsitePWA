@@ -1,11 +1,24 @@
-let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, renderedAgents, simulationSpeed, popSize, topPerformerNo;
+/* Initialization vars taken from C# */
+let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, simulationSpeed, showNeuralNetwork, delay, UIUpdateInterval, simulationLength;
+let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE;
+/* Index's, flags */
 let currentAgentIndex = 0;
-let agents = [];
-let isInitializationComplete;
 let offsetX = 0;
+let displayedFPS = 0;
+let tickCount = 0;
+let lastUIUpdateTime = 0;
+let topScoreEver = 0;
+let isInitializationComplete, lastFPSCalculationTime, genCount, displayedTimeLeft, frameCountSinceLastFPS;
+
+/* P5 vars */
 let p5Instance = null;
-let delay;
-let numGroups;
+
+/* Grouping arrays */
+let agents = [];
+let leadingAgents = [];
+let randomlySelectedAgents = [];
+
+/* Agent and joint colours */
 const GROUP_COLORS = [
     '#FF5733', '#33FF57', '#3357FF', '#FF33F4', '#FFFC33', '#F05703', '#376D57', '#3328CF', '#FF33FF', '#F4FC33'
 ];
@@ -13,35 +26,18 @@ const JOINT_COLORS = [
     '#3328CF', '#FF33FF', '#F4FC33', '#FF5733', '#33FF57', '#3357FF', '#FF33F4', '#FFFC33', '#F05703', '#376D57'
 ];
 
-let MAX_ADJUSTMENT = 2;
-
 /* Planck vars */
-let world;
-const CATEGORY_GROUND = 0x0001;  // 0001 in binary
-const CATEGORY_AGENT_BODY = 0x0002;  // 0010 in binary
-const CATEGORY_AGENT_LIMB = 0x0004;  // 0100 in binary
-let groundBody;
-let BATCH_SIZE;
-let leadingAgents = [];
+let world, groundBody;
+const CATEGORY_GROUND = 0x0001;
+const CATEGORY_AGENT_BODY = 0x0002; 
+const CATEGORY_AGENT_LIMB = 0x0004; 
 
 /* TensorFlow vars */
-const TOURNAMENT_SIZE = 5; // Pick x number of agents from each group to compete to be parent during crossover
-const CROSS_GROUP_PROBABILITY = 0.05; // 5% chance to select from the entire population instead of within the same group
-
-let genCount;
-let displayedFPS = 0;
-let displayedTimeLeft;
-let frameCountSinceLastFPS;
-let lastFPSCalculationTime;
-let tickCount = 0;
-let simulationLength;
-let lastUIUpdateTime = 0;
-let UIUpdateInterval = 500; 
-let topScoreEver = 0;
-let randomlySelectedAgents = [];
+let numGroups;
 
 /* 
 Further Optomisations:
+            -Optomize how often I call getScore() as its very taxing now
             -Can spread out agent spawning further
             -Can speard out agent muscle descisions further (seems less impactful)
             -Can set physics updates lower while agents are spawning
@@ -77,7 +73,7 @@ Ideas:
 
 let sketch = function (p) {
     let lastMuscleUpdate = 0;
-    let muscleUpdateInterval = 1000; // Update every 100 ms
+    let muscleUpdateInterval = 1000; // Update every 100(?) ms
     let fixedTimeStep = (1.0 / simulationSpeed) * 1000; // 'simulationSpeed' updates per second for physics
     let accumulator = 0;
     let lastTime = 0;
@@ -85,6 +81,19 @@ let sketch = function (p) {
     let currentPhysicsBatch = 0;
     const MUSCLE_BATCH_SIZE = 10;  // Number of agents per batch
     let SOME_DELAY_FRAME_COUNT = 5;
+    let averageScore;
+    let leadingAgentScores;
+    let leadingAgentScore;
+    let leadingAgentXScore;
+    let leadingAgentYScore;
+    let leadingAgentMovementScore;
+    let trailingAgentScores;
+    let trailingAgentScore;
+    let trailingAgentXScore;
+    let trailingAgentYScore;
+    let trailingAgentMovementScore;
+    let leadingAgentWeightPenalty;
+    let trailingAgentWeightPenalty;
 
     p.setup = function () {
         p.frameRate(60);
@@ -100,6 +109,7 @@ let sketch = function (p) {
         let delta = currentTime - lastTime;
         lastTime = currentTime;
         leadingAgent = getLeadingAgent(p.frameCount);
+        trailingAgent = getLastAgent();
         accumulator += delta;
 
         while (accumulator >= fixedTimeStep) {
@@ -134,7 +144,9 @@ let sketch = function (p) {
             }
 
             // Step the Planck world
-            world.step(fixedTimeStep / 1000);
+            let velocityIterations = 4; // Default is usually 6
+            let positionIterations = 2; // Default is usually 2
+            world.step(fixedTimeStep / 1000 * 2, velocityIterations, positionIterations); // , velocityIterations, positionIterations
 
             // If initialization is complete, increment the tick count
             if (isInitializationComplete && areAllAgentsStable()) {
@@ -149,7 +161,24 @@ let sketch = function (p) {
     function renderScene(p) {
         if (leadingAgent) {
 
-            offsetX = p.width / 6 - leadingAgent.position.x;  // Center the leading agent on the canvas, just to the left
+            if (agentToFix == "leader") {
+                offsetX = p.width / 6 - leadingAgent.position.x;  // Center the leading agent on the canvas, just to the left
+            } else if (agentToFix = "trailer") {
+                offsetX = p.width / 6 - trailingAgent.position.x;
+            } else if (agentToFix = "average") {
+
+                let totalXScore = 0;
+
+                for (let agent of agents) {
+                    let eachXScore = agent.getScore();
+                    totalXScore += parseFloat(eachXScore[1]);
+                }
+
+                let averageXScore = totalXScore / agents.length;
+
+                offsetX = p.width / 6 - averageXScore + 100;
+            }
+            
 
             // Scrolling background
             p.fill(100);  // Grey color for the rectangle
@@ -170,68 +199,59 @@ let sketch = function (p) {
             let groundEndX = groundStartX + canvasWidth * 1000;  // Length of ground
             p.line(groundStartX, groundPosition.y - 10, groundEndX, groundPosition.y);
 
-            // Display the score of the leading agent
-            let leadingAgentScores = leadingAgent.getScore();
-            let leadingAgentScore = leadingAgentScores[0];
-            let leadingAgentXScore = leadingAgentScores[1];
-            let leadingAgentYScore = leadingAgentScores[2];
-            let leadingAgentMovementScore = leadingAgentScores[3];
-            p.fill(0);  // Black text
-            p.textSize(16);  // Font size
-            p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Score: ${leadingAgentMovementScore})`, 10, groundY + 30);  // Displaying the score just below the ground
+            calculateFPS(p);
 
             let agentsToRender = new Set(randomlySelectedAgents);  // Use a Set to ensure uniqueness
             agentsToRender.add(leadingAgent);  // Always add the leading agent
-
-            //for (let agent of agents) {
-            //    if (agentsToRender.has(agent)) {
-            //        agent.render(p, offsetX);
-            //    }
-            //}
-
-            for (let agent of agentsToRender) {
-                if (agent) {
-                    agent.render(p, offsetX);
-                }
-            }
-
-            //let agentsToRender = randomlySelectedAgents;  // Use a Set to ensure uniqueness
-            //agentsToRender.push(leadingAgent);  // Always add the leading agent
-            //agentsToRender.sort((a, b) => a.leadingAgentScore - b.leadingAgentScore);
-            //for (let agent of agentsToRender) {
-            //    agent.render(p, offsetX);
-            //}
-
-            calculateFPS(p);
-
-            let totalScore = 0;
-            for (let agent of agents) {
-                let eachScore = agent.getScore();
-                totalScore += parseFloat(eachScore[0]);
-            }
-
-            let averageScore = totalScore / agents.length;
+            agentsToRender.add(trailingAgent);
 
             let currentTime = p.millis();
+
+            //console.log(currentTime, lastUIUpdateTime);
             if (currentTime - lastUIUpdateTime > UIUpdateInterval) {
-                // Update the FPS, Gen No, and Time Left values
-                //let TimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
-                //if (TimeLeft < displayedTimeLeft) {
-                //    displayedTimeLeft = TimeLeft;
-                //}
+
+                // Display the score of the leading agent
+                leadingAgentScores = leadingAgent.getScore();
+                leadingAgentScore = leadingAgentScores[0];
+                leadingAgentXScore = leadingAgentScores[1];
+                leadingAgentYScore = leadingAgentScores[2];
+                leadingAgentMovementScore = leadingAgentScores[3];
+                leadingAgentWeightPenalty = leadingAgentScores[4];
+
+                // Display the score of the trailing agent
+                trailingAgentScores = trailingAgent.getScore();
+                trailingAgentScore = trailingAgentScores[0];
+                trailingAgentXScore = trailingAgentScores[1];
+                trailingAgentYScore = trailingAgentScores[2];
+                trailingAgentMovementScore = trailingAgentScores[3];
+                trailingAgentWeightPenalty = trailingAgentScores[4];
+
+                let totalScore = 0;
+                for (let agent of agents) {
+                    let eachScore = agent.getScore();
+                    totalScore += parseFloat(eachScore[0]);
+                }
+
+                averageScore = totalScore / agents.length;
+
                 displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
 
                 // Reset the last update time
                 lastUIUpdateTime = currentTime;
             }
-            // Render the FPS, Gen No, and Time Left in every frame
+
+            // Render the FPS, Gen No, and Time Left
             p.fill(0);  // White color for the text
             p.textSize(18);  // Font size
             p.text(`FPS: ${displayedFPS}`, 10, 20);
             p.text(`Generation: ${genCount}`, 10, 50);
             p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 80);
             p.text(`Top Score: ${topScoreEver.toFixed(2)}`, 10, 110);
-            p.text(`Average Score: ${averageScore.toFixed(2)}`, 10, 140);
+            if (averageScore > - 10) {
+                p.text(`Average Score: ${averageScore.toFixed(2)}`, 10, 140);
+            } else {
+                p.text(`Average Score: 0`, 10, 140);
+            }
             p.text(`Distinct Population groups: ${numGroups}`, 10, 170);
             p.text(`Agents on screen: ${agentsToRender.size}`, 10, 200);
 
@@ -242,9 +262,31 @@ let sketch = function (p) {
                 p.text(`Agents can go!`, 10, 230);
             }
 
-            // Render NN for leading agent
-            p.fill(GROUP_COLORS[leadingAgent.group]);
-            leadingAgent.renderNN(p, canvasWidth - 1150, (canvasHeight / 2) - 40);
+            p.fill(0);  // Black text
+            p.textSize(16);  // Font size
+            if (leadingAgentMovementScore > - 1) {
+                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Score: ${leadingAgentMovementScore} - Brain Weight Penalty: ${leadingAgentWeightPenalty})`, 10, groundY + 30);  // Displaying the score just below the ground
+            }
+
+            p.fill(0);  // Black text
+            p.textSize(16);  // Font size
+            if (trailingAgentMovementScore > - 1) {
+                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Score: ${trailingAgentMovementScore} - Brain Weight Penalty: ${trailingAgentWeightPenalty})`, 10, groundY + 55);  // Displaying the score just below the ground
+            }
+
+            if (showNeuralNetwork = true) {
+                // Render NN for leading agent
+                p.fill(GROUP_COLORS[leadingAgent.group]);
+                leadingAgent.renderNN(p, canvasWidth - 1150, (canvasHeight / 2) - 40);
+            }
+
+            if (agentsToRender.size > 1) {
+                for (let agent of agentsToRender) {
+                    if (agent) {
+                        agent.render(p, offsetX);
+                    }
+                }
+            }
         }
     };
 };
@@ -265,14 +307,23 @@ function initializeSketchBox2D(stageProperties) {
     canvasWidth = stageProperties.width;
     canvasHeight = stageProperties.height;
     groundY = stageProperties.groundY;
+    popSize = stageProperties.numAgents;
     GravityStrength = stageProperties.gravity;
     FrictionStrength = stageProperties.fiction;
     simulationLength = stageProperties.simulationLength;
     renderedAgents = stageProperties.renderedAgents;
     simulationSpeed = stageProperties.simSpeed;
     topPerformerNo = stageProperties.topPerformerNo / 100;
-    spawnDelay = stageProperties.delay;
+    delay = stageProperties.delay;
     BATCH_SIZE = stageProperties.batchSize;
+    showNeuralNetwork = stageProperties.showNN;
+    agentToFix = stageProperties.agentInCentre;
+    TOURNAMENT_SIZE = stageProperties.tournamentSize;
+    CROSS_GROUP_PROBABILITY = stageProperties.migrationRate;
+    MIN_GROUP_SIZE = stageProperties.minPopGroupSize;
+    MAX_GROUP_SIZE = stageProperties.maxPopGroupSize;
+    UIUpdateInterval = stageProperties.uiRefreshRate;
+    MAX_ADJUSTMENT = stageProperties.maxJointSpeed;
     frameCountSinceLastFPS = 0;
     lastFPSCalculationTime = 0;
     tickCount = 0;
@@ -292,6 +343,23 @@ function initializeSketchBox2D(stageProperties) {
     }
     // Create a new p5 instance and assign it to the global reference
     p5Instance = new p5(sketch, 'canvas-container');
+}
+
+function toggleNNRender(showNN) {
+    showNeuralNetwork = showNN;
+}
+
+function updateSimulation(stageProperties) {
+    simulationLength = stageProperties.simulationLength;
+    renderedAgents = stageProperties.renderedAgents;
+    simulationSpeed = stageProperties.simSpeed;
+    delay = stageProperties.delay;
+    BATCH_SIZE = stageProperties.batchSize;
+    agentToFix = stageProperties.agentInCentre;
+    TOURNAMENT_SIZE = stageProperties.tournamentSize;
+    CROSS_GROUP_PROBABILITY = stageProperties.migrationRate;
+    MIN_GROUP_SIZE = stageProperties.minPopGroupSize;
+    MAX_GROUP_SIZE = stageProperties.maxPopGroupSize;
 }
 
 function calculateFPS(p) {
@@ -363,6 +431,23 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         this.brain = createNeuralNetwork(this.nnConfig);
     }
 
+    this.weightPenaltyCache = null;
+    this.weightPenaltyCounter = 0;
+
+    this.getWeightPenalty = function () {
+        this.weightPenaltyCounter++;
+
+        if (this.weightPenaltyCounter % 120 === 0) {
+            let allWeightTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 0);
+            let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()).map(Math.abs)); // map to absolute values
+            let averageAbsWeight = allWeights.reduce((sum, weight) => sum + weight, 0) / allWeights.length;
+
+            this.weightPenaltyCache = averageAbsWeight;
+        }
+
+        return this.weightPenaltyCache;
+    }
+
     // Initialize previousJointAngles to starting angles
     this.previousJointAngles = Array(this.numLimbs).fill(0).map((_, i) => this.joints[i].getJointAngle());
 
@@ -397,15 +482,20 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
 
         let jointMovementReward = (this.getJointMovementReward() * 15 / numLimbs); // Adjust multiplier if needed
 
-        this.Score = XPosScore + YPosScore + jointMovementReward;
+        let weightPenalty = this.getWeightPenalty() * 50;
+
+        this.Score = XPosScore + YPosScore + jointMovementReward - weightPenalty;
+
         if (this.Score > topScoreEver) {
             topScoreEver = this.Score;
         }
+
         return [
             this.Score.toFixed(2),
             XPosScore.toFixed(2),
             YPosScore.toFixed(2),
-            jointMovementReward.toFixed(2)
+            jointMovementReward.toFixed(2),
+            weightPenalty.toFixed(2)
         ];
     };
 
@@ -523,7 +613,7 @@ function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lo
         upperAngle: upperAngle,
         enableLimit: true,
         motorSpeed: 0.0,
-        maxMotorTorque: 100000.0,
+        maxMotorTorque: 500000.0,
         enableMotor: true
     };
 
@@ -531,7 +621,6 @@ function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lo
 }
 
 function initializeAgentsBox2D(agentProperties) {
-    popSize = agentProperties.numAgents;
     limbsPerAgent = agentProperties.numLimbs;
     genCount = 1;
     isInitializationComplete = false;
@@ -564,9 +653,6 @@ function initializeAgentsBox2D(agentProperties) {
             agent.mainBody = null;
         }
     }
-
-    const MIN_GROUP_SIZE = 20;  // Minimum number of agents per pop group
-    const MAX_GROUP_SIZE = 50;  // this is an upper limit, can adjust based on tests
 
     // Calculate the number of groups
     numGroups = Math.max(1, Math.ceil(popSize / MAX_GROUP_SIZE));
@@ -623,7 +709,7 @@ function waitForFirstInitializationCompletion() {
             for (let i = 0; i < renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgents.length);
                 randomlySelectedAgents.push(groupAgents[randomIndex]);
-                console.log("adding random agent to render list, group: " + groupId);
+                // console.log("adding random agent to render list, group: " + groupId);
             }
         }
 
@@ -638,6 +724,8 @@ function waitForFirstInitializationCompletion() {
 function getLeadingAgent(frameCounter) {
     if (agents.length === 0) return null;
 
+    // Truncate randomlySelectedAgents to keep initialised picks
+    randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * renderedAgents);
 
     // Create an array of the leading agents from each group
     let leadingAgents = [];
@@ -649,9 +737,11 @@ function getLeadingAgent(frameCounter) {
 
         leadingAgents.push(leadingAgent);
     }
+
+    randomlySelectedAgents.push(...leadingAgents);
+
     // Shuffle the leadingAgents array
     //function shuffleArray(array) {
-
 
     //    // Truncate randomlySelectedAgents to keep initialised picks
     //    randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * renderedAgents);
@@ -674,6 +764,16 @@ function getLeadingAgent(frameCounter) {
         agents[0]
     );
 }
+
+function getLastAgent() {
+    if (agents.length === 0) return null;
+
+    return agents.reduce((trailing, agent) =>
+        (agent.position.x < trailing.position.x ? agent : trailing),
+        agents[0]
+    );
+}
+
 
 function endSimulation(p) {
     p.noLoop();
@@ -778,11 +878,11 @@ function nextGeneration(p) {
         groupAgents = agents.filter(agent => agent.group === groupId); // Filter agents of this group
 
         topPerformersCount = Math.round(topPerformerNo * groupAgents.length);
-        console.log(topPerformersCount);
+
         topPerformersCount = Math.max(topPerformersCount, 2); // Ensure at least 2 top performers are selected
 
         // Create new agents, but assign them the brains of previous top performers from the group
-        createTopPerformers(groupAgents, topPerformersCount, groupId, newAgents);
+        createTopPerformers(groupAgents, topPerformersCount, newAgents);
 
         // Generate offspring within the group
         generateOffspring(groupAgents, newAgents, groupId);
@@ -802,15 +902,12 @@ function nextGeneration(p) {
 }
 
 // Function to create top performers for the next generation
-function createTopPerformers(groupAgents, topPerformersCount, groupId, newAgents) {
-    for (let i = 0; i < topPerformersCount; i += BATCH_SIZE) {
-        setTimeout(() => {
-            for (let j = i; j < Math.min(i + BATCH_SIZE, topPerformersCount); j++) {
-                let newAgent = new Agent(groupAgents[j].numLimbs, groupAgents[j].brain);
-                newAgent.group = groupId; // Assign group
-                newAgents.push(newAgent);
-            }
-        }, (i / BATCH_SIZE) * delay);
+function createTopPerformers(groupAgents, topPerformersCount, newAgents) {
+    for (let j = 0; j < topPerformersCount; j++) {
+        let oldAgent = groupAgents[j];
+        let newAgent = new Agent(oldAgent.numLimbs, oldAgent.brain);
+        newAgent.group = oldAgent.group;  // Assign the same group
+        newAgents.push(newAgent);
     }
 }
 
@@ -824,10 +921,12 @@ function generateOffspring(groupAgents, newAgents, groupId) {
 
         for (let i = startIndex; i < Math.min(startIndex + BATCH_SIZE, groupAgents.length); i++) {
             let parent1 = selectAgent(groupAgents, agents);
-            let parent2 = selectAgent(groupAgents, agents, parent1);
+            let parent2 = selectAgentWeighted(groupAgents, agents, parent1);
 
-            let childBrain = crossover(parent1, parent2);
-            childBrain = mutate(childBrain, this.mutationRate);
+            // let childBrain = crossover(parent1, parent2);
+            let childBrain = biasedArithmeticCrossover(parent1, parent2);
+            // childBrain = mutate(childBrain, this.mutationRate);
+            childBrain = gaussianMutation(childBrain, this.mutationRate);
 
             let childAgent = new Agent(limbsPerAgent);
             childAgent.brain.dispose();
@@ -866,6 +965,39 @@ function selectAgent(agents, allAgents, excludedAgent = null) {
     return tournamentContestants.sort((a, b) => b.getScore() - a.getScore())[0];
 }
 
+function selectAgentWeighted(agentsLocal, allAgents, excludedAgent = null) {
+    // Occasionally pick from the entire population
+    if (Math.random() < CROSS_GROUP_PROBABILITY) {
+        agentsLocal = allAgents;
+    }
+
+    let normalizedScores = [];
+    let minScore = Math.min(...agentsLocal.map(agent => agent.getScore()));
+
+    // Ensure all scores are positive
+    let offsetScore = minScore < 0 ? Math.abs(minScore) : 0;
+
+    let cumulativeSum = 0;
+    for (let agent of agentsLocal) {
+        if (agent !== excludedAgent) {
+            let score = agent.getScore() + offsetScore;
+            cumulativeSum += score;
+            normalizedScores.push(cumulativeSum);
+        }
+    }
+
+    let randomValue = Math.random() * cumulativeSum;
+    // If the random value is greater than the current iterated score, take that agent
+    for (let i = 0; i < normalizedScores.length; i++) {
+        if (randomValue <= normalizedScores[i]) {
+            return agentsLocal[i];
+        }
+    }
+    // Should not reach here, but just in case
+    return agentsLocal[0];
+}
+
+
 function crossover(agent1, agent2) {
     let childBrain = createNeuralNetwork(agent1.nnConfig);
     let newWeights = tf.tidy(() => {
@@ -894,11 +1026,44 @@ function crossover(agent1, agent2) {
     });
 
     childBrain.setWeights(newWeights);
-    // oldWeights.forEach(tensor => tensor.dispose());
     newWeights.forEach(weight => weight.dispose()); // Dispose of these tensors manually.  Might not need as well as tf.tidy
     return childBrain;
 }
 
+function biasedArithmeticCrossover(agent1, agent2) {
+    let childBrain = createNeuralNetwork(agent1.nnConfig);
+
+    let score1 = agent1.getScore()
+    let xScore1 = parseFloat(score1[0]);
+
+    let score2 = agent1.getScore()
+    let xScore2 = parseFloat(score2[0]);
+
+    let totalScore = xScore1 + xScore2;
+
+    // Normalize scores to get the bias for each parent.
+    let alpha = xScore1 / totalScore;
+    let beta = 1 - alpha; // or agent2.score / totalScore
+
+    let newWeights = tf.tidy(() => {
+        let agent1Weights = agent1.brain.getWeights();
+        let agent2Weights = agent2.brain.getWeights();
+        let newWeightList = [];
+        for (let i = 0; i < agent1Weights.length; i++) {
+            let weight1 = agent1Weights[i];
+            let weight2 = agent2Weights[i];
+            let newWeightValues = tf.add(tf.mul(weight1, alpha), tf.mul(weight2, beta));
+            newWeightList.push(newWeightValues);
+        }
+        return newWeightList;
+    });
+
+    childBrain.setWeights(newWeights);
+    newWeights.forEach(weight => weight.dispose()); // Dispose of these tensors manually. Might not need as well as tf.tidy
+    return childBrain;
+}
+
+// Some persentage of weights in a network should be changed by a random amount betwee -0.05 and 0.05
 function mutate(childBrain, mutationRate) {
     tf.tidy(() => {
         function mutateValues(values) {
@@ -922,6 +1087,42 @@ function mutate(childBrain, mutationRate) {
     });
     return childBrain; // Return the mutated childBrain
 }
+
+// Gaussian version of my mutate function, allowing for small randomised changes to weights
+function gaussianMutation(childBrain, mutationRate) {
+    let stdDeviation = 0.1;
+    tf.tidy(() => {
+        function mutateValues(values) {
+            for (let i = 0; i < values.length; i++) {
+                if (Math.random() < mutationRate) {
+                    let adjustment = randomGaussian(0, stdDeviation); // Draw from a Gaussian with mean=0 and specified SD.
+                    values[i] += adjustment;
+                }
+            }
+        }
+
+        function randomGaussian(mean, sd) {
+            // Using the Box-Muller transform to get a Gaussian random number
+            let u1 = Math.random();
+            let u2 = Math.random();
+            let randStdNormal = Math.sqrt(-2.0 * Math.log(u1)) * Math.sin(2.0 * Math.PI * u2);
+            return mean + sd * randStdNormal;
+        }
+
+        let originalWeights = childBrain.getWeights();
+        let mutatedWeights = originalWeights.map(w => {
+            let values = w.arraySync();
+            mutateValues(values);
+            return tf.tensor(values);
+        });
+
+        childBrain.setWeights(mutatedWeights);
+        // Just dispose of mutatedWeights since originalWeights tensors have not been cloned or changed
+        mutatedWeights.forEach(w => w.dispose());
+    });
+    return childBrain; // Return the mutated childBrain
+}
+
 
 // Recursive function checking if agents have finished loading into world
 function waitForInitializationCompletion(newAgents) {
@@ -953,7 +1154,7 @@ function waitForInitializationCompletion(newAgents) {
             for (let i = 0; i < renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgents.length);
                 randomlySelectedAgents.push(groupAgents[randomIndex]);
-                console.log("adding random agent to render list, group: " + groupId);
+                // console.log("adding random agent to render list, group: " + groupId);
             }
         }
 

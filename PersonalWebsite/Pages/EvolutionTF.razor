@@ -4,7 +4,7 @@
 <div id="canvas-container"></div>
 <p>My version of a genetic evolution simulation.  Select suitable starting conditions and click start.  I recomed seeing how it runs with a few agents and low physics speed and increase if stable</p>
 <p>Number of Agents</p>
-<select @bind="agentProperties.numAgents">
+<select @bind="stageProperties.numAgents">
     <option value="2">2</option>
     <option value="10">10</option>
     @for (int i = 50; i <= 1000; i+= 50)  
@@ -84,8 +84,61 @@
         <option value="@i">@i</option>
     }
 </select>
+<p>Agent to fix camera on (average can cause lag)</p>
+<select @bind="stageProperties.agentInCentre">
+    <option value="leader">leader</option>
+    <option value="trailer">trailer</option>
+    <option value="average">average</option>
+</select>
+<p>Group Tournament Size, the number of random agents picked to compete to be parents, mostly from within same group. 1 means fully random parents from same group, 50 means very best from group.  Will make this a %</p>
+<select @bind="stageProperties.tournamentSize">
+    <option value="1">1</option>
+    @for (int i = 5; i <= 50; i += 5)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Migration rate between groups, the chance a parent is selected from random group instead of the same.  0.05 means 5% chance, 1 means parents from random groups</p>
+<select @bind="stageProperties.migrationRate">
+    @for (double i = 0.05; i <= 1; i += 0.05)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Miminum agents per population group.  If total number is less than this, all agents will be in the same group</p>
+<select @bind="stageProperties.minPopGroupSize">
+    @for (int i = 5; i <= 50; i += 5)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Maximum agents per population group.  Sets the number of groups as total population / Max agents per group, when total is more than max</p>
+<select @bind="stageProperties.tournamentSize">
+    <option value="1">1</option>
+    @for (int i = 5; i <= 50; i += 5)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>UI (Neural Network and Text) Update Rate (ms)</p>
+<select @bind="stageProperties.uiRefreshRate">
+    @for (int i = 100; i <= 1000; i += 100)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Max Joint Speed</p>
+<select @bind="stageProperties.maxJointSpeed">
+    @for (int i = 1; i <= 5; i += 1)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
 
+<button @onclick="toggleNN">Toggle Neural Network</button>
 <button @onclick="ResetSimulation">Start/Reset</button>
+<p>You can update the round length, number of rendered agents, physics speed, spawn delay and batch size, parent tournament size, migration rate, max and min population group size and the agent to fix the camera on</p>
+<button @onclick="UpdateSimulation">Update</button>
 
 @code {
     private StageProperties stageProperties = new StageProperties();
@@ -107,32 +160,50 @@
         public float GroundY { get; set; } = 700;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 5000;  
-        public int renderedAgents { get; set; } = 2;
+        public int SimulationLength { get; set; } = 3000;  
+        public int renderedAgents { get; set; } = 1;
         public int simSpeed { get; set; } = 60;
         public double topPerformerNo { get; set; } = 20;
-        public int delay { get; set; } = 100;
+        public int delay { get; set; } = 20;
         public int BatchSize { get; set; } = 10;
+        public bool showNN { get; set; } = true;
+        public string agentInCentre { get; set; } = "leader";
+        public int numAgents { get; set; } = 200;
+        public int tournamentSize { get; set; } = 10;
+        public double migrationRate { get; set; } = 0.05;
+        public int minPopGroupSize { get; set; } = 20;
+        public int maxPopGroupSize { get; set; } = 50;
+        public int uiRefreshRate { get; set; } = 200;
+        public int maxJointSpeed { get; set; } = 2;
     }
 
     public class AgentProperties
     {
-        public int numAgents { get; set; } = 2;
         public int numLimbs { get; set; } = 5;
     }
 
     private async Task ResetSimulation()
     {
-        if (box2dPhysics)
+        await JSRuntime.InvokeVoidAsync("initializeSketchBox2D", stageProperties);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2D", agentProperties);
+    }
+
+    private async Task toggleNN()
+    {
+        if (stageProperties.showNN == true)
         {
-            await JSRuntime.InvokeVoidAsync("initializeSketchBox2D", stageProperties);
-            await JSRuntime.InvokeVoidAsync("initializeAgentsBox2D", agentProperties);
+            stageProperties.showNN = false;
         }
         else
         {
-            await JSRuntime.InvokeVoidAsync("initializeSketch", stageProperties);
-            await JSRuntime.InvokeVoidAsync("initializeAgents", agentProperties);
+            stageProperties.showNN = true;
         }
+        await JSRuntime.InvokeVoidAsync("toggleNNRender", stageProperties.showNN);
+    }
+
+    private async Task UpdateSimulation()
+    {
+        await JSRuntime.InvokeVoidAsync("updateSimulation", stageProperties);
     }
 }
 
