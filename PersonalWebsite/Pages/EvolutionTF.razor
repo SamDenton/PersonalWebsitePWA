@@ -6,7 +6,7 @@
 <p>Number of Agents</p>
 <select @bind="agentProperties.numAgents">
     <option value="2">2</option>
-    <option value="50">50</option>
+    <option value="10">10</option>
     @for (int i = 50; i <= 1000; i+= 50)  
     {
         <option value="@i">@i</option>
@@ -68,9 +68,18 @@
         <option value="@i">@i</option>
     }
 </select>
-<p>Spawn Delay Between batches (ms)</p>
+<p>Spawn Delay Between batches (ms), more delay smooths out resource spikes when loading agents</p>
 <select @bind="stageProperties.delay">
-    @for (int i = 5; i <= 50; i += 5)
+    <option value="0">0</option>
+    @for (int i = 20; i <= 200; i += 20)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Spawn Batch Size</p>
+<select @bind="stageProperties.BatchSize">
+    <option value="1">1</option>
+    @for (int i = 5; i <= 200; i += 5)
     {
         <option value="@i">@i</option>
     }
@@ -93,9 +102,9 @@
 
     public class StageProperties
     {
-        public float Width { get; set; } = 800;  // Canvas width
-        public float Height { get; set; } = 400;  // Canvas height
-        public float GroundY { get; set; } = 350;  // Y position of the ground in the canvas
+        public float Width { get; set; } = 1600;  // Canvas width
+        public float Height { get; set; } = 800;  // Canvas height
+        public float GroundY { get; set; } = 700;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
         public int SimulationLength { get; set; } = 5000;  
@@ -103,6 +112,7 @@
         public int simSpeed { get; set; } = 60;
         public double topPerformerNo { get; set; } = 20;
         public int delay { get; set; } = 100;
+        public int BatchSize { get; set; } = 10;
     }
 
     public class AgentProperties

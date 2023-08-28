@@ -9,8 +9,11 @@ let numGroups;
 const GROUP_COLORS = [
     '#FF5733', '#33FF57', '#3357FF', '#FF33F4', '#FFFC33', '#F05703', '#376D57', '#3328CF', '#FF33FF', '#F4FC33'
 ];
+const JOINT_COLORS = [
+    '#3328CF', '#FF33FF', '#F4FC33', '#FF5733', '#33FF57', '#3357FF', '#FF33F4', '#FFFC33', '#F05703', '#376D57'
+];
 
-let MAX_ADJUSTMENT = 10;
+let MAX_ADJUSTMENT = 2;
 
 /* Planck vars */
 let world;
@@ -18,6 +21,8 @@ const CATEGORY_GROUND = 0x0001;  // 0001 in binary
 const CATEGORY_AGENT_BODY = 0x0002;  // 0010 in binary
 const CATEGORY_AGENT_LIMB = 0x0004;  // 0100 in binary
 let groundBody;
+let BATCH_SIZE;
+let leadingAgents = [];
 
 /* TensorFlow vars */
 const TOURNAMENT_SIZE = 5; // Pick x number of agents from each group to compete to be parent during crossover
@@ -35,8 +40,40 @@ let UIUpdateInterval = 500;
 let topScoreEver = 0;
 let randomlySelectedAgents = [];
 
+/* 
+Further Optomisations:
+            -Can spread out agent spawning further
+            -Can speard out agent muscle descisions further (seems less impactful)
+            -Can set physics updates lower while agents are spawning
+            -Can set collision logic lower while spawning, could hold agents in position so thay cant fall through ground and have collisions turned off while spawning, then slowly turn it back on before round starts
+            -I should Turn most of my global vars into an object, or multiple, and pass that between the functions that require it
+            -I should experament with how often I actually need physics collisions to run, they only interact with the ground, and dont move very fast.  I could also make the ground thicker
+            -These are the functions causing the biggest frame drops and delays:
+                41485 ms  Scripting
+                55 ms  Rendering
+                1002 ms  Painting
+                1971 ms  System
+                663 ms  Idle
+                45177 ms  Total
 
-/*              I should Turn most of my global vars into an object, or multiple, and pass that between the functions that require it             */
+                t.createContact
+                e.solveVelocityConstraints
+                e._solvePositionConstraint
+                e.initVelocityConstraints
+                renderNeuralNetwork
+                t.tidy > t.dataSync > n.getValuesFromTexture > ... > readPixels > Optimize Code
+                getLeadingAgent
+
+ */
+
+/* 
+Ideas:      
+            -I want to evolve agent body plan over time, use a json for construction.  Agents should start simple and get more complex over time so they dont have to leavn to control a complex body right away.  I think thats the best way.  Wings????
+            -I want to have the enviromet both configurable on startup, and for it to get more challenging over generations
+            -I want to save agents, either individuals or populations, to re-use later.  Would be good to have a property tracking agent history, its own top score, what the parameters where when it got that score, etc.
+            -I want to evolve the inputs and outputs of the network, from a selection of available
+            -I want to evolve the topology of the networks themselevs using NEAT so they can decide how complex they need to be
+*/
 
 let sketch = function (p) {
     let lastMuscleUpdate = 0;
@@ -46,7 +83,7 @@ let sketch = function (p) {
     let lastTime = 0;
     let leadingAgent;
     let currentPhysicsBatch = 0;
-    const BATCH_SIZE = 10;  // Number of agents per batch
+    const MUSCLE_BATCH_SIZE = 10;  // Number of agents per batch
     let SOME_DELAY_FRAME_COUNT = 5;
 
     p.setup = function () {
@@ -62,7 +99,7 @@ let sketch = function (p) {
         let currentTime = p.millis();
         let delta = currentTime - lastTime;
         lastTime = currentTime;
-
+        leadingAgent = getLeadingAgent(p.frameCount);
         accumulator += delta;
 
         while (accumulator >= fixedTimeStep) {
@@ -72,7 +109,7 @@ let sketch = function (p) {
 
         // If enough time has passed, move to the next batch
         if (p.frameCount % SOME_DELAY_FRAME_COUNT == 0) {
-            if (currentPhysicsBatch * BATCH_SIZE >= agents.length) {
+            if (currentPhysicsBatch * MUSCLE_BATCH_SIZE >= agents.length) {
                 currentPhysicsBatch = 0;  // Reset to the start
             } else {
                 currentPhysicsBatch++;
@@ -83,12 +120,11 @@ let sketch = function (p) {
     };
 
     function updatePhysics() {
-        leadingAgent = getLeadingAgent();
         if (leadingAgent) {
             // If initialization is complete, then update muscles
             if (isInitializationComplete && areAllAgentsStable() && p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
                 // Update muscles only for the current batch of agents
-                for (let i = currentPhysicsBatch * BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * BATCH_SIZE, agents.length); i++) {
+                for (let i = currentPhysicsBatch * MUSCLE_BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * MUSCLE_BATCH_SIZE, agents.length); i++) {
                     agents[i].updateMuscles();
                 }
                 //for (let agent of agents) {
@@ -111,10 +147,9 @@ let sketch = function (p) {
     }
 
     function renderScene(p) {
-        leadingAgent = getLeadingAgent();
         if (leadingAgent) {
 
-            offsetX = p.width / 4 - leadingAgent.position.x;  // Center the leading agent on the canvas
+            offsetX = p.width / 6 - leadingAgent.position.x;  // Center the leading agent on the canvas, just to the left
 
             // Scrolling background
             p.fill(100);  // Grey color for the rectangle
@@ -125,7 +160,6 @@ let sketch = function (p) {
                 let xPosition = i * rectSpacing + (offsetX % rectSpacing);
                 p.rect(xPosition, groundY - 50, rectWidth, 40);  // Drawing the rectangle slightly above the ground
             }
-
 
             // Render stage with offset
             p.stroke(50);
@@ -149,8 +183,14 @@ let sketch = function (p) {
             let agentsToRender = new Set(randomlySelectedAgents);  // Use a Set to ensure uniqueness
             agentsToRender.add(leadingAgent);  // Always add the leading agent
 
-            for (let agent of agents) {
-                if (agentsToRender.has(agent)) {
+            //for (let agent of agents) {
+            //    if (agentsToRender.has(agent)) {
+            //        agent.render(p, offsetX);
+            //    }
+            //}
+
+            for (let agent of agentsToRender) {
+                if (agent) {
                     agent.render(p, offsetX);
                 }
             }
@@ -163,6 +203,14 @@ let sketch = function (p) {
             //}
 
             calculateFPS(p);
+
+            let totalScore = 0;
+            for (let agent of agents) {
+                let eachScore = agent.getScore();
+                totalScore += parseFloat(eachScore[0]);
+            }
+
+            let averageScore = totalScore / agents.length;
 
             let currentTime = p.millis();
             if (currentTime - lastUIUpdateTime > UIUpdateInterval) {
@@ -183,18 +231,20 @@ let sketch = function (p) {
             p.text(`Generation: ${genCount}`, 10, 50);
             p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 80);
             p.text(`Top Score: ${topScoreEver.toFixed(2)}`, 10, 110);
-            p.text(`Distinct Population groups: ${numGroups}`, 10, 140);
+            p.text(`Average Score: ${averageScore.toFixed(2)}`, 10, 140);
+            p.text(`Distinct Population groups: ${numGroups}`, 10, 170);
+            p.text(`Agents on screen: ${agentsToRender.size}`, 10, 200);
 
             if (!isInitializationComplete && areAllAgentsStable()) {
-                p.text(`Loading in agents!`, 10, 170);
+                p.text(`Loading in agents!`, 10, 230);
             }
             else {
-                p.text(`Agents can go!`, 10, 170);
+                p.text(`Agents can go!`, 10, 230);
             }
 
             // Render NN for leading agent
             p.fill(GROUP_COLORS[leadingAgent.group]);
-            leadingAgent.renderNN(p, canvasWidth - 400, (canvasHeight / 2) - 50);
+            leadingAgent.renderNN(p, canvasWidth - 1150, (canvasHeight / 2) - 40);
         }
     };
 };
@@ -220,8 +270,9 @@ function initializeSketchBox2D(stageProperties) {
     simulationLength = stageProperties.simulationLength;
     renderedAgents = stageProperties.renderedAgents;
     simulationSpeed = stageProperties.simSpeed;
-    topPerformerNo = stageProperties.topPerformerNo;
+    topPerformerNo = stageProperties.topPerformerNo / 100;
     spawnDelay = stageProperties.delay;
+    BATCH_SIZE = stageProperties.batchSize;
     frameCountSinceLastFPS = 0;
     lastFPSCalculationTime = 0;
     tickCount = 0;
@@ -262,7 +313,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
     console.log("a new agent");
     let mainBodyRadius = 20;
     let startingX = 100;
-    let startingY = 300;
+    let startingY = 650;
 
 
     this.mainBody = createMainBody(world, startingX, startingY, mainBodyRadius, agentNo);
@@ -274,8 +325,8 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
 
     const limbWidth = 10; // Example limb width
     const limbLength = 40; // Example limb length
-    let smallestAngle = -(Math.PI / 4);
-    let largestAngle = Math.PI / 4;
+    let smallestAngle = -(Math.PI / 3);
+    let largestAngle = Math.PI / 3;
 
     let nnConfig;
 
@@ -312,7 +363,11 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         this.brain = createNeuralNetwork(this.nnConfig);
     }
 
-    this.previousJointAngles = this.joints.map(joint => joint.getJointAngle());
+    // Initialize previousJointAngles to starting angles
+    this.previousJointAngles = Array(this.numLimbs).fill(0).map((_, i) => this.joints[i].getJointAngle());
+
+    // Initialize totalJointMovementReward to 0
+    this.totalJointMovementReward = 0;
 
     this.getJointMovementReward = function () {
         let totalChange = 0;
@@ -325,17 +380,23 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
             this.previousJointAngles[i] = currentAngle;
         }
 
-        // Decay factor (for example 0.8) will reduce reward for same joint movements
-        let reward = totalChange * 0.8;
+        // Exponential decay for the reward. You can adjust the decay factor as needed.
+        let decayFactor = 0.99;
+        let currentReward = totalChange * decayFactor ** totalChange;
 
-        return reward;
+        // Accumulate joint movement reward
+        this.totalJointMovementReward += currentReward;
+
+        return this.totalJointMovementReward;
     };
 
     this.getScore = function () {
-        // Score function.  One of the most important to get right to give the agents a fitness score
-        let XPosScore = (Math.floor(this.position.x) * 1); // Main score multiplier, 1 point per px moved right
-        let YPosScore = (Math.floor(this.position.y) * 0.3); // 0.3 points per px moved upwards, to encourage standing / walking
-        let jointMovementReward = (this.getJointMovementReward() * 1); // Small score bonus more increased joint movement.
+        // Make the score relative to the starting position
+        let XPosScore = (Math.floor(this.position.x - startingX) * 1);
+        let YPosScore = (Math.floor(startingY - this.position.y + 50) * 0.2); 
+
+        let jointMovementReward = (this.getJointMovementReward() * 15 / numLimbs); // Adjust multiplier if needed
+
         this.Score = XPosScore + YPosScore + jointMovementReward;
         if (this.Score > topScoreEver) {
             topScoreEver = this.Score;
@@ -348,7 +409,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         ];
     };
 
-    this.render = function (p) {
+    this.render = function (p, offsetX) {
         // Set the fill color based on group
         p.fill(GROUP_COLORS[this.group]);
 
@@ -357,7 +418,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
             let mainPos = this.position;
             let mainAngle = this.mainBody.getAngle();
             p.push();
-            p.translate(mainPos.x, mainPos.y);
+            p.translate(mainPos.x + offsetX, mainPos.y);  // Added offsetX
             p.rotate(mainAngle);
             p.ellipse(0, 0, mainBodyRadius * 2, mainBodyRadius * 2);
             p.pop();
@@ -370,7 +431,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
                 let limbPos = limb.getPosition();
                 let limbAngle = limb.getAngle();
                 p.push();
-                p.translate(limbPos.x, limbPos.y);
+                p.translate(limbPos.x + offsetX, limbPos.y);  // Added offsetX
                 p.rotate(limbAngle);
                 p.rect(-limbWidth / 2, -limbLength / 2, limbWidth, limbLength);
                 p.pop();
@@ -380,18 +441,29 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         // Render the joints
         for (let i = 0; i < numLimbs; i++) {
             if (this.joints[i]) {
-                let jointPos = this.joints[i].getAnchorA();  // Assuming getAnchorA() gives the joint position attached to the main body
-                p.fill(255, 0, 0);  // Fill with red color for visibility
-                p.ellipse(jointPos.x, jointPos.y, 7, 7);  // Draw a small ellipse for each joint
+                let jointPos = this.joints[i].getAnchorA();
+                // Check if the current joint's index is within the jointColors array length
+                if (i < JOINT_COLORS.length) {
+                    p.fill(JOINT_COLORS[i]);  // Set the fill color to the corresponding color from the jointColors array
+                } else {
+                    p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
+                }
+                p.ellipse(jointPos.x + offsetX, jointPos.y, 7, 7);  // Added offsetX
             }
         }
-        for (let i = 0; i < numLimbs; i++) {
-            if (this.joints[i]) {
-                let jointPos = this.joints[i].getAnchorB();  // Assuming getAnchorA() gives the joint position attached to the main body
-                p.fill(0, 255, 0);  // Fill with green color for visibility
-                p.ellipse(jointPos.x, jointPos.y, 3, 3);  // Draw a small ellipse for each joint
-            }
-        }
+        // Render second set of joint anchors for testing
+        //for (let i = 0; i < numLimbs; i++) {
+        //    if (this.joints[i]) {
+        //        let jointPos = this.joints[i].getAnchorB();
+        //        // Check if the current joint's index is within the jointColors array length
+        //        if (i < jointColors.length) {
+        //            p.fill(jointColors[i]);  // Set the fill color to the corresponding color from the jointColors array
+        //        } else {
+        //            p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
+        //        }
+        //        p.ellipse(jointPos.x + offsetX, jointPos.y, 3, 3);  // Added offsetX
+        //    }
+        //}
     };
 }
 
@@ -423,11 +495,17 @@ function createLimb(world, x, y, width, height, angle, agentNo, limbNo) {
 
     let body = world.createBody(bodyDef);
     let shape = planck.Box(width / 2, height / 2);
+
+    // Assign a negative group index based on the agent number
+    // This ensures that limbs of the same agent will never collide with each other
+    let groupIndex = -agentNo;
+
     let fixtureDef = {
         shape: shape,
         density: 0.1,
         filterCategoryBits: CATEGORY_AGENT_LIMB,
-        filterMaskBits: CATEGORY_GROUND  // Only allow collision with the ground
+        filterMaskBits: CATEGORY_GROUND,  // Only allow collision with the ground
+        filterGroupIndex: groupIndex      // Set the group index
     };
     body.createFixture(fixtureDef);
     body.setUserData("Agent " + agentNo + " Limb " + limbNo);
@@ -453,7 +531,6 @@ function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lo
 }
 
 function initializeAgentsBox2D(agentProperties) {
-    let BATCH_SIZE = 20;
     popSize = agentProperties.numAgents;
     limbsPerAgent = agentProperties.numLimbs;
     genCount = 1;
@@ -511,7 +588,6 @@ function initializeAgentsBox2D(agentProperties) {
     waitForFirstInitializationCompletion();
 
     displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
-    offsetX = 0;
 }
 
 // Function to initialize a batch of agents
@@ -543,24 +619,55 @@ function waitForFirstInitializationCompletion() {
         for (let groupId = 0; groupId < numGroups; groupId++) {
             let groupAgents = agents.filter(agent => agent.group === groupId);
 
-            // Select leading agent
-            let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
-            randomlySelectedAgents.push(leadingAgent);
-
             // Select few random agents
             for (let i = 0; i < renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgents.length);
                 randomlySelectedAgents.push(groupAgents[randomIndex]);
+                console.log("adding random agent to render list, group: " + groupId);
             }
         }
+
+        offsetX = 0;
+
     } else {
         // If the agents not initialised, wait for some time and check again
         setTimeout(waitForFirstInitializationCompletion, 100); // Checking every 100ms
     }
 }
 
-function getLeadingAgent() {
+function getLeadingAgent(frameCounter) {
     if (agents.length === 0) return null;
+
+
+    // Create an array of the leading agents from each group
+    let leadingAgents = [];
+    for (let groupId = 0; groupId < numGroups; groupId++) {
+        let groupAgents = agents.filter(agent => agent.group === groupId);
+
+        // Select leading agent
+        let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
+
+        leadingAgents.push(leadingAgent);
+    }
+    // Shuffle the leadingAgents array
+    //function shuffleArray(array) {
+
+
+    //    // Truncate randomlySelectedAgents to keep initialised picks
+    //    randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * renderedAgents);
+
+    //    for (let i = array.length - 1; i > 0; i--) {
+    //        const j = Math.floor(Math.random() * (i + 1));
+    //        [array[i], array[j]] = [array[j], array[i]];
+    //    }
+
+    //    // Push the shuffled leading agents to randomlySelectedAgents
+    //    randomlySelectedAgents.push(...leadingAgents);
+    //}
+    //if (frameCounter % 100 === 0) {
+    //    shuffleArray(leadingAgents);
+    //}
+
 
     return agents.reduce((leading, agent) =>
         (agent.position.x > leading.position.x ? agent : leading),
@@ -637,7 +744,7 @@ function setupPlanckWorld() {
 
 function NeuralNetworkConfig(numLimbs) {
     this.inputNodes = (numLimbs * 2) + 7; // Muscle angles, speeds, agent x,y, agent velosity x,y, score, agent orientation
-    this.hiddenLayers = [{ nodes: 10, activation: 'relu' }, { nodes: 5, activation: 'relu' }];
+    this.hiddenLayers = [{ nodes: 20, activation: 'relu' }, { nodes: 20, activation: 'relu' }, { nodes: 10, activation: 'relu' }];
     this.outputNodes = numLimbs;
     this.mutationRate = 0.05;
     //this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
@@ -647,15 +754,15 @@ function createNeuralNetwork(config) {
     const model = tf.sequential();
 
     // Input layer
-    model.add(tf.layers.dense({ units: config.hiddenLayers[0].nodes, activation: config.hiddenLayers[0].activation, inputShape: [config.inputNodes] }));
+    model.add(tf.layers.dense({ units: config.hiddenLayers[0].nodes, activation: config.hiddenLayers[0].activation, inputShape: [config.inputNodes], biasInitializer: 'randomNormal' }));
 
     // Hidden layers
     for (let i = 0; i < config.hiddenLayers.length; i++) {
-        model.add(tf.layers.dense({ units: config.hiddenLayers[i].nodes, activation: config.hiddenLayers[i].activation }));
+        model.add(tf.layers.dense({ units: config.hiddenLayers[i].nodes, activation: config.hiddenLayers[i].activation, biasInitializer: 'randomNormal' }));
     }
 
     // Output layer
-    model.add(tf.layers.dense({ units: config.outputNodes, activation: 'sigmoid' }));  // Sigmoid to get values between 0 and 1
+    model.add(tf.layers.dense({ units: config.outputNodes, activation: 'tanh' })); 
 
     return model;
 }
@@ -671,7 +778,7 @@ function nextGeneration(p) {
         groupAgents = agents.filter(agent => agent.group === groupId); // Filter agents of this group
 
         topPerformersCount = Math.round(topPerformerNo * groupAgents.length);
-
+        console.log(topPerformersCount);
         topPerformersCount = Math.max(topPerformersCount, 2); // Ensure at least 2 top performers are selected
 
         // Create new agents, but assign them the brains of previous top performers from the group
@@ -696,39 +803,46 @@ function nextGeneration(p) {
 
 // Function to create top performers for the next generation
 function createTopPerformers(groupAgents, topPerformersCount, groupId, newAgents) {
-    for (let i = 0; i < topPerformersCount; i++) {
+    for (let i = 0; i < topPerformersCount; i += BATCH_SIZE) {
         setTimeout(() => {
-            let newAgent = new Agent(groupAgents[i].numLimbs, groupAgents[i].brain);
-            newAgent.group = groupId; // Assign group
-            newAgents.push(newAgent);
-        }, i * delay);
-        console.log("creating agents from top performers" + i);
+            for (let j = i; j < Math.min(i + BATCH_SIZE, topPerformersCount); j++) {
+                let newAgent = new Agent(groupAgents[j].numLimbs, groupAgents[j].brain);
+                newAgent.group = groupId; // Assign group
+                newAgents.push(newAgent);
+            }
+        }, (i / BATCH_SIZE) * delay);
     }
 }
 
 // Function to generate offspring for the next generation
 function generateOffspring(groupAgents, newAgents, groupId) {
-    function createChildAgent() {
+    function createChildAgentBatch(startIndex) {
         if (newAgents.filter(agent => agent.group === groupId).length >= groupAgents.length) {
             // All agents for this group have been created
             return;
         }
-        let parent1 = selectAgent(groupAgents, agents);
-        let parent2 = selectAgent(groupAgents, agents, parent1);
 
-        let childBrain = crossover(parent1, parent2);
-        childBrain = mutate(childBrain, this.mutationRate);
+        for (let i = startIndex; i < Math.min(startIndex + BATCH_SIZE, groupAgents.length); i++) {
+            let parent1 = selectAgent(groupAgents, agents);
+            let parent2 = selectAgent(groupAgents, agents, parent1);
 
-        let childAgent = new Agent(limbsPerAgent);
-        childAgent.brain.dispose();
-        childAgent.brain = childBrain;
-        childAgent.group = groupId; // Assign group
-        newAgents.push(childAgent);
-        // console.log("generating agent: " + newAgents.length + "total for this group: " + groupAgents.length + "in group: " + groupId);
-        setTimeout(createChildAgent, delay);
+            let childBrain = crossover(parent1, parent2);
+            childBrain = mutate(childBrain, this.mutationRate);
+
+            let childAgent = new Agent(limbsPerAgent);
+            childAgent.brain.dispose();
+            childAgent.brain = childBrain;
+            childAgent.group = groupId; // Assign group
+            newAgents.push(childAgent);
+        }
+
+        // Schedule the next batch
+        if (startIndex + BATCH_SIZE < groupAgents.length) {
+            setTimeout(() => createChildAgentBatch(startIndex + BATCH_SIZE), delay);
+        }
     }
 
-    createChildAgent();
+    createChildAgentBatch(0);
 }
 
 function selectAgent(agents, allAgents, excludedAgent = null) {
@@ -835,20 +949,18 @@ function waitForInitializationCompletion(newAgents) {
             // Re-filter by group
             groupAgents = agents.filter(agent => agent.group === groupId);
 
-            // Select leading agent
-            let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
-            randomlySelectedAgents.push(leadingAgent);
-
             // Select few random agents
             for (let i = 0; i < renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgents.length);
                 randomlySelectedAgents.push(groupAgents[randomIndex]);
+                console.log("adding random agent to render list, group: " + groupId);
             }
         }
 
         console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
         console.log("Number of bodies:", world.getBodyCount());
         console.log("Number of joints:", world.getJointCount());
+        offsetX = 0;
 
     } else {
         // If the condition is not met, wait for some time and check again
@@ -857,8 +969,10 @@ function waitForInitializationCompletion(newAgents) {
 }
 
 function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
-    let layerGap = 25; // horizontal space between layers
-    let nodeGap = 15;   // vertical space between nodes
+    let layerGap = 150; // horizontal space between layers
+    let nodeGap = 35;   // vertical space between nodes
+
+    p.fill(GROUP_COLORS[agent.group]);
 
     let inputLabels = [
         ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`),
@@ -874,9 +988,57 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
 
     let outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Joint ${idx + 1}`);
 
-    // Loop through each layer
+    let allWeightTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 0);
+    let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()));
+
+    let allBiasesTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 1);
+    let allBiases = allBiasesTensors.flatMap(tensor => Array.from(tensor.dataSync()));
+
+    let currentWeightIndex = 0;
+    let currentBiasIndex = 0;
+
+    // First, render all the connections (lines)
     let x = offsetX;
-    for (let i = 0; i < nnConfig.hiddenLayers.length + 2; i++) { // +2 to account for input and output layers
+    for (let i = 0; i < nnConfig.hiddenLayers.length + 2; i++) {
+        let nodes = 0;
+        if (i === 0) {
+            nodes = nnConfig.inputNodes;
+        } else if (i === nnConfig.hiddenLayers.length + 1) {
+            nodes = nnConfig.outputNodes;
+        } else {
+            nodes = nnConfig.hiddenLayers[i - 1].nodes;
+        }
+
+        let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
+
+        let currentLayerPositions = [];
+        for (let j = 0; j < nodes; j++) {
+            let y = startY + j * nodeGap;
+            currentLayerPositions.push({ x: x, y: y });
+        }
+
+        // Draw connections
+        if (i > 0) {
+            for (let prevPos of previousLayerPositions) {
+                for (let currentPos of currentLayerPositions) {
+                    let weight = allWeights[currentWeightIndex];
+                    currentWeightIndex++;
+
+                    let strokeWeightValue = mapWeightToStroke(weight);
+                    //p.stroke(GROUP_COLORS[agent.group]);
+                    p.strokeWeight(strokeWeightValue);
+                    p.line(prevPos.x, prevPos.y, currentPos.x, currentPos.y);
+                }
+            }
+        }
+
+        previousLayerPositions = currentLayerPositions;
+        x += layerGap;
+    }
+
+    // Then, render the nodes (on top of the lines)
+    x = offsetX;
+    for (let i = 0; i < nnConfig.hiddenLayers.length + 2; i++) {
         let nodes = 0;
         let labels = [];
         if (i === 0) {
@@ -892,13 +1054,25 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
         let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
         for (let j = 0; j < nodes; j++) {
             let y = startY + j * nodeGap;
-            p.ellipse(x, y, 10, 10);
+
+            let bias = allBiases[currentBiasIndex];
+            currentBiasIndex++;
+
+            // Check if it's the output layer and set fill color accordingly
+            if (i === nnConfig.hiddenLayers.length + 1 && j < JOINT_COLORS.length) {
+                p.fill(JOINT_COLORS[j]);
+            } else {
+                p.fill(GROUP_COLORS[agent.group]); // Default fill color
+            }
+
+            let nodeSize = mapBiasToNodeSize(bias);
+            p.ellipse(x, y, nodeSize, nodeSize);
 
             // Add labels to the side of input and output nodes
             if (labels.length > 0) {
                 p.textSize(12);
                 if (i === 0) {
-                    p.text(labels[j], x - 80, y + 4);
+                    p.text(labels[j], x - 90, y + 4);
                 } else if (i === nnConfig.hiddenLayers.length + 1) {
                     p.text(labels[j], x + 15, y + 4);
 
@@ -913,13 +1087,26 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
         }
         x += layerGap;
     }
+    p.strokeWeight(1); // Reset the default stroke weight
+}
+
+function mapWeightToStroke(weight) {
+    let base = 7;  // High base power to emphasise stronger connections
+    let scaledWeight = Math.abs(weight);
+
+    // Using Math.pow to apply an exponential scale. 
+    return Math.pow(scaledWeight, base) * 400;
+}
+
+function mapBiasToNodeSize(bias) {
+    return 10 + Math.abs(bias) * 75; // 10 is base size, adjusting based on bias
 }
 
 Agent.prototype.makeDecision = function (inputs) {
     return tf.tidy(() => {
         const output = this.brain.predict(tf.tensor([inputs])).dataSync();
         for (let i = 0; i < this.joints.length; i++) {
-            let adjustment = output[i];  // ( * MAX_ADJUSTMENT) Scales the adjustment based on the output
+            let adjustment = output[i] * MAX_ADJUSTMENT; // Scales the adjustment based on the output
             let currentSpeed = this.joints[i].getMotorSpeed();
             if (adjustment != currentSpeed) {
                 this.joints[i].setMotorSpeed(adjustment);
