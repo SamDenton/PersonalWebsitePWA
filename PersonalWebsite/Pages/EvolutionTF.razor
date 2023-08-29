@@ -12,7 +12,7 @@
             <input type="range" id="numAgents" @bind="stageProperties.numAgents" min="2" max="1000" step="50">
         </div>
         <div class="setting">
-            <label for="simSpeed" title="Number of updates/ticks to the physics world before the round ends.  If physics speed is 60, and FPS is 60, 1000 ticks is 16.6 seconds">Round Length (ticks)</label>
+            <label for="simSpeed" title="Number of updates/ticks to the physics world before the round ends.  If physics speed is 60, and FPS is 60, 1000 ticks is 16.6 seconds">Physics Update Rate</label>
             <input type="range" id="simSpeed" @bind="stageProperties.simSpeed" min="6" max="480" step="6">
         </div>
         <div class="setting">
@@ -185,13 +185,13 @@
         <option value="@i">@i</option>
     }
 </select>
-<p>UI (Neural Network and Text) Update Rate (ms)</p>
+@*<p>UI (Neural Network and Text) Update Rate (ms)</p>
 <select @bind="stageProperties.uiRefreshRate">
     @for (int i = 100; i <= 1000; i += 100)
     {
         <option value="@i">@i</option>
     }
-</select>
+</select>*@
 <p>Max Joint Speed</p>
 <select @bind="stageProperties.maxJointSpeed">
     @for (int i = 1; i <= 5; i += 1)
