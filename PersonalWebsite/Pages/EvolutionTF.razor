@@ -3,7 +3,72 @@
 
 <div id="canvas-container"></div>
 <p>My version of a genetic evolution simulation.  Select suitable starting conditions and click start.  I recomed seeing how it runs with a few agents and low physics speed and increase if stable</p>
-<p>Number of Agents</p>
+
+<div class="settings-container">
+    <div class="settings-section">
+        <h2>Performance Settings</h2>
+        <div class="setting">
+            <label for="numAgents" title="Total number of agents in the simulation.">Number of Agents</label>
+            <input type="range" id="numAgents" @bind="stageProperties.numAgents" min="2" max="1000" step="50">
+        </div>
+        <div class="setting">
+            <label for="simSpeed" title="Number of updates/ticks to the physics world before the round ends.  If physics speed is 60, and FPS is 60, 1000 ticks is 16.6 seconds">Round Length (ticks)</label>
+            <input type="range" id="simSpeed" @bind="stageProperties.simSpeed" min="6" max="480" step="6">
+        </div>
+        <div class="setting">
+            <label for="SimulationLength" title="Number of updates/ticks to the physics world before the round ends.  If physics speed is 60, and FPS is 60, 1000 ticks is 16.6 seconds">Round Length (ticks)</label>
+            <input type="range" id="SimulationLength" @bind="stageProperties.SimulationLength" min="500" max="20000" step="500">
+        </div>
+        <div class="setting">
+            <label for="renderedAgents" title="Always show top agent from each group, furthest forward agent (not same as top score) and trailing agent, plus this many random agents per group">Random Agents Shown</label>
+            <input type="range" id="renderedAgents" @bind="stageProperties.renderedAgents" min="1" max="25" step="1">
+        </div>
+
+        <!-- Add more performance settings here -->
+    </div>
+
+    <div class="settings-section">
+        <h2>Agent Properties</h2>
+        <div class="setting">
+            <label for="numLimbs" title="Number of limbs each agent has.">Number of Limbs</label>
+            <input type="range" id="numLimbs" @bind="agentProperties.numLimbs" min="1" max="10" step="1">
+        </div>
+        <!-- Add more agent properties here -->
+    </div>
+
+
+    <div class="settings-section">
+        <h2>World Properties</h2>
+        <div class="setting">
+            <label for="Gravity" title="Gravity Multiplier">Gravity</label>
+            <input type="range" id="Gravity" @bind="stageProperties.Gravity" min="1" max="10" step="1">
+        </div>
+        <div class="setting">
+            <label for="Friction" title="Friction Multiplier">Friction</label>
+            <input type="range" id="Friction" @bind="stageProperties.Friction" min="0" max="4" step="0.2">
+        </div>
+        <!-- Add more agent properties here -->
+    </div>
+
+    <div class="settings-section advanced-settings hidden">
+        <h2>Advanced Settings</h2>
+        <div class="setting">
+            <label for="uiRefreshRate" title="Refresh rate for the UI.">UI Refresh Rate</label>
+            <select id="uiRefreshRate" @bind="stageProperties.uiRefreshRate">
+                <!-- Options here -->
+            </select>
+        </div>
+        <!-- Add more advanced settings here -->
+    </div>
+
+    <button class="toggle-advanced" @onclick="ToggleAdvancedSettings">Show Advanced Settings</button>
+</div>
+
+<button class="floating-button start-button" @onclick="ResetSimulation">Start/Reset</button>
+<button class="floating-button update-button" @onclick="UpdateSimulation">Update</button>
+
+
+@*<p>Number of Agents</p>
 <select @bind="stageProperties.numAgents">
     <option value="2">2</option>
     <option value="10">10</option>
@@ -11,46 +76,46 @@
     {
         <option value="@i">@i</option>
     }
-</select>
-<p>Number of limbs per agent</p>
+</select>*@
+@*<p>Number of limbs per agent</p>
 <select @bind="agentProperties.numLimbs">
     @for (int i = 1; i <= 10; i++) 
     {
         <option value="@i">@i</option>
     }
-</select>
-<p>Gravity Strength Multiplyer</p>
+</select>*@
+@*<p>Gravity Strength Multiplyer</p>
 <select @bind="stageProperties.Gravity">
     @for (double i = 0; i <= 5; i+=0.2)
     {
         double n = Math.Round(i, 2);
         <option value="@n">@n</option>
     }
-</select>
-<p>Friction Strength Multiplyer</p>
+</select>*@
+@*<p>Friction Strength Multiplyer</p>
 <select @bind="stageProperties.Friction">
     @for (double i = 0; i <= 5; i += 0.2)
     {
         double n = Math.Round(i, 2);
         <option value="@n">@n</option>
     }
-</select>
-<p>Physics ticks per round, set alongside physics speed</p>
+</select>*@
+@*<p>Physics ticks per round, set alongside physics speed</p>
 <select @bind="stageProperties.SimulationLength">
     <option value="100">100</option>
     @for (int i = 500; i <= 10000; i += 500)
     {
         <option value="@i">@i</option>
     }
-</select>
-<p>Physics Speed, the number of physics ticks per 60 rendered frames, approx 1 second (try slower speeds on slow computers)</p>
+</select>*@
+@*<p>Physics Speed, the number of physics ticks per 60 rendered frames, approx 1 second (try slower speeds on slow computers)</p>
 <select @bind="stageProperties.simSpeed">
     @for (int i = 6; i <= 240; i += 6)
     {
         <option value="@i">@i</option>
     }
-</select>
-<p>Number of random agents per group, plus the group leader, to render</p>
+</select>*@
+@*<p>Number of random agents per group, plus the group leader, to render</p>
 <select @bind="stageProperties.renderedAgents">
     @for (int i = 1; i <= 9; i += 1)
     {
@@ -60,7 +125,7 @@
     {
         <option value="@i">@i</option>
     }
-</select>
+</select>*@
 <p>Percentage of top agents kept between generations</p>
 <select @bind="stageProperties.topPerformerNo">
     @for (int i = 5; i <= 50; i += 5)
@@ -134,6 +199,35 @@
         <option value="@i">@i</option>
     }
 </select>
+<p>Agents updated per batch.  Update this many agents at a time, for x frames, then move to next batch.  Set equal to pop size to update every agent at once.</p>
+<select @bind="stageProperties.muscleBatch">
+    @for (int i = 1; i <= 9; i += 1)
+    {
+        <option value="@i">@i</option>
+    }
+    @for (int i = 10; i <= 500; i += 10)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Frames per batch. 1 means the current batch is processed every frame, switching batch every frame.  5 means a 5 frame delay before switching batch.</p>
+<select @bind="stageProperties.muscleDelay">
+    @for (int i = 1; i <= 9; i += 1)
+    {
+        <option value="@i">@i</option>
+    }
+    @for (int i = 10; i <= 500; i += 10)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
+<p>Frames between muscle update rounds.  Combines with muscle batching.  10ms here, 10 agents per batch, 50 total pop and 5 frames per batch would mean each agent updates muscles every 0.7 seconds.</p>
+<select @bind="stageProperties.totalMuscleUpdateTime">
+    @for (int i = 5; i <= 120; i += 5)
+    {
+        <option value="@i">@i</option>
+    }
+</select>
 
 <button @onclick="toggleNN">Toggle Neural Network</button>
 <button @onclick="ResetSimulation">Start/Reset</button>
@@ -144,6 +238,7 @@
     private StageProperties stageProperties = new StageProperties();
     private AgentProperties agentProperties = new AgentProperties();
     public bool box2dPhysics { get; set; } = true;
+    private bool showAdvancedSettings = false;
 
     //protected override async Task OnAfterRenderAsync(bool firstRender)
     //{
@@ -175,6 +270,9 @@
         public int maxPopGroupSize { get; set; } = 50;
         public int uiRefreshRate { get; set; } = 200;
         public int maxJointSpeed { get; set; } = 2;
+        public int muscleDelay { get; set; } = 5;
+        public int muscleBatch { get; set; } = 10;
+        public int totalMuscleUpdateTime { get; set; } = 10;
     }
 
     public class AgentProperties
@@ -187,7 +285,7 @@
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2D", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2D", agentProperties);
     }
-
+    
     private async Task toggleNN()
     {
         if (stageProperties.showNN == true)
@@ -199,6 +297,11 @@
             stageProperties.showNN = true;
         }
         await JSRuntime.InvokeVoidAsync("toggleNNRender", stageProperties.showNN);
+    }
+
+    private void ToggleAdvancedSettings()
+    {
+        showAdvancedSettings = !showAdvancedSettings;
     }
 
     private async Task UpdateSimulation()

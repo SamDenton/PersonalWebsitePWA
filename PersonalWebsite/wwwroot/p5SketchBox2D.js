@@ -1,6 +1,6 @@
 /* Initialization vars taken from C# */
 let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, simulationSpeed, showNeuralNetwork, delay, UIUpdateInterval, simulationLength;
-let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE;
+let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE, MUSCLE_BATCH_SIZE, SOME_DELAY_FRAME_COUNT, muscleUpdateFrames;
 /* Index's, flags */
 let currentAgentIndex = 0;
 let offsetX = 0;
@@ -37,6 +37,7 @@ let numGroups;
 
 /* 
 Further Optomisations:
+            -Currently using both frame counts and ms counts for batch processing
             -Optomize how often I call getScore() as its very taxing now
             -Can spread out agent spawning further
             -Can speard out agent muscle descisions further (seems less impactful)
@@ -72,15 +73,13 @@ Ideas:
 */
 
 let sketch = function (p) {
-    let lastMuscleUpdate = 0;
-    let muscleUpdateInterval = 1000; // Update every 100(?) ms
+    let lastMuscleUpdateFrame = 0;
+    let nextBatchFrame = 0;
     let fixedTimeStep = (1.0 / simulationSpeed) * 1000; // 'simulationSpeed' updates per second for physics
     let accumulator = 0;
     let lastTime = 0;
     let leadingAgent;
     let currentPhysicsBatch = 0;
-    const MUSCLE_BATCH_SIZE = 10;  // Number of agents per batch
-    let SOME_DELAY_FRAME_COUNT = 5;
     let averageScore;
     let leadingAgentScores;
     let leadingAgentScore;
@@ -117,30 +116,37 @@ let sketch = function (p) {
             accumulator -= fixedTimeStep;
         }
 
-        // If enough time has passed, move to the next batch
-        if (p.frameCount % SOME_DELAY_FRAME_COUNT == 0) {
-            if (currentPhysicsBatch * MUSCLE_BATCH_SIZE >= agents.length) {
-                currentPhysicsBatch = 0;  // Reset to the start
-            } else {
-                currentPhysicsBatch++;
-            }
-        }
-
         renderScene(p);
     };
 
     function updatePhysics() {
         if (leadingAgent) {
             // If initialization is complete, then update muscles
-            if (isInitializationComplete && areAllAgentsStable() && p.millis() - lastMuscleUpdate > muscleUpdateInterval) {
-                // Update muscles only for the current batch of agents
-                for (let i = currentPhysicsBatch * MUSCLE_BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * MUSCLE_BATCH_SIZE, agents.length); i++) {
-                    agents[i].updateMuscles();
+            if (isInitializationComplete && areAllAgentsStable()) {
+                // Check if it's time to update the next batch
+                if (p.frameCount >= nextBatchFrame) {
+                    // Update muscles only for the current batch of agents
+                    for (let i = currentPhysicsBatch * MUSCLE_BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * MUSCLE_BATCH_SIZE, agents.length); i++) {
+                        agents[i].updateMuscles();
+                        if (i == 1) {
+                            console.log("updating agent 1's muscles");
+                        }
+                    }
+
+                    // Move to the next batch
+                    currentPhysicsBatch++;
+
+                    // Reset to the start if all batches are processed
+                    if (currentPhysicsBatch * MUSCLE_BATCH_SIZE >= agents.length) {
+                        currentPhysicsBatch = 0;
+
+                        // Wait for muscleUpdateFrames before updating muscles again
+                        nextBatchFrame = p.frameCount + muscleUpdateFrames;
+                    } else {
+                        // Wait for batchDelay frames before moving to the next batch
+                        nextBatchFrame = p.frameCount + SOME_DELAY_FRAME_COUNT;
+                    }
                 }
-                //for (let agent of agents) {
-                //    agent.updateMuscles();
-                //}
-                lastMuscleUpdate = p.millis();
             }
 
             // Step the Planck world
@@ -247,11 +253,13 @@ let sketch = function (p) {
             p.text(`Generation: ${genCount}`, 10, 50);
             p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 80);
             p.text(`Top Score: ${topScoreEver.toFixed(2)}`, 10, 110);
+
             if (averageScore > - 10) {
                 p.text(`Average Score: ${averageScore.toFixed(2)}`, 10, 140);
             } else {
                 p.text(`Average Score: 0`, 10, 140);
             }
+
             p.text(`Distinct Population groups: ${numGroups}`, 10, 170);
             p.text(`Agents on screen: ${agentsToRender.size}`, 10, 200);
 
@@ -274,10 +282,10 @@ let sketch = function (p) {
                 p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Score: ${trailingAgentMovementScore} - Brain Weight Penalty: ${trailingAgentWeightPenalty})`, 10, groundY + 55);  // Displaying the score just below the ground
             }
 
-            if (showNeuralNetwork = true) {
+            if (showNeuralNetwork == true) {
                 // Render NN for leading agent
                 p.fill(GROUP_COLORS[leadingAgent.group]);
-                leadingAgent.renderNN(p, canvasWidth - 1150, (canvasHeight / 2) - 40);
+                leadingAgent.renderNN(p, canvasWidth - 1150, (canvasHeight / 2) - 40, p.frameCount);
             }
 
             if (agentsToRender.size > 1) {
@@ -324,6 +332,9 @@ function initializeSketchBox2D(stageProperties) {
     MAX_GROUP_SIZE = stageProperties.maxPopGroupSize;
     UIUpdateInterval = stageProperties.uiRefreshRate;
     MAX_ADJUSTMENT = stageProperties.maxJointSpeed;
+    SOME_DELAY_FRAME_COUNT = stageProperties.muscleDelay;
+    MUSCLE_BATCH_SIZE = stageProperties.muscleBatch;
+    muscleUpdateFrames = stageProperties.totalMuscleUpdateTime;
     frameCountSinceLastFPS = 0;
     lastFPSCalculationTime = 0;
     tickCount = 0;
@@ -347,6 +358,7 @@ function initializeSketchBox2D(stageProperties) {
 
 function toggleNNRender(showNN) {
     showNeuralNetwork = showNN;
+    console.log("toggling NN render");
 }
 
 function updateSimulation(stageProperties) {
@@ -724,21 +736,25 @@ function waitForFirstInitializationCompletion() {
 function getLeadingAgent(frameCounter) {
     if (agents.length === 0) return null;
 
-    // Truncate randomlySelectedAgents to keep initialised picks
-    randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * renderedAgents);
+    if (frameCounter % 30 === 0) {
 
-    // Create an array of the leading agents from each group
-    let leadingAgents = [];
-    for (let groupId = 0; groupId < numGroups; groupId++) {
-        let groupAgents = agents.filter(agent => agent.group === groupId);
+        // Truncate randomlySelectedAgents to keep initialised picks
+        randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * renderedAgents);
 
-        // Select leading agent
-        let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
+        // Create an array of the leading agents from each group
+        let leadingAgents = [];
+        for (let groupId = 0; groupId < numGroups; groupId++) {
+            let groupAgents = agents.filter(agent => agent.group === groupId);
 
-        leadingAgents.push(leadingAgent);
+            // Select leading agent
+            let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
+
+            leadingAgents.push(leadingAgent);
+        }
+
+        randomlySelectedAgents.push(...leadingAgents);
+
     }
-
-    randomlySelectedAgents.push(...leadingAgents);
 
     // Shuffle the leadingAgents array
     //function shuffleArray(array) {
@@ -1169,9 +1185,14 @@ function waitForInitializationCompletion(newAgents) {
     }
 }
 
-function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
+function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker) {
     let layerGap = 150; // horizontal space between layers
     let nodeGap = 35;   // vertical space between nodes
+    let outputLabels;
+    let allWeightTensors;
+    let allWeights;
+    let allBiasesTensors;
+    let allBiases;
 
     p.fill(GROUP_COLORS[agent.group]);
 
@@ -1187,13 +1208,15 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY) {
         "Time Left"
     ];
 
-    let outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Joint ${idx + 1}`);
+    //if (frameTracker % 30 === 0) {
+        outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Joint ${idx + 1}`);
 
-    let allWeightTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 0);
-    let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()));
+        allWeightTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 0);
+        allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()));
 
-    let allBiasesTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 1);
-    let allBiases = allBiasesTensors.flatMap(tensor => Array.from(tensor.dataSync()));
+        allBiasesTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 1);
+        allBiases = allBiasesTensors.flatMap(tensor => Array.from(tensor.dataSync()));
+    //}
 
     let currentWeightIndex = 0;
     let currentBiasIndex = 0;
@@ -1372,6 +1395,6 @@ Agent.prototype.updateMuscles = function () {
     this.makeDecision(inputs);
 };
 
-Agent.prototype.renderNN = function (p, offsetX, offsetY) {
-    renderNeuralNetwork(p, this.nnConfig, this, offsetX, offsetY);
+Agent.prototype.renderNN = function (p, offsetX, offsetY, frameTracker) {
+    renderNeuralNetwork(p, this.nnConfig, this, offsetX, offsetY, frameTracker);
 };

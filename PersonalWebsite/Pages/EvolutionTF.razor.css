@@ -1,0 +1,41 @@
+﻿#canvas-container {
+    width: 1600px;
+    height: 800px;
+    position: relative;
+}
+
+.settings-container {
+    width: 400px;
+    margin: 20px;
+}
+
+.settings-section {
+    margin-bottom: 20px;
+}
+
+.setting label {
+    cursor: help;
+}
+
+.setting input[type="range"] {
+    width: 100%;
+}
+
+.advanced-settings.hidden {
+    display: none;
+}
+
+.floating-button {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10;
+}
+
+.start-button {
+    right: 120px;
+}
+
+.update-button {
+    right: 20px;
+}
