@@ -1,5 +1,5 @@
 /* Initialization vars taken from C# */
-let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, simulationSpeed, showNeuralNetwork, delay, UIUpdateInterval, simulationLength;
+let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, simulationSpeed, showNeuralNetwork, delay, UIUpdateInterval, simulationLength, torque;
 let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE, MUSCLE_BATCH_SIZE, SOME_DELAY_FRAME_COUNT, muscleUpdateFrames;
 /* Index's, flags */
 let currentAgentIndex = 0;
@@ -60,6 +60,15 @@ Further Optomisations:
                 renderNeuralNetwork
                 t.tidy > t.dataSync > n.getValuesFromTexture > ... > readPixels > Optimize Code
                 getLeadingAgent
+
+                updatePhysics > t.step > t.query > release > set length
+
+                ???
+                updatePhysics > t.step > t.query > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > e.solveWorldTOI > t.recycle > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > t.step > World.ts:784:3 > t.query > DynamicTree.ts:736:3 >  e.solveWorld > Solver.ts:168:3 > e.solveIsland > e.solveVelocityConstraints > RevoluteJoint.ts:558:3 > t.solve33 > Mat33.ts:84:3 > t.addCombine > Vec2.ts:246:3 > t.crossNumVec2 > Vec3 > Minor GC
+
+
+                -issue might be bodies on top of each other.  can we spread them in the world, but render them on top of each other?
+
 
  */
 
@@ -262,12 +271,13 @@ let sketch = function (p) {
 
             p.text(`Distinct Population groups: ${numGroups}`, 10, 170);
             p.text(`Agents on screen: ${agentsToRender.size}`, 10, 200);
+            p.text(`Agents in simulation: ${agents.length}`, 10, 230);
 
             if (!isInitializationComplete && areAllAgentsStable()) {
-                p.text(`Loading in agents!`, 10, 230);
+                p.text(`Loading in agents!`, 10, 260);
             }
             else {
-                p.text(`Agents can go!`, 10, 230);
+                p.text(`Agents can go!`, 10, 260);
             }
 
             p.fill(0);  // Black text
@@ -283,9 +293,17 @@ let sketch = function (p) {
             }
 
             if (showNeuralNetwork == true) {
-                // Render NN for leading agent
-                p.fill(GROUP_COLORS[leadingAgent.group]);
-                leadingAgent.renderNN(p, canvasWidth - 1150, (canvasHeight / 2) - 40, p.frameCount);
+                if (agentToFix == "trailer") {
+                    p.text(`Showing Trailing Agents Brain`, 170, 20);
+                    // Render NN for leading agent
+                    p.fill(GROUP_COLORS[trailingAgent.group]);
+                    trailingAgent.renderNN(p, canvasWidth - 1150, (canvasHeight / 2) - 40, p.frameCount);
+                } else {
+                    p.text(`Showing Leading Agents Brain`, 170, 20);
+                    // Render NN for leading agent
+                    p.fill(GROUP_COLORS[trailingAgent.group]);
+                    leadingAgent.renderNN(p, canvasWidth - 1150, (canvasHeight / 2) - 40, p.frameCount);
+                }
             }
 
             if (agentsToRender.size > 1) {
@@ -448,8 +466,8 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
 
     this.getWeightPenalty = function () {
         this.weightPenaltyCounter++;
-
-        if (this.weightPenaltyCounter % 120 === 0) {
+        // Update this score penalty only 4 times, just so its shows, since it wont change during a round
+        if (this.weightPenaltyCounter % (simulationLength / 4) === 0) {
             let allWeightTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 0);
             let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()).map(Math.abs)); // map to absolute values
             let averageAbsWeight = allWeights.reduce((sum, weight) => sum + weight, 0) / allWeights.length;
@@ -625,7 +643,7 @@ function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lo
         upperAngle: upperAngle,
         enableLimit: true,
         motorSpeed: 0.0,
-        maxMotorTorque: 500000.0,
+        maxMotorTorque: torque,
         enableMotor: true
     };
 
@@ -634,6 +652,7 @@ function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lo
 
 function initializeAgentsBox2D(agentProperties) {
     limbsPerAgent = agentProperties.numLimbs;
+    torque = agentProperties.musculeTorque;
     genCount = 1;
     isInitializationComplete = false;
 
@@ -648,17 +667,17 @@ function initializeAgentsBox2D(agentProperties) {
                 }
             }
 
-            // Destroy the limbs
-            for (let limb of agent.limbs) {
-                if (limb) { // Check if body exists and is in the world
-                    world.destroyBody(limb);
-                }
-            }
+            //// Destroy the limbs
+            //for (let limb of agent.limbs) {
+            //    if (limb) { // Check if body exists and is in the world
+            //        world.destroyBody(limb);
+            //    }
+            //}
 
-            // Destroy the main body
-            if (agent.mainBody) {
-                world.destroyBody(agent.mainBody);
-            }
+            //// Destroy the main body
+            //if (agent.mainBody) {
+            //    world.destroyBody(agent.mainBody);
+            //}
 
             agent.joints = [];
             agent.limbs = [];
@@ -795,6 +814,7 @@ function endSimulation(p) {
     p.noLoop();
     isInitializationComplete = false;
     console.log("round over");
+
     for (let agent of agents) {
         // Destroy the joints first
         for (let joint of agent.joints) {

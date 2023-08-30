@@ -1,72 +1,236 @@
 ﻿@page "/EvolutionTF"
 @inject IJSRuntime JSRuntime
 
+<h2>Genetic Evolution Simulation</h2>
+<p>You will get the best results with more agents, and higher muscle update frequencies, it will take some fiddling with performance settings to get a stable frame rate, with the highest values possible</p>
+<p>Beta product, please be patiant. This works on mobile, but I recomend very low settings</p>
 <div id="canvas-container"></div>
-<p>My version of a genetic evolution simulation.  Select suitable starting conditions and click start.  I recomed seeing how it runs with a few agents and low physics speed and increase if stable</p>
 
 <div class="settings-container">
     <div class="settings-section">
         <h2>Performance Settings</h2>
+
+        <!-- Number of Agents -->
         <div class="setting">
             <label for="numAgents" title="Total number of agents in the simulation.">Number of Agents</label>
-            <input type="range" id="numAgents" @bind="stageProperties.numAgents" min="2" max="1000" step="50">
-        </div>
-        <div class="setting">
-            <label for="simSpeed" title="Number of updates/ticks to the physics world before the round ends.  If physics speed is 60, and FPS is 60, 1000 ticks is 16.6 seconds">Physics Update Rate</label>
-            <input type="range" id="simSpeed" @bind="stageProperties.simSpeed" min="6" max="480" step="6">
-        </div>
-        <div class="setting">
-            <label for="SimulationLength" title="Number of updates/ticks to the physics world before the round ends.  If physics speed is 60, and FPS is 60, 1000 ticks is 16.6 seconds">Round Length (ticks)</label>
-            <input type="range" id="SimulationLength" @bind="stageProperties.SimulationLength" min="500" max="20000" step="500">
-        </div>
-        <div class="setting">
-            <label for="renderedAgents" title="Always show top agent from each group, furthest forward agent (not same as top score) and trailing agent, plus this many random agents per group">Random Agents Shown</label>
-            <input type="range" id="renderedAgents" @bind="stageProperties.renderedAgents" min="1" max="25" step="1">
+            <div class="slider-container">
+                <input type="range" id="numAgents" @bind="stageProperties.numAgents" min="10" max="1000" step="1">
+                <input type="number" @bind="stageProperties.numAgents" min="2" max="1000" step="1">
+            </div>
         </div>
 
-        <!-- Add more performance settings here -->
+        <!-- Agents updated per batch -->
+        <div class="setting">
+            <label for="muscleBatch" title="Update this many agents muscles, wait, then move to next batch.  Setting this equal to the population size will update every agent, every update cycle">Agents Per Batch of Joint Updates</label>
+            <div class="slider-container">
+                <input type="range" id="muscleBatch" @bind="stageProperties.muscleBatch" min="1" max="500" step="1">
+                <input type="number" @bind="stageProperties.muscleBatch" min="1" max="500" step="1">
+            </div>
+        </div>
+
+        <!-- Frames per batch -->
+        <div class="setting">
+            <label for="muscleDelay" title="1 means no delay between batches">Delay Between Batch of Joint Updates (frames)</label>
+            <div class="slider-container">
+                <input type="range" id="muscleDelay" @bind="stageProperties.muscleDelay" min="1" max="50" step="1">
+                <input type="number" @bind="stageProperties.muscleDelay" min="1" max="50" step="1">
+            </div>
+        </div>
+
+        <!-- Frames between muscle update rounds -->
+        <div class="setting">
+            <label for="totalMuscleUpdateTime" title="Frames between muscle update rounds. Combines with muscle batching.">Delay Between Muscle Update Rounds (frames)</label>
+            <div class="slider-container">
+                <input type="range" id="totalMuscleUpdateTime" @bind="stageProperties.totalMuscleUpdateTime" min="1" max="50" step="1">
+                <input type="number" @bind="stageProperties.totalMuscleUpdateTime" min="1" max="50" step="1">
+            </div>
+        </div>
+
+        <!-- Physics Speed -->
+        <div class="setting">
+            <label for="simSpeed" title="Physics Speed, the number of physics ticks per 60 rendered frames, approx 1 second (try slower speeds on slow computers).">Physics Updates Per Second (at 60 fps)</label>
+            <div class="slider-container">
+                <input type="range" id="simSpeed" @bind="stageProperties.simSpeed" min="6" max="480" step="6">
+                <input type="number" @bind="stageProperties.simSpeed" min="6" max="480" step="6">
+            </div>
+        </div>
+
+        <!-- Spawn Batch Size -->
+        <div class="setting">
+            <label for="BatchSize" title="Spawn agents in batches of this many.  Helps to distribute calculations over a few seconds">Spawn Batch Size</label>
+            <div class="slider-container">
+                <input type="range" id="BatchSize" @bind="stageProperties.BatchSize" min="1" max="200" step="1">
+                <input type="number" @bind="stageProperties.BatchSize" min="1" max="200" step="1">
+            </div>
+        </div>
+
+        <!-- Spawn Delay Between batches -->
+        <div class="setting">
+            <label for="delay" title="Spawn Delay Between batches (ms), more delay smooths out resource spikes when loading agents.">Spawn Delay Between Batches (ms)</label>
+            <div class="slider-container">
+                <input type="range" id="delay" @bind="stageProperties.delay" min="0" max="200" step="1">
+                <input type="number" @bind="stageProperties.delay" min="0" max="200" step="1">
+            </div>
+        </div>
+
     </div>
 
     <div class="settings-section">
         <h2>Agent Properties</h2>
+
+        <!-- Number of limbs per agent -->
         <div class="setting">
-            <label for="numLimbs" title="Number of limbs each agent has.">Number of Limbs</label>
-            <input type="range" id="numLimbs" @bind="agentProperties.numLimbs" min="1" max="10" step="1">
+            <label for="numLimbs" title="Number of limbs per agent.">Number of Limbs per Agent</label>
+            <div class="slider-container">
+                <input type="range" id="numLimbs" @bind="agentProperties.numLimbs" min="1" max="20" step="1">
+                <input type="number" @bind="agentProperties.numLimbs" min="1" max="20" step="1">
+            </div>
         </div>
-        <!-- Add more agent properties here -->
+
+        <!-- Max Joint Speed -->
+        <div class="setting">
+            <label for="maxJointSpeed" title="Maximum joint speed.">Max Joint Speed</label>
+            <div class="slider-container">
+                <input type="range" id="maxJointSpeed" @bind="stageProperties.maxJointSpeed" min="1" max="5" step="0.1">
+                <input type="number" @bind="stageProperties.maxJointSpeed" min="1" max="5" step="0.1">
+            </div>
+        </div>
+
+        <!-- Number of limbs per agent -->
+        <div class="setting">
+            <label for="musculeTorque" title="Number of limbs per agent.">Max Torque Per Joint</label>
+            <div class="slider-container">
+                <input type="range" id="musculeTorque" @bind="agentProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
+                <input type="number" @bind="agentProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
+            </div>
+        </div>
+       
     </div>
 
+    <div class="settings-section">
+        <h2>Training Settings</h2>
+
+        <!-- Physics ticks per round -->
+        <div class="setting">
+            <label for="SimulationLength" title="Physics ticks per round/generation, set alongside physics speed.">Physics Ticks Per Round</label>
+            <div class="slider-container">
+                <input type="range" id="SimulationLength" @bind="stageProperties.SimulationLength" min="100" max="100000" step="100">
+                <input type="number" @bind="stageProperties.SimulationLength" min="100" max="10000" step="100">
+            </div>
+        </div>
+
+        <!-- Group Tournament Size -->
+        <div class="setting">
+            <label for="tournamentSize" title="Group Tournament Size, the number of random agents picked to compete to be parents, mostly from within the same group.">Group Tournament Size</label>
+            <div class="slider-container">
+                <input type="range" id="tournamentSize" @bind="stageProperties.tournamentSize" min="1" max="50" step="1">
+                <input type="number" @bind="stageProperties.tournamentSize" min="1" max="50" step="1">
+            </div>
+        </div>
+
+        <!-- Migration rate between groups -->
+        <div class="setting">
+            <label for="migrationRate" title="Migration rate between groups, the chance a parent is selected from random group instead of the same.">Migration Rate Between Groups</label>
+            <div class="slider-container">
+                <input type="range" id="migrationRate" @bind="stageProperties.migrationRate" min="0.05" max="1" step="0.05">
+                <input type="number" @bind="stageProperties.migrationRate" min="0.05" max="1" step="0.05">
+            </div>
+        </div>
+
+        <!-- Minimum agents per population group -->
+        <div class="setting">
+            <label for="minPopGroupSize" title="Minimum agents per population group. If the total number is less than this, all agents will be in the same group.">Minimum Agents Per Population Group</label>
+            <div class="slider-container">
+                <input type="range" id="minPopGroupSize" @bind="stageProperties.minPopGroupSize" min="5" max="50" step="1">
+                <input type="number" @bind="stageProperties.minPopGroupSize" min="5" max="50" step="1">
+            </div>
+        </div>
+
+        <!-- Maximum agents per population group -->
+        <div class="setting">
+            <label for="maxPopGroupSize" title="Maximum agents per population group. Sets the number of groups as total population / Max agents per group, when total is more than max.">Maximum Agents Per Population Group</label>
+            <div class="slider-container">
+                <input type="range" id="maxPopGroupSize" @bind="stageProperties.maxPopGroupSize" min="1" max="50" step="1">
+                <input type="number" @bind="stageProperties.maxPopGroupSize" min="1" max="50" step="1">
+            </div>
+        </div>
+
+        <!-- Percentage of top agents kept between generations -->
+        <div class="setting">
+            <label for="topPerformerNo" title="Percentage of top agents kept between generations.">Percentage of Top Agents Kept</label>
+            <div class="slider-container">
+                <input type="range" id="topPerformerNo" @bind="stageProperties.topPerformerNo" min="5" max="50" step="1">
+                <input type="number" @bind="stageProperties.topPerformerNo" min="5" max="50" step="1">
+            </div>
+        </div>
+
+    </div>
 
     <div class="settings-section">
         <h2>World Properties</h2>
-        <div class="setting">
-            <label for="Gravity" title="Gravity Multiplier">Gravity</label>
-            <input type="range" id="Gravity" @bind="stageProperties.Gravity" min="1" max="10" step="1">
-        </div>
-        <div class="setting">
-            <label for="Friction" title="Friction Multiplier">Friction</label>
-            <input type="range" id="Friction" @bind="stageProperties.Friction" min="0" max="4" step="0.2">
-        </div>
-        <!-- Add more agent properties here -->
-    </div>
 
-    <div class="settings-section advanced-settings hidden">
-        <h2>Advanced Settings</h2>
+        <!-- Agent to fix camera on -->
         <div class="setting">
-            <label for="uiRefreshRate" title="Refresh rate for the UI.">UI Refresh Rate</label>
-            <select id="uiRefreshRate" @bind="stageProperties.uiRefreshRate">
-                <!-- Options here -->
+            <label for="agentInCentre" title="Agent to fix camera on (average can cause lag).">Agent to Fix Camera On</label>
+            <select id="agentInCentre" @bind="stageProperties.agentInCentre">
+                <option value="leader">leader</option>
+                <option value="trailer">trailer</option>
+                <option value="average">average</option>
             </select>
         </div>
-        <!-- Add more advanced settings here -->
+
+        <!-- Gravity Strength Multiplyer -->
+        <div class="setting">
+            <label for="Gravity" title="Gravity Strength Multiplyer.">Gravity Strength Multiplyer</label>
+            <div class="slider-container">
+                <input type="range" id="Gravity" @bind="stageProperties.Gravity" min="0" max="5" step="0.1">
+                <input type="number" @bind="stageProperties.Gravity" min="0" max="5" step="0.1">
+            </div>
+        </div>
+
+        <!-- Friction Strength Multiplyer -->
+        <div class="setting">
+            <label for="Friction" title="Friction Strength Multiplyer.">Friction Strength Multiplyer</label>
+            <div class="slider-container">
+                <input type="range" id="Friction" @bind="stageProperties.Friction" min="0" max="5" step="0.1">
+                <input type="number" @bind="stageProperties.Friction" min="0" max="5" step="0.1">
+            </div>
+        </div>
+
     </div>
 
     <button class="toggle-advanced" @onclick="ToggleAdvancedSettings">Show Advanced Settings</button>
+
+    <div class="settings-section full-width advanced-settings" hidden="@showAdvancedSettings">
+        <h2>Advanced Settings</h2>
+
+        <!-- Number of random agents per group -->
+        <div class="setting">
+            <label for="renderedAgents" title="Number of random agents per group, plus the group leader, to render.">Number of Random Agents Per Group</label>
+            <div class="slider-container">
+                <input type="range" id="renderedAgents" @bind="stageProperties.renderedAgents" min="1" max="50" step="1">
+                <input type="number" @bind="stageProperties.renderedAgents" min="1" max="50" step="1">
+            </div>
+        </div>
+
+        <!-- UI (Neural Network and Text) Update Rate -->
+        <div class="setting">
+            <label for="uiRefreshRate" title="UI (Neural Network and Text) Update Rate in milliseconds.">UI Update Rate (ms)</label>
+            <div class="slider-container">
+                <input type="range" id="uiRefreshRate" @bind="stageProperties.uiRefreshRate" min="100" max="1000" step="100">
+                <input type="number" @bind="stageProperties.uiRefreshRate" min="100" max="1000" step="100">
+            </div>
+        </div>
+
+
+    </div>
 </div>
 
-<button class="floating-button start-button" @onclick="ResetSimulation">Start/Reset</button>
-<button class="floating-button update-button" @onclick="UpdateSimulation">Update</button>
 
+<button class="floating-button start-button" @onclick="ResetSimulation">Start/Reset</button>
+<button class="floating-button update-button" title="You can update the round length, number of rendered agents, physics speed, spawn delay and batch size, parent tournament size, migration rate, max and min population group size and the agent to fix the camera on" @onclick="UpdateSimulation">Update</button>
+<button class="floating-button toggleNN-button" @onclick="toggleNN">Toggle Neural Network</button>
+<button class="floating-button toggleLeader-button" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
 
 @*<p>Number of Agents</p>
 <select @bind="stageProperties.numAgents">
@@ -126,22 +290,22 @@
         <option value="@i">@i</option>
     }
 </select>*@
-<p>Percentage of top agents kept between generations</p>
+@*<p>Percentage of top agents kept between generations</p>
 <select @bind="stageProperties.topPerformerNo">
     @for (int i = 5; i <= 50; i += 5)
     {
         <option value="@i">@i</option>
     }
-</select>
-<p>Spawn Delay Between batches (ms), more delay smooths out resource spikes when loading agents</p>
+</select>*@
+@*<p>Spawn Delay Between batches (ms), more delay smooths out resource spikes when loading agents</p>
 <select @bind="stageProperties.delay">
     <option value="0">0</option>
     @for (int i = 20; i <= 200; i += 20)
     {
         <option value="@i">@i</option>
     }
-</select>
-<p>Spawn Batch Size</p>
+</select>*@
+@*<p>Spawn Batch Size</p>
 <select @bind="stageProperties.BatchSize">
     <option value="1">1</option>
     @for (int i = 5; i <= 200; i += 5)
@@ -185,13 +349,13 @@
         <option value="@i">@i</option>
     }
 </select>
-@*<p>UI (Neural Network and Text) Update Rate (ms)</p>
+<p>UI (Neural Network and Text) Update Rate (ms)</p>
 <select @bind="stageProperties.uiRefreshRate">
     @for (int i = 100; i <= 1000; i += 100)
     {
         <option value="@i">@i</option>
     }
-</select>*@
+</select>
 <p>Max Joint Speed</p>
 <select @bind="stageProperties.maxJointSpeed">
     @for (int i = 1; i <= 5; i += 1)
@@ -227,12 +391,7 @@
     {
         <option value="@i">@i</option>
     }
-</select>
-
-<button @onclick="toggleNN">Toggle Neural Network</button>
-<button @onclick="ResetSimulation">Start/Reset</button>
-<p>You can update the round length, number of rendered agents, physics speed, spawn delay and batch size, parent tournament size, migration rate, max and min population group size and the agent to fix the camera on</p>
-<button @onclick="UpdateSimulation">Update</button>
+</select>*@
 
 @code {
     private StageProperties stageProperties = new StageProperties();
@@ -263,21 +422,22 @@
         public int BatchSize { get; set; } = 10;
         public bool showNN { get; set; } = true;
         public string agentInCentre { get; set; } = "leader";
-        public int numAgents { get; set; } = 200;
+        public int numAgents { get; set; } = 100;
         public int tournamentSize { get; set; } = 10;
         public double migrationRate { get; set; } = 0.05;
         public int minPopGroupSize { get; set; } = 20;
         public int maxPopGroupSize { get; set; } = 50;
         public int uiRefreshRate { get; set; } = 200;
         public int maxJointSpeed { get; set; } = 2;
-        public int muscleDelay { get; set; } = 5;
+        public int muscleDelay { get; set; } = 1;
         public int muscleBatch { get; set; } = 10;
-        public int totalMuscleUpdateTime { get; set; } = 10;
+        public int totalMuscleUpdateTime { get; set; } = 1;
     }
 
     public class AgentProperties
     {
         public int numLimbs { get; set; } = 5;
+        public double musculeTorque { get; set; } = 500000.0;
     }
 
     private async Task ResetSimulation()
@@ -285,17 +445,10 @@
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2D", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2D", agentProperties);
     }
-    
+
     private async Task toggleNN()
     {
-        if (stageProperties.showNN == true)
-        {
-            stageProperties.showNN = false;
-        }
-        else
-        {
-            stageProperties.showNN = true;
-        }
+        stageProperties.showNN = !stageProperties.showNN;
         await JSRuntime.InvokeVoidAsync("toggleNNRender", stageProperties.showNN);
     }
 
@@ -307,6 +460,20 @@
     private async Task UpdateSimulation()
     {
         await JSRuntime.InvokeVoidAsync("updateSimulation", stageProperties);
+    }
+
+    private async Task toggleLeader()
+    {
+        if (stageProperties.agentInCentre == "leader")
+        {
+            stageProperties.agentInCentre = "trailer";
+        }
+        else
+        {
+            stageProperties.agentInCentre = "leader";
+        }
+
+        await UpdateSimulation();
     }
 }
 

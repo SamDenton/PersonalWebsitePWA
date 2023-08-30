@@ -1,16 +1,53 @@
 ﻿#canvas-container {
-    width: 1600px;
-    height: 800px;
+/*    width: 1600px;
+    height: 800px;*/
     position: relative;
 }
 
 .settings-container {
-    width: 400px;
-    margin: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin: 50px 20px;
 }
 
+.slider-container {
+    display: flex;
+    align-items: center;
+}
+
+    .slider-container input[type="range"] {
+        flex-grow: 1;
+    }
+
+    .slider-container input[type="number"] {
+        width: 60px;
+        margin-left: 10px;
+    }
+
 .settings-section {
+    flex: 1;
+    min-width: calc(33.33% - 20px); /* Minimum width for each settings block */
+    box-sizing: border-box;
     margin-bottom: 20px;
+}
+
+    .settings-section.full-width {
+        flex: 100%;
+        min-width: 100%;
+    }
+
+/* Responsive behavior */
+@media (max-width: 1024px) {
+    .settings-section {
+        min-width: calc(50% - 20px);
+    }
+}
+
+@media (max-width: 768px) {
+    .settings-section {
+        min-width: 100%;
+    }
 }
 
 .setting label {
@@ -27,15 +64,23 @@
 
 .floating-button {
     position: absolute;
-    bottom: 20px;
+    top: 30px;
     right: 20px;
     z-index: 10;
 }
 
 .start-button {
-    right: 120px;
+    right: 500px;
 }
 
 .update-button {
     right: 20px;
+}
+
+.toggleNN-button {
+    right: 300px;
+}
+
+.toggleLeader-button {
+    right: 100px;
 }
