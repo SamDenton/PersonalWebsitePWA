@@ -1,6 +1,7 @@
 /* Initialization vars taken from C# */
 let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, simulationSpeed, showNeuralNetwork, delay, UIUpdateInterval, simulationLength, torque;
 let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE, MUSCLE_BATCH_SIZE, SOME_DELAY_FRAME_COUNT, muscleUpdateFrames;
+let velocityIterations, positionIterations, physicsGranularityMultiplier;
 
 /* Index's, flags */
 let currentAgentIndex = 0;
@@ -169,9 +170,7 @@ let sketch = function (p) {
             }
 
             // Step the Planck world
-            let velocityIterations = 4; // Default is usually 6
-            let positionIterations = 2; // Default is usually 2
-            world.step(fixedTimeStep / 1000 * 2, velocityIterations, positionIterations); // , velocityIterations, positionIterations
+            world.step(fixedTimeStep / 1000 * physicsGranularityMultiplier, velocityIterations, positionIterations); // , velocityIterations, positionIterations
 
             // If initialization is complete, increment the tick count
             if (simulationStarted) {
@@ -186,10 +185,28 @@ let sketch = function (p) {
     function renderScene(p) {
         if (leadingAgent) {
 
+            if (agentToFix == "leader") {
+                offsetX = p.width / 6 - leadingAgent.position.x + leadingAgent.startingX;  // Center the leading agent on the canvas, just to the left
+            } else if (agentToFix == "trailer") {
+                offsetX = p.width / 6 - trailingAgent.position.x + trailingAgent.startingX;
+            } else if (agentToFix == "average") {
+
+                let totalXScore = 0;
+
+                for (let agent of agents) {
+                    let eachXScore = agent.getScore();
+                    totalXScore += parseFloat(eachXScore[1]);
+                }
+
+                let averageXScore = totalXScore / agents.length;
+
+                offsetX = p.width / 6 - averageXScore + 100;
+            }
+
             //if (agentToFix == "leader") {
-            //    offsetX = p.width / 6 - leadingAgent.position.x - leadingAgent.startingX;  // Center the leading agent on the canvas, just to the left
+            //    offsetX = p.width / 6 - leadingAgent.position.x;  // Center the leading agent on the canvas, just to the left
             //} else if (agentToFix == "trailer") {
-            //    offsetX = p.width / 6 - trailingAgent.position.x - trailingAgent.startingX;
+            //    offsetX = p.width / 6 - trailingAgent.position.x;
             //} else if (agentToFix == "average") {
 
             //    let totalXScore = 0;
@@ -203,24 +220,6 @@ let sketch = function (p) {
 
             //    offsetX = p.width / 6 - averageXScore + 100;
             //}
-
-            if (agentToFix == "leader") {
-                offsetX = p.width / 6 - leadingAgent.position.x;  // Center the leading agent on the canvas, just to the left
-            } else if (agentToFix = "trailer") {
-                offsetX = p.width / 6 - trailingAgent.position.x;
-            } else if (agentToFix = "average") {
-
-                let totalXScore = 0;
-
-                for (let agent of agents) {
-                    let eachXScore = agent.getScore();
-                    totalXScore += parseFloat(eachXScore[1]);
-                }
-
-                let averageXScore = totalXScore / agents.length;
-
-                offsetX = p.width / 6 - averageXScore + 100;
-            }
             
 
             // Scrolling background
@@ -337,8 +336,8 @@ let sketch = function (p) {
             if (agentsToRender.size > 1) {
                 for (let agent of agentsToRender) {
                     if (agent) {
-                        //let agentOffsetX = offsetX - agent.startingX;
-                        agent.render(p, offsetX);
+                        let agentOffsetX = offsetX - agent.startingX;
+                        agent.render(p, agentOffsetX);
                     }
                 }
             }
@@ -348,7 +347,7 @@ let sketch = function (p) {
 
 function areAllAgentsStable() {
     const stabilityThreshold = 0.001;  // Define a small threshold value for stability
-    const stabilityFrames = 120;  // Number of frames to wait before confirming stability
+    const stabilityFrames = 240;  // Number of frames to wait before confirming stability
 
     let allAgentsStable = true;
 
@@ -397,6 +396,10 @@ function initializeSketchBox2D(stageProperties) {
     SOME_DELAY_FRAME_COUNT = stageProperties.muscleDelay;
     MUSCLE_BATCH_SIZE = stageProperties.muscleBatch;
     muscleUpdateFrames = stageProperties.totalMuscleUpdateTime;
+    velocityIterations = stageProperties.velocityIteration;
+    positionIterations = stageProperties.positionIteration;
+    physicsGranularityMultiplier = stageProperties.physicsGranularityMultipliers;
+
     frameCountSinceLastFPS = 0;
     lastFPSCalculationTime = 0;
     tickCount = 0;
@@ -453,15 +456,15 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
     this.numLimbs = numLimbs;
     this.index = agentNo;
     this.group = null;
-    console.log("a new agent, index: " + this.index);
+    // console.log("a new agent, index: " + this.index);
     let mainBodyRadius = 20;
-    // this.startingX = 100 + 10 * this.index;
-    let startingX = 100;
+    this.startingX = 100 + 50 * this.index;
+    // let startingX = 100;
     let startingY = 650;
 
 
     //    this.mainBody = createMainBody(world, this.startingX, startingY, mainBodyRadius, agentNo);
-    this.mainBody = createMainBody(world, startingX, startingY, mainBodyRadius, agentNo);
+    this.mainBody = createMainBody(world, this.startingX, startingY, mainBodyRadius, agentNo);
     this.position = this.mainBody.getPosition();
 
     this.limbs = [];
@@ -478,7 +481,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
     for (let i = 0; i < numLimbs; i++) {
         let angle = (i * 2 * Math.PI) / numLimbs;
         // let limbX = this.startingX + Math.cos(angle) * (mainBodyRadius + limbLength);
-        let limbX = startingX + Math.cos(angle) * (mainBodyRadius + limbLength);
+        let limbX = this.startingX + Math.cos(angle) * (mainBodyRadius + limbLength);
         let limbY = startingY + Math.sin(angle) * (mainBodyRadius + limbLength);
 
         let limb = createLimb(world, limbX, limbY, limbWidth, limbLength, angle - Math.PI / 2, agentNo, i);
@@ -555,8 +558,8 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
 
     this.getScore = function () {
         // Make the score relative to the starting position
-        // let XPosScore = (Math.floor(this.position.x - this.startingX / this.index) * 1);
-        let XPosScore = (Math.floor(this.position.x - startingX) * 1);
+        let XPosScore = (Math.floor(this.position.x - this.startingX) * 1);
+        // let XPosScore = (Math.floor(this.position.x - startingX) * 1);
         let YPosScore = (Math.floor(startingY - this.position.y + 50) * 0.2); 
 
         let jointMovementReward = (this.getJointMovementReward() * 15 / numLimbs); // Adjust multiplier if needed
@@ -769,7 +772,7 @@ function initializeAgentBatch(startIndex, endIndex, agentsPerGroup) {
 function initializeAgent(i, agentsPerGroup) {
     setTimeout(() => {
         let agent = new Agent(limbsPerAgent, i);
-        console.log("initializeAgent, making agent: ", i);
+        // console.log("initializeAgent, making agent: ", i);
         agent.group = Math.floor(i / agentsPerGroup);  // Assign group
         agents.push(agent);
 
@@ -818,7 +821,7 @@ function getLeadingAgent(frameCounter) {
             let groupAgents = agents.filter(agent => agent.group === groupId);
 
             // Select leading agent
-            let leadingAgent = groupAgents.sort((a, b) => b.getScore() - a.getScore())[0];
+            let leadingAgent = groupAgents.sort((a, b) => parseFloat(b.getScore()[0]) - parseFloat(a.getScore()[0]))[0];
 
             leadingAgents.push(leadingAgent);
         }
@@ -847,7 +850,7 @@ function getLeadingAgent(frameCounter) {
 
 
     return agents.reduce((leading, agent) =>
-        (agent.position.x > leading.position.x ? agent : leading),
+        (agent.position.x - agent.startingX > leading.position.x - leading.startingX ? agent : leading),
         agents[0]
     );
 }
@@ -962,7 +965,8 @@ function nextGeneration(p) {
     let groupAgents;
     let topPerformersCount;
     agents.sort((a, b) => parseFloat(b.getScore()[0]) - parseFloat(a.getScore()[0])); // Sort in descending order of score
-    for (let i = 0; i < 10; i++) {
+    console.log("Top Agents this round!");
+    for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
         console.log(agents[i].index);
     }
     for (let groupId = 0; groupId < numGroups; groupId++) {
@@ -972,7 +976,6 @@ function nextGeneration(p) {
         topPerformersCount = Math.round(topPerformerNo * groupAgents.length);
         topPerformersCount = Math.max(topPerformersCount, 2); // Ensure at least 2 top performers are selected
 
-        console.log(topPerformersCount);
         // Create new agents, but assign them the brains of previous top performers from the group
         createTopPerformers(groupAgents, topPerformersCount, newAgents);
 
@@ -999,7 +1002,7 @@ function nextGeneration(p) {
 function createTopPerformers(groupAgents, topPerformersCount, newAgents) {
     for (let j = 0; j < topPerformersCount; j++) {
         let oldAgent = groupAgents[j];
-        console.log("createTopPerformers, making agent: ", oldAgent.index);
+        // console.log("createTopPerformers, making agent: ", oldAgent.index);
         usedIndices.add(oldAgent.index);
         let newAgent = new Agent(oldAgent.numLimbs, oldAgent.index, oldAgent.brain);
         newAgent.group = oldAgent.group;  // Assign the same group
@@ -1033,7 +1036,7 @@ function generateOffspring(groupAgents, newAgents, groupId) {
 
             usedIndices.add(agentIndex);  // Mark this index as used
             let childAgent = new Agent(limbsPerAgent, agentIndex);
-            console.log("generateOffspring, making agent: ", agentIndex);
+            // console.log("generateOffspring, making agent: ", agentIndex);
 
             childAgent.brain.dispose();
             childAgent.brain = childBrain;

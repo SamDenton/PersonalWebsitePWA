@@ -201,7 +201,7 @@
 
     <button class="toggle-advanced" @onclick="ToggleAdvancedSettings">Show Advanced Settings</button>
 
-    <div class="settings-section full-width advanced-settings" hidden="@showAdvancedSettings">
+    <div class="settings-section full-width advanced-settings" hidden="!@showAdvancedSettings">
         <h2>Advanced Settings</h2>
 
         <!-- Number of random agents per group -->
@@ -222,6 +222,32 @@
             </div>
         </div>
 
+        <!-- velocityIteration for plank -->
+        <div class="setting">
+            <label for="velocityIteration" title="UI (Neural Network and Text) Update Rate in milliseconds.">UI Update Rate (ms)</label>
+            <div class="slider-container">
+                <input type="range" id="velocityIteration" @bind="stageProperties.velocityIteration" min="1" max="10" step="1">
+                <input type="number" @bind="stageProperties.velocityIteration" min="1" max="10" step="1">
+            </div>
+        </div>
+
+        <!-- positionIteration for plank -->
+        <div class="setting">
+            <label for="positionIteration" title="UI (Neural Network and Text) Update Rate in milliseconds.">UI Update Rate (ms)</label>
+            <div class="slider-container">
+                <input type="range" id="positionIteration" @bind="stageProperties.positionIteration" min="1" max="10" step="1">
+                <input type="number" @bind="stageProperties.positionIteration" min="1" max="10" step="1">
+            </div>
+        </div>
+
+        <!-- physicsGranularity for plank -->
+        <div class="setting">
+            <label for="physicsGranularityMultipliers" title="UI (Neural Network and Text) Update Rate in milliseconds.">UI Update Rate (ms)</label>
+            <div class="slider-container">
+                <input type="range" id="physicsGranularityMultipliers" @bind="stageProperties.physicsGranularityMultipliers" min="1" max="10" step="1">
+                <input type="number" @bind="stageProperties.physicsGranularityMultipliers" min="1" max="10" step="1">
+            </div>
+        </div>
 
     </div>
 </div>
@@ -232,180 +258,11 @@
 <button class="floating-button toggleNN-button" @onclick="toggleNN">Toggle Neural Network</button>
 <button class="floating-button toggleLeader-button" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
 
-@*<p>Number of Agents</p>
-<select @bind="stageProperties.numAgents">
-    <option value="2">2</option>
-    <option value="10">10</option>
-    @for (int i = 50; i <= 1000; i+= 50)  
-    {
-        <option value="@i">@i</option>
-    }
-</select>*@
-@*<p>Number of limbs per agent</p>
-<select @bind="agentProperties.numLimbs">
-    @for (int i = 1; i <= 10; i++) 
-    {
-        <option value="@i">@i</option>
-    }
-</select>*@
-@*<p>Gravity Strength Multiplyer</p>
-<select @bind="stageProperties.Gravity">
-    @for (double i = 0; i <= 5; i+=0.2)
-    {
-        double n = Math.Round(i, 2);
-        <option value="@n">@n</option>
-    }
-</select>*@
-@*<p>Friction Strength Multiplyer</p>
-<select @bind="stageProperties.Friction">
-    @for (double i = 0; i <= 5; i += 0.2)
-    {
-        double n = Math.Round(i, 2);
-        <option value="@n">@n</option>
-    }
-</select>*@
-@*<p>Physics ticks per round, set alongside physics speed</p>
-<select @bind="stageProperties.SimulationLength">
-    <option value="100">100</option>
-    @for (int i = 500; i <= 10000; i += 500)
-    {
-        <option value="@i">@i</option>
-    }
-</select>*@
-@*<p>Physics Speed, the number of physics ticks per 60 rendered frames, approx 1 second (try slower speeds on slow computers)</p>
-<select @bind="stageProperties.simSpeed">
-    @for (int i = 6; i <= 240; i += 6)
-    {
-        <option value="@i">@i</option>
-    }
-</select>*@
-@*<p>Number of random agents per group, plus the group leader, to render</p>
-<select @bind="stageProperties.renderedAgents">
-    @for (int i = 1; i <= 9; i += 1)
-    {
-        <option value="@i">@i</option>
-    }
-    @for (int i = 10; i <= 50; i += 10)
-    {
-        <option value="@i">@i</option>
-    }
-</select>*@
-@*<p>Percentage of top agents kept between generations</p>
-<select @bind="stageProperties.topPerformerNo">
-    @for (int i = 5; i <= 50; i += 5)
-    {
-        <option value="@i">@i</option>
-    }
-</select>*@
-@*<p>Spawn Delay Between batches (ms), more delay smooths out resource spikes when loading agents</p>
-<select @bind="stageProperties.delay">
-    <option value="0">0</option>
-    @for (int i = 20; i <= 200; i += 20)
-    {
-        <option value="@i">@i</option>
-    }
-</select>*@
-@*<p>Spawn Batch Size</p>
-<select @bind="stageProperties.BatchSize">
-    <option value="1">1</option>
-    @for (int i = 5; i <= 200; i += 5)
-    {
-        <option value="@i">@i</option>
-    }
-</select>
-<p>Agent to fix camera on (average can cause lag)</p>
-<select @bind="stageProperties.agentInCentre">
-    <option value="leader">leader</option>
-    <option value="trailer">trailer</option>
-    <option value="average">average</option>
-</select>
-<p>Group Tournament Size, the number of random agents picked to compete to be parents, mostly from within same group. 1 means fully random parents from same group, 50 means very best from group.  Will make this a %</p>
-<select @bind="stageProperties.tournamentSize">
-    <option value="1">1</option>
-    @for (int i = 5; i <= 50; i += 5)
-    {
-        <option value="@i">@i</option>
-    }
-</select>
-<p>Migration rate between groups, the chance a parent is selected from random group instead of the same.  0.05 means 5% chance, 1 means parents from random groups</p>
-<select @bind="stageProperties.migrationRate">
-    @for (double i = 0.05; i <= 1; i += 0.05)
-    {
-        <option value="@i">@i</option>
-    }
-</select>
-<p>Miminum agents per population group.  If total number is less than this, all agents will be in the same group</p>
-<select @bind="stageProperties.minPopGroupSize">
-    @for (int i = 5; i <= 50; i += 5)
-    {
-        <option value="@i">@i</option>
-    }
-</select>
-<p>Maximum agents per population group.  Sets the number of groups as total population / Max agents per group, when total is more than max</p>
-<select @bind="stageProperties.tournamentSize">
-    <option value="1">1</option>
-    @for (int i = 5; i <= 50; i += 5)
-    {
-        <option value="@i">@i</option>
-    }
-</select>
-<p>UI (Neural Network and Text) Update Rate (ms)</p>
-<select @bind="stageProperties.uiRefreshRate">
-    @for (int i = 100; i <= 1000; i += 100)
-    {
-        <option value="@i">@i</option>
-    }
-</select>
-<p>Max Joint Speed</p>
-<select @bind="stageProperties.maxJointSpeed">
-    @for (int i = 1; i <= 5; i += 1)
-    {
-        <option value="@i">@i</option>
-    }
-</select>
-<p>Agents updated per batch.  Update this many agents at a time, for x frames, then move to next batch.  Set equal to pop size to update every agent at once.</p>
-<select @bind="stageProperties.muscleBatch">
-    @for (int i = 1; i <= 9; i += 1)
-    {
-        <option value="@i">@i</option>
-    }
-    @for (int i = 10; i <= 500; i += 10)
-    {
-        <option value="@i">@i</option>
-    }
-</select>
-<p>Frames per batch. 1 means the current batch is processed every frame, switching batch every frame.  5 means a 5 frame delay before switching batch.</p>
-<select @bind="stageProperties.muscleDelay">
-    @for (int i = 1; i <= 9; i += 1)
-    {
-        <option value="@i">@i</option>
-    }
-    @for (int i = 10; i <= 500; i += 10)
-    {
-        <option value="@i">@i</option>
-    }
-</select>
-<p>Frames between muscle update rounds.  Combines with muscle batching.  10ms here, 10 agents per batch, 50 total pop and 5 frames per batch would mean each agent updates muscles every 0.7 seconds.</p>
-<select @bind="stageProperties.totalMuscleUpdateTime">
-    @for (int i = 5; i <= 120; i += 5)
-    {
-        <option value="@i">@i</option>
-    }
-</select>*@
-
 @code {
     private StageProperties stageProperties = new StageProperties();
     private AgentProperties agentProperties = new AgentProperties();
     public bool box2dPhysics { get; set; } = true;
     private bool showAdvancedSettings = false;
-
-    //protected override async Task OnAfterRenderAsync(bool firstRender)
-    //{
-    //    if (firstRender)
-    //    {
-    //        await ResetSimulation();
-    //    }
-    //}
 
     public class StageProperties
     {
@@ -431,13 +288,16 @@
         public int muscleDelay { get; set; } = 1;
         public int muscleBatch { get; set; } = 10;
         public int totalMuscleUpdateTime { get; set; } = 1;
+        public int velocityIteration { get; set; } = 4;
+        public int positionIteration { get; set; } = 2;
+        public int physicsGranularityMultipliers { get; set; } = 2;
     }
 
     public class AgentProperties
     {
         public int numLimbs { get; set; } = 5;
         public double musculeTorque { get; set; } = 500000.0;
-        public int maxJointSpeed { get; set; } = 2;
+        public double maxJointSpeed { get; set; } = 2;
     }
 
     private async Task ResetSimulation()
