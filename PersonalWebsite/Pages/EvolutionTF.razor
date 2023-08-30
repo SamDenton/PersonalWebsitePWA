@@ -91,8 +91,8 @@
         <div class="setting">
             <label for="maxJointSpeed" title="Maximum joint speed.">Max Joint Speed</label>
             <div class="slider-container">
-                <input type="range" id="maxJointSpeed" @bind="stageProperties.maxJointSpeed" min="1" max="5" step="0.1">
-                <input type="number" @bind="stageProperties.maxJointSpeed" min="1" max="5" step="0.1">
+                <input type="range" id="maxJointSpeed" @bind="agentProperties.maxJointSpeed" min="0.5" max="5" step="0.5">
+                <input type="number" @bind="agentProperties.maxJointSpeed" min="0.5" max="5" step="0.5">
             </div>
         </div>
 
@@ -157,10 +157,10 @@
 
         <!-- Percentage of top agents kept between generations -->
         <div class="setting">
-            <label for="topPerformerNo" title="Percentage of top agents kept between generations.">Percentage of Top Agents Kept</label>
+            <label for="topPerformerNumber" title="Percentage of top agents kept between generations.">Percentage of Top Agents Kept</label>
             <div class="slider-container">
-                <input type="range" id="topPerformerNo" @bind="stageProperties.topPerformerNo" min="5" max="50" step="1">
-                <input type="number" @bind="stageProperties.topPerformerNo" min="5" max="50" step="1">
+                <input type="range" id="topPerformerNumber" @bind="stageProperties.topPerformerNumber" min="5" max="50" step="1">
+                <input type="number" @bind="stageProperties.topPerformerNumber" min="5" max="50" step="1">
             </div>
         </div>
 
@@ -417,7 +417,7 @@
         public int SimulationLength { get; set; } = 3000;  
         public int renderedAgents { get; set; } = 1;
         public int simSpeed { get; set; } = 60;
-        public double topPerformerNo { get; set; } = 20;
+        public double topPerformerNumber { get; set; } = 20;
         public int delay { get; set; } = 20;
         public int BatchSize { get; set; } = 10;
         public bool showNN { get; set; } = true;
@@ -428,7 +428,6 @@
         public int minPopGroupSize { get; set; } = 20;
         public int maxPopGroupSize { get; set; } = 50;
         public int uiRefreshRate { get; set; } = 200;
-        public int maxJointSpeed { get; set; } = 2;
         public int muscleDelay { get; set; } = 1;
         public int muscleBatch { get; set; } = 10;
         public int totalMuscleUpdateTime { get; set; } = 1;
@@ -438,6 +437,7 @@
     {
         public int numLimbs { get; set; } = 5;
         public double musculeTorque { get; set; } = 500000.0;
+        public int maxJointSpeed { get; set; } = 2;
     }
 
     private async Task ResetSimulation()
