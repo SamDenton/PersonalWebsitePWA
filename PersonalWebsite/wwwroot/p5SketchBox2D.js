@@ -1,5 +1,5 @@
 /* Initialization vars taken from C# */
-let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, simulationSpeed, showNeuralNetwork, delay, UIUpdateInterval, simulationLength, torque;
+let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, simulationSpeed, showNeuralNetwork, delay, UIUpdateInterval, simulationLength, torque, maxJointMovement, jointMaxMove;
 let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE, MUSCLE_BATCH_SIZE, SOME_DELAY_FRAME_COUNT, muscleUpdateFrames;
 let velocityIterations, positionIterations, physicsGranularityMultiplier;
 
@@ -11,7 +11,7 @@ let tickCount = 0;
 let lastUIUpdateTime = 0;
 let topScoreEver = 0;
 let stabilityCounter = 0;
-let isInitializationComplete, lastFPSCalculationTime, genCount, displayedTimeLeft, frameCountSinceLastFPS, simulationStarted, nextBatchFrame, usedIndice;
+let isInitializationComplete, lastFPSCalculationTime, genCount, displayedTimeLeft, frameCountSinceLastFPS, simulationStarted, nextBatchFrame, usedIndice, averageScore;
 
 /* P5 vars */
 let p5Instance = null;
@@ -91,7 +91,6 @@ let sketch = function (p) {
     let lastTime = 0;
     let leadingAgent;
     let currentPhysicsBatch = 0;
-    let averageScore;
     let leadingAgentScores;
     let leadingAgentScore;
     let leadingAgentXScore;
@@ -461,7 +460,8 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
     this.startingX = 100 + 50 * this.index;
     // let startingX = 100;
     let startingY = 650;
-
+    // this.jointMaxMove = maxJointMovement;  // Temporary
+    // this.agentMutationRateLocal = agentMutationRate; // Temporary
 
     //    this.mainBody = createMainBody(world, this.startingX, startingY, mainBodyRadius, agentNo);
     this.mainBody = createMainBody(world, this.startingX, startingY, mainBodyRadius, agentNo);
@@ -473,8 +473,15 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
 
     const limbWidth = 10; // Example limb width
     const limbLength = 40; // Example limb length
-    let smallestAngle = -(Math.PI / 3);
-    let largestAngle = Math.PI / 3;
+    let smallestAngle;
+    let largestAngle;
+    if (jointMaxMove != 0) {
+        smallestAngle = -(Math.PI / jointMaxMove);
+        largestAngle = Math.PI / jointMaxMove;
+    } else {
+        smallestAngle = 360;
+        largestAngle = 360;
+    }
 
     let nnConfig;
 
@@ -686,6 +693,10 @@ function createLimb(world, x, y, width, height, angle, agentNo, limbNo) {
 }
 
 function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lowerAngle, upperAngle) {
+    let limiter = true;
+    if (jointMaxMove == 0) {
+        limiter = false;
+    }
     let jointDef = {
         bodyA: bodyA,
         bodyB: bodyB,
@@ -693,7 +704,7 @@ function createRevoluteJoint(world, bodyA, bodyB, localAnchorA, localAnchorB, lo
         localAnchorB: localAnchorB,
         lowerAngle: lowerAngle,
         upperAngle: upperAngle,
-        enableLimit: true,
+        enableLimit: limiter,
         motorSpeed: 0.0,
         maxMotorTorque: torque,
         enableMotor: true
@@ -706,6 +717,8 @@ function initializeAgentsBox2D(agentProperties) {
     limbsPerAgent = agentProperties.numLimbs;
     torque = agentProperties.musculeTorque;
     MAX_ADJUSTMENT = agentProperties.maxJointSpeed;
+    jointMaxMove = agentProperties.maxJointMoveDivider;
+    // agentMutationRate = agentProperties.offspringMutationRate;
     genCount = 1;
     simulationStarted = false;
     isInitializationComplete = false;
@@ -938,7 +951,7 @@ function NeuralNetworkConfig(numLimbs) {
     this.inputNodes = (numLimbs * 2) + 7; // Muscle angles, speeds, agent x,y, agent velosity x,y, score, agent orientation
     this.hiddenLayers = [{ nodes: 20, activation: 'relu' }, { nodes: 20, activation: 'relu' }, { nodes: 10, activation: 'relu' }];
     this.outputNodes = numLimbs;
-    this.mutationRate = agentMutationRate; // Temporary
+    this.mutationRate = 0.01;
     //this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
 }
 
@@ -964,11 +977,14 @@ function nextGeneration(p) {
     let newAgents = [];
     let groupAgents;
     let topPerformersCount;
+
+    //updateMutationRate();
+
     agents.sort((a, b) => parseFloat(b.getScore()[0]) - parseFloat(a.getScore()[0])); // Sort in descending order of score
-    console.log("Top Agents this round!");
-    for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
-        console.log(agents[i].index);
-    }
+    //console.log("Top Agents this round!");
+    //for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
+    //    console.log(agents[i].index);
+    //}
     for (let groupId = 0; groupId < numGroups; groupId++) {
 
         groupAgents = agents.filter(agent => agent.group === groupId); // Filter agents of this group
@@ -998,6 +1014,35 @@ function nextGeneration(p) {
     genCount++;
 }
 
+// Update the mutation rate if average score gets too close to top score
+function updateMutationRate(oldRate) {
+    // Only consider adjustment if the average score is in the top third of the top score
+    if (averageScore >= topScoreEver * 1 / 3) {
+        // Calculate the percentage difference between the average score and the top score
+        const percentageDifference = ((topScoreEver - averageScore) / topScoreEver) * 100;
+
+        // Calculate the adjustment factor based on how close the average score is to the top score
+        let adjustmentFactor = 0;
+        if (percentageDifference <= 5) {
+            adjustmentFactor = 0.4;
+        } else {
+            adjustmentFactor = 0.1 + (0.1 * ((5 / percentageDifference)));
+        }
+
+        // Update the mutation rate
+        oldRate = adjustmentFactor;
+
+        // Clamp the new mutation rate between 0 and 0.4
+        oldRate = Math.min(0.4, Math.max(0, oldRate));
+    } else {
+        // Keep the mutation rate at a base level (for example, 0.1) if the average score is not in the top third
+        oldRate = 0.1;
+    }
+
+    console.log("Updated Mutation Rate: ", oldRate);
+    return oldRate;
+}
+
 // Function to create top performers for the next generation
 function createTopPerformers(groupAgents, topPerformersCount, newAgents) {
     for (let j = 0; j < topPerformersCount; j++) {
@@ -1024,8 +1069,11 @@ function generateOffspring(groupAgents, newAgents, groupId) {
 
             // let childBrain = crossover(parent1, parent2);
             let childBrain = biasedArithmeticCrossover(parent1, parent2);
+
+            childBrain.mutationRate = updateMutationRate(childBrain.mutationRate)
+
             // childBrain = mutate(childBrain, this.mutationRate);
-            childBrain = gaussianMutation(childBrain, this.mutationRate);
+            childBrain = gaussianMutation(childBrain, childBrain.mutationRate);
 
             let agentIndex = 0;
 
@@ -1202,10 +1250,18 @@ function gaussianMutation(childBrain, mutationRate) {
     let stdDeviation = 0.1;
     tf.tidy(() => {
         function mutateValues(values) {
-            for (let i = 0; i < values.length; i++) {
-                if (Math.random() < mutationRate) {
-                    let adjustment = randomGaussian(0, stdDeviation); // Draw from a Gaussian with mean=0 and specified SD.
-                    values[i] += adjustment;
+            // Handle nested arrays (2D, 3D, ...)
+            if (Array.isArray(values[0])) {
+                for (let i = 0; i < values.length; i++) {
+                    mutateValues(values[i]);
+                }
+            } else {
+                // 1D array
+                for (let i = 0; i < values.length; i++) {
+                    if (Math.random() < mutationRate) {
+                        let adjustment = randomGaussian(0, stdDeviation);
+                        values[i] += adjustment;
+                    }
                 }
             }
         }
