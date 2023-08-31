@@ -1,6 +1,6 @@
 /* Initialization vars taken from C# */
 let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, simulationSpeed, showNeuralNetwork, delay, UIUpdateInterval, simulationLength, torque, maxJointMovement, jointMaxMove;
-let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE, MUSCLE_BATCH_SIZE, SOME_DELAY_FRAME_COUNT, muscleUpdateFrames;
+let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE, MUSCLE_BATCH_SIZE, SOME_DELAY_FRAME_COUNT, muscleUpdateFrames, brainDecay;
 let velocityIterations, positionIterations, physicsGranularityMultiplier;
 
 /* Index's, flags */
@@ -23,10 +23,12 @@ let randomlySelectedAgents = [];
 
 /* Agent and joint colours */
 const GROUP_COLORS = [
-    '#FF5733', '#33FF57', '#3357FF', '#FF33F4', '#FFFC33', '#F05703', '#376D57', '#3328CF', '#FF33FF', '#F4FC33'
+    '#FF5733', '#33FF57', '#25221B', '#474B4E', '#424632', '#4A192C', '#3357FF', '#FF33F4', '#FFFC33', '#F05703',
+    '#376D57', '#3328CF', '#FF33FF', '#F4FC33', '#8A6642', '#B5B8B1', '#781F19', '#8A9597', '#F5D033', '#633A34'
 ];
 const JOINT_COLORS = [
-    '#3328CF', '#FF33FF', '#F4FC33', '#FF5733', '#33FF57', '#3357FF', '#FF33F4', '#FFFC33', '#F05703', '#376D57'
+    '#376D57', '#3328CF', '#FF33FF', '#F4FC33', '#8A6642', '#B5B8B1', '#781F19', '#8A9597', '#F5D033', '#633A34',
+    '#FF5733', '#33FF57', '#25221B', '#474B4E', '#424632', '#4A192C', '#3357FF', '#FF33F4', '#FFFC33', '#F05703'
 ];
 
 /* Planck vars */
@@ -82,6 +84,8 @@ Ideas:
             -I want to save agents, either individuals or populations, to re-use later.  Would be good to have a property tracking agent history, its own top score, what the parameters where when it got that score, etc.
             -I want to evolve the inputs and outputs of the network, from a selection of available
             -I want to evolve the topology of the networks themselevs using NEAT so they can decide how complex they need to be
+
+            -Could look into ideas like regularization and pruning.  Think about reducing agents brain weights over time selectively?
 */
 
 let sketch = function (p) {
@@ -236,7 +240,7 @@ let sketch = function (p) {
 
             // Ground
             let groundPosition = groundBody.getPosition();
-            let groundStartX = groundPosition.x - offsetX;  // Adjust for camera offset
+            let groundStartX = groundPosition.x + offsetX;  // Adjust for camera offset
             let groundEndX = groundStartX + canvasWidth * 1000;  // Length of ground
             p.line(groundStartX, groundPosition.y - 10, groundEndX, groundPosition.y);
 
@@ -282,7 +286,7 @@ let sketch = function (p) {
             }
 
             // Render the FPS, Gen No, and Time Left
-            p.fill(0);  // White color for the text
+            p.fill(0);  // Black color for the text
             p.textSize(18);  // Font size
             p.text(`FPS: ${displayedFPS}`, 10, 20);
             p.text(`Generation: ${genCount}`, 10, 50);
@@ -300,10 +304,12 @@ let sketch = function (p) {
             p.text(`Agents in simulation: ${agents.length}`, 10, 230);
 
             if (!simulationStarted) {
-                p.text(`Loading in agents!`, 10, 260);
+                p.fill(255, 0, 0);
+                p.text(`Loading in agents!`, 10, 290);
             }
             else {
-                p.text(`Agents can go!`, 10, 260);
+                p.fill(0, 255, 0);
+                p.text(`Agents can go!`, 10, 290);
             }
 
             p.fill(0);  // Black text
@@ -327,7 +333,7 @@ let sketch = function (p) {
                 } else {
                     p.text(`Showing Leading Agents Brain`, 170, 20);
                     // Render NN for leading agent
-                    p.fill(GROUP_COLORS[trailingAgent.group]);
+                    p.fill(GROUP_COLORS[leadingAgent.group]);
                     leadingAgent.renderNN(p, canvasWidth - 1150, (canvasHeight / 2) - 40, tickCount);
                 }
             }
@@ -429,13 +435,22 @@ function updateSimulation(stageProperties) {
     simulationLength = stageProperties.simulationLength;
     renderedAgents = stageProperties.renderedAgents;
     simulationSpeed = stageProperties.simSpeed;
+    topPerformerNo = stageProperties.topPerformerNumber / 100;
     delay = stageProperties.delay;
     BATCH_SIZE = stageProperties.batchSize;
+    showNeuralNetwork = stageProperties.showNN;
     agentToFix = stageProperties.agentInCentre;
     TOURNAMENT_SIZE = stageProperties.tournamentSize;
     CROSS_GROUP_PROBABILITY = stageProperties.migrationRate;
     MIN_GROUP_SIZE = stageProperties.minPopGroupSize;
     MAX_GROUP_SIZE = stageProperties.maxPopGroupSize;
+    UIUpdateInterval = stageProperties.uiRefreshRate;
+    SOME_DELAY_FRAME_COUNT = stageProperties.muscleDelay;
+    MUSCLE_BATCH_SIZE = stageProperties.muscleBatch;
+    muscleUpdateFrames = stageProperties.totalMuscleUpdateTime;
+    velocityIterations = stageProperties.velocityIteration;
+    positionIterations = stageProperties.positionIteration;
+    physicsGranularityMultiplier = stageProperties.physicsGranularityMultipliers;
 }
 
 function calculateFPS(p) {
@@ -457,7 +472,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
     this.group = null;
     // console.log("a new agent, index: " + this.index);
     let mainBodyRadius = 20;
-    this.startingX = 100 + 50 * this.index;
+    this.startingX = 100 + 100 * this.index;
     // let startingX = 100;
     let startingY = 650;
     // this.jointMaxMove = maxJointMovement;  // Temporary
@@ -563,17 +578,32 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         return this.totalJointMovementReward;
     };
 
+    // Initialize totalXMovementReward to 0
+    this.totalXMovementReward = 0;
+
+    // Initialize previousXPos to starting x-position
+    this.previousXPos = this.startingX;
+
     this.getScore = function () {
-        // Make the score relative to the starting position
-        let XPosScore = (Math.floor(this.position.x - this.startingX) * 1);
-        // let XPosScore = (Math.floor(this.position.x - startingX) * 1);
-        let YPosScore = (Math.floor(startingY - this.position.y + 50) * 0.2); 
 
-        let jointMovementReward = (this.getJointMovementReward() * 15 / numLimbs); // Adjust multiplier if needed
+        // Calculate change in x-position
+        let deltaX = this.position.x - this.previousXPos;
 
-        let weightPenalty = this.getWeightPenalty() * 50;
+        // Calculate the current reward for X movement (modify as needed)
+        let currentXReward = deltaX * 25 / displayedTimeLeft;
 
-        this.Score = XPosScore + YPosScore + jointMovementReward - weightPenalty;
+        // Accumulate x movement reward
+        this.totalXMovementReward += currentXReward;
+
+        // Update the previous x position for next time
+        this.previousXPos = this.position.x;
+
+        let YPosScore = (Math.floor(startingY - this.position.y + 50) * 0.4);
+        let jointMovementReward = ((this.getJointMovementReward() * 15 / numLimbs) * 25 / displayedTimeLeft);
+        let weightPenalty = this.getWeightPenalty() ** 4 * 50;
+
+        // Use the accumulated x movement reward in the total score
+        this.Score = this.totalXMovementReward + YPosScore + jointMovementReward - weightPenalty;
 
         if (this.Score > topScoreEver) {
             topScoreEver = this.Score;
@@ -581,7 +611,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
 
         return [
             this.Score.toFixed(2),
-            XPosScore.toFixed(2),
+            this.totalXMovementReward.toFixed(2),  // Note: Now this represents the total x movement reward
             YPosScore.toFixed(2),
             jointMovementReward.toFixed(2),
             weightPenalty.toFixed(2)
@@ -718,6 +748,7 @@ function initializeAgentsBox2D(agentProperties) {
     torque = agentProperties.musculeTorque;
     MAX_ADJUSTMENT = agentProperties.maxJointSpeed;
     jointMaxMove = agentProperties.maxJointMoveDivider;
+    brainDecay = agentProperties.brainDecayOverTime;
     // agentMutationRate = agentProperties.offspringMutationRate;
     genCount = 1;
     simulationStarted = false;
@@ -978,9 +1009,24 @@ function nextGeneration(p) {
     let groupAgents;
     let topPerformersCount;
 
-    //updateMutationRate();
+    // calculate average network 'pattern'
+    let averageBrain = calculateAllAverageDistances();
 
-    agents.sort((a, b) => parseFloat(b.getScore()[0]) - parseFloat(a.getScore()[0])); // Sort in descending order of score
+    // Sort in descending order of score, including the bonus for being different from the average.
+    agents.sort((a, b) => {
+        const aScore = a.getScore()[0];
+        const bScore = b.getScore()[0];
+        const aDistance = distanceToAverage(a, averageBrain);
+        const bDistance = distanceToAverage(b, averageBrain);
+
+        // Adjust the score with the distance to the average brain
+        const aTotal = aScore + aDistance ** 2 * 50;
+        const bTotal = bScore + bDistance ** 2 * 50;
+
+        // Sort in descending order
+        return bTotal - aTotal;
+    });
+
     //console.log("Top Agents this round!");
     //for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
     //    console.log(agents[i].index);
@@ -989,14 +1035,14 @@ function nextGeneration(p) {
 
         groupAgents = agents.filter(agent => agent.group === groupId); // Filter agents of this group
 
-        topPerformersCount = Math.round(topPerformerNo * groupAgents.length);
+        topPerformersCount = Math.floor(topPerformerNo * groupAgents.length);
         topPerformersCount = Math.max(topPerformersCount, 2); // Ensure at least 2 top performers are selected
 
         // Create new agents, but assign them the brains of previous top performers from the group
         createTopPerformers(groupAgents, topPerformersCount, newAgents);
 
         // Generate offspring within the group
-        generateOffspring(groupAgents, newAgents, groupId);
+        generateOffspring(groupAgents, newAgents, groupId, averageBrain);
     }
 
     waitForInitializationCompletion(newAgents);
@@ -1014,45 +1060,99 @@ function nextGeneration(p) {
     genCount++;
 }
 
-// Update the mutation rate if average score gets too close to top score
-function updateMutationRate(oldRate) {
-    // Only consider adjustment if the average score is in the top third of the top score
-    if (averageScore >= topScoreEver * 1 / 3) {
-        // Calculate the percentage difference between the average score and the top score
-        const percentageDifference = ((topScoreEver - averageScore) / topScoreEver) * 100;
-
-        // Calculate the adjustment factor based on how close the average score is to the top score
-        let adjustmentFactor = 0;
-        if (percentageDifference <= 5) {
-            adjustmentFactor = 0.4;
-        } else {
-            adjustmentFactor = 0.1 + (0.1 * ((5 / percentageDifference)));
-        }
-
-        // Update the mutation rate
-        oldRate = adjustmentFactor;
-
-        // Clamp the new mutation rate between 0 and 0.4
-        oldRate = Math.min(0.4, Math.max(0, oldRate));
-    } else {
-        // Keep the mutation rate at a base level (for example, 0.1) if the average score is not in the top third
-        oldRate = 0.1;
+// Get the average weights accross the network.
+function calculateAllAverageDistances() {
+    let numAgents = Agents.length;
+    if (numAgents === 0) {
+        throw new Error("No agents to calculate average weights");
     }
 
-    console.log("Updated Mutation Rate: ", oldRate);
+    let firstAgentWeights = Agents[0].brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
+    let averageWeights = new Array(firstAgentWeights.length).fill(0);
+
+    Agents.forEach(agent => {
+        let agentWeights = agent.brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
+
+        if (agentWeights.length !== firstAgentWeights.length) {
+            throw new Error("Agents have neural networks of different sizes");
+        }
+
+        for (let i = 0; i < agentWeights.length; i++) {
+            averageWeights[i] += agentWeights[i];
+        }
+    });
+
+    for (let i = 0; i < averageWeights.length; i++) {
+        averageWeights[i] /= numAgents;
+    }
+
+    return averageWeights;
+}
+
+// Function to calculate the Euclidean distance of an agent's weights and biases to the population's average
+function distanceToAverage(agent, averageWeights) {
+    let agentWeights = agent.brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
+
+    if (agentWeights.length !== averageWeights.length) {
+        throw new Error("Agent has neural network of different size compared to population average");
+    }
+
+    let sum = 0;
+    for (let i = 0; i < agentWeights.length; i++) {
+        sum += Math.pow(agentWeights[i] - averageWeights[i], 2);
+    }
+    console.log(sum ** 2 * 50);
+    return Math.sqrt(sum);
+}
+
+// Update the mutation rate if NN's converge
+function updateMutationRate(oldRate) {
+    let stdDevDistance = stdDevDistanceToAverageBrain(agents, averageBrain);
+
+    // Check if stdDevDistance is non-zero to avoid division by zero
+    if (stdDevDistance > 0) {
+        // Set the rate as the inverse of stdDevDistance, scaled by some factor (e.g., 10)
+        oldRate = 10 / stdDevDistance;
+
+        // Clamp the rate to be within [0.1, 0.4]
+        oldRate = Math.min(0.4, Math.max(0.1, oldRate));
+    } else {
+        // If stdDevDistance is zero, it means all agents are identical, 
+        // so set a high mutation rate to increase diversity
+        oldRate = 0.4;
+    }
+
+    console.log("Updated Mutation Rate: ", oldRate, "Deviation Between Brains: ", stdDevDistance);
     return oldRate;
 }
 
-// Function to create top performers for the next generation
+
+function stdDevDistanceToAverageBrain(allAgents, averageBrain) {
+    let distances = [];
+    let numAgents = allAgents.length;
+    let avgDistance = averageDistanceToAverageBrain(allAgents, averageBrain);
+
+    allAgents.forEach(agent => {
+        let distance = distanceToAverage(agent, averageBrain);
+        distances.push(Math.pow(distance - avgDistance, 2));
+    });
+
+    let sum = distances.reduce((a, b) => a + b, 0);
+    return Math.sqrt(sum / numAgents);
+}
+
+// Create top performers for the next generation
 function createTopPerformers(groupAgents, topPerformersCount, newAgents) {
+    let topPerformers = groupAgents.slice(0, topPerformersCount);
     for (let j = 0; j < topPerformersCount; j++) {
-        let oldAgent = groupAgents[j];
-        // console.log("createTopPerformers, making agent: ", oldAgent.index);
+        let oldAgent = topPerformers[j];
         usedIndices.add(oldAgent.index);
         let newAgent = new Agent(oldAgent.numLimbs, oldAgent.index, oldAgent.brain);
-        newAgent.group = oldAgent.group;  // Assign the same group
+        newAgent.group = oldAgent.group;
         newAgents.push(newAgent);
     }
+    // Remove top performers from groupAgents
+    groupAgents.splice(0, topPerformersCount);
 }
 
 // Function to generate offspring for the next generation
@@ -1074,6 +1174,11 @@ function generateOffspring(groupAgents, newAgents, groupId) {
 
             // childBrain = mutate(childBrain, this.mutationRate);
             childBrain = gaussianMutation(childBrain, childBrain.mutationRate);
+
+            // Decay all weights in the brain by a small amount
+            if (brainDecay) {
+                childBrain = decayWeights(childBrain);
+            }
 
             let agentIndex = 0;
 
@@ -1288,6 +1393,20 @@ function gaussianMutation(childBrain, mutationRate) {
     return childBrain; // Return the mutated childBrain
 }
 
+// If enabled, decay all weights in the brain by a small multiplier to encourage new solutions to emerge.  Might make this selective, or remove already low values completely (pruning)
+function decayWeights(brain, decayRate = 0.0001) {
+    let agentWeights = brain.getWeights();
+    let newWeights = [];
+
+    for (let tensor of agentWeights) {
+        let decayedTensor = tensor.mul(tf.scalar(1.0 - decayRate));
+        newWeights.push(decayedTensor);
+    }
+
+    brain.setWeights(newWeights);
+    return brain;
+}
+
 
 // Recursive function checking if agents have finished loading into world
 function waitForInitializationCompletion(newAgents) {
@@ -1354,8 +1473,9 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
         "Velocity Y",
         "Score",
         "Orientation",
-        "Time Left"
+        "Time Left" + displayedTimeLeft.toFixed(0)
     ];
+    // `Time Left: ${displayedTimeLeft.toFixed(0)} seconds`
 
     //if (frameTracker % 30 === 0) {
         outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Joint ${idx + 1}`);
@@ -1468,11 +1588,11 @@ function mapWeightToStroke(weight) {
     let scaledWeight = Math.abs(weight);
 
     // Using Math.pow to apply an exponential scale. 
-    return Math.pow(scaledWeight, base) * 400;
+    return Math.pow(scaledWeight, base) * 300;
 }
 
 function mapBiasToNodeSize(bias) {
-    return 10 + Math.abs(bias) * 75; // 10 is base size, adjusting based on bias
+    return 5 + Math.abs(bias) * 65; // 10 is base size, adjusting based on bias
 }
 
 Agent.prototype.makeDecision = function (inputs) {

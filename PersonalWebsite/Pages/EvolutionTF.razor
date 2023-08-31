@@ -3,7 +3,7 @@
 
 <h2>Genetic Evolution Simulation</h2>
 <p>You will get the best results with more agents, and higher muscle update frequencies, it will take some fiddling with performance settings to get a stable frame rate, with the highest values possible</p>
-<p>Beta product, please be patiant. This works on mobile, but I recomend very low settings</p>
+<p>Beta product, please be patient. This works on mobile, but I recommend very low settings</p>
 <div id="canvas-container"></div>
 
 <div class="settings-container">
@@ -116,7 +116,7 @@
 
         <!-- Number of limbs per agent -->
         <div class="setting">
-            <label for="maxJointMoveDivider" title="Number of limbs per agent.">Joint Movement Restrictor (0 means no restriction, 2 means half their possible movement)</label>
+            <label for="maxJointMoveDivider" title="Number of limbs per agent.">Joint Movement Restriction (0 means no restriction, 2 means half their possible movement)</label>
             <div class="slider-container">
                 <input type="range" id="maxJointMoveDivider" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="1">
                 <input type="number" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="1">
@@ -182,6 +182,15 @@
             </div>
         </div>
 
+        <!-- Agent to fix camera on -->
+        <div class="setting">
+            <label for="brainDecayOverTime" title="Decay all weights in agents brain by a small amount each round">Brain Decay Over Time</label>
+            <select id="brainDecayOverTime" @bind="agentProperties.brainDecayOverTime">
+                <option value="true">true</option>
+                <option value="false">false</option>
+            </select>
+        </div>
+
     </div>
 
     <div class="settings-section">
@@ -199,7 +208,7 @@
 
         <!-- Gravity Strength Multiplyer -->
         <div class="setting">
-            <label for="Gravity" title="Gravity Strength Multiplyer.">Gravity Strength Multiplyer</label>
+            <label for="Gravity" title="Gravity Strength Multiplier.">Gravity Strength Multiplier</label>
             <div class="slider-container">
                 <input type="range" id="Gravity" @bind="stageProperties.Gravity" min="0" max="5" step="0.1">
                 <input type="number" @bind="stageProperties.Gravity" min="0" max="5" step="0.1">
@@ -208,7 +217,7 @@
 
         <!-- Friction Strength Multiplyer -->
         <div class="setting">
-            <label for="Friction" title="Friction Strength Multiplyer.">Friction Strength Multiplyer</label>
+            <label for="Friction" title="Friction Strength Multiplier.">Friction Strength Multiplier (Not implemented yet)</label>
             <div class="slider-container">
                 <input type="range" id="Friction" @bind="stageProperties.Friction" min="0" max="5" step="0.1">
                 <input type="number" @bind="stageProperties.Friction" min="0" max="5" step="0.1">
@@ -219,7 +228,7 @@
 
     <button class="toggle-advanced" @onclick="ToggleAdvancedSettings">Show Advanced Settings</button>
 
-    <div class="settings-section full-width advanced-settings" hidden="!@showAdvancedSettings">
+    <div class="settings-section full-width advanced-settings" hidden="@showAdvancedSettings">
         <h2>Advanced Settings</h2>
 
         <!-- Number of random agents per group -->
@@ -266,8 +275,16 @@
                 <input type="number" @bind="stageProperties.physicsGranularityMultipliers" min="1" max="10" step="1">
             </div>
         </div>
-
     </div>
+
+    <div class="simDescription">
+        <p>This is my take on a genetic evolution simulation.  For the best results, target a high value for 'Agents Per Batch of Joint Updates' a low value for 'Delay Between Batch of Joint Updates' and a high value for 'Number of Agents'</p>
+        <p>The default values result in 100 agents, where each agent can move update its muscle speeds about 2-3 times a second</p>
+        <p>Resetting/updating is a little buggy, its currently best to close and reopen the page if you want to try new settings</p>
+        <p>Showing the Neural Network on screen adds a fair amount of lag</p>
+        <p>I am making use of P5.JS for my rendering, Planck.JS, which is a port of Box2D for my physics, and TensorFlow.JS for my neural network processing</p>
+    </div>
+
 </div>
 
 
@@ -280,7 +297,7 @@
     private StageProperties stageProperties = new StageProperties();
     private AgentProperties agentProperties = new AgentProperties();
     public bool box2dPhysics { get; set; } = true;
-    private bool showAdvancedSettings = false;
+    private bool showAdvancedSettings = true;
 
     public class StageProperties
     {
@@ -318,6 +335,7 @@
         public double maxJointSpeed { get; set; } = 2;
         public double offspringMutationRate { get; set; } = 0.1;
         public int maxJointMoveDivider { get; set; } = 3;
+        public bool brainDecayOverTime { get; set; } = false;
         // public int hiddenLayersNN { get; set; } = 3;
         // public int nodesPerHiddenLayer { get; set; } = 10; // half for fanal hidden layer
     }
