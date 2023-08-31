@@ -118,8 +118,8 @@
         <div class="setting">
             <label for="maxJointMoveDivider" title="Number of limbs per agent.">Joint Movement Restriction (0 means no restriction, 2 means half their possible movement)</label>
             <div class="slider-container">
-                <input type="range" id="maxJointMoveDivider" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="1">
-                <input type="number" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="1">
+                <input type="range" id="maxJointMoveDivider" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
+                <input type="number" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
             </div>
         </div>
         
@@ -251,7 +251,7 @@
 
         <!-- velocityIteration for plank -->
         <div class="setting">
-            <label for="velocityIteration" title="UI (Neural Network and Text) Update Rate in milliseconds.">UI Update Rate (ms)</label>
+            <label for="velocityIteration" title="velocityIteration value for planck">Velocity Iterations</label>
             <div class="slider-container">
                 <input type="range" id="velocityIteration" @bind="stageProperties.velocityIteration" min="1" max="10" step="1">
                 <input type="number" @bind="stageProperties.velocityIteration" min="1" max="10" step="1">
@@ -260,7 +260,7 @@
 
         <!-- positionIteration for plank -->
         <div class="setting">
-            <label for="positionIteration" title="UI (Neural Network and Text) Update Rate in milliseconds.">UI Update Rate (ms)</label>
+            <label for="positionIteration" title="UI (Neural Network and Text) Update Rate in milliseconds.">Position Iterations</label>
             <div class="slider-container">
                 <input type="range" id="positionIteration" @bind="stageProperties.positionIteration" min="1" max="10" step="1">
                 <input type="number" @bind="stageProperties.positionIteration" min="1" max="10" step="1">
@@ -269,7 +269,7 @@
 
         <!-- physicsGranularity for plank -->
         <div class="setting">
-            <label for="physicsGranularityMultipliers" title="UI (Neural Network and Text) Update Rate in milliseconds.">UI Update Rate (ms)</label>
+            <label for="physicsGranularityMultipliers" title="Physics Granularity">Physics Granularity</label>
             <div class="slider-container">
                 <input type="range" id="physicsGranularityMultipliers" @bind="stageProperties.physicsGranularityMultipliers" min="1" max="10" step="1">
                 <input type="number" @bind="stageProperties.physicsGranularityMultipliers" min="1" max="10" step="1">
@@ -320,7 +320,7 @@
         public int minPopGroupSize { get; set; } = 20;
         public int maxPopGroupSize { get; set; } = 50;
         public int uiRefreshRate { get; set; } = 200;
-        public int muscleDelay { get; set; } = 1;
+        public int muscleDelay { get; set; } = 2;
         public int muscleBatch { get; set; } = 10;
         public int totalMuscleUpdateTime { get; set; } = 1;
         public int velocityIteration { get; set; } = 4;
@@ -334,7 +334,7 @@
         public double musculeTorque { get; set; } = 500000.0;
         public double maxJointSpeed { get; set; } = 2;
         public double offspringMutationRate { get; set; } = 0.1;
-        public int maxJointMoveDivider { get; set; } = 3;
+        public double maxJointMoveDivider { get; set; } = 3;
         public bool brainDecayOverTime { get; set; } = false;
         // public int hiddenLayersNN { get; set; } = 3;
         // public int nodesPerHiddenLayer { get; set; } = 10; // half for fanal hidden layer

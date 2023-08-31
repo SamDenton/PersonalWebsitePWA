@@ -204,26 +204,7 @@ let sketch = function (p) {
                 let averageXScore = totalXScore / agents.length;
 
                 offsetX = p.width / 6 - averageXScore + 100;
-            }
-
-            //if (agentToFix == "leader") {
-            //    offsetX = p.width / 6 - leadingAgent.position.x;  // Center the leading agent on the canvas, just to the left
-            //} else if (agentToFix == "trailer") {
-            //    offsetX = p.width / 6 - trailingAgent.position.x;
-            //} else if (agentToFix == "average") {
-
-            //    let totalXScore = 0;
-
-            //    for (let agent of agents) {
-            //        let eachXScore = agent.getScore();
-            //        totalXScore += parseFloat(eachXScore[1]);
-            //    }
-
-            //    let averageXScore = totalXScore / agents.length;
-
-            //    offsetX = p.width / 6 - averageXScore + 100;
-            //}
-            
+            }            
 
             // Scrolling background
             p.fill(100);  // Grey color for the rectangle
@@ -240,7 +221,7 @@ let sketch = function (p) {
 
             // Ground
             let groundPosition = groundBody.getPosition();
-            let groundStartX = groundPosition.x + offsetX;  // Adjust for camera offset
+            let groundStartX = groundPosition.x + offsetX - 1000;  // Adjust for camera offset
             let groundEndX = groundStartX + canvasWidth * 1000;  // Length of ground
             p.line(groundStartX, groundPosition.y - 10, groundEndX, groundPosition.y);
 
@@ -472,7 +453,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
     this.group = null;
     // console.log("a new agent, index: " + this.index);
     let mainBodyRadius = 20;
-    this.startingX = 100 + 100 * this.index;
+    this.startingX = 100 + 50 * this.index;
     // let startingX = 100;
     let startingY = 650;
     // this.jointMaxMove = maxJointMovement;  // Temporary
@@ -578,7 +559,6 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         return this.totalJointMovementReward;
     };
 
-    // Initialize totalXMovementReward to 0
     this.totalXMovementReward = 0;
 
     // Initialize previousXPos to starting x-position
@@ -589,8 +569,16 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         // Calculate change in x-position
         let deltaX = this.position.x - this.previousXPos;
 
-        // Calculate the current reward for X movement (modify as needed)
-        let currentXReward = deltaX * 25 / displayedTimeLeft;
+        let currentXReward;
+
+        if (displayedTimeLeft > 1) {
+            let TimeFactor = 1 + tickCount / simulationLength;
+            // currentXReward = deltaX * TimeFactor * 2;  // Linier growth of x reward
+            // currentXReward = deltaX ** TimeFactor ** 2; // non linier, 
+             currentXReward = deltaX * Math.exp(TimeFactor - 1);
+        } else {
+            currentXReward = 0;
+        }
 
         // Accumulate x movement reward
         this.totalXMovementReward += currentXReward;
@@ -598,11 +586,15 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         // Update the previous x position for next time
         this.previousXPos = this.position.x;
 
-        let YPosScore = (Math.floor(startingY - this.position.y + 50) * 0.4);
-        let jointMovementReward = ((this.getJointMovementReward() * 15 / numLimbs) * 25 / displayedTimeLeft);
-        let weightPenalty = this.getWeightPenalty() ** 4 * 50;
+        // Old simple X score calculation
+        // let XPosScore = (Math.floor(this.position.x - this.startingX) * 1);
 
-        // Use the accumulated x movement reward in the total score
+        let YPosScore = (Math.floor(startingY - this.position.y + 50) * 1);
+
+        let jointMovementReward = (this.getJointMovementReward() * 15 / numLimbs); // Adjust multiplier if needed
+
+        let weightPenalty = this.getWeightPenalty() * 200;
+
         this.Score = this.totalXMovementReward + YPosScore + jointMovementReward - weightPenalty;
 
         if (this.Score > topScoreEver) {
@@ -611,7 +603,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
 
         return [
             this.Score.toFixed(2),
-            this.totalXMovementReward.toFixed(2),  // Note: Now this represents the total x movement reward
+            this.totalXMovementReward.toFixed(2),
             YPosScore.toFixed(2),
             jointMovementReward.toFixed(2),
             weightPenalty.toFixed(2)
@@ -1020,12 +1012,14 @@ function nextGeneration(p) {
         const bDistance = distanceToAverage(b, averageBrain);
 
         // Adjust the score with the distance to the average brain
-        const aTotal = aScore + aDistance ** 2 * 50;
-        const bTotal = bScore + bDistance ** 2 * 50;
+        const aTotal = aScore + aDistance ** 2 * 1;
+        const bTotal = bScore + bDistance ** 2 * 1;
 
         // Sort in descending order
         return bTotal - aTotal;
     });
+
+    // agents.sort((a, b) => parseFloat(b.getScore()[0]) - parseFloat(a.getScore()[0]));
 
     //console.log("Top Agents this round!");
     //for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
@@ -1062,15 +1056,15 @@ function nextGeneration(p) {
 
 // Get the average weights accross the network.
 function calculateAllAverageDistances() {
-    let numAgents = Agents.length;
+    let numAgents = agents.length;
     if (numAgents === 0) {
         throw new Error("No agents to calculate average weights");
     }
 
-    let firstAgentWeights = Agents[0].brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
+    let firstAgentWeights = agents[0].brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
     let averageWeights = new Array(firstAgentWeights.length).fill(0);
 
-    Agents.forEach(agent => {
+    agents.forEach(agent => {
         let agentWeights = agent.brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
 
         if (agentWeights.length !== firstAgentWeights.length) {
@@ -1101,31 +1095,30 @@ function distanceToAverage(agent, averageWeights) {
     for (let i = 0; i < agentWeights.length; i++) {
         sum += Math.pow(agentWeights[i] - averageWeights[i], 2);
     }
-    console.log(sum ** 2 * 50);
+
     return Math.sqrt(sum);
 }
 
 // Update the mutation rate if NN's converge
-function updateMutationRate(oldRate) {
+function updateMutationRate(oldRate, averageBrain) {
     let stdDevDistance = stdDevDistanceToAverageBrain(agents, averageBrain);
 
     // Check if stdDevDistance is non-zero to avoid division by zero
     if (stdDevDistance > 0) {
-        // Set the rate as the inverse of stdDevDistance, scaled by some factor (e.g., 10)
-        oldRate = 10 / stdDevDistance;
+        // Set the rate as the inverse of stdDevDistance, scaled by 1/40
+        newRate = 0.025 / stdDevDistance;
 
-        // Clamp the rate to be within [0.1, 0.4]
-        oldRate = Math.min(0.4, Math.max(0.1, oldRate));
+        // Clamp the rate to be within [0.1, 0.4].  Should find a way to replace 0.1 with the users selection
+        newRate = Math.min(0.4, Math.max(0.1, newRate));
     } else {
         // If stdDevDistance is zero, it means all agents are identical, 
         // so set a high mutation rate to increase diversity
-        oldRate = 0.4;
+        newRate = 0.4;
     }
 
-    console.log("Updated Mutation Rate: ", oldRate, "Deviation Between Brains: ", stdDevDistance);
-    return oldRate;
+    console.log("Updated Mutation Rate: ", newRate, "Deviation Between Brains: ", stdDevDistance);
+    return newRate;
 }
-
 
 function stdDevDistanceToAverageBrain(allAgents, averageBrain) {
     let distances = [];
@@ -1141,22 +1134,30 @@ function stdDevDistanceToAverageBrain(allAgents, averageBrain) {
     return Math.sqrt(sum / numAgents);
 }
 
+function averageDistanceToAverageBrain(allAgents, averageBrain) {
+    let sumDistance = 0;
+    let numAgents = allAgents.length;
+
+    allAgents.forEach(agent => {
+        sumDistance += distanceToAverage(agent, averageBrain);
+    });
+
+    return sumDistance / numAgents;
+}
+
 // Create top performers for the next generation
 function createTopPerformers(groupAgents, topPerformersCount, newAgents) {
-    let topPerformers = groupAgents.slice(0, topPerformersCount);
     for (let j = 0; j < topPerformersCount; j++) {
-        let oldAgent = topPerformers[j];
+        let oldAgent = groupAgents[j];
         usedIndices.add(oldAgent.index);
         let newAgent = new Agent(oldAgent.numLimbs, oldAgent.index, oldAgent.brain);
         newAgent.group = oldAgent.group;
         newAgents.push(newAgent);
     }
-    // Remove top performers from groupAgents
-    groupAgents.splice(0, topPerformersCount);
 }
 
 // Function to generate offspring for the next generation
-function generateOffspring(groupAgents, newAgents, groupId) {
+function generateOffspring(groupAgents, newAgents, groupId, averageBrain) {
     function createChildAgentBatch(startIndex) {
         if (newAgents.filter(agent => agent.group === groupId).length >= groupAgents.length) {
             // All agents for this group have been created
@@ -1170,7 +1171,7 @@ function generateOffspring(groupAgents, newAgents, groupId) {
             // let childBrain = crossover(parent1, parent2);
             let childBrain = biasedArithmeticCrossover(parent1, parent2);
 
-            childBrain.mutationRate = updateMutationRate(childBrain.mutationRate)
+            childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
 
             // childBrain = mutate(childBrain, this.mutationRate);
             childBrain = gaussianMutation(childBrain, childBrain.mutationRate);
@@ -1473,8 +1474,9 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
         "Velocity Y",
         "Score",
         "Orientation",
-        "Time Left" + displayedTimeLeft.toFixed(0)
+        "Time Left" 
     ];
+    // + displayedTimeLeft.toFixed(0)
     // `Time Left: ${displayedTimeLeft.toFixed(0)} seconds`
 
     //if (frameTracker % 30 === 0) {
@@ -1588,11 +1590,11 @@ function mapWeightToStroke(weight) {
     let scaledWeight = Math.abs(weight);
 
     // Using Math.pow to apply an exponential scale. 
-    return Math.pow(scaledWeight, base) * 300;
+    return Math.pow(scaledWeight, base) * 400;
 }
 
 function mapBiasToNodeSize(bias) {
-    return 5 + Math.abs(bias) * 65; // 10 is base size, adjusting based on bias
+    return 10 + Math.abs(bias) * 75; // 10 is base size, adjusting based on bias
 }
 
 Agent.prototype.makeDecision = function (inputs) {
