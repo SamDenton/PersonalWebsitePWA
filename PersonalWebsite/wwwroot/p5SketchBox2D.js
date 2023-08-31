@@ -938,7 +938,7 @@ function NeuralNetworkConfig(numLimbs) {
     this.inputNodes = (numLimbs * 2) + 7; // Muscle angles, speeds, agent x,y, agent velosity x,y, score, agent orientation
     this.hiddenLayers = [{ nodes: 20, activation: 'relu' }, { nodes: 20, activation: 'relu' }, { nodes: 10, activation: 'relu' }];
     this.outputNodes = numLimbs;
-    this.mutationRate = 0.05;
+    this.mutationRate = agentMutationRate; // Temporary
     //this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
 }
 
