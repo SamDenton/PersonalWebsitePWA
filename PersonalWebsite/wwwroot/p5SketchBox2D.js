@@ -84,6 +84,7 @@ Ideas:
             -I want to save agents, either individuals or populations, to re-use later.  Would be good to have a property tracking agent history, its own top score, what the parameters where when it got that score, etc.
             -I want to evolve the inputs and outputs of the network, from a selection of available
             -I want to evolve the topology of the networks themselevs using NEAT so they can decide how complex they need to be
+            -As part of NEAT, look at different limb types (wheels, single limb, jointed/double limb, wing(?), balance)
 
             -Could look into ideas like regularization and pruning.  Think about reducing agents brain weights over time selectively?
 */
@@ -233,6 +234,8 @@ let sketch = function (p) {
 
             let currentTime = p.millis();
 
+            let topScoreAgent;
+
             //console.log(currentTime, lastUIUpdateTime);
             if (currentTime - lastUIUpdateTime > UIUpdateInterval) {
 
@@ -251,6 +254,15 @@ let sketch = function (p) {
                 trailingAgentYScore = trailingAgentScores[2];
                 trailingAgentMovementScore = trailingAgentScores[3];
                 trailingAgentWeightPenalty = trailingAgentScores[4];
+
+                topScoreAgent = getHighestScore();
+                // Display the score of the highest scoring
+                topScoreAgentScores = topScoreAgent.getScore();
+                topScoreAgentScore = topScoreAgentScores[0];
+                topScoreAgentXScore = topScoreAgentScores[1];
+                topScoreAgentYScore = topScoreAgentScores[2];
+                topScoreAgentMovementScore = topScoreAgentScores[3];
+                topScoreAgentWeightPenalty = topScoreAgentScores[4];
 
                 let totalScore = 0;
                 for (let agent of agents) {
@@ -296,13 +308,19 @@ let sketch = function (p) {
             p.fill(0);  // Black text
             p.textSize(16);  // Font size
             if (leadingAgentMovementScore > - 1) {
-                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Score: ${leadingAgentMovementScore} - Brain Weight Penalty: ${leadingAgentWeightPenalty})`, 10, groundY + 30);  // Displaying the score just below the ground
+                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Score: ${topScoreAgentMovementScore} - Brain Weight Penalty: ${topScoreAgentWeightPenalty})`, 10, groundY + 30);  // Displaying the score just below the ground
+            }
+
+            p.fill(0);  // Black text
+            p.textSize(16);  // Font size
+            if (leadingAgentMovementScore > - 1) {
+                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Score: ${leadingAgentMovementScore} - Brain Weight Penalty: ${leadingAgentWeightPenalty})`, 10, groundY + 55);  // Displaying the score just below the ground
             }
 
             p.fill(0);  // Black text
             p.textSize(16);  // Font size
             if (trailingAgentMovementScore > - 1) {
-                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Score: ${trailingAgentMovementScore} - Brain Weight Penalty: ${trailingAgentWeightPenalty})`, 10, groundY + 55);  // Displaying the score just below the ground
+                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Score: ${trailingAgentMovementScore} - Brain Weight Penalty: ${trailingAgentWeightPenalty})`, 10, groundY + 70);  // Displaying the score just below the ground
             }
 
             if (showNeuralNetwork == true) {
@@ -900,6 +918,14 @@ function getLastAgent() {
     );
 }
 
+function getHighestScore() {
+    if (agents.length === 0) return null;
+
+    return agents.reduce((leading, agent) =>
+        (agent.getScore()[0] > leading.getScore()[0] ? agent : leading),
+        agents[0]
+    );
+}
 
 function endSimulation(p) {
     p.noLoop();
