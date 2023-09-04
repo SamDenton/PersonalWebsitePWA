@@ -131,6 +131,7 @@ let sketch = function (p) {
         let delta = currentTime - lastTime;
         lastTime = currentTime;
         leadingAgent = getLeadingAgent(p.frameCount);
+        trailingAgent = getLastAgent();
         accumulator += delta;
 
         while (accumulator >= fixedTimeStep) {
@@ -181,8 +182,11 @@ let sketch = function (p) {
             }
 
             // Step the Planck world
-            world.step(fixedTimeStep / 1000 * physicsGranularityMultiplier, velocityIterations, positionIterations); // , velocityIterations, positionIterations
-
+            try {
+                world.step(fixedTimeStep / 1000 * physicsGranularityMultiplier, velocityIterations, positionIterations);
+            } catch (error) {
+                console.error("An error occurred stepping physics simulation: ", error);
+            }
             // If initialization is complete, increment the tick count
             if (simulationStarted) {
                 tickCount++;
@@ -236,15 +240,14 @@ let sketch = function (p) {
             calculateFPS(p);
 
             let agentsToRender = new Set(randomlySelectedAgents);  // Use a Set to ensure uniqueness
-            agentsToRender.add(leadingAgent);  // Always add the leading agent
             agentsToRender.add(trailingAgent);
+            agentsToRender.add(leadingAgent);  // Always add the leading agent
 
             let currentTime = p.millis();
 
             //console.log(currentTime, lastUIUpdateTime);
             if (currentTime - lastUIUpdateTime > UIUpdateInterval) {
 
-                trailingAgent = getLastAgent();
                 topScoreAgent = getHighestScore();
 
                 // Display the score of the leading agent
@@ -315,19 +318,19 @@ let sketch = function (p) {
             p.fill(0);  // Black text
             p.textSize(16);  // Font size
             if (leadingAgentMovementScore > - 1) {
-                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Score: ${topScoreAgentMovementScore} - Brain Weight Penalty: ${topScoreAgentWeightPenalty})`, 10, groundY + 30);  // Displaying the score just below the ground
+                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Score: ${topScoreAgentMovementScore})`, 10, groundY + 30);  // Displaying the score just below the ground
             }
 
             p.fill(0);  // Black text
             p.textSize(16);  // Font size
             if (leadingAgentMovementScore > - 1) {
-                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Score: ${leadingAgentMovementScore} - Brain Weight Penalty: ${leadingAgentWeightPenalty})`, 10, groundY + 50);  // Displaying the score just below the ground
+                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Score: ${leadingAgentMovementScore})`, 10, groundY + 50);  // Displaying the score just below the ground
             }
 
             p.fill(0);  // Black text
             p.textSize(16);  // Font size
             if (trailingAgentMovementScore > - 1) {
-                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Score: ${trailingAgentMovementScore} - Brain Weight Penalty: ${trailingAgentWeightPenalty})`, 10, groundY + 70);  // Displaying the score just below the ground
+                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Score: ${trailingAgentMovementScore})`, 10, groundY + 70);  // Displaying the score just below the ground
             }
 
             if (showNeuralNetwork == true) {
@@ -925,7 +928,7 @@ function getLastAgent() {
     if (agents.length === 0) return null;
 
     return agents.reduce((trailing, agent) =>
-        (agent.position.x < trailing.position.x ? agent : trailing),
+        (agent.position.x - agent.startingX < trailing.position.x - trailing.startingX ? agent : trailing),
         agents[0]
     );
 }
@@ -939,7 +942,7 @@ function getHighestScore() {
 }
 
 function endSimulation(p) {
-    p.noLoop();
+    // p.noLoop();
     isInitializationComplete = false;
     simulationStarted = false;
     currentProcess = "Sorting agents by score!";
@@ -1010,7 +1013,7 @@ function setupPlanckWorld() {
 
 function NeuralNetworkConfig(numLimbs) {
     this.inputNodes = (numLimbs * 1) + 6; // Muscle angles, *speeds, agent x,y, agent velosity x,y, *score, agent orientation
-    this.hiddenLayers = [{ nodes: 20, activation: 'relu' }, { nodes: 20, activation: 'relu' }, { nodes: 10, activation: 'relu' }];
+    this.hiddenLayers = [{ nodes: 15, activation: 'relu' }, { nodes: 10, activation: 'relu' }]; //, { nodes: 10, activation: 'relu' }
     this.outputNodes = numLimbs;
     this.mutationRate = 0.01;
     //this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
@@ -1089,7 +1092,7 @@ function nextGeneration(p) {
     tickCount = 0;
     nextBatchFrame = 1;
     currentPhysicsBatch = 0;
-    p.loop();
+    // p.loop();
     genCount++;
 }
 
@@ -1213,7 +1216,7 @@ function generateOffspring(groupAgents, newAgents, groupId, averageBrain) {
             // let childBrain = crossover(parent1, parent2);
             let childBrain = biasedArithmeticCrossover(parent1, parent2);
 
-            childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
+            // childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
 
             // childBrain = mutate(childBrain, this.mutationRate);
             childBrain = gaussianMutation(childBrain, childBrain.mutationRate);
@@ -1438,17 +1441,20 @@ function gaussianMutation(childBrain, mutationRate) {
 
 // If enabled, decay all weights in the brain by a small multiplier to encourage new solutions to emerge.  Might make this selective, or remove already low values completely (pruning)
 function decayWeights(brain, decayRate = 0.0001) {
-    let agentWeights = brain.getWeights();
-    let newWeights = [];
+    return tf.tidy(() => {
+        let agentWeights = brain.getWeights();
+        let newWeights = [];
 
-    for (let tensor of agentWeights) {
-        let decayedTensor = tensor.mul(tf.scalar(1.0 - decayRate));
-        newWeights.push(decayedTensor);
-    }
+        for (let tensor of agentWeights) {
+            let decayedTensor = tensor.mul(tf.scalar(1.0 - decayRate));
+            newWeights.push(decayedTensor);
+        }
 
-    brain.setWeights(newWeights);
-    return brain;
+        brain.setWeights(newWeights);
+        return brain;
+    });
 }
+
 
 
 // Recursive function checking if agents have finished loading into world
