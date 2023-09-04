@@ -11,7 +11,7 @@ let tickCount = 0;
 let lastUIUpdateTime = 0;
 let topScoreEver = 0;
 let stabilityCounter = 0;
-let isInitializationComplete, lastFPSCalculationTime, genCount, displayedTimeLeft, frameCountSinceLastFPS, simulationStarted, nextBatchFrame, usedIndice, averageScore;
+let isInitializationComplete, lastFPSCalculationTime, genCount, displayedTimeLeft, frameCountSinceLastFPS, simulationStarted, nextBatchFrame, usedIndice, averageScore, currentProcess;
 
 /* P5 vars */
 let p5Instance = null;
@@ -101,6 +101,7 @@ let sketch = function (p) {
     let leadingAgentXScore;
     let leadingAgentYScore;
     let leadingAgentMovementScore;
+    let trailingAgent = agents[agents.length - 1];
     let trailingAgentScores;
     let trailingAgentScore;
     let trailingAgentXScore;
@@ -108,6 +109,13 @@ let sketch = function (p) {
     let trailingAgentMovementScore;
     let leadingAgentWeightPenalty;
     let trailingAgentWeightPenalty;
+    let topScoreAgent = agents[0];
+    let topScoreAgentScores;
+    let topScoreAgentScore;
+    let topScoreAgentXScore;
+    let topScoreAgentYScore;
+    let topScoreAgentMovementScore;
+    let topScoreAgentWeightPenalty;
 
     p.setup = function () {
         p.frameRate(60);
@@ -123,7 +131,6 @@ let sketch = function (p) {
         let delta = currentTime - lastTime;
         lastTime = currentTime;
         leadingAgent = getLeadingAgent(p.frameCount);
-        trailingAgent = getLastAgent();
         accumulator += delta;
 
         while (accumulator >= fixedTimeStep) {
@@ -198,7 +205,7 @@ let sketch = function (p) {
                 let totalXScore = 0;
 
                 for (let agent of agents) {
-                    let eachXScore = agent.getScore();
+                    let eachXScore = agent.getScore(false);
                     totalXScore += parseFloat(eachXScore[1]);
                 }
 
@@ -234,13 +241,14 @@ let sketch = function (p) {
 
             let currentTime = p.millis();
 
-            let topScoreAgent;
-
             //console.log(currentTime, lastUIUpdateTime);
             if (currentTime - lastUIUpdateTime > UIUpdateInterval) {
 
+                trailingAgent = getLastAgent();
+                topScoreAgent = getHighestScore();
+
                 // Display the score of the leading agent
-                leadingAgentScores = leadingAgent.getScore();
+                leadingAgentScores = leadingAgent.getScore(false);
                 leadingAgentScore = leadingAgentScores[0];
                 leadingAgentXScore = leadingAgentScores[1];
                 leadingAgentYScore = leadingAgentScores[2];
@@ -248,16 +256,15 @@ let sketch = function (p) {
                 leadingAgentWeightPenalty = leadingAgentScores[4];
 
                 // Display the score of the trailing agent
-                trailingAgentScores = trailingAgent.getScore();
+                trailingAgentScores = trailingAgent.getScore(false);
                 trailingAgentScore = trailingAgentScores[0];
                 trailingAgentXScore = trailingAgentScores[1];
                 trailingAgentYScore = trailingAgentScores[2];
                 trailingAgentMovementScore = trailingAgentScores[3];
                 trailingAgentWeightPenalty = trailingAgentScores[4];
 
-                topScoreAgent = getHighestScore();
                 // Display the score of the highest scoring
-                topScoreAgentScores = topScoreAgent.getScore();
+                topScoreAgentScores = topScoreAgent.getScore(false);
                 topScoreAgentScore = topScoreAgentScores[0];
                 topScoreAgentXScore = topScoreAgentScores[1];
                 topScoreAgentYScore = topScoreAgentScores[2];
@@ -266,7 +273,7 @@ let sketch = function (p) {
 
                 let totalScore = 0;
                 for (let agent of agents) {
-                    let eachScore = agent.getScore();
+                    let eachScore = agent.getScore(false);
                     totalScore += parseFloat(eachScore[0]);
                 }
 
@@ -298,7 +305,7 @@ let sketch = function (p) {
 
             if (!simulationStarted) {
                 p.fill(255, 0, 0);
-                p.text(`Loading in agents!`, 10, 290);
+                p.text(`${currentProcess}`, 10, 290);
             }
             else {
                 p.fill(0, 255, 0);
@@ -314,7 +321,7 @@ let sketch = function (p) {
             p.fill(0);  // Black text
             p.textSize(16);  // Font size
             if (leadingAgentMovementScore > - 1) {
-                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Score: ${leadingAgentMovementScore} - Brain Weight Penalty: ${leadingAgentWeightPenalty})`, 10, groundY + 55);  // Displaying the score just below the ground
+                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Score: ${leadingAgentMovementScore} - Brain Weight Penalty: ${leadingAgentWeightPenalty})`, 10, groundY + 50);  // Displaying the score just below the ground
             }
 
             p.fill(0);  // Black text
@@ -408,6 +415,7 @@ function initializeSketchBox2D(stageProperties) {
     lastFPSCalculationTime = 0;
     tickCount = 0;
     displayedTimeLeft = 0;
+    currentProcess = "Initializing world!";
 
     // If there are existing agents with models, dispose of them
     for (let agent of agents) {
@@ -582,7 +590,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
     // Initialize previousXPos to starting x-position
     this.previousXPos = this.startingX;
 
-    this.getScore = function () {
+    this.getScore = function (roundOver) {
 
         // Calculate change in x-position
         let deltaX = this.position.x - this.previousXPos;
@@ -610,8 +618,12 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
         let YPosScore = (Math.floor(startingY - this.position.y + 50) * 1);
 
         let jointMovementReward = (this.getJointMovementReward() * 15 / numLimbs); // Adjust multiplier if needed
-
-        let weightPenalty = this.getWeightPenalty() * 200;
+        let weightPenalty;
+        if (roundOver) {
+            weightPenalty = this.getWeightPenalty() * 200;
+        } else {
+            weightPenalty = 0;
+        }
 
         this.Score = this.totalXMovementReward + YPosScore + jointMovementReward - weightPenalty;
 
@@ -804,7 +816,7 @@ function initializeAgentsBox2D(agentProperties) {
     }
 
     agents = [];  // Reset the agents array
-
+    currentProcess = "Initializing first generation!";
     // Initialize agents in batches
     for (let i = 0; i < popSize; i += BATCH_SIZE) {
         initializeAgentBatch(i, Math.min(i + BATCH_SIZE, popSize), agentsPerGroup);
@@ -875,7 +887,7 @@ function getLeadingAgent(frameCounter) {
             let groupAgents = agents.filter(agent => agent.group === groupId);
 
             // Select leading agent
-            let leadingAgent = groupAgents.sort((a, b) => parseFloat(b.getScore()[0]) - parseFloat(a.getScore()[0]))[0];
+            let leadingAgent = groupAgents.sort((a, b) => parseFloat(b.getScore(false)[0]) - parseFloat(a.getScore(false)[0]))[0];
 
             leadingAgents.push(leadingAgent);
         }
@@ -921,16 +933,16 @@ function getLastAgent() {
 function getHighestScore() {
     if (agents.length === 0) return null;
 
-    return agents.reduce((leading, agent) =>
-        (agent.getScore()[0] > leading.getScore()[0] ? agent : leading),
-        agents[0]
-    );
+    agents.sort((a, b) => parseFloat(b.getScore(false)[0]) - parseFloat(a.getScore(false)[0]));
+
+    return agents[0];
 }
 
 function endSimulation(p) {
     p.noLoop();
     isInitializationComplete = false;
     simulationStarted = false;
+    currentProcess = "Sorting agents by score!";
     console.log("round over");
 
     for (let agent of agents) {
@@ -997,7 +1009,7 @@ function setupPlanckWorld() {
 /*            Neural Network Functions                     */
 
 function NeuralNetworkConfig(numLimbs) {
-    this.inputNodes = (numLimbs * 2) + 7; // Muscle angles, speeds, agent x,y, agent velosity x,y, score, agent orientation
+    this.inputNodes = (numLimbs * 1) + 6; // Muscle angles, *speeds, agent x,y, agent velosity x,y, *score, agent orientation
     this.hiddenLayers = [{ nodes: 20, activation: 'relu' }, { nodes: 20, activation: 'relu' }, { nodes: 10, activation: 'relu' }];
     this.outputNodes = numLimbs;
     this.mutationRate = 0.01;
@@ -1032,8 +1044,8 @@ function nextGeneration(p) {
 
     // Sort in descending order of score, including the bonus for being different from the average.
     agents.sort((a, b) => {
-        const aScore = a.getScore()[0];
-        const bScore = b.getScore()[0];
+        const aScore = a.getScore(true)[0];
+        const bScore = b.getScore(true)[0];
         const aDistance = distanceToAverage(a, averageBrain);
         const bDistance = distanceToAverage(b, averageBrain);
 
@@ -1051,6 +1063,7 @@ function nextGeneration(p) {
     //for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
     //    console.log(agents[i].index);
     //}
+    currentProcess = "Starting selection process!";
     for (let groupId = 0; groupId < numGroups; groupId++) {
 
         groupAgents = agents.filter(agent => agent.group === groupId); // Filter agents of this group
@@ -1127,6 +1140,7 @@ function distanceToAverage(agent, averageWeights) {
 
 // Update the mutation rate if NN's converge
 function updateMutationRate(oldRate, averageBrain) {
+    currentProcess = "Altering mutation rate if agents brains converge!";
     let stdDevDistance = stdDevDistanceToAverageBrain(agents, averageBrain);
 
     // Check if stdDevDistance is non-zero to avoid division by zero
@@ -1173,6 +1187,7 @@ function averageDistanceToAverageBrain(allAgents, averageBrain) {
 
 // Create top performers for the next generation
 function createTopPerformers(groupAgents, topPerformersCount, newAgents) {
+    currentProcess = "Keeping top performers!";
     for (let j = 0; j < topPerformersCount; j++) {
         let oldAgent = groupAgents[j];
         usedIndices.add(oldAgent.index);
@@ -1184,6 +1199,7 @@ function createTopPerformers(groupAgents, topPerformersCount, newAgents) {
 
 // Function to generate offspring for the next generation
 function generateOffspring(groupAgents, newAgents, groupId, averageBrain) {
+    currentProcess = "Creating offspring from weighted random parents!";
     function createChildAgentBatch(startIndex) {
         if (newAgents.filter(agent => agent.group === groupId).length >= groupAgents.length) {
             // All agents for this group have been created
@@ -1251,7 +1267,7 @@ function selectAgent(agents, allAgents, excludedAgent = null) {
     }
 
     // Return the agent with the highest score from the tournament contestants
-    return tournamentContestants.sort((a, b) => b.getScore() - a.getScore())[0];
+    return tournamentContestants.sort((a, b) => b.getScore(true) - a.getScore(true))[0];
 }
 
 function selectAgentWeighted(agentsLocal, allAgents, excludedAgent = null) {
@@ -1261,7 +1277,7 @@ function selectAgentWeighted(agentsLocal, allAgents, excludedAgent = null) {
     }
 
     let normalizedScores = [];
-    let minScore = Math.min(...agentsLocal.map(agent => agent.getScore()));
+    let minScore = Math.min(...agentsLocal.map(agent => agent.getScore(true)));
 
     // Ensure all scores are positive
     let offsetScore = minScore < 0 ? Math.abs(minScore) : 0;
@@ -1269,7 +1285,7 @@ function selectAgentWeighted(agentsLocal, allAgents, excludedAgent = null) {
     let cumulativeSum = 0;
     for (let agent of agentsLocal) {
         if (agent !== excludedAgent) {
-            let score = agent.getScore() + offsetScore;
+            let score = agent.getScore(true) + offsetScore;
             cumulativeSum += score;
             normalizedScores.push(cumulativeSum);
         }
@@ -1322,10 +1338,10 @@ function crossover(agent1, agent2) {
 function biasedArithmeticCrossover(agent1, agent2) {
     let childBrain = createNeuralNetwork(agent1.nnConfig);
 
-    let score1 = agent1.getScore()
+    let score1 = agent1.getScore(true)
     let xScore1 = parseFloat(score1[0]);
 
-    let score2 = agent1.getScore()
+    let score2 = agent1.getScore(true)
     let xScore2 = parseFloat(score2[0]);
 
     let totalScore = xScore1 + xScore2;
@@ -1439,6 +1455,7 @@ function decayWeights(brain, decayRate = 0.0001) {
 function waitForInitializationCompletion(newAgents) {
     // Check if the condition is met
     if (newAgents.length >= popSize) {
+        currentProcess = "New agents added to world!";
 
         // Get a list of brains in the new generation
         let newBrains = newAgents.map(agent => agent.brain);
@@ -1493,12 +1510,12 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
 
     let inputLabels = [
         ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`),
-        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`),
+/*        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`),*/
         "Agent's X",
         "Agent's Y",
         "Velocity X",
         "Velocity Y",
-        "Score",
+/*        "Score",*/
         "Orientation",
         "Time Left" 
     ];
@@ -1628,10 +1645,7 @@ Agent.prototype.makeDecision = function (inputs) {
         const output = this.brain.predict(tf.tensor([inputs])).dataSync();
         for (let i = 0; i < this.joints.length; i++) {
             let adjustment = output[i] * MAX_ADJUSTMENT; // Scales the adjustment based on the output
-            let currentSpeed = this.joints[i].getMotorSpeed();
-            if (adjustment != currentSpeed) {
-                this.joints[i].setMotorSpeed(adjustment);
-            }
+            this.joints[i].setMotorSpeed(adjustment);
         }
     });
 };
@@ -1640,51 +1654,49 @@ Agent.prototype.makeDecision = function (inputs) {
 Agent.prototype.collectInputs = function () {
     let inputs = [];
 
-    // 1. Joint angles
+    // Constants for normalization
+    const MAX_X = 500; //Approx based on observation
+    const MAX_Y = 20;
+    const MAX_SPEED = MAX_ADJUSTMENT;  // Assuming this is the maximum joint speed
+    const MAX_SCORE = topScoreEver;  // Max Score equaling the top score makes sense, but means the range of this input will change over the simulation.
+    const MAX_TIME = simulationLength / simulationSpeed;  // Maximum time in seconds
+
+    // 1. Joint angles normalized to [-1, 1]
     for (let joint of this.joints) {
-        let jointAngle = joint.getJointAngle();
-
-        // Error alert
-        if (isNaN(jointAngle)) {
-            console.log("Joint angle is NaN!");
-        }
-
+        let jointAngle = joint.getJointAngle() / Math.PI;
         inputs.push(jointAngle);
     }
 
-    // 2. Joint speeds
-    for (let joint of this.joints) {
-        let jointSpeed = joint.getJointSpeed();
+    // 2. Joint speeds normalized based on MAX_ADJUSTMENT.  Temporally removed for simplicity
+    //for (let joint of this.joints) {
+    //    let jointSpeed = joint.getJointSpeed() / MAX_SPEED;
+    //    inputs.push(jointSpeed);
+    //}
 
-        // Error alert
-        if (isNaN(jointSpeed)) {
-            console.log("Joint speed is NaN!");
-        }
-
-        inputs.push(jointSpeed);
-    }
-
-    // 3. Agent's position (x,y)
+    // 3. Agent's position (x,y) normalized based on assumed max values
     let position = this.position;
-    inputs.push(position.x);
-    inputs.push(position.y);
+    inputs.push(position.x / MAX_X);
+    inputs.push(position.y / MAX_Y);
 
-    // 4. Agent's velocity (x,y)
+    // 4. Agent's velocity (x,y) normalized based on assumed max values for now
     let velocity = this.mainBody.getLinearVelocity();
-    inputs.push(velocity.x);
-    inputs.push(velocity.y);
+    inputs.push(velocity.x / MAX_X);  // You may want to use a different max speed value here
+    inputs.push(velocity.y / MAX_Y);  // You may want to use a different max speed value here
 
-    // 5. Score
-    inputs.push(this.getScore());
+    // 5. Score normalized based on MAX_SCORE
+    // inputs.push(this.getScore() / MAX_SCORE); // I dont think this is actually useful to the agent
 
-    // 6. Agent's orientation
-    inputs.push(this.mainBody.getAngle());
+    // 6. Agent's orientation normalized to [-1, 1]
+    inputs.push(this.mainBody.getAngle() / Math.PI);
 
-    // 7 Time remaining
-    inputs.push(displayedTimeLeft);
-    // Want to add to this; sensors for distance to ground?
+    // 7. Time remaining normalized to [0, 1]
+    inputs.push(displayedTimeLeft / MAX_TIME);
+
+    // You can add more inputs like sensors for distance to ground, etc.
+
     return inputs;
 };
+
 
 Agent.prototype.updateMuscles = function () {
     let inputs = this.collectInputs();

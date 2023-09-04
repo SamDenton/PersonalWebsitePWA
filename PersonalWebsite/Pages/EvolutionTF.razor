@@ -306,7 +306,7 @@
         public float GroundY { get; set; } = 700;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 3000;  
+        public int SimulationLength { get; set; } = 1000;  
         public int renderedAgents { get; set; } = 1;
         public int simSpeed { get; set; } = 60;
         public double topPerformerNumber { get; set; } = 20;
@@ -319,11 +319,11 @@
         public double migrationRate { get; set; } = 0.05;
         public int minPopGroupSize { get; set; } = 20;
         public int maxPopGroupSize { get; set; } = 50;
-        public int uiRefreshRate { get; set; } = 200;
+        public int uiRefreshRate { get; set; } = 500;
         public int muscleDelay { get; set; } = 2;
-        public int muscleBatch { get; set; } = 10;
-        public int totalMuscleUpdateTime { get; set; } = 1;
-        public int velocityIteration { get; set; } = 4;
+        public int muscleBatch { get; set; } = 5;
+        public int totalMuscleUpdateTime { get; set; } = 2;
+        public int velocityIteration { get; set; } = 3;
         public int positionIteration { get; set; } = 2;
         public int physicsGranularityMultipliers { get; set; } = 2;
     }
