@@ -1,10 +1,10 @@
-﻿@page "/EvolutionTF"
+﻿@page "/EvolutionTFNEAT"
 @inject IJSRuntime JSRuntime
 
-<h2>Classic Genetic Evolution Simulation</h2>
+<h2>Genetic Evolution Simulation</h2>
 <p>You will get the best results with more agents, and higher muscle update frequencies, it will take some fiddling with performance settings to get a stable frame rate, with the highest values possible</p>
 <p>Beta product, please be patient. This works on mobile, but I recommend very low settings</p>
-<div id="canvas-container"></div>
+<div id="canvas-container-NEAT"></div>
 
 <div class="settings-container">
     <div class="settings-section">
@@ -122,7 +122,7 @@
                 <input type="number" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
             </div>
         </div>
-        
+
     </div>
 
     <div class="settings-section">
@@ -298,8 +298,6 @@
         <p>I intend to take this a little further, by also evolving the agents body, and the inputs and outputs.  This would mean starting with a simple agent, like they are now but with 2-3 limbs.  They would be able to mutate additional limbs and body segments over time.  The inputs and outputs would also be selected from a pool</p>
         <p>This will involve encoding the agents brain shape, inputs and outputs, body plan, history, brain weights and biases, into a single object, that can be stored and reused later, which has the side benefit of not having to keep retraining from scratch</p>
         <p>I intend to host a database of agents that do well and be able to download and upload agents from anywhere.</p>
-
-        <p>I have branched this project to implement NEAT with a new enviroment and objective</p>
     </div>
 
 </div>
@@ -323,22 +321,22 @@
         public float GroundY { get; set; } = 700;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 1000;  
+        public int SimulationLength { get; set; } = 1000;
         public int renderedAgents { get; set; } = 1;
         public int simSpeed { get; set; } = 60;
         public double topPerformerNumber { get; set; } = 20;
         public int delay { get; set; } = 20;
         public int BatchSize { get; set; } = 10;
-        public bool showNN { get; set; } = true;
+        public bool showNN { get; set; } = false;
         public string agentInCentre { get; set; } = "leader";
-        public int numAgents { get; set; } = 100;
+        public int numAgents { get; set; } = 50;
         public int tournamentSize { get; set; } = 10;
         public double migrationRate { get; set; } = 0.05;
         public int minPopGroupSize { get; set; } = 20;
         public int maxPopGroupSize { get; set; } = 50;
         public int uiRefreshRate { get; set; } = 500;
         public int muscleDelay { get; set; } = 2;
-        public int muscleBatch { get; set; } = 5;
+        public int muscleBatch { get; set; } = 2;
         public int totalMuscleUpdateTime { get; set; } = 2;
         public int velocityIteration { get; set; } = 3;
         public int positionIteration { get; set; } = 2;
@@ -359,8 +357,8 @@
 
     private async Task ResetSimulation()
     {
-        await JSRuntime.InvokeVoidAsync("initializeSketchBox2D", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2D", agentProperties);
+        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties);
     }
 
     private async Task toggleNN()
@@ -376,7 +374,7 @@
 
     private async Task UpdateSimulation()
     {
-        await JSRuntime.InvokeVoidAsync("updateSimulation", stageProperties);
+        await JSRuntime.InvokeVoidAsync("updateSimulationNEAT", stageProperties);
     }
 
     private async Task toggleLeader()
@@ -393,5 +391,133 @@
         await UpdateSimulation();
     }
 
+    // Starting to think about implementing NEAT and encoding agent properties within a Genome:
+
+    public class Genome
+    {
+        public List<NodeGene> NodeGenes { get; set; }
+        public List<ConnectionGene> ConnectionGenes { get; set; }
+        public Dictionary<string, int> BrainShape { get; set; }
+        public List<int> InnovationLog { get; set; }
+        public BodyPlan BodyPlan { get; set; }
+        public Dictionary<string, string> AgentHistory { get; set; }
+        public Dictionary<string, double> Hyperparameters { get; set; }
+        public Metadata Metadata { get; set; }
+
+        public Genome()
+        {
+            // Initialize properties with defaults or random values.
+            this.NodeGenes = new List<NodeGene>();
+            this.ConnectionGenes = new List<ConnectionGene>();
+            this.InnovationLog = new List<int>();
+            this.BodyPlan = new BodyPlan();
+            this.AgentHistory = new Dictionary<string, string> { { "bestScore", "0" }, { "roundsSurvived", "0" } };
+            this.Hyperparameters = new Dictionary<string, double> { { "learningRate", 0.01 }, { "mutationRate", 0.1 } };
+            this.Metadata = new Metadata();
+        }
+    }
+
+    // An initial attempt at encoding the agents body plan into the genome:
+
+    public class MainBody
+    {
+        public string Shape { get; set; }
+        public double Size { get; set; }
+    }
+
+    public class AttachmentPoint
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+
+    public class JointConstraints
+    {
+        public double MaxSpeed { get; set; }
+        public double MaxAngle { get; set; }
+    }
+
+    public class BodySegment
+    {
+        public string Shape { get; set; }
+        public double Size { get; set; }
+        public AttachmentPoint AttachmentOnMainBody { get; set; }
+        public AttachmentPoint AttachmentOnSegment { get; set; }
+        public JointConstraints Constraints { get; set; }
+    }
+
+    public class Limb
+    {
+        public string Shape { get; set; }
+        public double Size { get; set; }
+        public double StartingAngle { get; set; }
+        public AttachmentPoint Attachment { get; set; }
+        public JointConstraints Constraints { get; set; }
+    }
+
+    public class BodyPlan
+    {
+        public MainBody MainBody { get; set; }
+        public List<BodySegment> BodySegments { get; set; }
+        public List<Limb> Limbs { get; set; }
+
+        public BodyPlan()
+        {
+            // Initialize with default or random values
+            this.MainBody = new MainBody { Shape = "Circle", Size = 5.0 };
+            this.BodySegments = new List<BodySegment>();
+            this.Limbs = new List<Limb>();
+        }
+    }
+
+    // Encode agents name and species into metadata:
+
+    public class Metadata
+    {
+        public string AgentName { get; set; }
+        public string GroupName { get; set; }
+        public string Species { get; set; }
+        // ... Any other properties you want to track
+
+        public Metadata()
+        {
+            // Initialize with default values, or leave them null
+            this.AgentName = "Unnamed"; // Set randomly on initialisation, unique to an agent
+            this.GroupName = "DefaultGroup"; // set randomly on initialisation, the same for all agents in a populaton
+            this.Species = "Unspecified"; // set randomly on initialisation, same for agents in the same spicies.  might need to set this later after distinct spicies groups form.
+        }
+    }
+
+    public class NodeGene
+    {
+        public int NodeID { get; set; }
+        public string NodeType { get; set; }  // "input", "hidden", "output"
+        public int? HiddenLayerIndex { get; set; }  // null for non-hidden nodes, 0 for first hidden layer, 1 for second, etc.
+
+        public NodeGene(int id, string type, int? hiddenLayerIndex = null)
+        {
+            this.NodeID = id;
+            this.NodeType = type;
+            this.HiddenLayerIndex = hiddenLayerIndex;
+        }
+    }
+
+    public class ConnectionGene
+    {
+        public int InputNode { get; set; }
+        public int OutputNode { get; set; }
+        public double Weight { get; set; }
+        public bool Enabled { get; set; }
+        public int Innovation { get; set; }
+
+        public ConnectionGene(int inputNode, int outputNode, double weight, bool enabled, int innovation)
+        {
+            this.InputNode = inputNode;
+            this.OutputNode = outputNode;
+            this.Weight = weight;
+            this.Enabled = enabled;
+            this.Innovation = innovation;
+        }
+    }
 }
 
