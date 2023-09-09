@@ -3,6 +3,12 @@
 //let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE, MUSCLE_BATCH_SIZE, SOME_DELAY_FRAME_COUNT, muscleUpdateFrames, brainDecay;
 //let velocityIterations, positionIterations, physicsGranularityMultiplier;
 
+let liquidViscosityDecay;
+let MAX_ADJUSTMENT_TORQUE = 500000;
+let offsetY = 0;
+let simulationLengthModified = 0;
+
+
 ///* Index's, flags */
 //let currentAgentIndex = 0;
 //let offsetX = 0;
@@ -118,7 +124,7 @@ let sketchNEAT = function (p) {
     let topScoreAgentScore;
     let topScoreAgentXScore;
     let topScoreAgentYScore;
-    const dragCoefficient = 0.995; 
+    const dragCoefficient = liquidViscosityDecay; 
     let particles = [];
 
     p.setup = function () {
@@ -201,7 +207,7 @@ let sketchNEAT = function (p) {
                         let joint = agent.joints[i];
                         let currentAngle = joint.getJointAngle();
                         let N = 5;
-                        let forceScalingFactor = 100000;
+                        let forceScalingFactor = swimStrengthMultiplier;
                         // Add the new angle to the buffer
                         agent.limbBuffer[i].push(currentAngle);
 
@@ -217,13 +223,41 @@ let sketchNEAT = function (p) {
                             // Determine the direction of the force
                             let forceDirection = (currentAngle - angle) + Math.PI / 2; 
 
-                            let bias = 1.1;
-                            let forceMagnitude
-                            if (i > agent.numLimbs) {
-                                forceMagnitude = deltaTheta * forceScalingFactor * bias;
+                            let bias;
+
+                            if (!outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null) {
+                                bias = swimBiasMultiplier;
                             } else {
-                                forceMagnitude = deltaTheta * forceScalingFactor * (2 - bias);
+                                bias = agent.biases[i];
                             }
+
+                            let forceMagnitude;
+                            if (numLimbs % 2 === 0) {
+                                if (i < agent.numLimbs / 2) {
+                                    forceMagnitude = deltaTheta * forceScalingFactor * bias;
+                                } else {
+                                    forceMagnitude = deltaTheta * forceScalingFactor * (2 - bias);
+                                }
+                            } else {
+                                if (i == 0) {
+                                    forceMagnitude = deltaTheta * forceScalingFactor;
+                                } else if (i < agent.numLimbs / 2) {
+                                    forceMagnitude = deltaTheta * forceScalingFactor * bias;
+                                } else if (i == Math.ceil(numLimbs / 2)) {
+                                    forceMagnitude = deltaTheta * forceScalingFactor;
+                                } else {
+                                    forceMagnitude = deltaTheta * forceScalingFactor * (2 - bias);
+                                }
+                            }
+
+                            //let bias = 1.1;
+                            //let forceMagnitude
+                            //if (i > agent.numLimbs) {
+                            //    forceMagnitude = deltaTheta * forceScalingFactor * bias;
+                            //} else {
+                            //    forceMagnitude = deltaTheta * forceScalingFactor * (2 - bias);
+                            //}
+
                             // Calculate the force vector
                             let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
 
@@ -232,7 +266,16 @@ let sketchNEAT = function (p) {
                             let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.limbLength / 1);
 
                             let forceApplyPoint = planck.Vec2(forceApplyPointX, forceApplyPointY);
+
                             agent.limbs[i].applyForce(force, forceApplyPoint, true);
+                            //// Now, visualize this force
+                            //let forceStartX = forceApplyPoint.x - 200;
+                            //let forceStartY = forceApplyPoint.y;
+                            //// Scale the force for visualization. This value can be adjusted to ensure arrows are neither too long nor too short.
+                            //let visualizationScale = 2;
+                            //let forceEndX = (forceStartX - 200) + force.x * visualizationScale;
+                            //let forceEndY = forceStartY + force.y * visualizationScale;
+                            //drawArrow(p, forceStartX, forceStartY, forceEndX, forceEndY);
                         }
                     }
                 }
@@ -262,7 +305,7 @@ let sketchNEAT = function (p) {
             // If initialization is complete, increment the tick count
             if (simulationStarted) {
                 tickCount++;
-                if (tickCount >= simulationLength) {
+                if (tickCount >= simulationLengthModified) {
                     endSimulationNEAT(p);
                 }
             }
@@ -274,8 +317,10 @@ let sketchNEAT = function (p) {
 
             if (agentToFix == "leader") {
                 offsetX = p.width / 6 - leadingAgent.position.x + leadingAgent.startingX;  // Center the leading agent on the canvas, just to the left
+                offsetY = p.height * 4 / 6 - leadingAgent.position.y;
             } else if (agentToFix == "trailer") {
                 offsetX = p.width / 6 - trailingAgent.position.x + trailingAgent.startingX;
+                offsetY = p.width  * 4 / 6 - trailingAgent.position.y;
             } else if (agentToFix == "average") {
 
                 let totalXScore = 0;
@@ -288,18 +333,52 @@ let sketchNEAT = function (p) {
                 let averageXScore = totalXScore / agents.length;
 
                 offsetX = p.width / 6 - averageXScore + 100;
+                // offsetY = p.width / 6 - averageXScore + 100;
             }            
 
             // Target circle in the center
             //p.fill(100, 0, 0);
             //p.ellipse(canvasWidth / 2 + offsetX, canvasHeight / 2, 50);
-            p.noStroke();
-            p.fill(50, 50, 0); // Dark brownish color
-            p.rect(0, p.height - 30, p.width, 30); // Bottom rectangle
+            //p.noStroke();
+            //p.fill(50, 50, 0); // Dark brownish color
+            //p.rect(0, p.height - 30, p.width, 30); // Bottom rectangle
 
-            p.fill(100, 100, 0); // Light brownish color
-            p.ellipse(100, p.height - 20, 20, 20); // Some random rocks
-            p.ellipse(200, p.height - 25, 30, 30);
+            //p.fill(100, 100, 0); // Light brownish color
+            //p.ellipse(100, p.height - 20, 20, 20); // Some random rocks
+            //p.ellipse(200, p.height - 25, 30, 30);
+
+
+
+            //for (let i = 0; i < p.height; i += 40) {
+            //    p.stroke(220, 210, 170); // Lighter sand color
+            //    p.noFill();
+            //    p.beginShape();
+            //    for (let j = 0; j < p.width; j++) {
+            //        let yOffset = 5 * Math.sin(j * 0.05 + i * 0.1);
+            //        p.vertex(j, i + yOffset);
+            //    }
+            //    p.endShape();
+            //}
+
+            //const patchCount = 50;
+            //for (let i = 0; i < patchCount; i++) {
+            //    p.fill(60, 120, 80, 60); // Semi-transparent greenish-brown
+            //    let x = Math.random() * p.width;
+            //    let y = Math.random() * p.height;
+            //    let w = 20 + Math.random() * 40;
+            //    let h = 20 + Math.random() * 40;
+            //    p.ellipse(x, y, w, h);
+            //}
+
+            //const stoneCount = 30;
+            //for (let i = 0; i < stoneCount; i++) {
+            //    p.fill(100 + Math.random() * 50, 100 + Math.random() * 50, 100 + Math.random() * 50);
+            //    let x = Math.random() * p.width;
+            //    let y = Math.random() * p.height;
+            //    p.ellipse(x, y, 10 + Math.random() * 15, 10 + Math.random() * 15);
+            //}
+
+
 
             particles.forEach((particle) => {
                 particle.x += Math.sin(particle.phase) * 0.5;
@@ -321,7 +400,7 @@ let sketchNEAT = function (p) {
             for (let wall of wallBodies) {
                 const position = wall.body.getPosition();
                 p.push();  // Save the current drawing settings and transformations
-                p.translate(position.x + offsetX - 200, position.y);  // Translate the origin to the wall's position
+                p.translate(position.x + offsetX - 200, position.y + offsetY);  // Translate the origin to the wall's position
                 p.rotate(wall.angle);  // Rotate the coordinate system by the wall's angle
                 p.rect(-wall.width / 2, -wall.height / 2, wall.width, wall.height);  // Draw the wall
                 p.pop();  // Restore the drawing settings and transformations
@@ -375,14 +454,14 @@ let sketchNEAT = function (p) {
 
                 averageScore = totalScore / agents.length;
 
-                displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
+                displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / simulationSpeed);
 
                 // Reset the last update time
                 lastUIUpdateTime = currentTime;
             }
 
             // Render the FPS, Gen No, and Time Left
-            p.fill(0);  // Black color for the text
+            p.fill(255);  // Black color for the text
             p.textSize(18);  // Font size
             p.text(`FPS: ${displayedFPS}`, 10, 20);
             p.text(`Generation: ${genCount}`, 10, 50);
@@ -426,7 +505,7 @@ let sketchNEAT = function (p) {
                     }
                 }
             };
-            p.fill(0);
+            p.fill(155);
             p.text(`Select a colour above to filter that group, or white to clear`, 10, 230);
             p.text(`Agents on screen: ${agentsToRender.size}`, 10, 260);
             p.text(`Agents in simulation: ${agents.length}`, 10, 290);
@@ -440,29 +519,29 @@ let sketchNEAT = function (p) {
                 p.text(`Agents can go!`, 10, 350);
             }
 
-            p.fill(0);  // Black text
-            p.textSize(16);  // Font size
-            p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore})`, 10, groundY + 30);  // Displaying the score just below the ground
+            if (topScoreAgentScore > - 1000) {
+                p.textSize(16);
+                p.fill(GROUP_COLORS[topScoreAgent.group]);
+                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore})`, 10, groundY + 30);  // Displaying the score just below the ground
 
-            p.fill(0);  // Black text
-            p.textSize(16);  // Font size
-            p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore})`, 10, groundY + 50);  // Displaying the score just below the ground
+                p.fill(GROUP_COLORS[leadingAgent.group]);
+                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore})`, 10, groundY + 50);
 
-            p.fill(0);  // Black text
-            p.textSize(16);  // Font size
-            p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore})`, 10, groundY + 70);  // Displaying the score just below the ground
+                p.fill(GROUP_COLORS[trailingAgent.group]);
+                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore})`, 10, groundY + 70);
+            }
 
             if (showNeuralNetwork == true) {
                 if (agentToFix == "trailer") {
-                    p.text(`Showing Trailing Agents Brain`, 170, 20);
+                    p.text(`Showing Trailing Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[trailingAgent.group]);
-                    trailingAgent.renderNNNEAT(p, canvasWidth - 1150, (canvasHeight / 2) - 40, tickCount);
+                    trailingAgent.renderNNNEAT(p, canvasWidth - 1000, (canvasHeight / 2) - 40, tickCount);
                 } else {
-                    p.text(`Showing Leading Agents Brain`, 170, 20);
+                    p.text(`Showing Leading Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[leadingAgent.group]);
-                    leadingAgent.renderNNNEAT(p, canvasWidth - 1150, (canvasHeight / 2) - 40, tickCount);
+                    leadingAgent.renderNNNEAT(p, canvasWidth - 1000, (canvasHeight / 2) - 40, tickCount);
                 }
             }
 
@@ -472,7 +551,8 @@ let sketchNEAT = function (p) {
                         if (agent) {
                             // Only render agents from agentsToRender list
                             let agentOffsetX = offsetX - agent.startingX;
-                            agent.render(p, agentOffsetX);
+                            let agentOffsetY = offsetY - agent.startingY;
+                            agent.render(p, agentOffsetX, offsetY);
                         }
                     }
                 } else {
@@ -481,13 +561,14 @@ let sketchNEAT = function (p) {
                             // Only render agents belonging to the selected color
                             if (agent.group == selectedColor) {
                                 let agentOffsetX = offsetX - agent.startingX;
-                                agent.render(p, agentOffsetX);
+                                let agentOffsetY = offsetY - agent.startingY;
+                                agent.render(p, agentOffsetX, offsetY);
                             }
                         }
                     }
                 }
             }
-            p.fill(0);
+            p.fill(255);
         }
     };
 };
@@ -546,7 +627,9 @@ function initializeSketchBox2DNEAT(stageProperties) {
     velocityIterations = stageProperties.velocityIteration;
     positionIterations = stageProperties.positionIteration;
     physicsGranularityMultiplier = stageProperties.physicsGranularityMultipliers;
-
+    liquidViscosityDecay = stageProperties.liquidViscosity;
+    increaseTimePerGen = stageProperties.timeIncrease;
+    simulationLengthModified = simulationLength;
     frameCountSinceLastFPS = 0;
     lastFPSCalculationTime = 0;
     tickCount = 0;
@@ -615,19 +698,24 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
     this.group = null;
     // console.log("a new agent, index: " + this.index);
     let mainBodyRadius = 20;
-    this.startingX = 200 + 400 * this.index; // Set to 0 to disable split spawning for now
+    this.startingX = 200 + 500 * this.index; // Set to 0 to disable split spawning for now
     // let startingX = 100;
-    let startingY = 600;
+    this.startingY = 600;
     // this.jointMaxMove = maxJointMovement;  // Temporary
     // this.agentMutationRateLocal = agentMutationRate; // Temporary
     this.limbBuffer = Array(numLimbs).fill().map(() => []);
     //    this.mainBody = createMainBody(world, this.startingX, startingY, mainBodyRadius, agentNo);
-    this.mainBody = createMainBody(world, this.startingX, startingY, mainBodyRadius, agentNo);
+    this.mainBody = createMainBody(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
     this.position = this.mainBody.getPosition();
 
     this.limbs = [];
     this.muscles = [];
     this.joints = [];
+    this.biases = [];
+
+    for (let i = 0; i < numLimbs; i++) {
+        this.biases.push(1.5);
+    }
 
     this.limbWidth = 10; // Example limb width
     this.limbLength = 40; // Example limb length
@@ -647,7 +735,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         let angle = (i * 2 * Math.PI) / numLimbs;
         // let limbX = this.startingX + Math.cos(angle) * (mainBodyRadius + limbLength);
         let limbX = this.startingX + Math.cos(angle) * (mainBodyRadius + this.limbLength);
-        let limbY = startingY + Math.sin(angle) * (mainBodyRadius + this.limbLength);
+        let limbY = this.startingY + Math.sin(angle) * (mainBodyRadius + this.limbLength);
 
         let limb = createLimb(world, limbX, limbY, this.limbWidth, this.limbLength, angle - Math.PI / 2, agentNo, i);
         this.limbs.push(limb);
@@ -670,11 +758,11 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
     }
 
     // Give the agent a brain!
-    this.nnConfig = nnConfig || new NeuralNetworkConfig(numLimbs);
+    this.nnConfig = nnConfig || new NeuralNetworkConfigNEAT(numLimbs);
     if (existingBrain) {
         this.brain = existingBrain;
     } else {
-        this.brain = createNeuralNetwork(this.nnConfig);
+        this.brain = createNeuralNetworkNEAT(this.nnConfig);
     }
 
     this.weightPenaltyCache = null;
@@ -683,13 +771,11 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
     this.getWeightPenalty = function () {
         this.weightPenaltyCounter++;
         // Update this score penalty only a few times, not exact as this is not called every frame
-        if (this.weightPenaltyCounter % (simulationLength / 8) === 0) {
-            let allWeightTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 0);
-            let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()).map(Math.abs)); // map to absolute values
-            let averageAbsWeight = allWeights.reduce((sum, weight) => sum + weight, 0) / allWeights.length;
+        let allWeightTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 0);
+        let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()).map(Math.abs)); // map to absolute values
+        let averageAbsWeight = allWeights.reduce((sum, weight) => sum + weight, 0) / allWeights.length;
 
-            this.weightPenaltyCache = averageAbsWeight;
-        }
+        this.weightPenaltyCache = averageAbsWeight;
 
         return this.weightPenaltyCache;
     }
@@ -752,7 +838,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         // let XPosScore = (Math.floor(this.position.x - this.startingX) * 1);
         // let XPosScore = (Math.floor(this.startingX - this.position.X + 50) * 1);
         let XPosScore = (Math.floor(this.position.x - this.startingX) * 1);
-        let YPosScore = (Math.floor(startingY - this.position.y) * 1);
+        let YPosScore = (Math.floor(this.startingY - this.position.y) * 1);
 
         //let jointMovementReward = (this.getJointMovementReward() * 15 / numLimbs); // Adjust multiplier if needed
         let weightPenalty;
@@ -777,20 +863,42 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         // jointMovementReward.toFixed(2),
     };
 
-    this.render = function (p, offsetX) {
+    this.render = function (p, offsetX, offsetY) {
         // Set the fill color based on group
         p.fill(GROUP_COLORS[this.group]);
-
+        p.stroke(0);
         // Render the main body
         if (this.mainBody) {
             let mainPos = this.position;
             let mainAngle = this.mainBody.getAngle();
+            let arrowLength = mainBodyRadius / 2; // Or any length you prefer
+            let arrowBase = mainBodyRadius / 4;   // The size of the base of the arrow triangle
+
             p.push();
-            p.translate(mainPos.x + offsetX, mainPos.y);  // Added offsetX
+            p.translate(mainPos.x + offsetX, mainPos.y + offsetY);  // Added offsetX
             p.rotate(mainAngle);
+
+            // Draw the main body
             p.ellipse(0, 0, mainBodyRadius * 2, mainBodyRadius * 2);
+
+            // Rotate arrow stem 90 degrees clockwise (to face East or 3:00)
+           /* p.rotate(Math.PI / 2);*/
+
+            p.fill(0);
+            // Draw arrow stem pointing right (East)
+            p.strokeWeight(2); // Adjust thickness of the arrow as needed
+            p.line(0, 0, arrowLength, 0);
+
+            // Draw the arrowhead
+            p.triangle(arrowLength, 0,
+                arrowLength - arrowBase, arrowBase / 2,
+                arrowLength - arrowBase, -arrowBase / 2);
+
             p.pop();
+            p.fill(GROUP_COLORS[this.group]);
         }
+        //p.fill(0);
+        //p.fill(GROUP_COLORS[this.group]);
 
         // Render the limbs
         for (let i = 0; i < numLimbs; i++) {
@@ -799,7 +907,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
                 let limbPos = limb.getPosition();
                 let limbAngle = limb.getAngle();
                 p.push();
-                p.translate(limbPos.x + offsetX, limbPos.y);  // Added offsetX
+                p.translate(limbPos.x + offsetX, limbPos.y + offsetY);  // Added offsetX
                 p.rotate(limbAngle);
                 p.rect(-this.limbWidth / 2, -this.limbLength / 2, this.limbWidth, this.limbLength);
                 p.pop();
@@ -816,7 +924,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
                 } else {
                     p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
                 }
-                p.ellipse(jointPos.x + offsetX, jointPos.y, 7, 7);  // Added offsetX
+                p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 7, 7);  // Added offsetX
             }
         }
         // Render second set of joint anchors for testing
@@ -917,6 +1025,13 @@ function initializeAgentsBox2DNEAT(agentProperties) {
     inputsTimeRemaining = agentProperties.inputTimeRemaining;
     inputsGroundSensors = agentProperties.inputGroundSensors;
     agentMutationRate = agentProperties.offspringMutationRate;
+    swimStrengthMultiplier = agentProperties.swimStrength;
+    inputsDistanceSensors = agentProperties.inputDistanceSensors;
+    swimBiasMultiplier = agentProperties.swimBias;
+    outputJointSpeed = agentProperties.outputsJointSpeed;
+    outputJointTorque = agentProperties.outputsJointTorque;
+    outputBias = agentProperties.outputsBias;
+
     genCount = 1;
     simulationStarted = false;
     isInitializationComplete = false;
@@ -1155,7 +1270,7 @@ function setupPlanckWorldNEAT() {
 
 function createWall(x, y, width, height, angle = 0) {
     for (let i = 0; i < popSize; i++) {
-        const offset = i * 400; // Define an appropriate spacing value to separate the sets of walls
+        const offset = i * 500; // Define an appropriate spacing value to separate the sets of walls
         const wallDef = {
             type: 'static',
             position: planck.Vec2(x + offset, y),
@@ -1193,30 +1308,58 @@ function createWall(x, y, width, height, angle = 0) {
 
 /*            Neural Network Functions                     */
 
-//function NeuralNetworkConfig(numLimbs) {
-//    this.inputNodes = (numLimbs * 1) + 6; // Muscle angles, *speeds, agent x,y, agent velosity x,y, *score, agent orientation
-//    this.hiddenLayers = [{ nodes: 15, activation: 'relu' }, { nodes: 10, activation: 'relu' }]; //, { nodes: 10, activation: 'relu' }
-//    this.outputNodes = numLimbs;
-//    this.mutationRate = 0.01;
-//    //this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
-//}
+function NeuralNetworkConfigNEAT(numLimbs) {
+    // Calculate the total number of input nodes
+    this.inputNodes = 0;
+    if (inputsJointAngle) this.inputNodes += numLimbs;
+    if (inputsJointSpeed) this.inputNodes += numLimbs;
+    if (inputsGroundSensors) this.inputNodes += numLimbs;
+    if (inputsAgentPos) this.inputNodes += 2;
+    if (inputsAgentV) this.inputNodes += 2;
+    if (inputsScore) this.inputNodes += 1;
+    if (inputsOrientation) this.inputNodes += 1;
+    if (inputsTimeRemaining) this.inputNodes += 1;
+    if (inputsDistanceSensors) this.inputNodes += 8;
 
-//function createNeuralNetwork(config) {
-//    const model = tf.sequential();
+    // Configure the rest of the neural network
+    this.hiddenLayers = [{ nodes: 20, activation: 'relu' }, { nodes: 15, activation: 'relu' }, { nodes: 10, activation: 'relu' }];
 
-//    // Input layer
-//    model.add(tf.layers.dense({ units: config.hiddenLayers[0].nodes, activation: config.hiddenLayers[0].activation, inputShape: [config.inputNodes], biasInitializer: 'randomNormal' }));
+    this.outputNodes = 0;
+    if (outputJointSpeed) this.outputNodes += numLimbs;
+    if (outputJointTorque) this.outputNodes += numLimbs;
+    if (outputBias) this.outputNodes += numLimbs;
 
-//    // Hidden layers
-//    for (let i = 0; i < config.hiddenLayers.length; i++) {
-//        model.add(tf.layers.dense({ units: config.hiddenLayers[i].nodes, activation: config.hiddenLayers[i].activation, biasInitializer: 'randomNormal' }));
-//    }
+    this.mutationRate = 0.01;
+    //this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
+}
 
-//    // Output layer
-//    model.add(tf.layers.dense({ units: config.outputNodes, activation: 'tanh' })); 
+function createNeuralNetworkNEAT(config) {
+    const model = tf.sequential();
 
-//    return model;
-//}
+    // Input layer
+    model.add(tf.layers.dense({
+        units: config.hiddenLayers[0].nodes,
+        activation: config.hiddenLayers[0].activation,
+        inputShape: [config.inputNodes],
+        biasInitializer: 'randomNormal',  // bias initializer
+        kernelInitializer: 'heNormal'  // weight initializer
+    }));
+
+    // Hidden layers
+    for (let i = 0; i < config.hiddenLayers.length; i++) {
+        model.add(tf.layers.dense({
+            units: config.hiddenLayers[i].nodes,
+            activation: config.hiddenLayers[i].activation,
+            biasInitializer: 'randomNormal',  // bias initializer
+            kernelInitializer: 'heNormal'  // weight initializer
+        }));
+    }
+
+    // Output layer
+    model.add(tf.layers.dense({ units: config.outputNodes, activation: 'tanh' }));
+
+    return model;
+}
 
 function nextGenerationNEAT(p) {
     usedIndices = new Set();
@@ -1267,9 +1410,13 @@ function nextGenerationNEAT(p) {
 
     console.log('Restarting simulation with evolved agents!');
 
+    if (increaseTimePerGen) {
+        simulationLengthModified += simulationLengthModified * 0.005;
+    }
+
     // Reset simulation
     // await new Promise(resolve => setTimeout(resolve, 1000));
-    displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
+    displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / simulationSpeed);
     stabilityCounter = 0;
     tickCount = 0;
     nextBatchFrame = 1;
@@ -1692,7 +1839,7 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, to
 function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTracker) {
     let layerGap = 100; // horizontal space between layers
     let nodeGap = 30;   // vertical space between nodes
-    let outputLabels;
+    let outputLabels = [];
     let allWeightTensors;
     let allWeights;
     let allBiasesTensors;
@@ -1700,23 +1847,64 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
 
     p.fill(GROUP_COLORS[agent.group]);
 
-    let inputLabels = [
-        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`),
-        /*        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`),*/
-        "Agent's X",
-        "Agent's Y",
-        "Velocity X",
-        "Velocity Y",
-        /*        "Score",*/
-        "Orientation",
-        "Time Left",
-        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Limb Sensor ${idx + 1}`),
-    ];
+    let inputLabels = [];
+
+    if (inputsJointAngle) {
+        inputLabels = inputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`));
+    }
+
+    if (inputsJointSpeed) {
+        inputLabels = inputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`));
+    }
+
+    if (inputsAgentPos) {
+        inputLabels.push("Agent's X", "Agent's Y");
+    }
+
+    if (inputsAgentV) {
+        inputLabels.push("Velocity X", "Velocity Y");
+    }
+
+    if (inputsScore) {
+        inputLabels.push("Score");
+    }
+
+    if (inputsOrientation) {
+        inputLabels.push("Orientation");
+    }
+
+    if (inputsTimeRemaining) {
+        inputLabels.push("Time Left");
+    }
+
+    if (inputsGroundSensors) {
+        inputLabels = inputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Ground Sensor ${idx + 1}`));
+    }
+
+    if (inputsDistanceSensors) {
+        for (let i = 0; i < 8; i++) {
+            inputLabels.push(`Distance Sensor ${['E', 'NE', 'N', 'NW', 'W', 'SW', 'S', 'SE'][i]}`);
+        }
+    }
+
     // + displayedTimeLeft.toFixed(0)
     // `Time Left: ${displayedTimeLeft.toFixed(0)} seconds`
 
     //if (frameTracker % 30 === 0) {
-    outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Joint ${idx + 1}`);
+
+    // outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Joint ${idx + 1}`);
+
+    if (outputJointSpeed) {
+        outputLabels = outputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Joint ${idx + 1}`));
+    }
+
+    if (outputJointTorque) {
+        outputLabels = outputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Joint ${idx + 1}`));
+    }
+
+    if (outputBias) {
+        outputLabels = outputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Bias ${idx + 1}`));
+    }
 
     allWeightTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 0);
     allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()));
@@ -1756,7 +1944,7 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
                     currentWeightIndex++;
 
                     let strokeWeightValue = mapWeightToStroke(weight);
-                    //p.stroke(GROUP_COLORS[agent.group]);
+                    p.stroke(255);
                     p.strokeWeight(strokeWeightValue);
                     p.line(prevPos.x, prevPos.y, currentPos.x, currentPos.y);
                 }
@@ -1783,6 +1971,7 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
         }
 
         let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
+        let outputIndex = 0;
         for (let j = 0; j < nodes; j++) {
             let y = startY + j * nodeGap;
 
@@ -1798,7 +1987,7 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
 
             let nodeSize = mapBiasToNodeSize(bias);
             p.ellipse(x, y, nodeSize, nodeSize);
-
+            p.stroke(0);
             // Add labels to the side of input and output nodes
             if (labels.length > 0) {
                 p.textSize(12);
@@ -1806,13 +1995,22 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
                     p.text(labels[j], x - 90, y + 4);
                 } else if (i === nnConfig.hiddenLayers.length + 1) {
                     p.text(labels[j], x + 15, y + 4);
-
-                    // Display the current joint speed as an indication
-                    let joint = agent.joints[j];
-                    if (joint) {
-                        let currentSpeed = joint.getMotorSpeed();
+                    if (outputJointSpeed && agent.joints[j]) {
+                        let currentSpeed = agent.joints[j].getMotorSpeed();
                         p.text(`Speed: ${currentSpeed.toFixed(4)}`, x + 60, y + 4);
+                        outputIndex++;
                     }
+
+                    if (outputJointTorque && agent.joints[j]) {
+                        p.text(`Max Torque Cant Be Polled :(`, x + 60, y + 4);
+                        outputIndex++;
+                    }
+
+                    if (outputBias && agent.biases[j - outputIndex]) {
+                        let biasI = agent.biases[j - outputIndex];
+                        p.text(`Bias: ${biasI}`, x + 60, y + 4);
+                    }
+
                 }
             }
         }
@@ -1836,13 +2034,29 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
 AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
     return tf.tidy(() => {
         const output = this.brain.predict(tf.tensor([inputs])).dataSync();
+
         for (let i = 0; i < this.joints.length; i++) {
-            let adjustment = output[i] * MAX_ADJUSTMENT; // Scales the adjustment based on the output
-            this.joints[i].setMotorSpeed(adjustment);
+            if (outputJointSpeed) {
+                let adjustment = output[i] * MAX_ADJUSTMENT;
+                this.joints[i].setMotorSpeed(adjustment);
+            }
+        }
+
+        for (let i = 0; i < this.joints.length; i++) {
+            if (outputJointTorque) {
+                let adjustment = output[i + this.joints.length] * MAX_ADJUSTMENT_TORQUE + 500000;
+                this.joints[i].setMaxMotorTorque(adjustment);
+            }
+        }
+
+        for (let i = 0; i < this.joints.length; i++) {
+            if (outputBias) {
+                let adjustment = (output[i + 2 * this.joints.length] / 2) + 1.5;
+                this.biases[i] = adjustment;
+            }
         }
     });
 };
-
 
 AgentNEAT.prototype.collectInputsNEAT = function () {
     let inputs = [];
@@ -1900,32 +2114,37 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
         inputs.push(displayedTimeLeft / MAX_TIME);
     }
 
-    if (inputsGroundSensors) {
-        // 8. Check collision with ground for each limb and also measure distance to ground
-        const GROUND_LEVEL = 700;  // y-coordinate of the ground
-        const MAX_DISTANCE = 50;   // Max expected distance to the ground, for normalization
+    if (inputsDistanceSensors) {
+        // 8. Raycast distances to the closest obstacle in a few directions from the agent's body
 
-        for (let limb of this.limbs) {
-            let angle = limb.getAngle();
-            let halfHeight = this.limbLength / 2;
+        const directions = [
+            planck.Vec2(1, 0),       // E
+            planck.Vec2(1, 1).normalize(),  // NE
+            planck.Vec2(0, 1),       // N
+            planck.Vec2(-1, 1).normalize(), // NW
+            planck.Vec2(-1, 0),      // W
+            planck.Vec2(-1, -1).normalize(), // SW
+            planck.Vec2(0, -1),      // S
+            planck.Vec2(1, -1).normalize()   // SE
+        ];
 
-            let limbPosition = limb.getPosition();
+        const MAX_DETECTION_DISTANCE = this.radius + 100;  // Max distance of detection, can be adjusted
 
-            // Calculate the y-coordinate of the lowest point on the limb
-            let lowestPointY = limbPosition.y + halfHeight * Math.abs(Math.cos(angle));
+        for (let dir of directions) {
+            const startPoint = this.position;
+            const endPoint = planck.Vec2(startPoint.x + dir.x * MAX_DETECTION_DISTANCE, startPoint.y + dir.y * MAX_DETECTION_DISTANCE);
+            let detectedDistance = MAX_DETECTION_DISTANCE;  // Default to max distance
 
-            // Check if the limb is touching the ground
-            if (lowestPointY >= GROUND_LEVEL - 1) {
-                inputs.push(-1);  // Collision detected
-                // console.log("colission");
-            } else {
-                // Calculate distance to ground and normalize it
-                let distanceToGround = (GROUND_LEVEL - lowestPointY) / MAX_DISTANCE;
-                inputs.push(Math.min(distanceToGround, 1));  // Limit to 1
-                // console.log("distance to ground from limb: ", distanceToGround, "lowest point: ", lowestPointY);
-            }
+            world.rayCast(startPoint, endPoint, function (point, normal, fixture, fraction) {
+                detectedDistance = fraction * MAX_DETECTION_DISTANCE;
+                return 0;  // Terminate after the first hit
+            });
+
+            // Normalize detected distance and push to inputs
+            inputs.push(detectedDistance / MAX_DETECTION_DISTANCE);
         }
     }
+
 
     // console.log("agent inputs: position: ", (position.x - this.startingX) / MAX_X, position.y / MAX_Y, "Velocity: ", velocity.x / MAX_VX, velocity.y / MAX_VY, this.mainBody.getAngle() / Math.PI, displayedTimeLeft / MAX_TIME)
     return inputs;

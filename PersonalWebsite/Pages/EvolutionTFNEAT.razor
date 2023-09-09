@@ -123,6 +123,33 @@
             </div>
         </div>
 
+        <!-- liquid Viscosity -->
+        <div class="setting">
+            <label for="liquidViscosity" title="Movement decay factor for agents">Liquid Enviroment Viscocity</label>
+            <div class="slider-container">
+                <input type="range" id="liquidViscosity" @bind="stageProperties.liquidViscosity" min="0.9" max="1" step="0.001">
+                <input type="number" @bind="stageProperties.liquidViscosity" min="0.9" max="1" step="0.001">
+            </div>
+        </div>
+
+        <!-- swim Strength -->
+        <div class="setting">
+            <label for="swimStrength" title="Multiplier on the force applied to each limb for agent swimming">Swim Strength</label>
+            <div class="slider-container">
+                <input type="range" id="swimStrength" @bind="agentProperties.swimStrength" min="100000" max="5000000" step="100">
+                <input type="number" @bind="agentProperties.swimStrength" min="100000" max="5000000" step="100">
+            </div>
+        </div>
+
+        <!-- Max limb movement -->
+        <div class="setting">
+            <label for="swimBias" title="Adds a slight bias in the force applied, so 'limb strokes' apply more force than retuning to starting position, based on left right split of limbs on body">Swim Bias</label>
+            <div class="slider-container">
+                <input type="range" id="swimBias" @bind="agentProperties.swimBias" min="1" max="2" step="0.01">
+                <input type="number" @bind="agentProperties.swimBias" min="1" max="2" step="0.01">
+            </div>
+        </div>
+
         <!-- Input List -->
         <div class="setting">
 
@@ -149,9 +176,23 @@
             <label for="inputTimeRemaining" title="The time left in this round">Time Remaining</label>
             <input type="checkbox" id="inputTimeRemaining" @bind="agentProperties.inputTimeRemaining" />
 
-            <label for="inputGroundSensors" title="Sensors for distance from limb to ground">Limb, Ground Sensors</label>
-            <input type="checkbox" id="inputGroundSensors" @bind="agentProperties.inputGroundSensors" />
+            <label for="inputDistanceSensors" title="Sensors for distance from agent to closest object in 8 directions">Distance to object Sensors</label>
+            <input type="checkbox" id="inputDistanceSensors" @bind="agentProperties.inputDistanceSensors" />
 
+        </div>
+
+        <!-- Output List -->
+        <div class="setting">
+            <p title="Select the outputs available to the agents">Agent Output Selection</p>
+
+            <label for="outputsJointSpeed" title="The speed the angle is moving at">Joint Speed</label>
+            <input type="checkbox" id="outputsJointSpeed" @bind="agentProperties.outputsJointSpeed" />
+
+            <label for="outputsJointTorque" title="Torque of the joint">Joint Torque</label>
+            <input type="checkbox" id="outputsJointTorque" @bind="agentProperties.outputsJointTorque" />
+
+            <label for="outputsBias" title="The amount of bias towards direction agent is facing">Limb Directional Bias</label>
+            <input type="checkbox" id="outputsBias" @bind="agentProperties.outputsBias" />
         </div>
 
     </div>
@@ -166,6 +207,12 @@
                 <input type="range" id="SimulationLength" @bind="stageProperties.SimulationLength" min="100" max="100000" step="100">
                 <input type="number" @bind="stageProperties.SimulationLength" min="100" max="10000" step="100">
             </div>
+        </div>
+
+        <!-- Time increase per generation -->
+        <div class="setting">
+            <label for="timeIncrease" title="Increase the round length by * 1.005 each round">Increase Round Time Per Generation</label>
+            <input type="checkbox" id="timeIncrease" @bind="stageProperties.timeIncrease" />
         </div>
 
         <!-- Group Tournament Size -->
@@ -213,7 +260,7 @@
             </div>
         </div>
 
-        <!-- Agent to fix camera on -->
+        <!-- Brain Decay -->
         <div class="setting">
             <label for="brainDecayOverTime" title="Decay all weights in agents brain by a small amount each round">Brain Decay Over Time</label>
             <input type="checkbox" id="brainDecayOverTime" @bind="agentProperties.brainDecayOverTime" />
@@ -352,7 +399,7 @@
         public float GroundY { get; set; } = 700;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 1000;
+        public int SimulationLength { get; set; } = 2000;
         public int renderedAgents { get; set; } = 1;
         public int simSpeed { get; set; } = 60;
         public double topPerformerNumber { get; set; } = 20;
@@ -367,11 +414,13 @@
         public int maxPopGroupSize { get; set; } = 20;
         public int uiRefreshRate { get; set; } = 500;
         public int muscleDelay { get; set; } = 2;
-        public int muscleBatch { get; set; } = 2;
+        public int muscleBatch { get; set; } = 5;
         public int totalMuscleUpdateTime { get; set; } = 2;
         public int velocityIteration { get; set; } = 3;
         public int positionIteration { get; set; } = 2;
         public int physicsGranularityMultipliers { get; set; } = 2;
+        public double liquidViscosity { get; set; } = 0.992;
+        public bool timeIncrease { get; set; } = true;
     }
 
     public class AgentProperties
@@ -389,7 +438,12 @@
         public bool inputScore { get; set; } = false;
         public bool inputOrientation { get; set; } = true;
         public bool inputTimeRemaining { get; set; } = true;
-        public bool inputGroundSensors { get; set; } = false;
+        public bool inputDistanceSensors { get; set; } = false;
+        public bool outputsJointSpeed { get; set; } = true;
+        public bool outputsJointTorque { get; set; } = false;
+        public bool outputsBias { get; set; } = false;
+        public int swimStrength { get; set; } = 200000;
+        public double swimBias { get; set; } = 1.5; 
         // public int hiddenLayersNN { get; set; } = 3;
         // public int nodesPerHiddenLayer { get; set; } = 10; // half for fanal hidden layer
     }

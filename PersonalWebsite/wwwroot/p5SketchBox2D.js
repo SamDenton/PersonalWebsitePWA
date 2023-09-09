@@ -699,7 +699,7 @@ function Agent(numLimbs, agentNo, existingBrain = null) {
     this.render = function (p, offsetX) {
         // Set the fill color based on group
         p.fill(GROUP_COLORS[this.group]);
-
+        p.stroke(0);
         // Render the main body
         if (this.mainBody) {
             let mainPos = this.position;
@@ -835,6 +835,7 @@ function initializeAgentsBox2D(agentProperties) {
     inputsOrientation = agentProperties.inputOrientation;
     inputsTimeRemaining = agentProperties.inputTimeRemaining;
     inputsGroundSensors = agentProperties.inputGroundSensors;
+    inputsDistanceSensors = agentProperties.inpusDistanceSensors;
     agentMutationRate = agentProperties.offspringMutationRate;
     genCount = 1;
     simulationStarted = false;
@@ -1083,6 +1084,7 @@ function NeuralNetworkConfig(numLimbs) {
     if (inputsScore) this.inputNodes += 1;
     if (inputsOrientation) this.inputNodes += 1;
     if (inputsTimeRemaining) this.inputNodes += 1;
+    if (inputsDistanceSensors) this.inputNodes += 8;
 
     // Configure the rest of the neural network
     this.hiddenLayers = [{ nodes: 15, activation: 'relu' }, { nodes: 10, activation: 'relu' }];
@@ -1100,7 +1102,7 @@ function createNeuralNetwork(config) {
         activation: config.hiddenLayers[0].activation,
         inputShape: [config.inputNodes],
         biasInitializer: 'randomNormal',  // bias initializer
-        kernelInitializer: 'randomNormal'  // weight initializer
+        kernelInitializer: 'heNormal'  // weight initializer
     }));
 
     // Hidden layers
@@ -1109,7 +1111,7 @@ function createNeuralNetwork(config) {
             units: config.hiddenLayers[i].nodes,
             activation: config.hiddenLayers[i].activation,
             biasInitializer: 'randomNormal',  // bias initializer
-            kernelInitializer: 'randomNormal'  // weight initializer
+            kernelInitializer: 'heNormal'  // weight initializer
         }));
     }
 
@@ -1608,18 +1610,46 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
 
     p.fill(GROUP_COLORS[agent.group]);
 
-    let inputLabels = [
-        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`),
-/*        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`),*/
-        "Agent's X",
-        "Agent's Y",
-        "Velocity X",
-        "Velocity Y",
-/*        "Score",*/
-        "Orientation",
-        "Time Left",
-        ...Array(agent.numLimbs).fill(null).map((_, idx) => `Limb Sensor ${idx + 1}`),
-    ];
+    let inputLabels = [];
+
+    if (inputsJointAngle) {
+        inputLabels = inputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`));
+    }
+
+    if (inputsJointSpeed) {
+        inputLabels = inputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`));
+    }
+
+    if (inputsAgentPos) {
+        inputLabels.push("Agent's X", "Agent's Y");
+    }
+
+    if (inputsAgentV) {
+        inputLabels.push("Velocity X", "Velocity Y");
+    }
+
+    if (inputsScore) {
+        inputLabels.push("Score");
+    }
+
+    if (inputsOrientation) {
+        inputLabels.push("Orientation");
+    }
+
+    if (inputsTimeRemaining) {
+        inputLabels.push("Time Left");
+    }
+
+    if (inputsGroundSensors) {
+        inputLabels = inputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Ground Sensor ${idx + 1}`));
+    }
+
+    if (inputsDistanceSensors) {
+        for (let i = 0; i < 8; i++) {
+            inputLabels.push(`Distance Sensor ${['E', 'NE', 'N', 'NW', 'W', 'SW', 'S', 'SE'][i]}`);
+        }
+    }
+
     // + displayedTimeLeft.toFixed(0)
     // `Time Left: ${displayedTimeLeft.toFixed(0)} seconds`
 
@@ -1734,7 +1764,7 @@ function mapWeightToStroke(weight) {
     let scaledWeight = Math.abs(weight);
 
     // Using Math.pow to apply an exponential scale. 
-    return 0.001 + Math.pow(scaledWeight, base) * 2;
+    return 0.001 + Math.pow(scaledWeight, base) * 1;
 }
 
 function mapBiasToNodeSize(bias) {
