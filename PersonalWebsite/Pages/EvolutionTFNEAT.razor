@@ -281,6 +281,16 @@
             </select>
         </div>
 
+        <!-- Map -->
+        <div class="setting">
+            <label for="map" title="Agent to fix camera on (average can cause lag).">Agent to Fix Camera On</label>
+            <select id="map" @bind="stageProperties.map">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+            </select>
+        </div>
+
         <!-- Gravity Strength Multiplyer -->
         <div class="setting">
             <label for="Gravity" title="Gravity Strength Multiplier.">Gravity Strength Multiplier</label>
@@ -399,7 +409,7 @@
         public float GroundY { get; set; } = 700;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 2000;
+        public int SimulationLength { get; set; } = 1000;
         public int renderedAgents { get; set; } = 1;
         public int simSpeed { get; set; } = 60;
         public double topPerformerNumber { get; set; } = 20;
@@ -419,8 +429,9 @@
         public int velocityIteration { get; set; } = 3;
         public int positionIteration { get; set; } = 2;
         public int physicsGranularityMultipliers { get; set; } = 2;
-        public double liquidViscosity { get; set; } = 0.992;
+        public double liquidViscosity { get; set; } = 0.98;
         public bool timeIncrease { get; set; } = true;
+        public int map { get; set; } = 1;
     }
 
     public class AgentProperties
@@ -438,11 +449,11 @@
         public bool inputScore { get; set; } = false;
         public bool inputOrientation { get; set; } = true;
         public bool inputTimeRemaining { get; set; } = true;
-        public bool inputDistanceSensors { get; set; } = false;
+        public bool inputDistanceSensors { get; set; } = true;
         public bool outputsJointSpeed { get; set; } = true;
         public bool outputsJointTorque { get; set; } = false;
         public bool outputsBias { get; set; } = false;
-        public int swimStrength { get; set; } = 200000;
+        public int swimStrength { get; set; } = 500000;
         public double swimBias { get; set; } = 1.5; 
         // public int hiddenLayersNN { get; set; } = 3;
         // public int nodesPerHiddenLayer { get; set; } = 10; // half for fanal hidden layer

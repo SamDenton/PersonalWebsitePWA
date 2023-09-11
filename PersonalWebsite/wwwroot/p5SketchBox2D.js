@@ -1134,8 +1134,8 @@ function nextGeneration(p) {
     agents.sort((a, b) => {
         const aScore = a.getScore(true)[0];
         const bScore = b.getScore(true)[0];
-        const aDistance = distanceToAverage(a, averageBrain);
-        const bDistance = distanceToAverage(b, averageBrain);
+        const aDistance = distanceToAverage(a, averageBrain[a.group]);
+        const bDistance = distanceToAverage(b, averageBrain[b.group]);
 
         // Adjust the score with the distance to the average brain
         const aTotal = aScore + aDistance ** 1 * 1; // playing with differnt multipliers
@@ -1183,32 +1183,40 @@ function nextGeneration(p) {
 
 // Get the average weights accross the network.
 function calculateAllAverageDistances() {
-    let numAgents = agents.length;
-    if (numAgents === 0) {
-        throw new Error("No agents to calculate average weights");
-    }
+    let averageWeights = [];
 
-    let firstAgentWeights = agents[0].brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
-    let averageWeights = new Array(firstAgentWeights.length).fill(0);
+    for (let groupId = 0; groupId < numGroups; groupId++) {
 
-    agents.forEach(agent => {
-        let agentWeights = agent.brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
+        let groupAgents = agents.filter(agent => agent.group === groupId);
+        let numAgents = groupAgents.length;
 
-        if (agentWeights.length !== firstAgentWeights.length) {
-            throw new Error("Agents have neural networks of different sizes");
+        if (numAgents === 0) {
+            throw new Error("No agents to calculate average weights");
         }
 
-        for (let i = 0; i < agentWeights.length; i++) {
-            averageWeights[i] += agentWeights[i];
+        let firstAgentWeights = groupAgents[0].brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
+        let averageWeightsGroup = new Array(firstAgentWeights.length).fill(0);
+
+        groupAgents.forEach(agent => {
+            let agentWeights = agent.brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
+
+            if (agentWeights.length !== firstAgentWeights.length) {
+                throw new Error("Agents have neural networks of different sizes");
+            }
+
+            for (let i = 0; i < agentWeights.length; i++) {
+                averageWeightsGroup[i] += agentWeights[i];
+            }
+        });
+
+        for (let i = 0; i < averageWeightsGroup.length; i++) {
+            averageWeightsGroup[i] /= numAgents;
         }
-    });
-
-    for (let i = 0; i < averageWeights.length; i++) {
-        averageWeights[i] /= numAgents;
+        averageWeights.push(averageWeightsGroup);
     }
-
     return averageWeights;
 }
+
 
 // Function to calculate the Euclidean distance of an agent's weights and biases to the population's average
 function distanceToAverage(agent, averageWeights) {
@@ -1222,7 +1230,7 @@ function distanceToAverage(agent, averageWeights) {
     for (let i = 0; i < agentWeights.length; i++) {
         sum += Math.pow(agentWeights[i] - averageWeights[i], 2);
     }
-    //console.log(sum);
+    // console.log(sum);
     return Math.sqrt(sum);
 }
 
@@ -1760,11 +1768,11 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
 }
 
 function mapWeightToStroke(weight) {
-    let base = 2;  // High base power to emphasise stronger connections
+    let base = 1;  // High base power to emphasise stronger connections
     let scaledWeight = Math.abs(weight);
 
     // Using Math.pow to apply an exponential scale. 
-    return 0.001 + Math.pow(scaledWeight, base) * 1;
+    return 0.0001 + Math.pow(scaledWeight, base) * 0.1;
 }
 
 function mapBiasToNodeSize(bias) {
