@@ -804,7 +804,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         }
 
         // Exponential decay for the reward. You can adjust the decay factor as needed.
-        let decayFactor = 0.99;
+        let decayFactor = 0.95;
         let currentReward = totalChange * decayFactor ** totalChange;
 
         // Accumulate joint movement reward
@@ -868,9 +868,9 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         //let XPosScore = this.totalXMovementReward * 1;
         //let YPosScore = Math.abs(this.totalYMovementReward) * 1;
         let XPosScore = Math.floor(this.furthestXPos - this.startingX) * 1;
-        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 1;
+        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 1.2;
 
-        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 2; // Adjust multiplier if needed
+        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 1; // Adjust multiplier if needed
 
         let weightPenalty;
         if (roundOver) {
@@ -2180,8 +2180,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
 
     if (inputsDistanceSensors) {
         // 8. Raycast distances to the closest obstacle in a few directions from the agent's body
-
-        const directions = [
+        const baseDirections = [
             planck.Vec2(1, 0),       // E
             planck.Vec2(1, 1).normalize(),  // NE
             planck.Vec2(0, 1),       // N
@@ -2192,11 +2191,19 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
             planck.Vec2(1, -1).normalize()   // SE
         ];
 
-        const MAX_DETECTION_DISTANCE = 500;  // Max distance of detection, can be adjusted
+        const MAX_DETECTION_DISTANCE = 1000;  // Max distance of detection, can be adjusted
 
-        for (let dir of directions) {
+        const agentAngle = this.mainBody.getAngle();
+
+        for (let baseDir of baseDirections) {
+            // Rotate each direction by the agent's angle
+            const rotatedDirX = baseDir.x * Math.cos(agentAngle) - baseDir.y * Math.sin(agentAngle);
+            const rotatedDirY = baseDir.x * Math.sin(agentAngle) + baseDir.y * Math.cos(agentAngle);
+
+            const rotatedDir = planck.Vec2(rotatedDirX, rotatedDirY);
+
             const startPoint = this.position;
-            const endPoint = planck.Vec2(startPoint.x + dir.x * MAX_DETECTION_DISTANCE, startPoint.y + dir.y * MAX_DETECTION_DISTANCE);
+            const endPoint = planck.Vec2(startPoint.x + rotatedDir.x * MAX_DETECTION_DISTANCE, startPoint.y + rotatedDir.y * MAX_DETECTION_DISTANCE);
             let detectedDistance = MAX_DETECTION_DISTANCE;  // Default to max distance
 
             world.rayCast(startPoint, endPoint, function (point, normal, fixture, fraction) {
@@ -2208,6 +2215,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
             inputs.push(detectedDistance / MAX_DETECTION_DISTANCE);
         }
     }
+
 
 
     // console.log("agent inputs: position: ", (position.x - this.startingX) / MAX_X, position.y / MAX_Y, "Velocity: ", velocity.x / MAX_VX, velocity.y / MAX_VY, this.mainBody.getAngle() / Math.PI, displayedTimeLeft / MAX_TIME)
