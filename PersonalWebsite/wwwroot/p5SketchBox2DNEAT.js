@@ -435,6 +435,7 @@ let sketchNEAT = function (p) {
                 leadingAgentXScore = leadingAgentScores[1];
                 leadingAgentYScore = leadingAgentScores[2];
                 leadingAgentMovementScore = leadingAgentScores[4];
+                leadingAgentExplorationReward = leadingAgentScores[5];
 
                 // Display the score of the trailing agent
                 trailingAgentScores = trailingAgent.getScore(false);
@@ -442,6 +443,7 @@ let sketchNEAT = function (p) {
                 trailingAgentXScore = trailingAgentScores[1];
                 trailingAgentYScore = trailingAgentScores[2];
                 trailingAgentMovementScore = trailingAgentScores[4];
+                trailingAgentExplorationReward = trailingAgentScores[5];
 
                 // Display the score of the highest scoring
                 topScoreAgentScores = topScoreAgent.getScore(false);
@@ -449,6 +451,7 @@ let sketchNEAT = function (p) {
                 topScoreAgentXScore = topScoreAgentScores[1];
                 topScoreAgentYScore = topScoreAgentScores[2];
                 topScoreAgentMovementScore = topScoreAgentScores[4];
+                topScoreAgentExplorationReward = topScoreAgentScores[5];
 
                 let totalScore = 0;
                 for (let agent of agents) {
@@ -526,13 +529,13 @@ let sketchNEAT = function (p) {
             if (topScoreAgentScore > - 1000) {
                 p.textSize(16);
                 p.fill(GROUP_COLORS[topScoreAgent.group]);
-                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Bonus: ${topScoreAgentMovementScore})`, 10, groundY + 30);  // Displaying the score just below the ground
+                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Bonus: ${topScoreAgentMovementScore} + Exploration Bonus: ${topScoreAgentExplorationReward})`, 10, groundY + 30);  // Displaying the score just below the ground
 
                 p.fill(GROUP_COLORS[leadingAgent.group]);
-                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Bonus: ${leadingAgentMovementScore})`, 10, groundY + 50);
+                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Bonus: ${leadingAgentMovementScore} + Exploration Bonus: ${leadingAgentExplorationReward})`, 10, groundY + 50);
 
                 p.fill(GROUP_COLORS[trailingAgent.group]);
-                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Bonus: ${trailingAgentMovementScore})`, 10, groundY + 70);
+                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Bonus: ${trailingAgentMovementScore} + Exploration Bonus: ${trailingAgentExplorationReward})`, 10, groundY + 70);
             }
 
             if (showNeuralNetwork == true) {
@@ -714,6 +717,17 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
     this.mainBody = createMainBody(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
     this.position = this.mainBody.getPosition();
 
+    this.internalMap = [];
+    this.coveredCellCount = 0;
+
+    for (let i = 0; i < 1000; i++) {
+        let row = [];
+        for (let n = 0; n < 1000; n++) {
+            row.push(false);
+        }
+        this.internalMap.push(row);
+    }
+
     this.limbs = [];
     this.muscles = [];
     this.joints = [];
@@ -776,7 +790,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
 
     this.getWeightPenalty = function () {
         this.weightPenaltyCounter++;
-        // Update this score penalty only a few times, not exact as this is not called every frame
+        // Called only at end of round as expensive
         let allWeightTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 0);
         let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()).map(Math.abs)); // map to absolute values
         let averageAbsWeight = allWeights.reduce((sum, weight) => sum + weight, 0) / allWeights.length;
@@ -813,10 +827,26 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         return this.totalJointMovementReward;
     };
 
-    this.totalXMovementReward = 0;
-    this.totalYMovementReward = 0;
+    this.getExplorationReward = function () {
 
-    // Initialize previousXPos to starting x-position
+        // Calculate the position relative to the map's origin (considering the granularity)
+        let gridX = Math.floor((this.position.x - this.startingX) / 50);
+        let gridY = Math.floor((this.startingY - this.position.y) / 50);  // Subtracting due to flipped Y-axis
+
+        if (gridX >= 0 && gridX < 1000 && gridY >= 0 && gridY < 1000) {
+            if (!this.internalMap[gridY][gridX]) { // If the cell hasn't been visited yet
+                this.internalMap[gridY][gridX] = true;  // Mark the cell as visited
+                this.coveredCellCount++;  // Increment the covered cell count
+            }
+        }
+
+        return this.coveredCellCount;
+    };
+
+    //this.totalXMovementReward = 0;
+    //this.totalYMovementReward = 0;
+
+    // Old tracking variables for incremental pos score: Initialize previousXPos to starting x-position
     //this.previousXPos = this.startingX;
     //this.previousYPos = this.startingY;
 
@@ -825,26 +855,45 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
 
     this.getScore = function (roundOver) {
 
-        //// Calculate change in x-position
-        //let deltaX = this.position.x - this.previousXPos;
-        //let deltaY = this.position.y - this.previousYPos;
+        // Old incrementing Movement score, with time factor included(In use on old genetic evolution sim):
+        /*
+        // Calculate change in x-position
+        let deltaX = this.position.x - this.previousXPos;
+        let deltaY = this.position.y - this.previousYPos;
 
-        //let currentXReward;
-        //let currentYReward;
+        let currentXReward;
+        let currentYReward;
 
-        //if (displayedTimeLeft > 1) {
-        //    // let TimeFactor = 1 + tickCount / simulationLength;
-        //    let TimeFactor = 1;
-        //    // currentXReward = deltaX * TimeFactor * 2;  // Linier growth of x reward
-        //    // currentXReward = deltaX ** TimeFactor ** 2; // non linier,
-        //    currentXReward = deltaX * Math.exp(TimeFactor - 1);
-        //    currentYReward = deltaY * Math.exp(TimeFactor - 1);
-        //} else {
-        //    currentXReward = 0;
-        //    currentYReward = 0;
-        //}
+        if (displayedTimeLeft > 1) {
+            // let TimeFactor = 1 + tickCount / simulationLength;
+            let TimeFactor = 1;
+            // currentXReward = deltaX * TimeFactor * 2;  // Linier growth of x reward
+            // currentXReward = deltaX ** TimeFactor ** 2; // non linier,
+            currentXReward = deltaX * Math.exp(TimeFactor - 1);
+            currentYReward = deltaY * Math.exp(TimeFactor - 1);
+        } else {
+            currentXReward = 0;
+            currentYReward = 0;
+        }
 
-        // If the agent has made new progress in the x or y direction, update the furthest position.
+
+         Accumulate x movement reward
+        this.totalXMovementReward += Math.abs(currentXReward);
+        this.totalYMovementReward += Math.abs(currentYReward);
+
+         Update the previous x position for next time
+        this.previousXPos = this.position.x;
+        this.previousYPos = this.position.y;
+
+        let XPosScore = this.totalXMovementReward * 1;
+        let YPosScore = Math.abs(this.totalYMovementReward) * 1;
+        */
+
+        //Old simple X,Y score calculation
+        //let XPosScore = (Math.floor(this.position.x - this.startingX) * 1);
+        //let YPosScore = (Math.floor(this.startingY - this.position.y) * 1);
+
+
         if (this.position.x > this.furthestXPos) {
             this.furthestXPos = this.position.x;
         }
@@ -852,25 +901,13 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
             this.furthestYPos = this.position.y;
         }
 
-        // Accumulate x movement reward
-        //this.totalXMovementReward += Math.abs(currentXReward);
-        //this.totalYMovementReward += Math.abs(currentYReward);
-
-        // Update the previous x position for next time
-        //this.previousXPos = this.position.x;
-        //this.previousYPos = this.position.y;
-
-        // Old simple X score calculation
-        // let XPosScore = (Math.floor(this.position.x - this.startingX) * 1);
-        // let XPosScore = (Math.floor(this.startingX - this.position.X + 50) * 1);
-        // let XPosScore = (Math.floor(this.position.x - this.startingX) * 1);
-        // let YPosScore = (Math.floor(this.startingY - this.position.y) * 1);
-        //let XPosScore = this.totalXMovementReward * 1;
-        //let YPosScore = Math.abs(this.totalYMovementReward) * 1;
+        // If the agent has made new progress in the x or y direction, update the furthest position.
         let XPosScore = Math.floor(this.furthestXPos - this.startingX) * 1;
         let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 1.2;
 
         let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 1; // Adjust multiplier if needed
+
+        let explorationReward = this.getExplorationReward() * 10;
 
         let weightPenalty;
         if (roundOver) {
@@ -879,7 +916,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
             weightPenalty = 0;
         }
 
-        this.Score = XPosScore + YPosScore + jointMovementReward - weightPenalty;
+        this.Score = XPosScore + YPosScore + jointMovementReward + explorationReward - weightPenalty;
 
         if (this.Score > topScoreEver) {
             topScoreEver = this.Score;
@@ -890,7 +927,8 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
             XPosScore.toFixed(2),
             YPosScore.toFixed(2),
             weightPenalty.toFixed(2),
-            jointMovementReward.toFixed(2)
+            jointMovementReward.toFixed(2),
+            explorationReward
         ];
     };
 
@@ -2001,8 +2039,8 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
                 for (let currentPos of currentLayerPositions) {
                     let weight = allWeights[currentWeightIndex];
                     currentWeightIndex++;
-
-                    let strokeWeightValue = mapWeightToStroke(weight);
+                    let maxWeight = Math.max(...allWeights.map(Math.abs));
+                    let strokeWeightValue = mapWeightToStroke(weight, maxWeight);
                     p.stroke(255);
                     p.strokeWeight(strokeWeightValue);
                     p.line(prevPos.x, prevPos.y, currentPos.x, currentPos.y);
@@ -2033,7 +2071,7 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
         let outputIndex = 0;
         for (let j = 0; j < nodes; j++) {
             let y = startY + j * nodeGap;
-
+            let maxBias = Math.max(...allBiases.map(Math.abs));
             let bias = allBiases[currentBiasIndex];
             currentBiasIndex++;
 
@@ -2044,7 +2082,7 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
                 p.fill(GROUP_COLORS[agent.group]); // Default fill color
             //}
 
-            let nodeSize = mapBiasToNodeSize(bias);
+            let nodeSize = mapBiasToNodeSize(bias, maxBias);
             p.ellipse(x, y, nodeSize, nodeSize);
             p.stroke(0);
             // Add labels to the side of input and output nodes

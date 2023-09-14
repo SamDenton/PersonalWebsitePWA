@@ -1649,7 +1649,7 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
     }
 
     if (inputsGroundSensors) {
-        inputLabels = inputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Ground Sensor ${idx + 1}`));
+        inputLabels = inputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Limb Sensor ${idx + 1}`));
     }
 
     if (inputsDistanceSensors) {
@@ -1699,9 +1699,10 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
             for (let prevPos of previousLayerPositions) {
                 for (let currentPos of currentLayerPositions) {
                     let weight = allWeights[currentWeightIndex];
+                    let maxWeight = Math.max(...allWeights.map(Math.abs));
                     currentWeightIndex++;
 
-                    let strokeWeightValue = mapWeightToStroke(weight);
+                    let strokeWeightValue = mapWeightToStroke(weight, maxWeight);
                     //p.stroke(GROUP_COLORS[agent.group]);
                     p.strokeWeight(strokeWeightValue);
                     p.line(prevPos.x, prevPos.y, currentPos.x, currentPos.y);
@@ -1731,7 +1732,7 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
         let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
         for (let j = 0; j < nodes; j++) {
             let y = startY + j * nodeGap;
-
+            let maxBias = Math.max(...allBiases.map(Math.abs));
             let bias = allBiases[currentBiasIndex];
             currentBiasIndex++;
 
@@ -1741,8 +1742,8 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
             } else {
                 p.fill(GROUP_COLORS[agent.group]); // Default fill color
             }
-
-            let nodeSize = mapBiasToNodeSize(bias);
+            p.strokeWeight(0);
+            let nodeSize = mapBiasToNodeSize(bias, maxBias);
             p.ellipse(x, y, nodeSize, nodeSize);
 
             // Add labels to the side of input and output nodes
@@ -1767,16 +1768,20 @@ function renderNeuralNetwork(p, nnConfig, agent, offsetX, offsetY, frameTracker)
     p.strokeWeight(1); // Reset the default stroke weight
 }
 
-function mapWeightToStroke(weight) {
-    let base = 1;  // High base power to emphasise stronger connections
-    let scaledWeight = Math.abs(weight);
-
-    // Using Math.pow to apply an exponential scale. 
-    return 0.0001 + Math.pow(scaledWeight, base) * 0.1;
+// Normalization function
+function normalize(value, maxValue, minValue = 0) {
+    if (minValue == maxValue) return 0.5;  // to prevent division by zero
+    return (value - minValue) / (maxValue - minValue);
 }
 
-function mapBiasToNodeSize(bias) {
-    return 5 + Math.abs(bias) * 5; // 10 is base size, adjusting based on bias
+function mapWeightToStroke(weight, maxValue) {
+    let normalizedWeight = normalize(Math.abs(weight), maxValue);
+    return 0.0001 + normalizedWeight ** 3; // Assuming you want weights to range from 0.0001 to 0.1
+}
+
+function mapBiasToNodeSize(bias, maxValue) {
+    let normalizedBias = normalize(Math.abs(bias), maxValue);
+    return 5 + normalizedBias * 10; // Assuming you want biases to scale node size from 5 to 10
 }
 
 Agent.prototype.makeDecision = function (inputs) {
