@@ -7,6 +7,7 @@ let liquidViscosityDecay, mapNo;
 let MAX_ADJUSTMENT_TORQUE = 500000;
 let offsetY = 0;
 let simulationLengthModified = 0;
+let showRayCasts = false;
 
 
 ///* Index's, flags */
@@ -177,6 +178,7 @@ let sketchNEAT = function (p) {
                 if (tickCount >= nextBatchFrame) {
                     // Update muscles only for the current batch of agents
                     for (let i = currentPhysicsBatch * MUSCLE_BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * MUSCLE_BATCH_SIZE, agents.length); i++) {
+                        agents[i].mainBody.setType('dynamic');
                         agents[i].updateMusclesNEAT();
 
                         if (i == 1) {
@@ -234,8 +236,12 @@ let sketchNEAT = function (p) {
 
                             let forceMagnitude;
                             if (agent.numLimbs % 2 === 0) {
-                                if (i < agent.numLimbs / 2) {
+                                if (i == 0) {
+                                    forceMagnitude = deltaTheta * forceScalingFactor;
+                                } else if (i < agent.numLimbs / 2) {
                                     forceMagnitude = deltaTheta * forceScalingFactor * bias;
+                                } else if (i == agent.numLimbs / 2) {
+                                    forceMagnitude = deltaTheta * forceScalingFactor;
                                 } else {
                                     forceMagnitude = deltaTheta * forceScalingFactor * (2 - bias);
                                 }
@@ -244,8 +250,6 @@ let sketchNEAT = function (p) {
                                     forceMagnitude = deltaTheta * forceScalingFactor;
                                 } else if (i < agent.numLimbs / 2) {
                                     forceMagnitude = deltaTheta * forceScalingFactor * bias;
-                                } else if (i == Math.ceil(agent.numLimbs / 2)) {
-                                    forceMagnitude = deltaTheta * forceScalingFactor;
                                 } else {
                                     forceMagnitude = deltaTheta * forceScalingFactor * (2 - bias);
                                 }
@@ -319,9 +323,19 @@ let sketchNEAT = function (p) {
             if (agentToFix == "leader") {
                 offsetX = p.width / 6 - leadingAgent.position.x + leadingAgent.startingX;  // Center the leading agent on the canvas, just to the left
                 offsetY = p.height * 4 / 6 - leadingAgent.position.y + leadingAgent.startingY;
+                if (showRayCasts) {
+                    let agentOffsetX = offsetX - leadingAgent.startingX;
+                    let agentOffsetY = offsetY - leadingAgent.startingY;
+                    leadingAgent.renderRayCasts(p, agentOffsetX, agentOffsetY);
+                }
             } else if (agentToFix == "trailer") {
                 offsetX = p.width / 6 - trailingAgent.position.x + trailingAgent.startingX;
                 offsetY = p.width * 4 / 6 - trailingAgent.position.y + trailingAgent.startingY - 500;
+                if (showRayCasts) {
+                    let agentOffsetX = offsetX - trailingAgent.startingX;
+                    let agentOffsetY = offsetY - trailingAgent.startingY;
+                    trailingAgent.renderRayCasts(p, agentOffsetX, agentOffsetY);
+                }
             } else if (agentToFix == "average") {
 
                 let totalXScore = 0;
@@ -396,6 +410,7 @@ let sketchNEAT = function (p) {
                 p.ellipse(particle.x, particle.y, 2, 2);
             });
 
+            // To add a zoom out function, I just need to add an offset to this and the agent rendering function
             // Render walls
             p.fill(50);
             for (let wall of wallBodies) {
@@ -666,6 +681,11 @@ function initializeSketchBox2DNEAT(stageProperties) {
 //    console.log("toggling NN render");
 //}
 
+function toggleRayCastRender(showRays) {
+    showRayCasts = showRays;
+    console.log("toggling RayCasts render");
+}
+
 function updateSimulationNEAT(stageProperties) {
     simulationLength = stageProperties.simulationLength;
     renderedAgents = stageProperties.renderedAgents;
@@ -707,22 +727,25 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
     this.group = null;
     // console.log("a new agent, index: " + this.index);
     let mainBodyRadius = 20;
-    this.startingX = 200 + 1000 * this.index; // Set to 0 to disable split spawning for now
+    const locationBatchSize = 20;
+    this.startingX = 200 + (Math.floor(this.index / locationBatchSize) * 5000);
     // let startingX = 100;
     this.startingY = 600;
     // this.jointMaxMove = maxJointMovement;  // Temporary
     // this.agentMutationRateLocal = agentMutationRate; // Temporary
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
     //    this.mainBody = createMainBody(world, this.startingX, startingY, mainBodyRadius, agentNo);
-    this.mainBody = createMainBody(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
+    this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
     this.position = this.mainBody.getPosition();
+
+    this.rayCastPoints = [];
 
     this.internalMap = [];
     this.coveredCellCount = 0;
 
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 500; i++) {
         let row = [];
-        for (let n = 0; n < 1000; n++) {
+        for (let n = 0; n < 500; n++) {
             row.push(false);
         }
         this.internalMap.push(row);
@@ -818,7 +841,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         }
 
         // Exponential decay for the reward. You can adjust the decay factor as needed.
-        let decayFactor = 0.95;
+        let decayFactor = 0.90;
         let currentReward = totalChange * decayFactor ** totalChange;
 
         // Accumulate joint movement reward
@@ -833,7 +856,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         let gridX = Math.floor((this.position.x - this.startingX) / 50);
         let gridY = Math.floor((this.startingY - this.position.y) / 50);  // Subtracting due to flipped Y-axis
 
-        if (gridX >= 0 && gridX < 1000 && gridY >= 0 && gridY < 1000) {
+        if (gridX >= 0 && gridX < 500 && gridY >= 0 && gridY < 500) {
             if (!this.internalMap[gridY][gridX]) { // If the cell hasn't been visited yet
                 this.internalMap[gridY][gridX] = true;  // Mark the cell as visited
                 this.coveredCellCount++;  // Increment the covered cell count
@@ -905,7 +928,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         let XPosScore = Math.floor(this.furthestXPos - this.startingX) * 1;
         let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 1.2;
 
-        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 1; // Adjust multiplier if needed
+        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 0.5; // Adjust multiplier if needed
 
         let explorationReward = this.getExplorationReward() * 10;
 
@@ -1010,11 +1033,26 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         //    }
         //}
     };
+
+    this.renderRayCasts = function (p, offsetX, offsetY) {
+        p.stroke(255, 0, 0);  // Set the color of the rays (red in this case)
+
+        for (let ray of this.rayCastPoints) {
+            let startX = ray.start.x + offsetX;
+            let startY = ray.start.y + offsetY;
+            let endX = ray.end.x + offsetX;
+            let endY = ray.end.y + offsetY;
+
+            p.line(startX, startY, endX, endY);
+        }
+
+    };
+
 }
 
 function createMainBodyNEAT(world, x, y, radius, agentNo) {
     let bodyDef = {
-        type: 'dynamic',
+        type: 'static',
         position: planck.Vec2(x, y)
     };
 
@@ -1168,6 +1206,8 @@ function initializeAgentNEAT(i, agentsPerGroup) {
     setTimeout(() => {
         // let randLimbsPerAgent = 1 + Math.random() * 9;
         let agent = new AgentNEAT(limbsPerAgent, i);
+        let randomAngle = -Math.random() * Math.PI / 2; // Random angle between 0 and -PI/2
+        agent.mainBody.setAngle(randomAngle);
         // console.log("initializeAgent, making agent: ", i);
         agent.group = Math.floor(i / agentsPerGroup);  // Assign group
         agents.push(agent);
@@ -1299,6 +1339,16 @@ function endSimulationNEAT(p) {
         agent.mainBody = null;
     }
 
+    for (let wall of wallBodies) {
+        world.destroyBody(wall.body);
+    }
+    wallBodies = []; 
+
+    for (let wall of duplicateWalls) {
+        world.destroyBody(wall.body);
+    }
+    duplicateWalls = [];
+
     // Continue to the next generation
     nextGenerationNEAT(p);
 }
@@ -1317,12 +1367,15 @@ function setupPlanckWorldNEAT() {
 
     //    console.log("Collision between:", bodyA.getUserData(), "and", bodyB.getUserData());
     //});
+    let randMap = Math.floor(Math.random() * 5);
+    createMaps(randMap);
+}
 
-
+function createMaps(mapNumber) {
     let startX = 200;
     let startY = 600;
 
-    if (mapNo == 2) {
+    if (mapNumber == 0) {
         // Map starts agents in a channel with obsticles to get around, then opens up to free space
         let channelWidth = 200;
         let channelLength = 800;
@@ -1339,8 +1392,8 @@ function setupPlanckWorldNEAT() {
         createWall(startX + 130 + channelWidth, startY - channelWidth, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 460, startY - 490, 10, channelWidth / 2, -Math.PI / 4);
 
-    } else if (mapNo == 1) {
-        // Map starts egants in free space and forced them to find the channel and complete it to move further
+    } else if (mapNumber == 1) {
+        // Map starts egants in free space and forces them to find the channel and complete it to move further
         let channelWidth = 200;
         let channelLength = 800;
 
@@ -1352,21 +1405,92 @@ function setupPlanckWorldNEAT() {
         createWall(startX + 100 + channelWidth, startY - 100, 10, channelLength, Math.PI / 4); // Right wall
 
         // Create the boundry walls to force agents through channel
-        createWall(startX - 480, startY - 330, 10, 1000, -Math.PI / 4); 
-        createWall(startX + 380, startY + 530, 10, 1000, -Math.PI / 4); 
+        createWall(startX - 480, startY - 330, 10, 1000, -Math.PI / 4);
+        createWall(startX + 380, startY + 530, 10, 1000, -Math.PI / 4);
+        createWall(startX + 150 - 1000, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
+        createWall(startX + 100 + channelWidth, startY - 100 + 1000, 10, channelLength, Math.PI / 4); // Right wall
 
         // Obsticles
         createWall(startX + 50, startY - 80, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 130 + channelWidth, startY - channelWidth, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 460, startY - 490, 10, channelWidth / 2, -Math.PI / 4);
 
-    }
+    } else if (mapNumber == 2) {
+        // Map is a grid of lines to avoid
+        let channelWidth = 200;
 
+        startX -= 150;
+        startY += 150;
+
+        const repeatCount = 3; // Repeats in each direction
+        const gridSpacing = 350; // Spacing between each repeat
+
+        createWall(startX, startY - 700, 10, 1400);
+        createWall(startX + 700, startY, 10, 1400, -Math.PI / 2);
+        createWall(startX + 1400, startY - 600, 10, 1200);
+        createWall(startX + 600, startY - 1400, 10, 1200, -Math.PI / 2);
+
+        // Loop through rows and columns
+        for (let row = 0; row < repeatCount; row++) {
+            for (let col = 0; col < repeatCount; col++) {
+                let gridOffsetX = col * gridSpacing;
+                let gridOffsetY = row * -gridSpacing;
+
+                // Create the lines with the offsets added to the original positions
+                createWall(startX + 250 + gridOffsetX, startY - 240 + gridOffsetY, 10, channelWidth / 2, -Math.PI / 4);
+                createWall(startX + 410 + gridOffsetX, startY - 400 + gridOffsetY, 10, channelWidth / 2, -Math.PI / 4);
+            }
+        }
+
+    } else if (mapNumber == 3) {
+        // Map starts agents in a channel with obsticles to get around, then opens up to free space
+        let channelWidth = 200;
+        let channelLength = 800;
+
+        startY -= 50;
+        startX -= 50;
+
+        // Create the two long walls along the path
+        createWall(startX + 150, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
+        createWall(startX + 100 + channelWidth, startY - 100, 10, channelLength, Math.PI / 4); // Right wall
+
+        // Create the short wall at the bottom of the path
+        createWall(startX - 50, startY + 100, 10, channelWidth, -Math.PI / 4); // Bottom wall
+
+        // Obsticles
+        createWall(startX + 50 + 75, startY - 80 + 75, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 130 + 75, startY - channelWidth - 50, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 460 + 75, startY - 490 + 75, 10, channelWidth / 2, -Math.PI / 4);
+
+    } else if (mapNumber == 4) {
+        // Map starts egants in free space and forces them to find the channel and complete it to move further
+        let channelWidth = 200;
+        let channelLength = 800;
+
+        startX += 400;
+        startY -= 400;
+
+        // Create the two long walls along the path
+        createWall(startX + 150, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
+        createWall(startX + 100 + channelWidth, startY - 100, 10, channelLength, Math.PI / 4); // Right wall
+
+        // Create the boundry walls to force agents through channel
+        createWall(startX - 480, startY - 330, 10, 1000, -Math.PI / 4);
+        createWall(startX + 380, startY + 530, 10, 1000, -Math.PI / 4);
+        createWall(startX + 150 - 1000, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
+        createWall(startX + 100 + channelWidth, startY - 100 + 1000, 10, channelLength, Math.PI / 4); // Right wall
+
+        // Obsticles
+        createWall(startX + 50 + 75, startY - 80 + 75, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 130 + 75, startY - channelWidth - 50, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 460 + 75, startY - 490 + 75, 10, channelWidth / 2, -Math.PI / 4);
+
+    }
 }
 
 function createWall(x, y, width, height, angle = 0) {
-    for (let i = 0; i < popSize; i++) {
-        const offset = i * 1000; // Define an appropriate spacing value to separate the sets of walls
+    for (let i = 0; i < Math.ceil(popSize / 20); i++) {
+        const offset = i * 5000; // Define an appropriate spacing value to separate the sets of walls
         const wallDef = {
             type: 'static',
             position: planck.Vec2(x + offset, y),
@@ -1415,7 +1539,7 @@ function NeuralNetworkConfigNEAT(numLimbs) {
     if (inputsScore) this.inputNodes += 1;
     if (inputsOrientation) this.inputNodes += 1;
     if (inputsTimeRemaining) this.inputNodes += 1;
-    if (inputsDistanceSensors) this.inputNodes += 8;
+    if (inputsDistanceSensors) this.inputNodes += 4;
 
     // Configure the rest of the neural network
     this.hiddenLayers = [{ nodes: 20, activation: 'relu' }, { nodes: 15, activation: 'relu' }, { nodes: 10, activation: 'relu' }];
@@ -1462,6 +1586,9 @@ function nextGenerationNEAT(p) {
     let newAgents = [];
     let groupAgents;
     let topPerformersCount;
+
+    let randMap = Math.floor(Math.random() * 5);
+    createMaps(randMap);
 
     // calculate average network 'pattern'
     let averageBrain = calculateAllAverageDistances();
@@ -1621,6 +1748,8 @@ function createTopPerformersNEAT(groupAgents, topPerformersCount, newAgents) {
         let oldAgent = groupAgents[j];
         usedIndices.add(oldAgent.index);
         let newAgent = new AgentNEAT(oldAgent.numLimbs, oldAgent.index, oldAgent.brain);
+        let randomAngle = -Math.random() * Math.PI / 2;
+        newAgent.mainBody.setAngle(randomAngle);
         newAgent.group = oldAgent.group;
         newAgents.push(newAgent);
     }
@@ -1664,6 +1793,8 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, to
 
                 usedIndices.add(agentIndex);  // Mark this index as used
                 let childAgent = new AgentNEAT(parent1.numLimbs, agentIndex);
+                let randomAngle = -Math.random() * Math.PI / 2;
+                childAgent.mainBody.setAngle(randomAngle);
                 // console.log("generateOffspring, making agent: ", agentIndex);
 
                 childAgent.brain.dispose();
@@ -2220,20 +2351,25 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
         // 8. Raycast distances to the closest obstacle in a few directions from the agent's body
         const baseDirections = [
             planck.Vec2(1, 0),       // E
-            planck.Vec2(1, 1).normalize(),  // NE
-            planck.Vec2(0, 1),       // N
-            planck.Vec2(-1, 1).normalize(), // NW
+            planck.Vec2(1, 1),  // NE
+            //planck.Vec2(0, 1),       // N
+            //planck.Vec2(-1, 1), // NW
             planck.Vec2(-1, 0),      // W
-            planck.Vec2(-1, -1).normalize(), // SW
-            planck.Vec2(0, -1),      // S
-            planck.Vec2(1, -1).normalize()   // SE
+            //planck.Vec2(-1, -1), // SW
+            //planck.Vec2(0, -1),      // S
+            planck.Vec2(1, -1)   // SE
         ];
 
-        const MAX_DETECTION_DISTANCE = 1000;  // Max distance of detection, can be adjusted
+        for (let dir of baseDirections) {
+            dir.normalize();
+        }
+
+        const MAX_DETECTION_DISTANCE = 200;  // Max distance of detection, can be adjusted
 
         const agentAngle = this.mainBody.getAngle();
 
-        for (let baseDir of baseDirections) {
+        for (let i = 0; i < baseDirections.length; i++) {
+            let baseDir = baseDirections[i];
             // Rotate each direction by the agent's angle
             const rotatedDirX = baseDir.x * Math.cos(agentAngle) - baseDir.y * Math.sin(agentAngle);
             const rotatedDirY = baseDir.x * Math.sin(agentAngle) + baseDir.y * Math.cos(agentAngle);
@@ -2243,11 +2379,27 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
             const startPoint = this.position;
             const endPoint = planck.Vec2(startPoint.x + rotatedDir.x * MAX_DETECTION_DISTANCE, startPoint.y + rotatedDir.y * MAX_DETECTION_DISTANCE);
             let detectedDistance = MAX_DETECTION_DISTANCE;  // Default to max distance
+            let detected = false;
 
-            world.rayCast(startPoint, endPoint, function (point, normal, fixture, fraction) {
-                detectedDistance = fraction * MAX_DETECTION_DISTANCE;
-                return 0;  // Terminate after the first hit
-            });
+            world.rayCast(startPoint, endPoint, function (fixture, point, normal, fraction) {
+                // Check the category of the fixture
+                const category = fixture.getFilterCategoryBits();
+
+                // Process only if the category is GROUND
+                if (category === CATEGORY_GROUND) {
+                    detectedDistance = fraction * MAX_DETECTION_DISTANCE;
+                    detected = true;
+                    this.rayCastPoints[i] = { start: startPoint, end: point };
+                    return fraction;  // This means we accept this hit and won't search further.
+                }
+
+                return -1;  // This means we ignore this fixture and continue the search.
+            }.bind(this));
+
+            if (!detected) {
+                this.rayCastPoints[i] = { start: startPoint, end: endPoint };
+            }
+
             // console.log(detectedDistance / MAX_DETECTION_DISTANCE);
             // Normalize detected distance and push to inputs
             inputs.push(detectedDistance / MAX_DETECTION_DISTANCE);

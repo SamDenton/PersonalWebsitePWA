@@ -136,8 +136,8 @@
         <div class="setting">
             <label for="swimStrength" title="Multiplier on the force applied to each limb for agent swimming">Swim Strength</label>
             <div class="slider-container">
-                <input type="range" id="swimStrength" @bind="agentProperties.swimStrength" min="100000" max="5000000" step="100">
-                <input type="number" @bind="agentProperties.swimStrength" min="100000" max="5000000" step="100">
+                <input type="range" id="swimStrength" @bind="agentProperties.swimStrength" min="100000" max="50000000" step="10000">
+                <input type="number" @bind="agentProperties.swimStrength" min="100000" max="50000000" step="10000">
             </div>
         </div>
 
@@ -228,8 +228,8 @@
         <div class="setting">
             <label for="migrationRate" title="Migration rate between groups, the chance a parent is selected from random group instead of the same.">Migration Rate Between Groups</label>
             <div class="slider-container">
-                <input type="range" id="migrationRate" @bind="stageProperties.migrationRate" min="0.05" max="1" step="0.05">
-                <input type="number" @bind="stageProperties.migrationRate" min="0.05" max="1" step="0.05">
+                <input type="range" id="migrationRate" @bind="stageProperties.migrationRate" min="0.001" max="0.1" step="0.001">
+                <input type="number" @bind="stageProperties.migrationRate" min="0.001" max="0.1" step="0.001">
             </div>
         </div>
 
@@ -355,8 +355,8 @@
         <div class="setting">
             <label for="physicsGranularityMultipliers" title="Physics Granularity">Physics Granularity</label>
             <div class="slider-container">
-                <input type="range" id="physicsGranularityMultipliers" @bind="stageProperties.physicsGranularityMultipliers" min="1" max="10" step="1">
-                <input type="number" @bind="stageProperties.physicsGranularityMultipliers" min="1" max="10" step="1">
+                <input type="range" id="physicsGranularityMultipliers" @bind="stageProperties.physicsGranularityMultipliers" min="0.1" max="3" step="0.1">
+                <input type="number" @bind="stageProperties.physicsGranularityMultipliers" min="0.1" max="3" step="0.1">
             </div>
         </div>
     </div>
@@ -394,6 +394,7 @@
 <button class="floating-button update-button" title="You can update the round length, number of rendered agents, physics speed, spawn delay and batch size, parent tournament size, migration rate, max and min population group size and the agent to fix the camera on" @onclick="UpdateSimulation">Update</button>
 <button class="floating-button toggleNN-button" @onclick="toggleNN">Toggle Neural Network</button>
 <button class="floating-button toggleLeader-button" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
+<button class="floating-button toggleRays-button" @onclick="toggleRayCasts">Toggle Raycasts Rendering</button>
 
 @code {
     private StageProperties stageProperties = new StageProperties();
@@ -415,20 +416,21 @@
         public int delay { get; set; } = 20;
         public int BatchSize { get; set; } = 10;
         public bool showNN { get; set; } = false;
+        public bool showRays { get; set; } = false;
         public string agentInCentre { get; set; } = "leader";
-        public int numAgents { get; set; } = 100;
+        public int numAgents { get; set; } = 50;
         public int tournamentSize { get; set; } = 10;
-        public double migrationRate { get; set; } = 0.05;
+        public double migrationRate { get; set; } = 0.01;
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 20;
         public int uiRefreshRate { get; set; } = 500;
         public int muscleDelay { get; set; } = 2;
         public int muscleBatch { get; set; } = 5;
         public int totalMuscleUpdateTime { get; set; } = 2;
-        public int velocityIteration { get; set; } = 3;
+        public int velocityIteration { get; set; } = 4;
         public int positionIteration { get; set; } = 2;
-        public int physicsGranularityMultipliers { get; set; } = 2;
-        public double liquidViscosity { get; set; } = 0.98;
+        public double physicsGranularityMultipliers { get; set; } = 1;
+        public double liquidViscosity { get; set; } = 0.99;
         public bool timeIncrease { get; set; } = true;
         public int map { get; set; } = 1;
     }
@@ -452,7 +454,7 @@
         public bool outputsJointSpeed { get; set; } = true;
         public bool outputsJointTorque { get; set; } = false;
         public bool outputsBias { get; set; } = false;
-        public int swimStrength { get; set; } = 500000;
+        public int swimStrength { get; set; } = 1000000;
         public double swimBias { get; set; } = 1.5; 
         // public int hiddenLayersNN { get; set; } = 3;
         // public int nodesPerHiddenLayer { get; set; } = 10; // half for fanal hidden layer
@@ -468,6 +470,12 @@
     {
         stageProperties.showNN = !stageProperties.showNN;
         await JSRuntime.InvokeVoidAsync("toggleNNRender", stageProperties.showNN);
+    }
+
+    private async Task toggleRayCasts()
+    {
+        stageProperties.showRays = !stageProperties.showRays;
+        await JSRuntime.InvokeVoidAsync("toggleRayCastRender", stageProperties.showRays);
     }
 
     private void ToggleAdvancedSettings()

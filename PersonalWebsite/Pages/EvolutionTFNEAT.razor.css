@@ -71,7 +71,7 @@
 
 .start-button {
     background-color: green;
-    right: 500px;
+    right: 300px;
 }
 
 .update-button {
@@ -79,9 +79,16 @@
 }
 
 .toggleNN-button {
-    right: 300px;
+    top: 150px;
+    right: 450px;
 }
 
 .toggleLeader-button {
-    right: 100px;
+    top: 150px;
+    right: 250px;
+}
+
+.toggleRays-button {
+    top: 150px;
+    right: 20px;
 }
