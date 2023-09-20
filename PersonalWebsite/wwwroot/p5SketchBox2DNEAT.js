@@ -211,6 +211,7 @@ let sketchNEAT = function (p) {
                         let currentAngle = joint.getJointAngle();
                         let N = 5;
                         let forceScalingFactor = swimStrengthMultiplier;
+                        let agentFacingDirection = agent.mainBody.getAngle();
                         // Add the new angle to the buffer
                         agent.limbBuffer[i].push(currentAngle);
 
@@ -226,42 +227,15 @@ let sketchNEAT = function (p) {
                             // Determine the direction of the force
                             let forceDirection = (currentAngle - angle) + Math.PI / 2; 
 
-                            let bias;
+                            let defaultBias = (!outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
+                                ? swimBiasMultiplier
+                                : agent.biases[i];
 
-                            if (!outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null) {
-                                bias = swimBiasMultiplier;
-                            } else {
-                                bias = agent.biases[i];
-                            }
+                            let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
 
                             let forceMagnitude;
-                            if (agent.numLimbs % 2 === 0) {
-                                if (i == 0) {
-                                    forceMagnitude = deltaTheta * forceScalingFactor;
-                                } else if (i < agent.numLimbs / 2) {
-                                    forceMagnitude = deltaTheta * forceScalingFactor * bias;
-                                } else if (i == agent.numLimbs / 2) {
-                                    forceMagnitude = deltaTheta * forceScalingFactor;
-                                } else {
-                                    forceMagnitude = deltaTheta * forceScalingFactor * (2 - bias);
-                                }
-                            } else {
-                                if (i == 0) {
-                                    forceMagnitude = deltaTheta * forceScalingFactor;
-                                } else if (i < agent.numLimbs / 2) {
-                                    forceMagnitude = deltaTheta * forceScalingFactor * bias;
-                                } else {
-                                    forceMagnitude = deltaTheta * forceScalingFactor * (2 - bias);
-                                }
-                            }
 
-                            //let bias = 1.1;
-                            //let forceMagnitude
-                            //if (i > agent.numLimbs) {
-                            //    forceMagnitude = deltaTheta * forceScalingFactor * bias;
-                            //} else {
-                            //    forceMagnitude = deltaTheta * forceScalingFactor * (2 - bias);
-                            //}
+                            forceMagnitude = deltaTheta * forceScalingFactor * bias;
 
                             // Calculate the force vector
                             let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
@@ -286,20 +260,53 @@ let sketchNEAT = function (p) {
                 }
             }
 
-            // Apply drag to agents to simulate a liquid enviroment
+            // Apply drag to agents to simulate a liquid environment
             for (let agent of agents) {
                 if (simulationStarted) {
-                    // Apply drag to the main body
+                    // Apply drag to the main body's linear velocity
                     let bodyVelocity = agent.mainBody.getLinearVelocity();
                     agent.mainBody.setLinearVelocity(bodyVelocity.mul(dragCoefficient));
 
+                    // Apply drag to the main body's angular velocity
+                    let bodyAngularVelocity = agent.mainBody.getAngularVelocity();
+                    agent.mainBody.setAngularVelocity(bodyAngularVelocity * dragCoefficient);
+
                     // Apply drag to each limb
                     for (let limb of agent.limbs) {
+                        // Linear velocity drag
                         let limbVelocity = limb.getLinearVelocity();
                         limb.setLinearVelocity(limbVelocity.mul(dragCoefficient));
+
+                        // Angular velocity drag
+                        let limbAngularVelocity = limb.getAngularVelocity();
+                        limb.setAngularVelocity(limbAngularVelocity * dragCoefficient);
+                    }
+
+                    let maxTorqueForDamping = 10000;
+
+                    // Damping on approaching joint limits
+                    for (let i = 0; i < agent.joints.length; i++) {
+                        let currentAngle = agent.joints[i].getJointAngle();
+                        let angleDifferenceFromUpperLimit = agent.largestAngle - currentAngle;
+                        let angleDifferenceFromLowerLimit = currentAngle - agent.smallestAngle;
+
+                        let threshold = 0.5; // This is just an initial value, you might need to adjust it.
+
+                        if (angleDifferenceFromUpperLimit < threshold) {
+                            let normalizedDifferenceUpper = angleDifferenceFromUpperLimit / threshold;
+                            let torqueAmountUpper = maxTorqueForDamping * (1 - normalizedDifferenceUpper); // maxTorqueForDamping is a constant you'll need to set.
+                            agent.joints[i].getBodyB().applyTorque(torqueAmountUpper); // Assuming BodyB is the limb.
+                        }
+
+                        if (angleDifferenceFromLowerLimit < threshold) {
+                            let normalizedDifferenceLower = angleDifferenceFromLowerLimit / threshold;
+                            let torqueAmountLower = -maxTorqueForDamping * (1 - normalizedDifferenceLower); // Negative torque for lower limit.
+                            agent.joints[i].getBodyB().applyTorque(torqueAmountLower);
+                        }
                     }
                 }
             }
+
 
             // Step the Planck world
             try {
@@ -595,6 +602,23 @@ let sketchNEAT = function (p) {
     };
 };
 
+function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
+    // Calculate the angle difference
+    let angleDifference = forceDirection - agentFacingDirection;
+
+    // Normalize angle to range
+    angleDifference = (angleDifference + Math.PI) % (2 * Math.PI) - Math.PI;
+
+    // Determine the bias based on the angle difference
+    if (Math.abs(angleDifference) < Math.PI / 2) {
+        return defaultBias;
+    } else if (Math.abs(angleDifference) > Math.PI / 2) {
+        return 2 - defaultBias;
+    } else {
+        return 1;  // Use the default bias (either agent's or a fixed value)
+    }
+}
+
 //function areAllAgentsStable() {
 //    const stabilityThreshold = 0.001;  // Define a small threshold value for stability
 //    const stabilityFrames = 240;  // Number of frames to wait before confirming stability
@@ -762,14 +786,14 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
 
     this.limbWidth = 10; // Example limb width
     this.limbLength = 40; // Example limb length
-    let smallestAngle;
-    let largestAngle;
+    this.smallestAngle;
+    this.largestAngle;
     if (jointMaxMove != 0) {
-        smallestAngle = -(Math.PI / jointMaxMove);
-        largestAngle = Math.PI / jointMaxMove;
+        this.smallestAngle = -(Math.PI / jointMaxMove);
+        this.largestAngle = Math.PI / jointMaxMove;
     } else {
-        smallestAngle = 360;
-        largestAngle = 360;
+        this.smallestAngle = 360;
+        this.largestAngle = 360;
     }
 
     let nnConfig;
@@ -796,7 +820,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         // Calculate the point after rotation
         let localAnchorB = planck.Vec2(0, -this.limbLength / 2);
 
-        let joint = createRevoluteJoint(world, this.mainBody, limb, localAnchorA, localAnchorB, smallestAngle, largestAngle);
+        let joint = createRevoluteJoint(world, this.mainBody, limb, localAnchorA, localAnchorB, this.smallestAngle, this.largestAngle);
         this.joints.push(joint);
     }
 
@@ -928,7 +952,7 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
         let XPosScore = Math.floor(this.furthestXPos - this.startingX) * 1;
         let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 1.2;
 
-        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 0.5; // Adjust multiplier if needed
+        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 0.75; // Adjust multiplier if needed
 
         let explorationReward = this.getExplorationReward() * 10;
 
@@ -2289,7 +2313,6 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
         }
     });
 };
-
 
 AgentNEAT.prototype.collectInputsNEAT = function () {
     let inputs = [];
