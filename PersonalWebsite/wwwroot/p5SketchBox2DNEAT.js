@@ -8,6 +8,7 @@ let MAX_ADJUSTMENT_TORQUE = 500000;
 let offsetY = 0;
 let simulationLengthModified = 0;
 let showRayCasts = false;
+let dragCoefficient; 
 
 
 ///* Index's, flags */
@@ -126,7 +127,6 @@ let sketchNEAT = function (p) {
     let topScoreAgentXScore;
     let topScoreAgentYScore;
     let topScoreAgentMovementScore;
-    const dragCoefficient = liquidViscosityDecay; 
     let particles = [];
 
     p.setup = function () {
@@ -202,108 +202,19 @@ let sketchNEAT = function (p) {
                 }
             }
 
-            // Give the agents movement by waving limbs to simulate swimming
-            for (let agent of agents) {
-                if (agent) {
-                    for (let i = 0; i < agent.joints.length; i++) {
-                        let angle = (i * 2 * Math.PI) / agent.numLimbs;
-                        let joint = agent.joints[i];
-                        let currentAngle = joint.getJointAngle();
-                        let N = 5;
-                        let forceScalingFactor = swimStrengthMultiplier;
-                        let agentFacingDirection = agent.mainBody.getAngle();
-                        // Add the new angle to the buffer
-                        agent.limbBuffer[i].push(currentAngle);
-
-                        // Check if buffer has reached N length
-                        if (agent.limbBuffer[i].length >= N) {
-
-                            // Calculate the average delta angle over the last N frames
-                            let deltaTheta = (currentAngle - agent.limbBuffer[i][0]) / N;
-
-                            // Remove the oldest angle from the buffer to maintain its size
-                            agent.limbBuffer[i].shift();
-
-                            // Determine the direction of the force
-                            let forceDirection = (currentAngle - angle) + Math.PI / 2; 
-
-                            let defaultBias = (!outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
-                                ? swimBiasMultiplier
-                                : agent.biases[i];
-
-                            let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
-
-                            let forceMagnitude;
-
-                            forceMagnitude = deltaTheta * forceScalingFactor * bias;
-
-                            // Calculate the force vector
-                            let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
-
-                            // Calculate the point on the limb to apply the force
-                            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(angle) * (agent.limbLength / 1);
-                            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.limbLength / 1);
-
-                            let forceApplyPoint = planck.Vec2(forceApplyPointX, forceApplyPointY);
-
-                            agent.limbs[i].applyForce(force, forceApplyPoint, true);
-                            //// Now, visualize this force
-                            //let forceStartX = forceApplyPoint.x - 200;
-                            //let forceStartY = forceApplyPoint.y;
-                            //// Scale the force for visualization. This value can be adjusted to ensure arrows are neither too long nor too short.
-                            //let visualizationScale = 2;
-                            //let forceEndX = (forceStartX - 200) + force.x * visualizationScale;
-                            //let forceEndY = forceStartY + force.y * visualizationScale;
-                            //drawArrow(p, forceStartX, forceStartY, forceEndX, forceEndY);
-                        }
-                    }
-                }
-            }
-
-            // Apply drag to agents to simulate a liquid environment
+            // Allow agents to swim and interactively control their joints
             for (let agent of agents) {
                 if (simulationStarted) {
-                    // Apply drag to the main body's linear velocity
-                    let bodyVelocity = agent.mainBody.getLinearVelocity();
-                    agent.mainBody.setLinearVelocity(bodyVelocity.mul(dragCoefficient));
 
-                    // Apply drag to the main body's angular velocity
-                    let bodyAngularVelocity = agent.mainBody.getAngularVelocity();
-                    agent.mainBody.setAngularVelocity(bodyAngularVelocity * dragCoefficient);
+                    // Apply swimming force to agents to simulate a liquid environment
+                    applySwimmingForce(agent);
 
-                    // Apply drag to each limb
-                    for (let limb of agent.limbs) {
-                        // Linear velocity drag
-                        let limbVelocity = limb.getLinearVelocity();
-                        limb.setLinearVelocity(limbVelocity.mul(dragCoefficient));
+                    // Apply drag to agents to simulate a liquid environment
+                    applyDrag(agent);
 
-                        // Angular velocity drag
-                        let limbAngularVelocity = limb.getAngularVelocity();
-                        limb.setAngularVelocity(limbAngularVelocity * dragCoefficient);
-                    }
-
-                    let maxTorqueForDamping = 10000;
-
-                    // Damping on approaching joint limits
-                    for (let i = 0; i < agent.joints.length; i++) {
-                        let currentAngle = agent.joints[i].getJointAngle();
-                        let angleDifferenceFromUpperLimit = agent.largestAngle - currentAngle;
-                        let angleDifferenceFromLowerLimit = currentAngle - agent.smallestAngle;
-
-                        let threshold = 0.5; // This is just an initial value, you might need to adjust it.
-
-                        if (angleDifferenceFromUpperLimit < threshold) {
-                            let normalizedDifferenceUpper = angleDifferenceFromUpperLimit / threshold;
-                            let torqueAmountUpper = maxTorqueForDamping * (1 - normalizedDifferenceUpper); // maxTorqueForDamping is a constant you'll need to set.
-                            agent.joints[i].getBodyB().applyTorque(torqueAmountUpper); // Assuming BodyB is the limb.
-                        }
-
-                        if (angleDifferenceFromLowerLimit < threshold) {
-                            let normalizedDifferenceLower = angleDifferenceFromLowerLimit / threshold;
-                            let torqueAmountLower = -maxTorqueForDamping * (1 - normalizedDifferenceLower); // Negative torque for lower limit.
-                            agent.joints[i].getBodyB().applyTorque(torqueAmountLower);
-                        }
-                    }
+                    // Apply joint damping to agents to prevent limbs from moving too fast or slamming into boundaries
+                    applyJointDamping(agent);
+                    
                 }
             }
 
@@ -619,33 +530,109 @@ function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
     }
 }
 
-//function areAllAgentsStable() {
-//    const stabilityThreshold = 0.001;  // Define a small threshold value for stability
-//    const stabilityFrames = 240;  // Number of frames to wait before confirming stability
+function applySwimmingForce(agent) {
+    for (let i = 0; i < agent.joints.length; i++) {
+        let angle = (i * 2 * Math.PI) / agent.numLimbs;
+        let joint = agent.joints[i];
+        let currentAngle = joint.getJointAngle();
+        let N = 5;
+        let forceScalingFactor = swimStrengthMultiplier;
+        let agentFacingDirection = agent.mainBody.getAngle();
+        // Add the new angle to the buffer
+        agent.limbBuffer[i].push(currentAngle);
 
-//    let allAgentsStable = true;
+        // Check if buffer has reached N length
+        if (agent.limbBuffer[i].length >= N) {
 
-//    for (let agent of agents) {
-//        if (agent.mainBody) {
-//            if (Math.abs(agent.mainBody.getLinearVelocity()) > stabilityThreshold) {
-//                allAgentsStable = false;
-//                break;
-//            }
-//        }
-//    }
+            // Calculate the average delta angle over the last N frames
+            let deltaTheta = (currentAngle - agent.limbBuffer[i][0]) / N;
 
-//    if (allAgentsStable) {
-//        stabilityCounter++;
-//        if (stabilityCounter >= stabilityFrames) {
-//            stabilityCounter = 0;  // Reset counter
-//            return true;
-//        }
-//    } else {
-//        stabilityCounter = 0;  // Reset counter if any agent is not stable
-//    }
+            // Remove the oldest angle from the buffer to maintain its size
+            agent.limbBuffer[i].shift();
 
-//    return false;
-//}
+            // Determine the direction of the force
+            let forceDirection = (currentAngle - angle) + Math.PI / 2;
+
+            let defaultBias = (!outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
+                ? swimBiasMultiplier
+                : agent.biases[i];
+
+            let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
+
+            let forceMagnitude;
+
+            forceMagnitude = deltaTheta * forceScalingFactor * bias;
+
+            // Calculate the force vector
+            let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
+
+            // Calculate the point on the limb to apply the force
+            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(angle) * (agent.limbLength / 1);
+            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.limbLength / 1);
+
+            let forceApplyPoint = planck.Vec2(forceApplyPointX, forceApplyPointY);
+
+            agent.limbs[i].applyForce(force, forceApplyPoint, true);
+            //// visualize this force
+            //let forceStartX = forceApplyPoint.x - 200;
+            //let forceStartY = forceApplyPoint.y;
+            //// Scale the force for visualization. This value can be adjusted to ensure arrows are neither too long nor too short.
+            //let visualizationScale = 2;
+            //let forceEndX = (forceStartX - 200) + force.x * visualizationScale;
+            //let forceEndY = forceStartY + force.y * visualizationScale;
+            //drawArrow(p, forceStartX, forceStartY, forceEndX, forceEndY);
+        }
+    }
+}
+
+function applyDrag(agent) {
+    dragCoefficient = liquidViscosityDecay; 
+
+    // Apply drag to the main body's linear velocity
+    let bodyVelocity = agent.mainBody.getLinearVelocity();
+    agent.mainBody.setLinearVelocity(bodyVelocity.mul(dragCoefficient));
+
+    // Apply drag to the main body's angular velocity
+    let bodyAngularVelocity = agent.mainBody.getAngularVelocity();
+    agent.mainBody.setAngularVelocity(bodyAngularVelocity * dragCoefficient);
+
+    // Apply drag to each limb
+    for (let limb of agent.limbs) {
+        // Linear velocity drag
+        let limbVelocity = limb.getLinearVelocity();
+        limb.setLinearVelocity(limbVelocity.mul(dragCoefficient));
+
+        // Angular velocity drag
+        let limbAngularVelocity = limb.getAngularVelocity();
+        limb.setAngularVelocity(limbAngularVelocity * dragCoefficient);
+    }
+
+}
+
+function applyJointDamping(agent) {
+    let maxTorqueForDamping = 10000;
+
+    // Damping on approaching joint limits
+    for (let i = 0; i < agent.joints.length; i++) {
+        let currentAngle = agent.joints[i].getJointAngle();
+        let angleDifferenceFromUpperLimit = agent.largestAngle - currentAngle;
+        let angleDifferenceFromLowerLimit = currentAngle - agent.smallestAngle;
+
+        let threshold = 0.5; // This is just an initial value, you might need to adjust it.
+
+        if (angleDifferenceFromUpperLimit < threshold) {
+            let normalizedDifferenceUpper = angleDifferenceFromUpperLimit / threshold;
+            let torqueAmountUpper = maxTorqueForDamping * (1 - normalizedDifferenceUpper); // maxTorqueForDamping is a constant you'll need to set.
+            agent.joints[i].getBodyB().applyTorque(torqueAmountUpper); // Assuming BodyB is the limb.
+        }
+
+        if (angleDifferenceFromLowerLimit < threshold) {
+            let normalizedDifferenceLower = angleDifferenceFromLowerLimit / threshold;
+            let torqueAmountLower = -maxTorqueForDamping * (1 - normalizedDifferenceLower); // Negative torque for lower limit.
+            agent.joints[i].getBodyB().applyTorque(torqueAmountLower);
+        }
+    }
+}
 
 function initializeSketchBox2DNEAT(stageProperties) {
     canvasWidth = stageProperties.width;
@@ -700,11 +687,6 @@ function initializeSketchBox2DNEAT(stageProperties) {
     p5Instance = new p5(sketchNEAT, 'canvas-container-NEAT');
 }
 
-//function toggleNNRender(showNN) {
-//    showNeuralNetwork = showNN;
-//    console.log("toggling NN render");
-//}
-
 function toggleRayCastRender(showRays) {
     showRayCasts = showRays;
     console.log("toggling RayCasts render");
@@ -732,25 +714,124 @@ function updateSimulationNEAT(stageProperties) {
     physicsGranularityMultiplier = stageProperties.physicsGranularityMultipliers;
 }
 
-//function calculateFPS(p) {
-//    frameCountSinceLastFPS++;
-//    let currentTime = p.millis();
-//    if (currentTime - lastFPSCalculationTime > UIUpdateInterval) {
-//        displayedFPS = frameCountSinceLastFPS / (UIUpdateInterval / 1000); // Convert to frames per second
-//        frameCountSinceLastFPS = 0;
-//        lastFPSCalculationTime = currentTime;
-//    }
-//}
+function initializeAgentsBox2DNEAT(agentProperties, populationGenomes) {
+    limbsPerAgent = agentProperties.numLimbs; // To be replaced
+    torque = agentProperties.musculeTorque; // To be replaced
+    MAX_ADJUSTMENT = agentProperties.maxJointSpeed;  // To be replaced
+    jointMaxMove = agentProperties.maxJointMoveDivider;  // To be replaced
+    brainDecay = agentProperties.brainDecayOverTime;
+    inputsJointAngle = agentProperties.inputJointAngle;  // To be replaced
+    inputsJointSpeed = agentProperties.inputJointSpeed;  // To be replaced
+    inputsAgentPos = agentProperties.inputAgentPos;  // To be replaced
+    inputsAgentV = agentProperties.inputAgentV;  // To be replaced
+    inputsScore = agentProperties.inputScore;  // To be replaced
+    inputsOrientation = agentProperties.inputOrientation;  // To be replaced
+    inputsTimeRemaining = agentProperties.inputTimeRemaining;  // To be replaced
+    inputsGroundSensors = agentProperties.inputGroundSensors;  // To be replaced
+    inputsDistanceSensors = agentProperties.inputDistanceSensors;  // To be replaced
+    agentMutationRate = agentProperties.offspringMutationRate; 
+    outputJointSpeed = agentProperties.outputsJointSpeed;
+    outputJointTorque = agentProperties.outputsJointTorque;
+    outputBias = agentProperties.outputsBias;
+    swimStrengthMultiplier = agentProperties.swimStrength;
+    swimBiasMultiplier = agentProperties.swimBias; 
+
+    genCount = 1;
+    simulationStarted = false;
+    isInitializationComplete = false;
+
+    // If the world is already initialized, clean up the previous state
+    if (world) {
+        // Clear references to bodies and joints
+        for (let agent of agents) {
+            // Destroy the joints first
+            for (let joint of agent.joints) {
+                if (joint) { // Check if joint exists and is in the world
+                    world.destroyJoint(joint);
+                }
+            }
+
+            //// Destroy the limbs
+            //for (let limb of agent.limbs) {
+            //    if (limb) { // Check if body exists and is in the world
+            //        world.destroyBody(limb);
+            //    }
+            //}
+
+            //// Destroy the main body
+            //if (agent.mainBody) {
+            //    world.destroyBody(agent.mainBody);
+            //}
+
+            agent.joints = [];
+            agent.limbs = [];
+            agent.mainBody = null;
+        }
+    }
+
+    // Calculate the number of groups
+    numGroups = Math.max(1, Math.ceil(popSize / MAX_GROUP_SIZE));
+    let agentsPerGroup = Math.ceil(popSize / numGroups);
+
+    // Adjust if the population is too small
+    if (popSize <= MIN_GROUP_SIZE) {
+        numGroups = 1;
+        agentsPerGroup = popSize;
+    }
+
+    agents = [];  // Reset the agents array
+    currentProcess = "Initializing first generation!";
+    console.log(populationGenomes);
+    // Initialize agents in batches
+    if (Array.isArray(populationGenomes) && populationGenomes.length === popSize) {
+        for (let i = 0; i < popSize; i += BATCH_SIZE) {
+            initializeAgentBatchNEAT(i, Math.min(i + BATCH_SIZE, popSize), agentsPerGroup, populationGenomes);
+        }
+    } else {
+        console.log("Issue with population genomes");
+    }
+
+    waitForFirstInitializationCompletion();
+
+    displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
+}
+
+// Function to initialize a batch of agents
+function initializeAgentBatchNEAT(startIndex, endIndex, agentsPerGroup, populationGenomes) {
+    for (let i = startIndex; i < endIndex; i++) {
+        initializeAgentNEAT(i, agentsPerGroup, populationGenomes[i]);
+    }
+}
+
+
+// Function to initialize a single agent
+function initializeAgentNEAT(i, agentsPerGroup, genome) {
+    setTimeout(() => {
+        // Using genome properties to initialize the agent
+        let agent = new AgentNEAT(genome, i);
+
+        let randomAngle = -Math.random() * Math.PI / 2;
+        agent.mainBody.setAngle(randomAngle);
+        agent.group = Math.floor(i / agentsPerGroup);
+        agents.push(agent);
+
+        if (agents.length >= popSize - 1) {
+            isInitializationComplete = true;
+        }
+    }, i * delay);
+}
 
 //this agent will do for now, but I intend to replace with with a dynamic body plan that can 'evolve' over time.
 //I think a JSON file defining a series of body and limb shapes, possibly with limbs connected to limbs etc
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and exolving complexity based on randomness and fitness might work.
-function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
-    this.numLimbs = numLimbs;
-    this.index = agentNo;
+function AgentNEAT(genome, agentNo, existingBrain = null) {
+    this.genome = genome;
+    this.numLimbs = genome.bodyPlan.limbs.length;
+    this.numSegments = genome.bodyPlan.bodySegments.length + 1; // +1 for the main body
+    this.index = genome.metadata.agentIndex;
     this.group = null;
     // console.log("a new agent, index: " + this.index);
-    let mainBodyRadius = 20;
+    let mainBodyRadius = genome.bodyPlan.mainBody.size;
     const locationBatchSize = 20;
     this.startingX = 200 + (Math.floor(this.index / locationBatchSize) * 5000);
     // let startingX = 100;
@@ -798,19 +879,25 @@ function AgentNEAT(numLimbs, agentNo, existingBrain = null) {
 
     let nnConfig;
 
+    const angleIncrement = 2 * Math.PI / this.numLimbs;
+
     for (let i = 0; i < this.numLimbs; i++) {
-        let angle = (i * 2 * Math.PI) / this.numLimbs;
+        const angle = i * angleIncrement;
+
+        let cosAngle = Math.cos(angle);
+        let sinAngle = Math.sin(angle);
+
         // let limbX = this.startingX + Math.cos(angle) * (mainBodyRadius + limbLength);
-        let limbX = this.startingX + Math.cos(angle) * (mainBodyRadius + this.limbLength);
-        let limbY = this.startingY + Math.sin(angle) * (mainBodyRadius + this.limbLength);
+        let limbX = this.startingX + cosAngle * (mainBodyRadius + this.limbLength);
+        let limbY = this.startingY + sinAngle * (mainBodyRadius + this.limbLength);
 
         let limb = createLimb(world, limbX, limbY, this.limbWidth, this.limbLength, angle - Math.PI / 2, agentNo, i);
         this.limbs.push(limb);
 
         // Calculate local anchor for bodyA (main body)
         let localAnchorA = planck.Vec2(
-            mainBodyRadius * Math.cos(angle),
-            mainBodyRadius * Math.sin(angle)
+            mainBodyRadius * cosAngle,
+            mainBodyRadius * sinAngle
         );
 
         // Calculate local anchor for bodyB (limb) before rotation
@@ -1141,131 +1228,6 @@ function createMainBodyNEAT(world, x, y, radius, agentNo) {
 //    return world.createJoint(planck.RevoluteJoint(jointDef, bodyA, bodyB));
 //}
 
-function initializeAgentsBox2DNEAT(agentProperties) {
-    limbsPerAgent = agentProperties.numLimbs;
-    torque = agentProperties.musculeTorque;
-    MAX_ADJUSTMENT = agentProperties.maxJointSpeed;
-    jointMaxMove = agentProperties.maxJointMoveDivider;
-    brainDecay = agentProperties.brainDecayOverTime;
-    inputsJointAngle = agentProperties.inputJointAngle;
-    inputsJointSpeed = agentProperties.inputJointSpeed;
-    inputsAgentPos = agentProperties.inputAgentPos;
-    inputsAgentV = agentProperties.inputAgentV;
-    inputsScore = agentProperties.inputScore;
-    inputsOrientation = agentProperties.inputOrientation;
-    inputsTimeRemaining = agentProperties.inputTimeRemaining;
-    inputsGroundSensors = agentProperties.inputGroundSensors;
-    agentMutationRate = agentProperties.offspringMutationRate;
-    swimStrengthMultiplier = agentProperties.swimStrength;
-    inputsDistanceSensors = agentProperties.inputDistanceSensors;
-    swimBiasMultiplier = agentProperties.swimBias;
-    outputJointSpeed = agentProperties.outputsJointSpeed;
-    outputJointTorque = agentProperties.outputsJointTorque;
-    outputBias = agentProperties.outputsBias;
-
-    genCount = 1;
-    simulationStarted = false;
-    isInitializationComplete = false;
-
-    // If the world is already initialized, clean up the previous state
-    if (world) {
-        // Clear references to bodies and joints
-        for (let agent of agents) {
-            // Destroy the joints first
-            for (let joint of agent.joints) {
-                if (joint) { // Check if joint exists and is in the world
-                    world.destroyJoint(joint);
-                }
-            }
-
-            //// Destroy the limbs
-            //for (let limb of agent.limbs) {
-            //    if (limb) { // Check if body exists and is in the world
-            //        world.destroyBody(limb);
-            //    }
-            //}
-
-            //// Destroy the main body
-            //if (agent.mainBody) {
-            //    world.destroyBody(agent.mainBody);
-            //}
-
-            agent.joints = [];
-            agent.limbs = [];
-            agent.mainBody = null;
-        }
-    }
-
-    // Calculate the number of groups
-    numGroups = Math.max(1, Math.ceil(popSize / MAX_GROUP_SIZE));
-    let agentsPerGroup = Math.ceil(popSize / numGroups);
-
-    // Adjust if the population is too small
-    if (popSize <= MIN_GROUP_SIZE) {
-        numGroups = 1;
-        agentsPerGroup = popSize;
-    }
-
-    agents = [];  // Reset the agents array
-    currentProcess = "Initializing first generation!";
-    // Initialize agents in batches
-    for (let i = 0; i < popSize; i += BATCH_SIZE) {
-        initializeAgentBatchNEAT(i, Math.min(i + BATCH_SIZE, popSize), agentsPerGroup);
-    }
-
-    waitForFirstInitializationCompletion();
-
-    displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
-}
-
-// Function to initialize a batch of agents
-function initializeAgentBatchNEAT(startIndex, endIndex, agentsPerGroup) {
-    for (let i = startIndex; i < endIndex; i++) {
-        initializeAgentNEAT(i, agentsPerGroup);
-    }
-}
-
-// Function to initialize a single agent
-function initializeAgentNEAT(i, agentsPerGroup) {
-    setTimeout(() => {
-        // let randLimbsPerAgent = 1 + Math.random() * 9;
-        let agent = new AgentNEAT(limbsPerAgent, i);
-        let randomAngle = -Math.random() * Math.PI / 2; // Random angle between 0 and -PI/2
-        agent.mainBody.setAngle(randomAngle);
-        // console.log("initializeAgent, making agent: ", i);
-        agent.group = Math.floor(i / agentsPerGroup);  // Assign group
-        agents.push(agent);
-       // If this is the last agent, mark initialization as complete
-        if (agents.length >= popSize - 1) {
-            isInitializationComplete = true;
-        }
-    }, i * delay);
-}
-
-//function waitForFirstInitializationCompletion() {
-//    // Check if agents initialised
-//    if (isInitializationComplete) {
-//        // Randomly select agents to render for each group
-//        randomlySelectedAgents = [];
-//        for (let groupId = 0; groupId < numGroups; groupId++) {
-//            let groupAgents = agents.filter(agent => agent.group === groupId);
-
-//            // Select few random agents
-//            for (let i = 0; i < renderedAgents; i++) {
-//                let randomIndex = Math.floor(Math.random() * groupAgents.length);
-//                randomlySelectedAgents.push(groupAgents[randomIndex]);
-//                // console.log("adding random agent to render list, group: " + groupId);
-//            }
-//        }
-
-//        offsetX = 0;
-
-//    } else {
-//        // If the agents not initialised, wait for some time and check again
-//        setTimeout(waitForFirstInitializationCompletion, 100); // Checking every 100ms
-//    }
-//}
-
 function getLeadingAgentNEAT(frameCounter) {
     if (agents.length === 0) return null;
 
@@ -1289,25 +1251,6 @@ function getLeadingAgentNEAT(frameCounter) {
 
     }
 
-    // Shuffle the leadingAgents array
-    //function shuffleArray(array) {
-
-    //    // Truncate randomlySelectedAgents to keep initialised picks
-    //    randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * renderedAgents);
-
-    //    for (let i = array.length - 1; i > 0; i--) {
-    //        const j = Math.floor(Math.random() * (i + 1));
-    //        [array[i], array[j]] = [array[j], array[i]];
-    //    }
-
-    //    // Push the shuffled leading agents to randomlySelectedAgents
-    //    randomlySelectedAgents.push(...leadingAgents);
-    //}
-    //if (frameCounter % 100 === 0) {
-    //    shuffleArray(leadingAgents);
-    //}
-
-
     return agents.reduce((leading, agent) =>
         (((agent.position.x - agent.startingX) + (1 - agent.position.y - agent.startingY)) > ((leading.position.x - leading.startingX) + (1 - leading.position.y - leading.startingY)) ? agent : leading),
         agents[0]
@@ -1322,14 +1265,6 @@ function getLastAgentNEAT() {
         agents[0]
     );
 }
-
-//function getHighestScore() {
-//    if (agents.length === 0) return null;
-
-//    agents.sort((a, b) => parseFloat(b.getScore(false)[0]) - parseFloat(a.getScore(false)[0]));
-
-//    return agents[0];
-//}
 
 function endSimulationNEAT(p) {
     // p.noLoop();
@@ -1632,13 +1567,13 @@ function nextGenerationNEAT(p) {
         return bTotal - aTotal;
     });
 
-    // agents.sort((a, b) => parseFloat(b.getScore()[0]) - parseFloat(a.getScore()[0]));
-
     //console.log("Top Agents this round!");
     //for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
     //    console.log(agents[i].index);
     //}
+
     currentProcess = "Starting selection process!";
+
     for (let groupId = 0; groupId < numGroups; groupId++) {
 
         groupAgents = agents.filter(agent => agent.group === groupId); // Filter agents of this group
@@ -1673,105 +1608,13 @@ function nextGenerationNEAT(p) {
     genCount++;
 }
 
-// Get the average weights accross the network.
-//function calculateAllAverageDistances() {
-//    let numAgents = agents.length;
-//    if (numAgents === 0) {
-//        throw new Error("No agents to calculate average weights");
-//    }
-
-//    let firstAgentWeights = agents[0].brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
-//    let averageWeights = new Array(firstAgentWeights.length).fill(0);
-
-//    agents.forEach(agent => {
-//        let agentWeights = agent.brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
-
-//        if (agentWeights.length !== firstAgentWeights.length) {
-//            throw new Error("Agents have neural networks of different sizes");
-//        }
-
-//        for (let i = 0; i < agentWeights.length; i++) {
-//            averageWeights[i] += agentWeights[i];
-//        }
-//    });
-
-//    for (let i = 0; i < averageWeights.length; i++) {
-//        averageWeights[i] /= numAgents;
-//    }
-
-//    return averageWeights;
-//}
-
-// Function to calculate the Euclidean distance of an agent's weights and biases to the population's average
-//function distanceToAverage(agent, averageWeights) {
-//    let agentWeights = agent.brain.getWeights().flatMap(tensor => Array.from(tensor.dataSync()));
-
-//    if (agentWeights.length !== averageWeights.length) {
-//        throw new Error("Agent has neural network of different size compared to population average");
-//    }
-
-//    let sum = 0;
-//    for (let i = 0; i < agentWeights.length; i++) {
-//        sum += Math.pow(agentWeights[i] - averageWeights[i], 2);
-//    }
-
-//    return Math.sqrt(sum);
-//}
-
-//// Update the mutation rate if NN's converge
-//function updateMutationRate(oldRate, averageBrain) {
-//    currentProcess = "Altering mutation rate if agents brains converge!";
-//    let stdDevDistance = stdDevDistanceToAverageBrain(agents, averageBrain);
-
-//    // Check if stdDevDistance is non-zero to avoid division by zero
-//    if (stdDevDistance > 0) {
-//        // Set the rate as the inverse of stdDevDistance, scaled by 1/40
-//        newRate = 0.025 / stdDevDistance;
-
-//        // Clamp the rate to be within [0.1, 0.4].  Should find a way to replace 0.1 with the users selection
-//        newRate = Math.min(0.4, Math.max(0.1, newRate));
-//    } else {
-//        // If stdDevDistance is zero, it means all agents are identical, 
-//        // so set a high mutation rate to increase diversity
-//        newRate = 0.4;
-//    }
-
-//    console.log("Updated Mutation Rate: ", newRate, "Deviation Between Brains: ", stdDevDistance);
-//    return newRate;
-//}
-
-//function stdDevDistanceToAverageBrain(allAgents, averageBrain) {
-//    let distances = [];
-//    let numAgents = allAgents.length;
-//    let avgDistance = averageDistanceToAverageBrain(allAgents, averageBrain);
-
-//    allAgents.forEach(agent => {
-//        let distance = distanceToAverage(agent, averageBrain);
-//        distances.push(Math.pow(distance - avgDistance, 2));
-//    });
-
-//    let sum = distances.reduce((a, b) => a + b, 0);
-//    return Math.sqrt(sum / numAgents);
-//}
-
-//function averageDistanceToAverageBrain(allAgents, averageBrain) {
-//    let sumDistance = 0;
-//    let numAgents = allAgents.length;
-
-//    allAgents.forEach(agent => {
-//        sumDistance += distanceToAverage(agent, averageBrain);
-//    });
-
-//    return sumDistance / numAgents;
-//}
-
 // Create top performers for the next generation
 function createTopPerformersNEAT(groupAgents, topPerformersCount, newAgents) {
     currentProcess = "Keeping top performers!";
     for (let j = 0; j < topPerformersCount; j++) {
         let oldAgent = groupAgents[j];
         usedIndices.add(oldAgent.index);
-        let newAgent = new AgentNEAT(oldAgent.numLimbs, oldAgent.index, oldAgent.brain);
+        let newAgent = new AgentNEAT(oldAgent.genome, oldAgent.index, oldAgent.brain);
         let randomAngle = -Math.random() * Math.PI / 2;
         newAgent.mainBody.setAngle(randomAngle);
         newAgent.group = oldAgent.group;
@@ -1792,12 +1635,15 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, to
             let currentGroupAgents = newAgents.filter(agent => agent.group === groupId).length;
             let numToCreate = Math.min(BATCH_SIZE, groupAgents.length - currentGroupAgents);
             for (let i = 0; i < numToCreate; i++) {
+
+                // Currently using the same selection, crossover and mutation functions as old genetic algorithm, but they will need re-doing for NEAT
                 let parent1 = selectAgent(groupAgents, agents);
                 let parent2 = selectAgentWeighted(groupAgents, agents, parent1);
 
                 // let childBrain = crossover(parent1, parent2);
                 let childBrain = biasedArithmeticCrossover(parent1, parent2);
 
+                // Code to update mutation rate commented for now as highly inefficient. It was adding 10 seconds + to the start of each round.
                 // childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
 
                 // childBrain = mutate(childBrain, this.mutationRate);
@@ -1816,7 +1662,7 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, to
                 }
 
                 usedIndices.add(agentIndex);  // Mark this index as used
-                let childAgent = new AgentNEAT(parent1.numLimbs, agentIndex);
+                let childAgent = new AgentNEAT(parent1.genome, agentIndex);
                 let randomAngle = -Math.random() * Math.PI / 2;
                 childAgent.mainBody.setAngle(randomAngle);
                 // console.log("generateOffspring, making agent: ", agentIndex);
@@ -1836,257 +1682,6 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, to
 
     createChildAgentBatch(0);
 }
-
-//function selectAgent(agents, allAgents, excludedAgent = null) {
-//    // Occasionally pick from the entire population
-//    if (Math.random() < CROSS_GROUP_PROBABILITY) {
-//        agents = allAgents;
-//    }
-
-//    // Tournament Selection
-//    let tournamentContestants = [];
-
-//    for (let i = 0; i < TOURNAMENT_SIZE; i++) {
-//        let randomAgent;
-//        do {
-//            randomAgent = agents[Math.floor(Math.random() * agents.length)];
-//        } while (tournamentContestants.includes(randomAgent) || randomAgent === excludedAgent);
-//        tournamentContestants.push(randomAgent);
-//    }
-
-//    // Return the agent with the highest score from the tournament contestants
-//    return tournamentContestants.sort((a, b) => b.getScore(true) - a.getScore(true))[0];
-//}
-
-//function selectAgentWeighted(agentsLocal, allAgents, excludedAgent = null) {
-//    // Occasionally pick from the entire population
-//    if (Math.random() < CROSS_GROUP_PROBABILITY) {
-//        agentsLocal = allAgents;
-//    }
-
-//    let normalizedScores = [];
-//    let minScore = Math.min(...agentsLocal.map(agent => agent.getScore(true)));
-
-//    // Ensure all scores are positive
-//    let offsetScore = minScore < 0 ? Math.abs(minScore) : 0;
-
-//    let cumulativeSum = 0;
-//    for (let agent of agentsLocal) {
-//        if (agent !== excludedAgent) {
-//            let score = agent.getScore(true) + offsetScore;
-//            cumulativeSum += score;
-//            normalizedScores.push(cumulativeSum);
-//        }
-//    }
-
-//    let randomValue = Math.random() * cumulativeSum;
-//    // If the random value is greater than the current iterated score, take that agent
-//    for (let i = 0; i < normalizedScores.length; i++) {
-//        if (randomValue <= normalizedScores[i]) {
-//            return agentsLocal[i];
-//        }
-//    }
-//    // Should not reach here, but just in case
-//    return agentsLocal[0];
-//}
-
-
-//function crossover(agent1, agent2) {
-//    let childBrain = createNeuralNetwork(agent1.nnConfig);
-//    let newWeights = tf.tidy(() => {
-//        let agent1Weights = agent1.brain.getWeights();
-//        let agent2Weights = agent2.brain.getWeights();
-//        let newWeightList = [];
-//        for (let i = 0; i < agent1Weights.length; i++) {
-
-//            let weight1 = agent1Weights[i];
-//            let weight2 = agent2Weights[i];
-//            let shape = weight1.shape;
-//            let values1 = weight1.dataSync();
-//            let values2 = weight2.dataSync();
-//            let newValues = [];
-//            for (let j = 0; j < values1.length; j++) {
-//                if (Math.random() < 0.5) {
-//                    newValues[j] = values1[j];
-//                } else {
-//                    newValues[j] = values2[j];
-//                }
-//            }
-//            let newWeight = tf.tensor(newValues, shape);
-//            newWeightList.push(newWeight);
-//        }
-//        return newWeightList;
-//    });
-
-//    childBrain.setWeights(newWeights);
-//    newWeights.forEach(weight => weight.dispose()); // Dispose of these tensors manually.  Might not need as well as tf.tidy
-//    return childBrain;
-//}
-
-//function biasedArithmeticCrossover(agent1, agent2) {
-//    let childBrain = createNeuralNetwork(agent1.nnConfig);
-
-//    let score1 = agent1.getScore(true)
-//    let xScore1 = parseFloat(score1[0]);
-
-//    let score2 = agent1.getScore(true)
-//    let xScore2 = parseFloat(score2[0]);
-
-//    let totalScore = xScore1 + xScore2;
-
-//    // Normalize scores to get the bias for each parent.
-//    let alpha = xScore1 / totalScore;
-//    let beta = 1 - alpha; // or agent2.score / totalScore
-
-//    let newWeights = tf.tidy(() => {
-//        let agent1Weights = agent1.brain.getWeights();
-//        let agent2Weights = agent2.brain.getWeights();
-//        let newWeightList = [];
-//        for (let i = 0; i < agent1Weights.length; i++) {
-//            let weight1 = agent1Weights[i];
-//            let weight2 = agent2Weights[i];
-//            let newWeightValues = tf.add(tf.mul(weight1, alpha), tf.mul(weight2, beta));
-//            newWeightList.push(newWeightValues);
-//        }
-//        return newWeightList;
-//    });
-
-//    childBrain.setWeights(newWeights);
-//    newWeights.forEach(weight => weight.dispose()); // Dispose of these tensors manually. Might not need as well as tf.tidy
-//    return childBrain;
-//}
-
-//// Some persentage of weights in a network should be changed by a random amount betwee -0.05 and 0.05
-//function mutate(childBrain, mutationRate) {
-//    tf.tidy(() => {
-//        function mutateValues(values) {
-//            for (let i = 0; i < values.length; i++) {
-//                if (Math.random() < mutationRate) {
-//                    let adjustment = (Math.random() - 0.5) * 0.1;  // Adjust by max +/- 0.05
-//                    values[i] += adjustment;
-//                }
-//            }
-//        }
-//        let originalWeights = childBrain.getWeights();
-//        let mutatedWeights = originalWeights.map(w => {
-//            let values = w.arraySync();
-//            mutateValues(values);
-//            return tf.tensor(values);
-//        });
-
-//        childBrain.setWeights(mutatedWeights);
-//        // Just dispose of mutatedWeights since originalWeights tensors have not been cloned or changed
-//        mutatedWeights.forEach(w => w.dispose());
-//    });
-//    return childBrain; // Return the mutated childBrain
-//}
-
-//// Gaussian version of my mutate function, allowing for small randomised changes to weights
-//function gaussianMutation(childBrain, mutationRate) {
-//    let stdDeviation = 0.1;
-//    tf.tidy(() => {
-//        function mutateValues(values) {
-//            // Handle nested arrays (2D, 3D, ...)
-//            if (Array.isArray(values[0])) {
-//                for (let i = 0; i < values.length; i++) {
-//                    mutateValues(values[i]);
-//                }
-//            } else {
-//                // 1D array
-//                for (let i = 0; i < values.length; i++) {
-//                    if (Math.random() < mutationRate) {
-//                        let adjustment = randomGaussian(0, stdDeviation);
-//                        values[i] += adjustment;
-//                    }
-//                }
-//            }
-//        }
-
-//        function randomGaussian(mean, sd) {
-//            // Using the Box-Muller transform to get a Gaussian random number
-//            let u1 = Math.random();
-//            let u2 = Math.random();
-//            let randStdNormal = Math.sqrt(-2.0 * Math.log(u1)) * Math.sin(2.0 * Math.PI * u2);
-//            return mean + sd * randStdNormal;
-//        }
-
-//        let originalWeights = childBrain.getWeights();
-//        let mutatedWeights = originalWeights.map(w => {
-//            let values = w.arraySync();
-//            mutateValues(values);
-//            return tf.tensor(values);
-//        });
-
-//        childBrain.setWeights(mutatedWeights);
-//        // Just dispose of mutatedWeights since originalWeights tensors have not been cloned or changed
-//        mutatedWeights.forEach(w => w.dispose());
-//    });
-//    return childBrain; // Return the mutated childBrain
-//}
-
-//// If enabled, decay all weights in the brain by a small multiplier to encourage new solutions to emerge.  Might make this selective, or remove already low values completely (pruning)
-//function decayWeights(brain, decayRate = 0.0001) {
-//    return tf.tidy(() => {
-//        let agentWeights = brain.getWeights();
-//        let newWeights = [];
-
-//        for (let tensor of agentWeights) {
-//            let decayedTensor = tensor.mul(tf.scalar(1.0 - decayRate));
-//            newWeights.push(decayedTensor);
-//        }
-
-//        brain.setWeights(newWeights);
-//        return brain;
-//    });
-//}
-
-
-
-//// Recursive function checking if agents have finished loading into world
-//function waitForInitializationCompletion(newAgents) {
-//    // Check if the condition is met
-//    if (newAgents.length >= popSize) {
-//        currentProcess = "New agents added to world!";
-
-//        // Get a list of brains in the new generation
-//        let newBrains = newAgents.map(agent => agent.brain);
-
-//        isInitializationComplete = true;
-//        // Dispose old agents
-//        agents.forEach(agent => {
-//            // Dispose the brain only if it's not being reused in the new generation
-//            if (!newBrains.includes(agent.brain) && agent.brain) {
-//                agent.brain.dispose();
-//            }
-//        });
-
-//        agents = newAgents;
-
-//        // Randomly select agents to render for each group
-//        randomlySelectedAgents = [];
-//        for (let groupId = 0; groupId < numGroups; groupId++) {
-
-//            // Re-filter by group
-//            groupAgents = agents.filter(agent => agent.group === groupId);
-
-//            // Select few random agents
-//            for (let i = 0; i < renderedAgents; i++) {
-//                let randomIndex = Math.floor(Math.random() * groupAgents.length);
-//                randomlySelectedAgents.push(groupAgents[randomIndex]);
-//                // console.log("adding random agent to render list, group: " + groupId);
-//            }
-//        }
-
-//        console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
-//        console.log("Number of bodies:", world.getBodyCount());
-//        console.log("Number of joints:", world.getJointCount());
-//        offsetX = 0;
-
-//    } else {
-//        // If the condition is not met, wait for some time and check again
-//        setTimeout(() => waitForInitializationCompletion(newAgents), 100); // Checking every 100ms for example
-//    }
-//}
 
 function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTracker) {
     let layerGap = 100; // horizontal space between layers
@@ -2139,13 +1734,6 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
         }
     }
 
-    // + displayedTimeLeft.toFixed(0)
-    // `Time Left: ${displayedTimeLeft.toFixed(0)} seconds`
-
-    //if (frameTracker % 30 === 0) {
-
-    // outputLabels = Array(nnConfig.outputNodes).fill(null).map((_, idx) => `Joint ${idx + 1}`);
-
     if (outputJointSpeed) {
         outputLabels = outputLabels.concat(Array(agent.numLimbs).fill(null).map((_, idx) => `Joint ${idx + 1}`));
     }
@@ -2163,7 +1751,6 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
 
     allBiasesTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 1);
     allBiases = allBiasesTensors.flatMap(tensor => Array.from(tensor.dataSync()));
-    //}
 
     let currentWeightIndex = 0;
     let currentBiasIndex = 0;
@@ -2273,18 +1860,6 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
     }
     p.strokeWeight(1); // Reset the default stroke weight
 }
-
-//function mapWeightToStroke(weight) {
-//    let base = 7;  // High base power to emphasise stronger connections
-//    let scaledWeight = Math.abs(weight);
-
-//    // Using Math.pow to apply an exponential scale. 
-//    return Math.pow(scaledWeight, base) * 400;
-//}
-
-//function mapBiasToNodeSize(bias) {
-//    return 10 + Math.abs(bias) * 75; // 10 is base size, adjusting based on bias
-//}
 
 AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
     return tf.tidy(() => {
@@ -2429,12 +2004,9 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
         }
     }
 
-
-
     // console.log("agent inputs: position: ", (position.x - this.startingX) / MAX_X, position.y / MAX_Y, "Velocity: ", velocity.x / MAX_VX, velocity.y / MAX_VY, this.mainBody.getAngle() / Math.PI, displayedTimeLeft / MAX_TIME)
     return inputs;
 };
-
 
 AgentNEAT.prototype.updateMusclesNEAT = function () {
     let inputs = this.collectInputsNEAT();

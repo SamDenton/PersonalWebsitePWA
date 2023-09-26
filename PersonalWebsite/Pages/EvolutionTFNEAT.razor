@@ -1,7 +1,7 @@
 ﻿@page "/EvolutionTFNEAT"
 @inject IJSRuntime JSRuntime
 
-<h2>Genetic Evolution Simulation</h2>
+<h2>Semi-NEAT Genetic Evolution Simulation</h2>
 <p>You will get the best results with more agents, and higher muscle update frequencies, it will take some fiddling with performance settings to get a stable frame rate, with the highest values possible</p>
 <p>Beta product, please be patient. This works on mobile, but I recommend very low settings</p>
 <div id="canvas-container-NEAT"></div>
@@ -364,6 +364,7 @@
     <div class="simDescription">
         <h3>Some Explenation</h3>
         <p>This is my take on a NEAT genetic evolution simulation.  For the best results, target a high value for 'Agents Per Batch of Joint Updates' a low value for 'Delay Between Batch of Joint Updates' and a high value for 'Number of Agents'</p>
+        <p>I would describe this as 'Semi-NEAT' since I have restriction on what network shapes can evolve.  This is due to TensorFlow.JS's restriction to static models, where a full NEAT implementation requires dynamic models, and more control over connections</p>
         @*<p>The default values result in 100 agents, where each agent can move update its muscle speeds about 2-3 times a second</p>
         <p>Resetting/updating is a little buggy, its currently best to close and reopen the page if you want to try new settings</p>
         <p>Showing the Neural Network on screen adds a fair amount of lag</p>
@@ -401,6 +402,7 @@
     private AgentProperties agentProperties = new AgentProperties();
     public bool box2dPhysics { get; set; } = true;
     private bool showAdvancedSettings = true;
+    public List<Genome> population = new List<Genome>();
 
     public class StageProperties
     {
@@ -462,8 +464,9 @@
 
     private async Task ResetSimulation()
     {
+        await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);
     }
 
     private async Task toggleNN()
@@ -502,28 +505,41 @@
         await UpdateSimulation();
     }
 
+    public async Task InitializePopulation(int populationSize)
+    {
+        for (int i = 0; i < populationSize; i++)
+        {
+            Genome genome = new Genome();
+            genome.Metadata.AgentIndex = i;
+            // Further initialization if needed.
+            population.Add(genome);
+        }
+    }
+
     // Starting to think about implementing NEAT and encoding agent properties within a Genome:
 
     public class Genome
     {
-        public List<NodeGene> NodeGenes { get; set; }
-        public List<ConnectionGene> ConnectionGenes { get; set; }
-        public Dictionary<string, int> BrainShape { get; set; }
-        public List<int> InnovationLog { get; set; }
+        public List<InputLayerGene> InputLayerGenes { get; set; }
+        public List<LayerGene> LayerGenes { get; set; }
+        public List<OutputLayerGene> OutputLayerGenes { get; set; }
+        // public List<InnovationEntry> InnovationLog { get; set; }
         public BodyPlan BodyPlan { get; set; }
-        public Dictionary<string, string> AgentHistory { get; set; }
-        public Dictionary<string, double> Hyperparameters { get; set; }
+        public Dictionary<string, string> Stats { get; set; }
+        public AgentHistory AgentHistory { get; set; }
+        public Hyperparameters Hyperparameters { get; set; }
         public Metadata Metadata { get; set; }
 
         public Genome()
         {
             // Initialize properties with defaults or random values.
-            this.NodeGenes = new List<NodeGene>();
-            this.ConnectionGenes = new List<ConnectionGene>();
-            this.InnovationLog = new List<int>();
+            this.InputLayerGenes = new List<InputLayerGene>();
+            this.LayerGenes = new List<LayerGene>();
+            this.OutputLayerGenes = new List<OutputLayerGene>();
+            // this.InnovationLog = new List<InnovationEntry>();
             this.BodyPlan = new BodyPlan();
-            this.AgentHistory = new Dictionary<string, string> { { "bestScore", "0" }, { "roundsSurvived", "0" } };
-            this.Hyperparameters = new Dictionary<string, double> { { "learningRate", 0.01 }, { "mutationRate", 0.1 } };
+            this.AgentHistory = new AgentHistory();
+            this.Hyperparameters = new Hyperparameters();
             this.Metadata = new Metadata();
         }
     }
@@ -545,6 +561,7 @@
     public class JointConstraints
     {
         public double MaxSpeed { get; set; }
+        public double MinAngle { get; set; }
         public double MaxAngle { get; set; }
     }
 
@@ -560,10 +577,17 @@
     public class Limb
     {
         public string Shape { get; set; }
-        public double Size { get; set; }
+        public double Length { get; set; }
+        public double Width { get; set; }
         public double StartingAngle { get; set; }
         public AttachmentPoint Attachment { get; set; }
         public JointConstraints Constraints { get; set; }
+
+        public Limb()
+        {
+            this.Attachment = new AttachmentPoint();
+            this.Constraints = new JointConstraints();
+        }
     }
 
     public class BodyPlan
@@ -578,57 +602,173 @@
             this.MainBody = new MainBody { Shape = "Circle", Size = 20.0 };
             this.BodySegments = new List<BodySegment>();
             this.Limbs = new List<Limb>();
+
+            // Mimic existing body plan
+            Limb limb1 = new Limb();
+            limb1.Shape = "Rectangle";
+            limb1.Length = 40.0;
+            limb1.Width = 10.0;
+            limb1.StartingAngle = 0.0;
+            limb1.Attachment.X = 20.0;
+            limb1.Attachment.Y = 0.0;
+            this.Limbs.Add(limb1);
+
+            Limb limb2 = new Limb();
+            limb2.Shape = "Rectangle";
+            limb2.Length = 40.0;
+            limb2.Width = 10.0;
+            limb2.StartingAngle = 2 * Math.PI / 3;
+            limb2.Attachment.X = -10.0;
+            limb2.Attachment.Y = -16.6;
+            this.Limbs.Add(limb2);
+
+            Limb limb3 = new Limb();
+            limb3.Shape = "Rectangle";
+            limb3.Length = 40.0;
+            limb3.Width = 10.0;
+            limb3.StartingAngle = 2 * 2 * Math.PI / 3;
+            limb3.Attachment.X = -10.0;
+            limb3.Attachment.Y = 16.6;
+            this.Limbs.Add(limb3);
         }
     }
+
+    // Encode the agents history into the genome:
+
+    public class AgentHistory
+    {
+        public int BestScore { get; set; }
+        public int RoundsSurvived { get; set; }
+
+        public AgentHistory()
+        {
+            // Initialize properties with defaults.
+            this.BestScore = 0;
+            this.RoundsSurvived = 0;
+        }
+    }
+
+    public class Hyperparameters
+    {
+        public double LearningRate { get; set; }
+        public double MutationRate { get; set; }
+
+        public Hyperparameters()
+        {
+            // Initialize properties with defaults or random values.
+            this.LearningRate = 0.01;
+            this.MutationRate = 0.1;
+        }
+    }
+
+    // Encode the agents Inovation History into the genome:
+
+    // public class InnovationEntry
+    // {
+    //     // This needs some thinking about
+    //     public int InnovationNumber { get; set; }
+    //     public MutationType MutationType { get; set; } // "AddNode", "AddLayer", etc.
+    //     public int? FromNodeID { get; set; } // Source node ID for new connections
+    //     public int? ToNodeID { get; set; }   // Destination node ID for new connections
+    //     public int? NewNodeID { get; set; }  // Node ID for newly added nodes
+
+    //     public InnovationEntry(int number, MutationType type, int? fromNode = null, int? toNode = null, int? newNode = null)
+    //     {
+    //         this.InnovationNumber = number;
+    //         this.MutationType = type;
+    //         this.FromNodeID = fromNode;
+    //         this.ToNodeID = toNode;
+    //         this.NewNodeID = newNode;
+    //     }
+
+    // }
+
+    // public enum MutationType
+    // {
+    //     AddNode,
+    //     AddConnection,
+    //     RemoveNode,
+    //     RemoveConnection,
+    //     // ...other types
+    // }
+
 
     // Encode agents name and species into metadata:
 
     public class Metadata
     {
         public string AgentName { get; set; }
+        public int AgentIndex { get; set; }
         public string GroupName { get; set; }
         public string Species { get; set; }
-        // ... Any other properties you want to track
+        public int Fitness { get; set; }
+        public int CompatabilityDistance { get; set; }
+        // ... 
 
         public Metadata()
         {
-            // Initialize with default values, or leave them null
+            // Initialize with default values, or leave them null.  Should maybe have these as parameters in the call
             this.AgentName = "Unnamed"; // Set randomly on initialisation, unique to an agent
+            this.AgentIndex = 0; // Set randomly on initialisation, unique to an agent
             this.GroupName = "DefaultGroup"; // set randomly on initialisation, the same for all agents in a populaton
             this.Species = "Unspecified"; // set randomly on initialisation, same for agents in the same spicies.  might need to set this later after distinct spicies groups form.
+            this.Fitness = 0; // Set to 0 on initialisation, updated after each round
+            this.CompatabilityDistance = 0; // Set to 0 on initialisation, updated after each round
         }
     }
 
-    public class NodeGene
+    public class InputLayerGene
     {
-        public int NodeID { get; set; }
-        public string NodeType { get; set; }  // "input", "hidden", "output"
-        public int? HiddenLayerIndex { get; set; }  // null for non-hidden nodes, 0 for first hidden layer, 1 for second, etc.
+        public int LayerID { get; set; }
+        public int NumberOfNeurons { get; set; }
+        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
+        public List<String> Inputs { get; set; }
 
-        public NodeGene(int id, string type, int? hiddenLayerIndex = null)
+        public InputLayerGene()
         {
-            this.NodeID = id;
-            this.NodeType = type;
-            this.HiddenLayerIndex = hiddenLayerIndex;
+            // List inputs
+            this.Inputs = new List<String>();
         }
     }
 
-    public class ConnectionGene
+    public class LayerGene
     {
-        public int InputNode { get; set; }
-        public int OutputNode { get; set; }
-        public double Weight { get; set; }
-        public bool Enabled { get; set; }
-        public int Innovation { get; set; }
+        public int LayerID { get; set; }
+        public LayerType LayerType { get; set; }  // "Dense", "Conv", "LSTM", etc.
+        public int NumberOfNeurons { get; set; }
+        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
 
-        public ConnectionGene(int inputNode, int outputNode, double weight, bool enabled, int innovation)
+        // ...other layer-related properties
+    }
+
+    public class OutputLayerGene
+    {
+        public int LayerID { get; set; }
+        public int NumberOfNeurons { get; set; }
+        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
+        public List<String> Inputs { get; set; }
+
+        public OutputLayerGene()
         {
-            this.InputNode = inputNode;
-            this.OutputNode = outputNode;
-            this.Weight = weight;
-            this.Enabled = enabled;
-            this.Innovation = innovation;
+            // List inputs
+            this.Inputs = new List<String>();
         }
+    }
+
+    public enum LayerType
+    {
+        Dense,
+        Convolutional,
+        LSTM,
+        // ...other types
+    }
+
+    public enum ActivationType
+    {
+        ReLU,
+        Sigmoid,
+        Tanh,
+        // ...other types
     }
 }
 
