@@ -791,7 +791,7 @@ function initializeAgentsBox2DNEAT(agentProperties, populationGenomes) {
         console.log("Issue with population genomes");
     }
 
-    waitForFirstInitializationCompletion();
+    waitForFirstInitializationCompletionNEAT(populationGenomes);
 
     displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
 }
@@ -821,17 +821,41 @@ function initializeAgentNEAT(i, agentsPerGroup, genome) {
     }, i * delay);
 }
 
+function waitForFirstInitializationCompletionNEAT(populationGenomes) {
+    // Check if agents initialised
+    if (isInitializationComplete) {
+        // Randomly select agents to render for each group
+        randomlySelectedAgents = [];
+        for (let groupId = 0; groupId < numGroups; groupId++) {
+            let groupAgents = agents.filter(agent => agent.group === groupId);
+
+            // Select few random agents
+            for (let i = 0; i < renderedAgents; i++) {
+                let randomIndex = Math.floor(Math.random() * groupAgents.length);
+                randomlySelectedAgents.push(groupAgents[randomIndex]);
+                // console.log("adding random agent to render list, group: " + groupId);
+            }
+        }
+        populationGenomes = [];
+        offsetX = 0;
+
+    } else {
+        // If the agents not initialised, wait for some time and check again
+        setTimeout(waitForFirstInitializationCompletion, 100); // Checking every 100ms
+    }
+}
+
 //this agent will do for now, but I intend to replace with with a dynamic body plan that can 'evolve' over time.
 //I think a JSON file defining a series of body and limb shapes, possibly with limbs connected to limbs etc
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and exolving complexity based on randomness and fitness might work.
-function AgentNEAT(genome, agentNo, existingBrain = null) {
-    this.genome = genome;
-    this.numLimbs = genome.bodyPlan.limbs.length;
-    this.numSegments = genome.bodyPlan.bodySegments.length + 1; // +1 for the main body
-    this.index = genome.metadata.agentIndex;
+function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
+    this.genome = JSON.parse(JSON.stringify(agentGenome)); // Deep copy of genome
+    this.numLimbs = this.genome.bodyPlan.limbs.length;
+    this.numSegments = this.genome.bodyPlan.bodySegments.length + 1; // +1 for the main body
+    this.index = this.genome.metadata.agentIndex;
     this.group = null;
     // console.log("a new agent, index: " + this.index);
-    let mainBodyRadius = genome.bodyPlan.mainBody.size;
+    let mainBodyRadius = this.genome.bodyPlan.mainBody.size;
     const locationBatchSize = 20;
     this.startingX = 200 + (Math.floor(this.index / locationBatchSize) * 5000);
     // let startingX = 100;
@@ -911,12 +935,11 @@ function AgentNEAT(genome, agentNo, existingBrain = null) {
         this.joints.push(joint);
     }
 
-    // Give the agent a brain!
-    this.nnConfig = nnConfig || new NeuralNetworkConfigNEAT(this.numLimbs);
+    // Use the genome to give the agent a brain!
     if (existingBrain) {
         this.brain = existingBrain;
     } else {
-        this.brain = createNeuralNetworkNEAT(this.nnConfig);
+        this.brain = createNeuralNetworkNEAT(this.genome);
     }
 
     this.weightPenaltyCache = null;
@@ -1487,57 +1510,51 @@ function createWall(x, y, width, height, angle = 0) {
 
 /*            Neural Network Functions                     */
 
-function NeuralNetworkConfigNEAT(numLimbs) {
-    // Calculate the total number of input nodes
-    this.inputNodes = 0;
-    if (inputsJointAngle) this.inputNodes += numLimbs;
-    if (inputsJointSpeed) this.inputNodes += numLimbs;
-    if (inputsGroundSensors) this.inputNodes += numLimbs;
-    if (inputsAgentPos) this.inputNodes += 2;
-    if (inputsAgentV) this.inputNodes += 2;
-    if (inputsScore) this.inputNodes += 1;
-    if (inputsOrientation) this.inputNodes += 1;
-    if (inputsTimeRemaining) this.inputNodes += 1;
-    if (inputsDistanceSensors) this.inputNodes += 4;
-
-    // Configure the rest of the neural network
-    this.hiddenLayers = [{ nodes: 20, activation: 'relu' }, { nodes: 15, activation: 'relu' }, { nodes: 10, activation: 'relu' }];
-
-    this.outputNodes = 0;
-    if (outputJointSpeed) this.outputNodes += numLimbs;
-    if (outputJointTorque) this.outputNodes += numLimbs;
-    if (outputBias) this.outputNodes += numLimbs;
-
-    this.mutationRate = 0.01;
-    //this.mutationRate = Math.random();  // A random mutation rate between 0 and 1
-}
-
-function createNeuralNetworkNEAT(config) {
+function createNeuralNetworkNEAT(genome) {
     const model = tf.sequential();
 
     // Input layer
-    model.add(tf.layers.dense({
-        units: config.hiddenLayers[0].nodes,
-        activation: config.hiddenLayers[0].activation,
-        inputShape: [config.inputNodes],
+    const inputLayer = tf.layers.dense({
+        units: genome.inputLayerGenes[0].numberOfNeurons,
+        activation: activationTypeToString(genome.inputLayerGenes[0].activationType),
+        inputShape: [genome.inputLayerGenes[0].inputs.length],
         biasInitializer: 'randomNormal',  // bias initializer
         kernelInitializer: 'heNormal'  // weight initializer
-    }));
+    });
+    model.add(inputLayer);
+    let weightsBiases = inputLayer.getWeights();
+    genome.inputLayerGenes[0].biases = weightsBiases[1].arraySync(); // Save biases to genome
 
     // Hidden layers
-    for (let i = 0; i < config.hiddenLayers.length; i++) {
-        model.add(tf.layers.dense({
-            units: config.hiddenLayers[i].nodes,
-            activation: config.hiddenLayers[i].activation,
+    for (let i = 0; i < genome.layerGenes.length; i++) {
+        const layer = tf.layers.dense({
+            units: genome.layerGenes[i].numberOfNeurons,
+            activation: activationTypeToString(genome.layerGenes[i].activationType),
             biasInitializer: 'randomNormal',  // bias initializer
             kernelInitializer: 'heNormal'  // weight initializer
-        }));
+        });
+        model.add(layer);
+        weightsBiases = layer.getWeights();
+        genome.layerGenes[i].weights = weightsBiases[0].arraySync(); // Save weights to genome
+        genome.layerGenes[i].biases = weightsBiases[1].arraySync(); // Save biases to genome
     }
 
     // Output layer
-    model.add(tf.layers.dense({ units: config.outputNodes, activation: 'tanh' }));
-
+    const outputLayer = tf.layers.dense({
+        units: genome.outputLayerGenes[0].numberOfNeurons,
+        activation: activationTypeToString(genome.outputLayerGenes[0].activationType)
+    });
+    model.add(outputLayer);
+    weightsBiases = outputLayer.getWeights();
+    genome.outputLayerGenes[0].weights = weightsBiases[0].arraySync(); // Save weights to genome
+    genome.outputLayerGenes[0].biases = weightsBiases[1].arraySync(); // Save biases to genome
+    // console.log(genome);
     return model;
+}
+
+function activationTypeToString(type) {
+    const types = ["relu", "sigmoid", "tanh"]; // add other types as needed
+    return types[type];
 }
 
 function nextGenerationNEAT(p) {
@@ -1550,15 +1567,18 @@ function nextGenerationNEAT(p) {
     createMaps(randMap);
 
     // calculate average network 'pattern'
-    let averageBrain = calculateAllAverageDistances();
+    // Will need to create a NEAT version of calculateAllAverageDistances to handle different brain shapes
+    // let averageBrain = calculateAllAverageDistances();
 
     // Sort in descending order of score, including the bonus for being different from the average.
     agents.sort((a, b) => {
         const aScore = a.getScore(true)[0];
         const bScore = b.getScore(true)[0];
-        const aDistance = distanceToAverage(a, averageBrain[a.group]) / 100;
-        const bDistance = distanceToAverage(b, averageBrain[b.group]) / 100;
-
+        // Will need to create a NEAT version of distanceToAverage to handle different brain shapes
+        // const aDistance = distanceToAverage(a, averageBrain[a.group]) / 100;
+        // const bDistance = distanceToAverage(b, averageBrain[b.group]) / 100;
+        const aDistance = 0;
+        const bDistance = 0;
         // Adjust the score with the distance to the average brain
         const aTotal = aScore + aDistance ** 2 * 1;
         const bTotal = bScore + bDistance ** 2 * 1;
@@ -1585,7 +1605,7 @@ function nextGenerationNEAT(p) {
         createTopPerformersNEAT(groupAgents, topPerformersCount, newAgents);
 
         // Generate offspring within the group
-        generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, topPerformersCount);
+        generateOffspringNEAT(groupAgents, newAgents, groupId, topPerformersCount);
     }
 
     waitForInitializationCompletion(newAgents);
@@ -1623,7 +1643,7 @@ function createTopPerformersNEAT(groupAgents, topPerformersCount, newAgents) {
 }
 
 // Function to generate offspring for the next generation
-function generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, topPerformerNumber) {
+function generateOffspringNEAT(groupAgents, newAgents, groupId, topPerformerNumber) {
     currentProcess = "Creating offspring from weighted random parents!";
     function createChildAgentBatch(startIndex) {
         if (newAgents.filter(agent => agent.group === groupId).length >= groupAgents.length) {
@@ -1641,17 +1661,18 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, to
                 let parent2 = selectAgentWeighted(groupAgents, agents, parent1);
 
                 // let childBrain = crossover(parent1, parent2);
-                let childBrain = biasedArithmeticCrossover(parent1, parent2);
+                let childGenome = biasedArithmeticCrossoverNEAT(parent1, parent2);
 
                 // Code to update mutation rate commented for now as highly inefficient. It was adding 10 seconds + to the start of each round.
                 // childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
 
                 // childBrain = mutate(childBrain, this.mutationRate);
-                childBrain = gaussianMutation(childBrain, agentMutationRate);
+
+                childGenome = mutateGenome(childGenome, agentMutationRate, 0.1, 0.1);
 
                 // Decay all weights in the brain by a small amount
                 if (brainDecay) {
-                    childBrain = decayWeights(childBrain);
+                    childGenome = decayWeights(childGenome);
                 }
 
                 let agentIndex = 0;
@@ -1662,13 +1683,12 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, to
                 }
 
                 usedIndices.add(agentIndex);  // Mark this index as used
-                let childAgent = new AgentNEAT(parent1.genome, agentIndex);
+                let childAgent = new AgentNEAT(childGenome, agentIndex);
                 let randomAngle = -Math.random() * Math.PI / 2;
                 childAgent.mainBody.setAngle(randomAngle);
                 // console.log("generateOffspring, making agent: ", agentIndex);
 
-                childAgent.brain.dispose();
-                childAgent.brain = childBrain;
+                // childAgent.brain.dispose();
                 childAgent.group = groupId; // Assign group
                 newAgents.push(childAgent);
             }
@@ -1683,7 +1703,279 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, averageBrain, to
     createChildAgentBatch(0);
 }
 
-function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTracker) {
+function biasedArithmeticCrossoverNEAT(agent1, agent2) {
+
+    genome1 = agent1.genome;
+    genome2 = agent2.genome;
+
+    let score1 = agent1.getScore(true);
+    let TScore1 = parseFloat(score1[0]);
+
+    let score2 = agent2.getScore(true);
+    let TScore2 = parseFloat(score2[0]);
+
+    let totalScore = TScore1 + TScore2;
+
+    if (Math.abs(totalScore) < 1e-5) {
+        return genome1;
+    }
+
+    let alpha = TScore1 / totalScore;
+    let beta = TScore2 / totalScore;
+
+    // Choose the dominant genome based on the score and deep copy it to serve as the base for the child genome
+    let dominantGenome = (TScore1 > TScore2) ? genome1 : genome2;
+    console.log("old", dominantGenome);
+    let childGenome = JSON.parse(JSON.stringify(dominantGenome)); // Now creating childGenome right away
+
+    // If brain is still standard shape, add a new node to a random layer for testing
+    // if (childGenome.layerGenes[0].biases.length == 15 && childGenome.layerGenes[1].biases.length == 10) {
+    //    let randomLayerIndex = Math.floor(Math.random() * childGenome.layerGenes.length);
+    //    let randomLayer = childGenome.layerGenes[randomLayerIndex];
+    //    randomLayer.biases.push(Math.random());  // add a random bias for the new node
+    //    randomLayer.numberOfNeurons++;
+
+    //    // Add a new weight for the new node in each array in the current layer's weights
+    //    randomLayer.weights.forEach(weightArray => {
+    //        weightArray.push(Math.random());  // add a new weight for the new node
+    //    });
+
+    //    // If it's not the last hidden layer, add a new weight array in the next layer
+    //    if (randomLayerIndex < childGenome.layerGenes.length - 1) {
+    //        let nextLayer = childGenome.layerGenes[randomLayerIndex + 1];
+    //        let newWeightArraySize = nextLayer.biases.length; // size equal to the number of nodes in the next layer
+    //        nextLayer.weights.push(Array(newWeightArraySize).fill(0).map(() => Math.random()));
+    //    }
+    //    // If it's the last hidden layer, add a new weight in the output layer for the new node
+    //    else {
+    //        childGenome.outputLayerGenes[0].weights.forEach(weightArray => {
+    //            weightArray.push(Math.random());
+    //        });
+    //    }
+    //// }
+
+    //// Assume a 20% chance to add a new layer at the end
+    //if (Math.random() < 0.2) {
+    //    // Create a new layer
+    //    let newLayer = {
+    //        biases: [Math.random()], // initialize with one neuron
+    //        weights: [], // initialize with no weights
+    //        numberOfNeurons: 1
+    //    };
+
+    //    // Add new weights for each neuron in the last existing hidden layer
+    //    let lastLayer = childGenome.layerGenes[childGenome.layerGenes.length - 1];
+    //    lastLayer.weights.forEach(weightArray => {
+    //        newLayer.weights.push([Math.random()]);  // add a new weight for each neuron in last layer
+    //    });
+
+    //    // Add the new layer to the genome
+    //    childGenome.layerGenes.push(newLayer);
+
+    //    // Add a new weight array in the output layer for the new layer
+    //    let newWeightArraySize = childGenome.outputLayerGenes[0].biases.length; // size equal to the number of nodes in the output layer
+    //    childGenome.outputLayerGenes[0].weights.push(Array(newWeightArraySize).fill(0).map(() => Math.random()));
+    //}
+
+    console.log("New", childGenome);
+    // 5% chance to perform random crossover (currently disabled)
+    if (Math.random() < 0.00) {
+        // thinking about adding a small chance for child to be a ranom merge of parents rather than dominated by one
+    }
+
+    // Input Layer
+    for (let j = 0; j < childGenome.inputLayerGenes[0].biases.length; j++) {
+        if (genome1.inputLayerGenes[0].biases[j] !== undefined && genome2.inputLayerGenes[0].biases[j] !== undefined) {
+            childGenome.inputLayerGenes[0].biases[j] = (alpha * genome1.inputLayerGenes[0].biases[j]) + (beta * genome2.inputLayerGenes[0].biases[j]);
+        }
+    }
+
+    // Hidden Layers
+    let maxLayers = Math.max(childGenome.layerGenes.length, genome1.layerGenes.length, genome2.layerGenes.length);
+    for (let i = 0; i < maxLayers; i++) {
+        if (genome1.layerGenes[i] !== undefined && genome2.layerGenes[i] !== undefined) {
+            // If both genomes have this layer, perform crossover
+            for (let j = 0; j < (childGenome.layerGenes[i].weights.length || 0); j++) {
+                for (let k = 0; k < (childGenome.layerGenes[i].weights[j].length || 0); k++) {
+                    if (genome1.layerGenes[i].weights[j] !== undefined && genome2.layerGenes[i].weights[j] !== undefined
+                        && genome1.layerGenes[i].weights[j][k] !== undefined && genome2.layerGenes[i].weights[j][k] !== undefined) {
+                        childGenome.layerGenes[i].weights[j][k] = (alpha * genome1.layerGenes[i].weights[j][k]) + (beta * genome2.layerGenes[i].weights[j][k]);
+                    }
+                }
+                if (genome1.layerGenes[i].biases[j] !== undefined && genome2.layerGenes[i].biases[j] !== undefined) {
+                    childGenome.layerGenes[i].biases[j] = (alpha * genome1.layerGenes[i].biases[j]) + (beta * genome2.layerGenes[i].biases[j]);
+                }
+            }
+        } else if (dominantGenome.layerGenes[i] !== undefined) {
+            // If only the dominant genome has this layer, copy it to the child
+            childGenome.layerGenes[i] = JSON.parse(JSON.stringify(dominantGenome.layerGenes[i]));
+        }
+    }
+
+    // Output Layer
+    for (let j = 0; j < (childGenome.outputLayerGenes[0].weights.length || 0); j++) {
+        for (let k = 0; k < (childGenome.outputLayerGenes[0].weights[j].length || 0); k++) {
+            if (genome1.outputLayerGenes[0].weights[j] !== undefined && genome2.outputLayerGenes[0].weights[j] !== undefined
+                && genome1.outputLayerGenes[0].weights[j][k] !== undefined && genome2.outputLayerGenes[0].weights[j][k] !== undefined) {
+                childGenome.outputLayerGenes[0].weights[j][k] = (alpha * genome1.outputLayerGenes[0].weights[j][k]) + (beta * genome2.outputLayerGenes[0].weights[j][k]);
+            }
+        }
+        if (genome1.outputLayerGenes[0].biases[j] !== undefined && genome2.outputLayerGenes[0].biases[j] !== undefined) {
+            childGenome.outputLayerGenes[0].biases[j] = (alpha * genome1.outputLayerGenes[0].biases[j]) + (beta * genome2.outputLayerGenes[0].biases[j]);
+        }
+    }
+
+    return childGenome;
+}
+
+function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate) {
+    let stdDeviation = 0.1;
+
+    function mutateValues(values) {
+        if (Array.isArray(values[0])) {
+            // Handle nested arrays (2D, ...)
+            for (let i = 0; i < values.length; i++) {
+                mutateValues(values[i]);
+            }
+        } else {
+            // 1D array
+            for (let i = 0; i < values.length; i++) {
+                if (Math.random() < mutationRate) {
+                    let adjustment = randomGaussian(0, stdDeviation);
+                    values[i] += adjustment;
+                }
+            }
+        }
+    }
+
+    function randomGaussian(mean, sd) {
+        let u1 = Math.random();
+        let u2 = Math.random();
+        let randStdNormal = Math.sqrt(-2.0 * Math.log(u1)) * Math.sin(2.0 * Math.PI * u2);
+        return mean + sd * randStdNormal;
+    }
+
+    // Mutate Input Layer Biases
+    mutateValues(genome.inputLayerGenes[0].biases);
+
+    // Mutate Hidden Layers Weights and Biases
+    for (let i = 0; i < genome.layerGenes.length; i++) {
+        for (let j = 0; j < genome.layerGenes[i].weights.length; j++) {
+            mutateValues(genome.layerGenes[i].weights[j]);
+        }
+        mutateValues(genome.layerGenes[i].biases);
+    }
+
+    // Mutate Output Layer Weights and Biases
+    for (let j = 0; j < genome.outputLayerGenes[0].weights.length; j++) {
+        mutateValues(genome.outputLayerGenes[0].weights[j]);
+    }
+    mutateValues(genome.outputLayerGenes[0].biases);
+
+
+    // Node mutation (add or remove node)
+    if (Math.random() < nodeMutationRate) {
+        let randomLayerIndex = Math.floor(Math.random() * genome.layerGenes.length);
+        let randomLayer = genome.layerGenes[randomLayerIndex];
+        let randomNodeIndex = Math.floor(Math.random() * (randomLayer.biases.length + 1));
+
+        // decide to add or remove a node with equal probability
+        if (Math.random() < 0.5 || randomLayer.biases.length === 1) {
+            // Add a node
+            randomLayer.biases.splice(randomNodeIndex, 0, Math.random()); // add a random bias for the new node at random index
+
+            // Add a new weight for the new node in each array in the current layer's weights at random index
+            randomLayer.weights.forEach(weightArray => {
+                weightArray.splice(randomNodeIndex, 0, Math.random());
+            });
+
+            // If it's not the last hidden layer, add a new weight array in the next layer at random index
+            if (randomLayerIndex < genome.layerGenes.length - 1) {
+                let nextLayer = genome.layerGenes[randomLayerIndex + 1];
+                let newWeightArray = Array(nextLayer.biases.length).fill(0).map(() => Math.random());
+                nextLayer.weights.splice(randomNodeIndex, 0, newWeightArray);
+            }
+            // If it's the last hidden layer, add a new weight in the output layer for the new node at random index
+            else {
+                genome.outputLayerGenes[0].weights.forEach(weightArray => {
+                    weightArray.splice(randomNodeIndex, 0, Math.random());
+                });
+            }
+        } else {
+            // Remove a node
+            if (randomLayer.biases.length > 1) {
+                randomLayer.biases.splice(randomNodeIndex, 1); // remove a bias at random index
+
+                // Remove a weight for each array in the current layer's weights at random index
+                randomLayer.weights.forEach(weightArray => {
+                    weightArray.splice(randomNodeIndex, 1);
+                });
+
+                // If it's not the last hidden layer, remove a weight array in the next layer at random index
+                if (randomLayerIndex < genome.layerGenes.length - 1) {
+                    let nextLayer = genome.layerGenes[randomLayerIndex + 1];
+                    nextLayer.weights.splice(randomNodeIndex, 1);
+                }
+                // If it's the last hidden layer, remove a weight in the output layer for the new node at random index
+                else {
+                    genome.outputLayerGenes[0].weights.forEach(weightArray => {
+                        weightArray.splice(randomNodeIndex, 1);
+                    });
+                }
+            }
+        }
+    }
+
+    // Layer mutation (add or remove layer) Commented for now as I cant think of a way to maintain learned traits when adding or removing layers
+    //if (Math.random() < layerMutationRate) {
+    //    let randomLayerIndex = Math.floor(Math.random() * (genome.layerGenes.length + 1));
+
+    //    // Decide to add or remove a layer with equal probability
+    //    if (Math.random() < 0.5 || genome.layerGenes.length === 1) {
+    //        // Add a layer
+    //        let numOfNodes;
+    //        if (randomLayerIndex === 0) {
+    //            // If adding at the beginning
+    //            numOfNodes = genome.layerGenes[0].biases.length;
+    //        } else if (randomLayerIndex === genome.layerGenes.length) {
+    //            // If adding at the end
+    //            numOfNodes = genome.layerGenes[genome.layerGenes.length - 1].biases.length;
+    //        } else {
+    //            // If adding in the middle
+    //            numOfNodes = Math.round((genome.layerGenes[randomLayerIndex - 1].biases.length + genome.layerGenes[randomLayerIndex].biases.length) / 2);
+    //        }
+
+    //        let newLayer = {
+    //            biases: Array(numOfNodes).fill(0),
+    //            weights: [],
+    //        };
+
+    //        for (let i = 0; i < numOfNodes; i++) {
+    //            let newWeights = [];
+    //            for (let j = 0; j < genome.layerGenes[0].biases.length; j++) {
+    //                // Assuming a connection is broken into numOfNodes new connections
+    //                let oldWeight = genome.layerGenes[randomLayerIndex].weights[j]; // get the old weight
+    //                let newWeight = oldWeight / numOfNodes; // distribute the weight
+    //                newWeights.push(newWeight);
+    //            }
+    //            newLayer.weights.push(newWeights);
+    //        }
+
+    //        genome.layerGenes.splice(randomLayerIndex, 0, newLayer);
+
+    //    } else {
+    //        // Remove a layer
+    //        if (genome.layerGenes.length > 1) {
+    //            genome.layerGenes.splice(randomLayerIndex, 1);
+    //        }
+    //    }
+    //}
+
+    return genome;
+}
+
+
+function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
     let layerGap = 100; // horizontal space between layers
     let nodeGap = 30;   // vertical space between nodes
     let outputLabels = [];
@@ -1755,16 +2047,20 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
     let currentWeightIndex = 0;
     let currentBiasIndex = 0;
 
+    let hiddenLayers = agent.genome.layerGenes.length;
+    let inputNodes = agent.genome.inputLayerGenes[0].numberOfNeurons;
+    let outputNodes = agent.genome.outputLayerGenes[0].numberOfNeurons;
+
     // First, render all the connections (lines)
     let x = offsetX;
-    for (let i = 0; i < nnConfig.hiddenLayers.length + 2; i++) {
+    for (let i = 0; i < hiddenLayers + 2; i++) {
         let nodes = 0;
         if (i === 0) {
-            nodes = nnConfig.inputNodes;
-        } else if (i === nnConfig.hiddenLayers.length + 1) {
-            nodes = nnConfig.outputNodes;
+            nodes = inputNodes;
+        } else if (i === hiddenLayers + 1) {
+            nodes = outputNodes;
         } else {
-            nodes = nnConfig.hiddenLayers[i - 1].nodes;
+            nodes = agent.genome.layerGenes[i - 1].numberOfNeurons;
         }
 
         let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
@@ -1796,17 +2092,17 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
 
     // Then, render the nodes (on top of the lines)
     x = offsetX;
-    for (let i = 0; i < nnConfig.hiddenLayers.length + 2; i++) {
+    for (let i = 0; i < hiddenLayers + 2; i++) {
         let nodes = 0;
         let labels = [];
         if (i === 0) {
-            nodes = nnConfig.inputNodes;
+            nodes = inputNodes;
             labels = inputLabels;
-        } else if (i === nnConfig.hiddenLayers.length + 1) {
-            nodes = nnConfig.outputNodes;
+        } else if (i === hiddenLayers + 1) {
+            nodes = outputNodes;
             labels = outputLabels;
         } else {
-            nodes = nnConfig.hiddenLayers[i - 1].nodes;
+            nodes = agent.genome.layerGenes[i - 1].numberOfNeurons;
         }
 
         let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
@@ -1832,7 +2128,7 @@ function renderNeuralNetworkNEAT(p, nnConfig, agent, offsetX, offsetY, frameTrac
                 p.textSize(12);
                 if (i === 0) {
                     p.text(labels[j], x - 90, y + 4);
-                } else if (i === nnConfig.hiddenLayers.length + 1) {
+                } else if (i === hiddenLayers + 1) {
                     p.text(labels[j], x + 15, y + 4);
                     if (outputJointSpeed && agent.joints[j]) {
                         p.fill(JOINT_COLORS[j]);
@@ -2015,5 +2311,5 @@ AgentNEAT.prototype.updateMusclesNEAT = function () {
 };
 
 AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY, frameTracker) {
-    renderNeuralNetworkNEAT(p, this.nnConfig, this, offsetX, offsetY, frameTracker);
+    renderNeuralNetworkNEAT(p, this, offsetX, offsetY, frameTracker);
 };

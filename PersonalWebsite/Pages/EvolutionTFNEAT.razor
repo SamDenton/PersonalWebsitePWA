@@ -511,9 +511,114 @@
         {
             Genome genome = new Genome();
             genome.Metadata.AgentIndex = i;
-            // Further initialization if needed.
+
+            // Initialize genes, examples used for now, will be randomised once the constructor is complete
+            genome.InputLayerGenes.Add(InitializeInputLayer());
+            genome.LayerGenes.Add(InitializeLayer(1, 20)); 
+            genome.LayerGenes.Add(InitializeLayer(2, 10));  
+            genome.LayerGenes.Add(InitializeLayer(3, 5));
+            genome.OutputLayerGenes.Add(InitializeOutputLayer());
+            genome.BodyPlan = InitializeBodyPlan();
+
+            // Further initialization
+
             population.Add(genome);
         }
+    }
+
+    public async Task UploadExistingPopulation()
+    {
+        //foreach (Genome in UploadedGenomes)
+        //{
+        //    Genome genome = new Genome();
+        //    genome.Metadata.AgentIndex = i;
+
+        //    // Initialize genes, examples used for now, will be randomised once the constructor is complete
+        //    genome.InputLayerGenes.Add();
+        //    genome.LayerGenes.Add(); // First hidden layer with 10 neurons
+        //    genome.LayerGenes.Add();  // Second hidden layer with 5 neurons
+        //    genome.OutputLayerGenes.Add();
+        //    genome.BodyPlan = ;
+
+        //    // Further initialization
+
+        //    population.Add(genome);
+        //}
+    }
+
+    private InputLayerGene InitializeInputLayer()
+    {
+        return new InputLayerGene
+            {
+                NumberOfNeurons = 13, // 13 inputs
+                ActivationType = ActivationType.ReLU,
+                Inputs = Enumerable.Range(1, 13).ToList() // List of inputs from 1 to 9
+            };
+    }
+
+    private LayerGene InitializeLayer(int layerId, int numberOfNeurons)
+    {
+        return new LayerGene
+            {
+                LayerID = layerId,
+                LayerType = LayerType.Dense,
+                NumberOfNeurons = numberOfNeurons,
+                ActivationType = ActivationType.ReLU
+            };
+    }
+
+    private OutputLayerGene InitializeOutputLayer()
+    {
+        return new OutputLayerGene
+            {
+                NumberOfNeurons = 3, // 3 outputs
+                ActivationType = ActivationType.ReLU,
+                Outputs = Enumerable.Range(1, 3).ToList() // List of outputs from 1 to 3
+            };
+    }
+
+    private BodyPlan InitializeBodyPlan()
+    {
+
+        // Will make these values random later
+
+        BodyPlan bodyPlan = new BodyPlan
+            {
+                MainBody = new MainBody { Shape = "Circle", Size = 20.0 }
+            };
+
+        // Mimic existing body plan
+        Limb limb1 = new Limb
+            {
+                Shape = "Rectangle",
+                Length = 40.0,
+                Width = 10.0,
+                StartingAngle = 0.0,
+                Attachment = new AttachmentPoint { X = 20.0, Y = 0.0 }
+            };
+        bodyPlan.Limbs.Add(limb1);
+
+        Limb limb2 = new Limb
+            {
+                Shape = "Rectangle",
+                Length = 40.0,
+                Width = 10.0,
+                StartingAngle = 2 * Math.PI / 3,
+                Attachment = new AttachmentPoint { X = -10.0, Y = -16.6 }
+            };
+        bodyPlan.Limbs.Add(limb2);
+
+        Limb limb3 = new Limb
+            {
+                Shape = "Rectangle",
+                Length = 40.0,
+                Width = 10.0,
+                StartingAngle = 2 * 2 * Math.PI / 3,
+                Attachment = new AttachmentPoint { X = -10.0, Y = 16.6 }
+            };
+        bodyPlan.Limbs.Add(limb3);
+
+        return bodyPlan;
     }
 
     // Starting to think about implementing NEAT and encoding agent properties within a Genome:
@@ -599,37 +704,8 @@
         public BodyPlan()
         {
             // Initialize with default or random values
-            this.MainBody = new MainBody { Shape = "Circle", Size = 20.0 };
             this.BodySegments = new List<BodySegment>();
             this.Limbs = new List<Limb>();
-
-            // Mimic existing body plan
-            Limb limb1 = new Limb();
-            limb1.Shape = "Rectangle";
-            limb1.Length = 40.0;
-            limb1.Width = 10.0;
-            limb1.StartingAngle = 0.0;
-            limb1.Attachment.X = 20.0;
-            limb1.Attachment.Y = 0.0;
-            this.Limbs.Add(limb1);
-
-            Limb limb2 = new Limb();
-            limb2.Shape = "Rectangle";
-            limb2.Length = 40.0;
-            limb2.Width = 10.0;
-            limb2.StartingAngle = 2 * Math.PI / 3;
-            limb2.Attachment.X = -10.0;
-            limb2.Attachment.Y = -16.6;
-            this.Limbs.Add(limb2);
-
-            Limb limb3 = new Limb();
-            limb3.Shape = "Rectangle";
-            limb3.Length = 40.0;
-            limb3.Width = 10.0;
-            limb3.StartingAngle = 2 * 2 * Math.PI / 3;
-            limb3.Attachment.X = -10.0;
-            limb3.Attachment.Y = 16.6;
-            this.Limbs.Add(limb3);
         }
     }
 
@@ -719,15 +795,15 @@
 
     public class InputLayerGene
     {
-        public int LayerID { get; set; }
         public int NumberOfNeurons { get; set; }
         public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<String> Inputs { get; set; }
+        public List<double> Biases { get; set; }
+        public List<int> Inputs { get; set; }
 
         public InputLayerGene()
         {
             // List inputs
-            this.Inputs = new List<String>();
+            this.Inputs = new List<int>();
         }
     }
 
@@ -737,21 +813,24 @@
         public LayerType LayerType { get; set; }  // "Dense", "Conv", "LSTM", etc.
         public int NumberOfNeurons { get; set; }
         public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
+        public List<double> Weights { get; set; }
+        public List<double> Biases { get; set; }
 
         // ...other layer-related properties
     }
 
     public class OutputLayerGene
     {
-        public int LayerID { get; set; }
         public int NumberOfNeurons { get; set; }
         public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<String> Inputs { get; set; }
+        public List<double> Weights { get; set; }
+        public List<double> Biases { get; set; }
+        public List<int> Outputs { get; set; }
 
         public OutputLayerGene()
         {
             // List inputs
-            this.Inputs = new List<String>();
+            this.Outputs = new List<int>();
         }
     }
 

@@ -1499,7 +1499,7 @@ function mutate(childBrain, mutationRate) {
     return childBrain; // Return the mutated childBrain
 }
 
-// Gaussian version of my mutate function, allowing for small randomised changes to weights
+// Gaussian version of my mutate function, allowing for small randomised changes to weights within a normal distribution
 function gaussianMutation(childBrain, mutationRate) {
     let stdDeviation = 0.1;
     tf.tidy(() => {
