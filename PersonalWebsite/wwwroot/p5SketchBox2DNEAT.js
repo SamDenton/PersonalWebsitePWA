@@ -181,6 +181,10 @@ let sketchNEAT = function (p) {
                         agents[i].mainBody.setType('dynamic');
                         agents[i].updateMusclesNEAT();
 
+                        //for (let joint of agents[i].joints) {
+                        //    joint.setAngle(0);
+                        //}
+
                         if (i == 1) {
                             console.log("updating agent 1's muscles");
                         }
@@ -967,8 +971,12 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
         let totalChange = 0;
         for (let i = 0; i < this.joints.length; i++) {
             let currentAngle = this.joints[i].getJointAngle();
-            let change = Math.abs(currentAngle - this.previousJointAngles[i]);
-            totalChange += change;
+
+            // Now that I randomly change the agents starting angles, we need to only increment score after round starts
+            if (simulationStarted) {
+                let change = Math.abs(currentAngle - this.previousJointAngles[i]);
+                totalChange += change;
+            }
 
             // Update the previous angle for next time
             this.previousJointAngles[i] = currentAngle;
