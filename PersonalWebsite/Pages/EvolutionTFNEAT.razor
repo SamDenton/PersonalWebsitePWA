@@ -515,8 +515,8 @@
             // Initialize genes, examples used for now, will be randomised once the constructor is complete
             genome.InputLayerGenes.Add(InitializeInputLayer());
             genome.LayerGenes.Add(InitializeLayer(1, 20)); 
-            genome.LayerGenes.Add(InitializeLayer(2, 10));  
-            genome.LayerGenes.Add(InitializeLayer(3, 5));
+            genome.LayerGenes.Add(InitializeLayer(2, 15));  
+            genome.LayerGenes.Add(InitializeLayer(3, 10));
             genome.OutputLayerGenes.Add(InitializeOutputLayer());
             genome.BodyPlan = InitializeBodyPlan();
 
@@ -634,6 +634,9 @@
         public AgentHistory AgentHistory { get; set; }
         public Hyperparameters Hyperparameters { get; set; }
         public Metadata Metadata { get; set; }
+        public List<int> UsedWeightIDs { get; set; }
+        public List<int> UsedBiasIDs { get; set; }
+        public List<int> UsedLayerIDs { get; set; }
 
         public Genome()
         {
@@ -646,6 +649,9 @@
             this.AgentHistory = new AgentHistory();
             this.Hyperparameters = new Hyperparameters();
             this.Metadata = new Metadata();
+            this.UsedWeightIDs = new List<int>();
+            this.UsedBiasIDs = new List<int>();
+            this.UsedLayerIDs = new List<int>();
         }
     }
 

@@ -1062,7 +1062,7 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
         let XPosScore = Math.floor(this.furthestXPos - this.startingX) * 1;
         let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 1.2;
 
-        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 0.75; // Adjust multiplier if needed
+        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 5; // Adjust multiplier if needed
 
         let explorationReward = this.getExplorationReward() * 10;
 
@@ -1356,6 +1356,8 @@ function setupPlanckWorldNEAT() {
 function createMaps(mapNumber) {
     let startX = 200;
     let startY = 600;
+
+    mapNumber = 1;
 
     if (mapNumber == 0) {
         // Map starts agents in a channel with obsticles to get around, then opens up to free space
