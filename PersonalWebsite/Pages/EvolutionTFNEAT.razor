@@ -426,7 +426,7 @@
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 20;
         public int uiRefreshRate { get; set; } = 500;
-        public int muscleDelay { get; set; } = 2;
+        public int muscleDelay { get; set; } = 1;
         public int muscleBatch { get; set; } = 5;
         public int totalMuscleUpdateTime { get; set; } = 2;
         public int velocityIteration { get; set; } = 4;
@@ -572,7 +572,7 @@
         return new OutputLayerGene
             {
                 NumberOfNeurons = 3, // 3 outputs
-                ActivationType = ActivationType.ReLU,
+                ActivationType = ActivationType.Tanh,
                 Outputs = Enumerable.Range(1, 3).ToList() // List of outputs from 1 to 3
             };
     }
@@ -593,8 +593,9 @@
                 Shape = "Rectangle",
                 Length = 40.0,
                 Width = 10.0,
-                StartingAngle = 0.0,
-                Attachment = new AttachmentPoint { X = 20.0, Y = 0.0 }
+                StartingAngle = -Math.PI / 2,
+                Attachment = new AttachmentPoint { X = 20.0, Y = 0.0 },
+                Constraints = new JointConstraints { MaxTorque = 2.5, MinAngle = -2 * Math.PI / 3, MaxAngle = 2 * Math.PI / 3 }
             };
         bodyPlan.Limbs.Add(limb1);
 
@@ -603,8 +604,9 @@
                 Shape = "Rectangle",
                 Length = 40.0,
                 Width = 10.0,
-                StartingAngle = 2 * Math.PI / 3,
-                Attachment = new AttachmentPoint { X = -10.0, Y = -16.6 }
+                StartingAngle = 2 * Math.PI / 3 - Math.PI / 2,
+                Attachment = new AttachmentPoint { X = -10.0, Y = 16.6 },
+                Constraints = new JointConstraints { MaxTorque = 2.5, MinAngle = -2 * Math.PI / 3, MaxAngle = 2 * Math.PI / 3 }
             };
         bodyPlan.Limbs.Add(limb2);
 
@@ -613,8 +615,9 @@
                 Shape = "Rectangle",
                 Length = 40.0,
                 Width = 10.0,
-                StartingAngle = 2 * 2 * Math.PI / 3,
-                Attachment = new AttachmentPoint { X = -10.0, Y = 16.6 }
+                StartingAngle = 2 * 2 * Math.PI / 3 - Math.PI / 2,
+                Attachment = new AttachmentPoint { X = -10.0, Y = -16.6 },
+                Constraints = new JointConstraints { MaxTorque = 2.5, MinAngle = -2 * Math.PI / 3, MaxAngle = 2 * Math.PI / 3 }
             };
         bodyPlan.Limbs.Add(limb3);
 
@@ -671,7 +674,7 @@
 
     public class JointConstraints
     {
-        public double MaxSpeed { get; set; }
+        public double MaxTorque { get; set; }
         public double MinAngle { get; set; }
         public double MaxAngle { get; set; }
     }
@@ -691,6 +694,7 @@
         public double Length { get; set; }
         public double Width { get; set; }
         public double StartingAngle { get; set; }
+        public double SwimBias { get; set; }
         public AttachmentPoint Attachment { get; set; }
         public JointConstraints Constraints { get; set; }
 
@@ -719,26 +723,38 @@
 
     public class AgentHistory
     {
-        public int BestScore { get; set; }
-        public int RoundsSurvived { get; set; }
+        public List<ScoreHistory> ScoreHistory { get; set; }
+        public int RoundsAsTopPerformer { get; set; }
+        public int UsedAsParent { get; set; }
+        public List<String> Mutations { get; set; }
+        public List<double> RankInGroup { get; set; }
+        public List<double> RankInPop { get; set; }
 
         public AgentHistory()
         {
             // Initialize properties with defaults.
-            this.BestScore = 0;
-            this.RoundsSurvived = 0;
+            this.ScoreHistory = new List<ScoreHistory>();
+            this.RoundsAsTopPerformer = 0;
+            this.UsedAsParent = 0;
+            this.Mutations = new List<String>();
+            this.RankInGroup = new List<double>();
+            this.RankInPop = new List<double>();
         }
+    }
+
+    public class ScoreHistory
+    {
+        public double Score { get; set; }
+        public int Map { get; set; }
     }
 
     public class Hyperparameters
     {
-        public double LearningRate { get; set; }
         public double MutationRate { get; set; }
 
         public Hyperparameters()
         {
             // Initialize properties with defaults or random values.
-            this.LearningRate = 0.01;
             this.MutationRate = 0.1;
         }
     }
@@ -783,7 +799,7 @@
         public int AgentIndex { get; set; }
         public string GroupName { get; set; }
         public string Species { get; set; }
-        public int Fitness { get; set; }
+        public double BestScore { get; set; }
         public int CompatabilityDistance { get; set; }
         // ... 
 
@@ -794,7 +810,7 @@
             this.AgentIndex = 0; // Set randomly on initialisation, unique to an agent
             this.GroupName = "DefaultGroup"; // set randomly on initialisation, the same for all agents in a populaton
             this.Species = "Unspecified"; // set randomly on initialisation, same for agents in the same spicies.  might need to set this later after distinct spicies groups form.
-            this.Fitness = 0; // Set to 0 on initialisation, updated after each round
+            this.BestScore = 0; // Set to 0 on initialisation, updated after each round
             this.CompatabilityDistance = 0; // Set to 0 on initialisation, updated after each round
         }
     }
@@ -803,7 +819,7 @@
     {
         public int NumberOfNeurons { get; set; }
         public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<double> Biases { get; set; }
+        public List<Bias> Biases { get; set; }
         public List<int> Inputs { get; set; }
 
         public InputLayerGene()
@@ -819,8 +835,8 @@
         public LayerType LayerType { get; set; }  // "Dense", "Conv", "LSTM", etc.
         public int NumberOfNeurons { get; set; }
         public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<double> Weights { get; set; }
-        public List<double> Biases { get; set; }
+        public List<List<Weight>> Weights { get; set; }
+        public List<Bias> Biases { get; set; }
 
         // ...other layer-related properties
     }
@@ -829,14 +845,38 @@
     {
         public int NumberOfNeurons { get; set; }
         public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<double> Weights { get; set; }
-        public List<double> Biases { get; set; }
+        public List<List<Weight>> Weights { get; set; }
+        public List<Bias> Biases { get; set; }
         public List<int> Outputs { get; set; }
 
         public OutputLayerGene()
         {
             // List inputs
             this.Outputs = new List<int>();
+        }
+    }
+
+    public class Weight
+    {
+        public int ID { get; set; }
+        public double Value { get; set; }
+
+        public Weight(int id, double value)
+        {
+            ID = id;
+            Value = value;
+        }
+    }
+
+    public class Bias
+    {
+        public int ID { get; set; }
+        public double Value { get; set; }
+
+        public Bias(int id, double value)
+        {
+            ID = id;
+            Value = value;
         }
     }
 
