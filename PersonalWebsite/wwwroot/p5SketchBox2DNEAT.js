@@ -231,7 +231,7 @@ let sketchNEAT = function (p) {
 
             // Step the Planck world
             try {
-                //world.step(fixedTimeStep / 1000 * physicsGranularityMultiplier, velocityIterations, positionIterations);
+                world.step(fixedTimeStep / 1000 * physicsGranularityMultiplier, velocityIterations, positionIterations);
             } catch (error) {
                 console.error("An error occurred stepping physics simulation: ", error);
             }
@@ -577,8 +577,8 @@ function applySwimmingForce(agent) {
             let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
 
             // Calculate the point on the limb to apply the force
-            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(angle) * (agent.limbLength / 1);
-            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.limbLength / 1);
+            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(angle) * (agent.genome.bodyPlan.limbs[i].length / 1);
+            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.genome.bodyPlan.limbs[i].length / 1);
 
             let forceApplyPoint = planck.Vec2(forceApplyPointX, forceApplyPointY);
 
@@ -625,8 +625,8 @@ function applyJointDamping(agent) {
     // Damping on approaching joint limits
     for (let i = 0; i < agent.joints.length; i++) {
         let currentAngle = agent.joints[i].getJointAngle();
-        let angleDifferenceFromUpperLimit = agent.largestAngle - currentAngle;
-        let angleDifferenceFromLowerLimit = currentAngle - agent.smallestAngle;
+        let angleDifferenceFromUpperLimit = agent.genome.bodyPlan.limbs[i].constraints.maxAngle - currentAngle;
+        let angleDifferenceFromLowerLimit = currentAngle - agent.genome.bodyPlan.limbs[i].constraints.minAngle;
 
         let threshold = 0.5; // This is just an initial value, you might need to adjust it.
 
@@ -700,6 +700,17 @@ function initializeSketchBox2DNEAT(stageProperties) {
 function toggleRayCastRender(showRays) {
     showRayCasts = showRays;
     console.log("toggling RayCasts render");
+}
+
+function logGenomes() {
+    agents.sort((a, b) => parseFloat(b.getScore(false)[0]) - parseFloat(a.getScore(false)[0]))[0];
+    let genomes = [];
+    agents.forEach(agent => {
+        // add agent's genome to the genomes array
+        genomes.push(agent.genome);
+    });
+    // log the entire genomes array
+    console.log(genomes);
 }
 
 function updateSimulationNEAT(stageProperties) {
@@ -850,14 +861,14 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes) {
                 // console.log("adding random agent to render list, group: " + groupId);
             }
         }
-
+        populationGenomes = null;
         let tempPopulationGenomes = [];
         agents.forEach(agent => {
             // add agent's genome to the genomes array
             tempPopulationGenomes.push(agent.genome);
         });
         // log the entire genomes array
-        // console.log("re-building whole pop array from wach agents genome", tempPopulationGenomes);
+        console.log("re-building whole pop array from each agents genome", tempPopulationGenomes);
 
         //agents.forEach(agent => {
         //    logModelWeights(agent);
@@ -892,24 +903,18 @@ function logModelWeights(agent) {
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and exolving complexity based on randomness and fitness might work.
 function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
     this.genome = _.cloneDeep(agentGenome); // Deep copy of genome
-    console.log(this.genome);
+    // console.log(this.genome);
     agentGenome = null;
     this.numLimbs = this.genome.bodyPlan.limbs.length;
     this.numSegments = this.genome.bodyPlan.bodySegments.length + 1; // +1 for the main body
     this.index = this.genome.metadata.agentIndex;
     this.group = null;
-    // console.log("a new agent, index: " + this.index);
     let mainBodyRadius = this.genome.bodyPlan.mainBody.size;
     const locationBatchSize = 20;
     this.startingX = 200 + (Math.floor(this.index / locationBatchSize) * 5000);
-    // let startingX = 100;
     this.startingY = 600;
-    // this.jointMaxMove = maxJointMovement;  // Temporary
-    // this.agentMutationRateLocal = agentMutationRate; // Temporary
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
-    //    this.mainBody = createMainBody(world, this.startingX, startingY, mainBodyRadius, agentNo);
     this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
-    console.log("Main Body:", this.mainBody);
     this.position = this.mainBody.getPosition();
 
     this.rayCastPoints = [];
@@ -927,7 +932,6 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
     }
 
     this.limbs = [];
-    this.muscles = [];
     this.joints = [];
     this.biases = [];
 
@@ -935,14 +939,62 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
         this.biases.push(1.5);
     }
 
+    //for (let i = 0; i < this.numLimbs; i++) {
+    //    let limbGenome = this.genome.bodyPlan.limbs[i];
+    //    let limb = createLimbNEAT(world, limbGenome, agentNo);
+    //    this.limbs.push(limb);
+
+    //    let joint = createRevoluteJointNEAT(world, this.mainBody, limb, limbGenome);
+    //    this.joints.push(joint);
+    //}
+
+    // this.limbWidth = 10; // Example limb width
+    // this.limbLength = 40; // Example limb length
+    //this.smallestAngle;
+    //this.largestAngle;
+    //if (jointMaxMove != 0) {
+    //    this.smallestAngle = -(Math.PI / jointMaxMove);
+    //    this.largestAngle = Math.PI / jointMaxMove;
+    //} else {
+    //    this.smallestAngle = 360;
+    //    this.largestAngle = 360;
+    //}
+
+    const angleIncrement = 2 * Math.PI / this.numLimbs;
+
     for (let i = 0; i < this.numLimbs; i++) {
-        let limbGenome = this.genome.bodyPlan.limbs[i];
-        let limb = createLimbNEAT(world, limbGenome, this.startingX, this.startingY, mainBodyRadius, agentNo, i);
-        console.log("Limb:", limb);
+        // const angle = i * angleIncrement;
+        const angle = this.genome.bodyPlan.limbs[i].startingAngle;
+
+        let cosAngle = Math.cos(angle);
+        let sinAngle = Math.sin(angle);
+
+        //let limbX = this.startingX + cosAngle * (mainBodyRadius + this.genome.bodyPlan.limbs[i].length);
+        //let limbY = this.startingY + sinAngle * (mainBodyRadius + this.genome.bodyPlan.limbs[i].length);
+
+        //console.log("Comparing old position values: ", limbX, limbY, i * angleIncrement, " With new values: ", this.startingX + this.genome.bodyPlan.limbs[i].attachment.x, this.startingY + this.genome.bodyPlan.limbs[i].attachment.y, this.genome.bodyPlan.limbs[i].startingAngle)
+
+        let limbX = this.startingX + this.genome.bodyPlan.limbs[i].attachment.x;
+        let limbY = this.startingY + this.genome.bodyPlan.limbs[i].attachment.y;
+
+        let limb = createLimbNEAT(world, limbX, limbY, this.genome.bodyPlan.limbs[i].length, this.genome.bodyPlan.limbs[i].width, angle - Math.PI / 2, agentNo, i);
         this.limbs.push(limb);
 
-        let joint = createRevoluteJointNEAT(world, this.mainBody, limb, limbGenome);
-        console.log("Joint:", joint);
+        //// Calculate local anchor for bodyA (main body)
+        //let localAnchorA = planck.Vec2(
+        //    mainBodyRadius * cosAngle,
+        //    mainBodyRadius * sinAngle
+        //);
+
+        let localAnchorA = planck.Vec2(
+            this.genome.bodyPlan.limbs[i].attachment.x,
+            this.genome.bodyPlan.limbs[i].attachment.y
+        );
+
+        // Calculate the point after rotation
+        let localAnchorB = planck.Vec2(0, -this.genome.bodyPlan.limbs[i].length / 2);
+
+        let joint = createRevoluteJointNEAT(world, this.mainBody, limb, localAnchorA, localAnchorB, this.genome.bodyPlan.limbs[i].constraints.minAngle, this.genome.bodyPlan.limbs[i].constraints.maxAngle);
         this.joints.push(joint);
     }
 
@@ -1082,12 +1134,12 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
         }
 
         // If the agent has made new progress in the x or y direction, update the furthest position.
-        let XPosScore = Math.floor(this.furthestXPos - this.startingX) * 1;
-        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 1.2;
+        let XPosScore = Math.floor(this.furthestXPos - this.startingX) * 2;
+        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 2.2;
 
         let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 5; // Adjust multiplier if needed
 
-        let explorationReward = this.getExplorationReward() * 2;
+        let explorationReward = this.getExplorationReward() * 50;
 
         let weightPenalty;
         //if (roundOver) {
@@ -1183,16 +1235,16 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
         }
 
         // Render second set of joint anchors for testing
-        for (let i = 0; i < numLimbs; i++) {
+        for (let i = 0; i < this.numLimbs; i++) {
             if (this.joints[i]) {
                 let jointPos = this.joints[i].getAnchorB();
                 // Check if the current joint's index is within the jointColors array length
-                if (i < jointColors.length) {
+                if (i < JOINT_COLORS.length) {
                     p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
                 } else {
                     p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
                 }
-                p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 9, 9);  // Added offsetX
+                p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
             }
         }
     };
@@ -1232,52 +1284,48 @@ function createMainBodyNEAT(world, x, y, radius, agentNo) {
     return body;
 }
 
-function createLimbNEAT(world, limbGenome, startingX, startingY, mainBodyRadius, agentNo) {
-    const angle = limbGenome.startingAngle;
-
-    let cosAngle = Math.cos(angle);
-    let sinAngle = Math.sin(angle);
-
-    let limbX = startingX + limbGenome.attachment.x - sinAngle * (mainBodyRadius);
-    let limbY = startingY + limbGenome.attachment.y + cosAngle * (mainBodyRadius);
-
+function createLimbNEAT(world, x, y, width, height, angle, agentNo, limbNo) {
     let bodyDef = {
         type: 'dynamic',
-        position: planck.Vec2(limbX, limbY),
+        position: planck.Vec2(x, y),
         angle: angle
     };
 
     let body = world.createBody(bodyDef);
-    let shape = planck.Box(limbGenome.Width / 2, limbGenome.Length / 2);
+    let shape = planck.Box(width / 2, height / 2);
+
+    // Assign a negative group index based on the agent number
+    // This ensures that limbs of the same agent will never collide with each other
     let groupIndex = -agentNo;
 
     let fixtureDef = {
         shape: shape,
         density: 0.1,
         filterCategoryBits: CATEGORY_AGENT_LIMB,
-        filterMaskBits: CATEGORY_GROUND,
-        filterGroupIndex: groupIndex
+        filterMaskBits: CATEGORY_GROUND,  // Only allow collision with the ground
+        filterGroupIndex: groupIndex      // Set the group index
     };
     body.createFixture(fixtureDef);
+    // body.setUserData("Agent " + agentNo + " Limb " + limbNo);
 
     return body;
 }
 
-function createRevoluteJointNEAT(world, bodyA, bodyB, limbGenome) {
-    let localAnchorA = planck.Vec2(limbGenome.attachment.X, limbGenome.attachment.Y);
-    let localAnchorB = planck.Vec2(0, -limbGenome.length / 2);
-    console.log("Local Anchor A:", localAnchorA, "Local Anchor B:", localAnchorB);
-
+function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB, lowerAngle, upperAngle) {
+    let limiter = true;
+    if (jointMaxMove == 0) {
+        limiter = false;
+    }
     let jointDef = {
         bodyA: bodyA,
         bodyB: bodyB,
         localAnchorA: localAnchorA,
         localAnchorB: localAnchorB,
-        lowerAngle: limbGenome.constraints.minAngle,
-        upperAngle: limbGenome.constraints.maxAngle,
-        enableLimit: true,
+        lowerAngle: lowerAngle,
+        upperAngle: upperAngle,
+        enableLimit: limiter,
         motorSpeed: 0.0,
-        maxMotorTorque: limbGenome.constraints.maxTorque,
+        maxMotorTorque: torque,
         enableMotor: true
     };
 
@@ -1721,18 +1769,19 @@ function waitForInitializationCompletionNEAT(newAgents) {
             // Dispose the brain only if it's not being reused in the new generation
             if (!newBrains.includes(agent.brain) && agent.brain) {
                 agent.brain.dispose();
+                agent.genome = null;
             }
         });
 
         agents = newAgents;
 
-        let genomes = [];
-        agents.forEach(agent => {
-            // add agent's genome to the genomes array
-            genomes.push(agent.genome);
-        });
-        // log the entire genomes array
-        console.log(genomes);
+        //let genomes = [];
+        //agents.forEach(agent => {
+        //    // add agent's genome to the genomes array
+        //    genomes.push(agent.genome);
+        //});
+        //// log the entire genomes array
+        //console.log(genomes);
 
         // Randomly select agents to render for each group
         randomlySelectedAgents = [];
@@ -1833,6 +1882,13 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, topPerformerNumb
                 // childAgent.brain.dispose();
                 childAgent.group = groupId; // Assign group
                 childAgent.genome.metadata.groupName = groupAgents[0].genome.metadata.groupName;
+                childAgent.genome.metadata.agentIndex = agentIndex;
+                // set childAgent.genome.metadata.agentName to combination of parent names, first 3 letters from dominant parent, last 3 from recessive
+                let parent1Name = parent1.genome.metadata.agentName;
+                let parent2Name = parent2.genome.metadata.agentName;
+                let childName = parent1Name.substring(0, 3) + parent2Name.substring(parent2Name.length - 3, parent2Name.length);
+                childAgent.genome.metadata.agentName = childName;
+
                 newAgents.push(childAgent);
             }
         }
@@ -1932,39 +1988,56 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
         let id = bias.id;
-        let bias1 = genome1.inputLayerGenes[0].biases.find(b => b.id === id);
-        let bias2 = genome2.inputLayerGenes[0].biases.find(b => b.id === id);
-        if (bias1 && bias2) {
-            bias.value = (alpha * bias1.value) + (beta * bias2.value);
+        try {
+            let bias1 = genome1.inputLayerGenes[0].biases.find(b => b.id === id);
+            let bias2 = genome2.inputLayerGenes[0].biases.find(b => b.id === id);
+            if (bias1 && bias2) {
+                bias.value = (alpha * bias1.value) + (beta * bias2.value);
+            }
+        } catch (e) {
+            console.log("Trying to perform crossover on non matching input nodes, continuing...");
         }
     }
 
     // Hidden Layers
     for (const layer of childGenome.layerGenes) {
         let layerID = layer.layerID;
+        try {
 
-        let layer1 = genome1.layerGenes.find(l => l.layerID === layerID);
-        let layer2 = genome2.layerGenes.find(l => l.layerID === layerID);
+            let layer1 = genome1.layerGenes.find(l => l.layerID === layerID);
+            let layer2 = genome2.layerGenes.find(l => l.layerID === layerID);
 
-        if (layer1 && layer2) {
-            for (const [j, weights] of layer.weights.entries()) {
-                for (const [k, weight] of weights.entries()) {
-                    let id = weight.id;
-                    let weight1 = layer1.weights[j].find(w => w.id === id);
-                    let weight2 = layer2.weights[j].find(w => w.id === id);
-                    if (weight1 && weight2) {
-                        weight.value = (alpha * weight1.value) + (beta * weight2.value);
+            if (layer1 && layer2) {
+                for (const [j, weights] of layer.weights.entries()) {
+                    for (const [k, weight] of weights.entries()) {
+                        let id = weight.id;
+                        try {
+                            let weight1 = layer1.weights[j].find(w => w.id === id);
+                            let weight2 = layer2.weights[j].find(w => w.id === id);
+                            if (weight1 && weight2) {
+                                weight.value = (alpha * weight1.value) + (beta * weight2.value);
+                            }
+                        } catch (e) {
+                            console.log("Trying to perform crossover on non matching nodes, continuing...");
+                        }
+                    }
+                }
+                for (const [j, bias] of layer.biases.entries()) {
+                    let id = bias.id;
+                    try {
+                        let bias1 = layer1.biases.find(b => b.id === id);
+                        let bias2 = layer2.biases.find(b => b.id === id);
+                        if (bias1 && bias2) {
+                            bias.value = (alpha * bias1.value) + (beta * bias2.value);
+                        }
+                    } catch (e) {
+                        console.log("Trying to perform crossover on non matching nodes, continuing...");
                     }
                 }
             }
-            for (const [j, bias] of layer.biases.entries()) {
-                let id = bias.id;
-                let bias1 = layer1.biases.find(b => b.id === id);
-                let bias2 = layer2.biases.find(b => b.id === id);
-                if (bias1 && bias2) {
-                    bias.value = (alpha * bias1.value) + (beta * bias2.value);
-                }
-            }
+
+        } catch (e) {
+            console.log("Trying to perform crossover on non matching layers, continuing...");
         }
     }
 
@@ -1972,19 +2045,27 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
     for (const [j, weights] of childGenome.outputLayerGenes[0].weights.entries()) {
         for (const [k, weight] of weights.entries()) {
             let id = weight.id;
-            let weight1 = genome1.outputLayerGenes[0].weights[j].find(w => w.id === id);
-            let weight2 = genome2.outputLayerGenes[0].weights[j].find(w => w.id === id);
-            if (weight1 && weight2) {
-                weight.value = (alpha * weight1.value) + (beta * weight2.value);
+            try {
+                let weight1 = genome1.outputLayerGenes[0].weights[j].find(w => w.id === id);
+                let weight2 = genome2.outputLayerGenes[0].weights[j].find(w => w.id === id);
+                if (weight1 && weight2) {
+                    weight.value = (alpha * weight1.value) + (beta * weight2.value);
+                }
+            } catch (e) {
+                console.log("Trying to perform crossover on non matching output nodes, continuing...");
             }
         }
     }
     for (const bias of childGenome.outputLayerGenes[0].biases) {
         let id = bias.id;
-        let bias1 = genome1.outputLayerGenes[0].biases.find(b => b.id === id);
-        let bias2 = genome2.outputLayerGenes[0].biases.find(b => b.id === id);
-        if (bias1 && bias2) {
-            bias.value = (alpha * bias1.value) + (beta * bias2.value);
+        try {
+            let bias1 = genome1.outputLayerGenes[0].biases.find(b => b.id === id);
+            let bias2 = genome2.outputLayerGenes[0].biases.find(b => b.id === id);
+            if (bias1 && bias2) {
+                bias.value = (alpha * bias1.value) + (beta * bias2.value);
+            }
+        } catch (e) {
+            console.log("Trying to perform crossover on non matching output nodes, continuing...");
         }
     }
 
@@ -2008,10 +2089,14 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
         let id = bias.id;
-        let parent = Math.random() > 0.5 ? genome1 : genome2;
-        let newBias = parent.inputLayerGenes[0].biases.find(b => b.id === id);
-        if (newBias) {
-            bias.value = newBias.value;
+        try {
+            let parent = Math.random() > 0.5 ? genome1 : genome2;
+            let newBias = parent.inputLayerGenes[0].biases.find(b => b.id === id);
+            if (newBias) {
+                bias.value = newBias.value;
+            }
+        } catch (e) {
+            console.log("Trying to perform crossover on non matching Input nodes, continuing...");
         }
     }
 
@@ -2022,19 +2107,27 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
         for (const [j, weights] of layer.weights.entries()) {
             for (const [k, weight] of weights.entries()) {
                 let id = weight.id;
-                let parent = Math.random() > 0.5 ? genome1 : genome2;
-                let newWeight = parent.layerGenes.find(l => l.layerID === layerID).weights[j].find(w => w.id === id);
-                if (newWeight) {
-                    weight.value = newWeight.value;
+                try {
+                    let parent = Math.random() > 0.5 ? genome1 : genome2;
+                    let newWeight = parent.layerGenes.find(l => l.layerID === layerID).weights[j].find(w => w.id === id);
+                    if (newWeight) {
+                        weight.value = newWeight.value;
+                    }
+                } catch (e) {
+                    console.log("Trying to perform crossover on non matching nodes, continuing...");
                 }
             }
         }
         for (const [j, bias] of layer.biases.entries()) {
             let id = bias.id;
-            let parent = Math.random() > 0.5 ? genome1 : genome2;
-            let newBias = parent.layerGenes.find(l => l.layerID === layerID).biases.find(b => b.id === id);
-            if (newBias) {
-                bias.value = newBias.value;
+            try {
+                let parent = Math.random() > 0.5 ? genome1 : genome2;
+                let newBias = parent.layerGenes.find(l => l.layerID === layerID).biases.find(b => b.id === id);
+                if (newBias) {
+                    bias.value = newBias.value;
+                }
+            } catch (e) {
+                console.log("Trying to perform crossover on non matching nodes, continuing...");
             }
         }
     }
@@ -2043,19 +2136,27 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
     for (const [j, weights] of childGenome.outputLayerGenes[0].weights.entries()) {
         for (const [k, weight] of weights.entries()) {
             let id = weight.id;
-            let parent = Math.random() > 0.5 ? genome1 : genome2;
-            let newWeight = parent.outputLayerGenes[0].weights[j].find(w => w.id === id);
-            if (newWeight) {
-                weight.value = newWeight.value;
+            try {
+                let parent = Math.random() > 0.5 ? genome1 : genome2;
+                let newWeight = parent.outputLayerGenes[0].weights[j].find(w => w.id === id);
+                if (newWeight) {
+                    weight.value = newWeight.value;
+                }
+            } catch (e) {
+                console.log("Trying to perform crossover on non matching output nodes, continuing...");
             }
         }
     }
     for (const bias of childGenome.outputLayerGenes[0].biases) {
         let id = bias.id;
-        let parent = Math.random() > 0.5 ? genome1 : genome2;
-        let newBias = parent.outputLayerGenes[0].biases.find(b => b.id === id);
-        if (newBias) {
-            bias.value = newBias.value;
+        try {
+            let parent = Math.random() > 0.5 ? genome1 : genome2;
+            let newBias = parent.outputLayerGenes[0].biases.find(b => b.id === id);
+            if (newBias) {
+                bias.value = newBias.value;
+            }
+        } catch (e) {
+            console.log("Trying to perform crossover on non matching output nodes, continuing...");
         }
     }
     return childGenome;
@@ -2173,10 +2274,13 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
         } else {
             // Remove a node
             if (randomLayer.biases.length > 1) {
-
-                // Add string detailing mutation to genome.agentHistory.mutations
-                genome.agentHistory.mutations.push("type: node, layer: ", randomLayerIndex, " id: ", newBiasId, " mutation: add");
-
+                try {
+                    // Add string detailing mutation to genome.agentHistory.mutations
+                    genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + randomLayer.biases[randomNodeIndex].id + " mutation: remove");
+                } catch (e) {
+                    // Add string detailing mutation to genome.agentHistory.mutations
+                    genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + "Not Found" + " mutation: remove");
+                }
                 randomLayer.biases.splice(randomNodeIndex, 1); // remove a bias at random index
                 randomLayer.numberOfNeurons--;
 

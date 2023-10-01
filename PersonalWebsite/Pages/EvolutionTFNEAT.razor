@@ -396,6 +396,7 @@
 <button class="floating-button toggleNN-button" @onclick="toggleNN">Toggle Neural Network</button>
 <button class="floating-button toggleLeader-button" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
 <button class="floating-button toggleRays-button" @onclick="toggleRayCasts">Toggle Raycasts Rendering</button>
+<button class="floating-button logGenomes-button" @onclick="LogGenomes">Log Genomes</button>
 
 @code {
     private StageProperties stageProperties = new StageProperties();
@@ -456,7 +457,7 @@
         public bool outputsJointSpeed { get; set; } = true;
         public bool outputsJointTorque { get; set; } = false;
         public bool outputsBias { get; set; } = false;
-        public int swimStrength { get; set; } = 1000000;
+        public int swimStrength { get; set; } = 500000;
         public double swimBias { get; set; } = 1.5; 
         // public int hiddenLayersNN { get; set; } = 3;
         // public int nodesPerHiddenLayer { get; set; } = 10; // half for fanal hidden layer
@@ -505,20 +506,43 @@
         await UpdateSimulation();
     }
 
+    private async Task LogGenomes()
+    {
+        await JSRuntime.InvokeVoidAsync("logGenomes");
+    }
+
     public async Task InitializePopulation(int populationSize)
     {
         for (int i = 0; i < populationSize; i++)
         {
+            Random random = new Random();
             Genome genome = new Genome();
             genome.Metadata.AgentIndex = i;
 
             // Initialize genes, examples used for now, will be randomised once the constructor is complete
             genome.InputLayerGenes.Add(InitializeInputLayer());
-            genome.LayerGenes.Add(InitializeLayer(1, 20)); 
-            genome.LayerGenes.Add(InitializeLayer(2, 15));  
-            genome.LayerGenes.Add(InitializeLayer(3, 10));
+
+            int numLayers = random.Next(1, 5);
+
+            // assuming you want to add 3 layers, and the layer numbers are between 1 and 3, and sizes between 10 and 20
+            for (int j = 0; j < 3; j++)
+            {
+                int randomSize = random.Next(5, 30); // Generates a random integer between 10 and 20
+                genome.LayerGenes.Add(InitializeLayer(j, randomSize));
+            }
+
+            //genome.LayerGenes.Add(InitializeLayer(1, 20));
+            //genome.LayerGenes.Add(InitializeLayer(2, 15));
+            //genome.LayerGenes.Add(InitializeLayer(3, 10));
+
             genome.OutputLayerGenes.Add(InitializeOutputLayer());
             genome.BodyPlan = InitializeBodyPlan();
+            // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
+            var randomName = new Random();
+            var consonants = "bcdfghjklmnpqrstvwxyz";
+            var vowels = "aeiou";
+            var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
+            genome.Metadata.AgentName = agentName;
 
             // Further initialization
 
@@ -579,51 +603,45 @@
 
     private BodyPlan InitializeBodyPlan()
     {
-
-        // Will make these values random later
+        Random random = new Random();
 
         BodyPlan bodyPlan = new BodyPlan
             {
-                MainBody = new MainBody { Shape = "Circle", Size = 20.0 }
+                MainBody = new MainBody
+                {
+                    Shape = "Circle",
+                    Size = 10 + random.NextDouble() * 30.0 // Example range from 0 to 40
+                }
             };
 
-        // Mimic existing body plan
-        Limb limb1 = new Limb
-            {
-                Shape = "Rectangle",
-                Length = 40.0,
-                Width = 10.0,
-                StartingAngle = -Math.PI / 2,
-                Attachment = new AttachmentPoint { X = 20.0, Y = 0.0 },
-                Constraints = new JointConstraints { MaxTorque = 2.5, MinAngle = -2 * Math.PI / 3, MaxAngle = 2 * Math.PI / 3 }
-            };
-        bodyPlan.Limbs.Add(limb1);
+        int numLimbs = random.Next(2, 6); // Example range: 1 to 3 limbs
 
-        Limb limb2 = new Limb
-            {
-                Shape = "Rectangle",
-                Length = 40.0,
-                Width = 10.0,
-                StartingAngle = 2 * Math.PI / 3 - Math.PI / 2,
-                Attachment = new AttachmentPoint { X = -10.0, Y = 16.6 },
-                Constraints = new JointConstraints { MaxTorque = 2.5, MinAngle = -2 * Math.PI / 3, MaxAngle = 2 * Math.PI / 3 }
-            };
-        bodyPlan.Limbs.Add(limb2);
-
-        Limb limb3 = new Limb
-            {
-                Shape = "Rectangle",
-                Length = 40.0,
-                Width = 10.0,
-                StartingAngle = 2 * 2 * Math.PI / 3 - Math.PI / 2,
-                Attachment = new AttachmentPoint { X = -10.0, Y = -16.6 },
-                Constraints = new JointConstraints { MaxTorque = 2.5, MinAngle = -2 * Math.PI / 3, MaxAngle = 2 * Math.PI / 3 }
-            };
-        bodyPlan.Limbs.Add(limb3);
+        for (int i = 0; i < 3; i++)
+        {
+            double angle = random.NextDouble() * 2 * Math.PI; // Random angle in radians
+            Limb limb = new Limb
+                {
+                    Shape = "Rectangle",
+                    Length = 10 + random.NextDouble() * 50.0,
+                    Width = random.NextDouble() * 20.0,
+                    StartingAngle = angle,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = bodyPlan.MainBody.Size * Math.Cos(angle),
+                        Y = bodyPlan.MainBody.Size * Math.Sin(angle)
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = random.NextDouble() * 100000, 
+                        MinAngle = -(Math.PI / random.Next(1, 4)),
+                        MaxAngle = (Math.PI / random.Next(1, 4))
+                    }
+                };
+            bodyPlan.Limbs.Add(limb);
+        }
 
         return bodyPlan;
     }
-
     // Starting to think about implementing NEAT and encoding agent properties within a Genome:
 
     public class Genome

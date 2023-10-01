@@ -78,11 +78,6 @@
     right: 20px;
 }
 
-.toggleNN-button {
-    top: 150px;
-    right: 450px;
-}
-
 .toggleLeader-button {
     top: 150px;
     right: 250px;
@@ -91,4 +86,15 @@
 .toggleRays-button {
     top: 150px;
     right: 20px;
+}
+
+.toggleNN-button {
+    top: 220px;
+    right: 20px;
+}
+
+.logGenomes-button {
+
+    top: 220px;
+    right: 250px;
 }
