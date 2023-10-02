@@ -379,6 +379,8 @@ let sketchNEAT = function (p) {
                 leadingAgentYScore = leadingAgentScores[2];
                 leadingAgentMovementScore = leadingAgentScores[4];
                 leadingAgentExplorationReward = leadingAgentScores[5];
+                leadingAgentSizeReward = leadingAgentScores[6];
+                leadingAgentEnergy = leadingAgentScores[7];
 
                 // Display the score of the trailing agent
                 trailingAgentScores = trailingAgent.getScore(false);
@@ -387,6 +389,8 @@ let sketchNEAT = function (p) {
                 trailingAgentYScore = trailingAgentScores[2];
                 trailingAgentMovementScore = trailingAgentScores[4];
                 trailingAgentExplorationReward = trailingAgentScores[5];
+                trailingAgentSizeReward = trailingAgentScores[6];
+                trailingAgentEnergy = trailingAgentScores[7];
 
                 // Display the score of the highest scoring
                 topScoreAgentScores = topScoreAgent.getScore(false);
@@ -395,6 +399,8 @@ let sketchNEAT = function (p) {
                 topScoreAgentYScore = topScoreAgentScores[2];
                 topScoreAgentMovementScore = topScoreAgentScores[4];
                 topScoreAgentExplorationReward = topScoreAgentScores[5];
+                topScoreAgentSizeReward = topScoreAgentScores[6]; 
+                topScoreAgentEnergy = topScoreAgentScores[7];
 
                 let totalScore = 0;
                 for (let agent of agents) {
@@ -472,13 +478,13 @@ let sketchNEAT = function (p) {
             if (topScoreAgentScore > - 1000) {
                 p.textSize(16);
                 p.fill(GROUP_COLORS[topScoreAgent.group]);
-                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Bonus: ${topScoreAgentMovementScore} + Exploration Bonus: ${topScoreAgentExplorationReward})`, 10, groundY + 30);  // Displaying the score just below the ground
+                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Bonus: ${topScoreAgentMovementScore} + Exploration Bonus: ${topScoreAgentExplorationReward} + Size Bonus: ${topScoreAgentSizeReward})  Remaining Energy: ${topScoreAgentEnergy}`, 10, groundY + 30);  // Displaying the score just below the ground
 
                 p.fill(GROUP_COLORS[leadingAgent.group]);
-                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Bonus: ${leadingAgentMovementScore} + Exploration Bonus: ${leadingAgentExplorationReward})`, 10, groundY + 50);
+                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Bonus: ${leadingAgentMovementScore} + Exploration Bonus: ${leadingAgentExplorationReward} + Size Bonus: ${leadingAgentSizeReward}) Remaining Energy: ${leadingAgentEnergy}`, 10, groundY + 50);
 
                 p.fill(GROUP_COLORS[trailingAgent.group]);
-                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Bonus: ${trailingAgentMovementScore} + Exploration Bonus: ${trailingAgentExplorationReward})`, 10, groundY + 70);
+                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Bonus: ${trailingAgentMovementScore} + Exploration Bonus: ${trailingAgentExplorationReward} + Size Bonus: ${trailingAgentSizeReward}) Remaining Energy: ${trailingAgentEnergy}`, 10, groundY + 70);
             }
 
             if (showNeuralNetwork == true) {
@@ -572,6 +578,10 @@ function applySwimmingForce(agent) {
             let forceMagnitude;
 
             forceMagnitude = deltaTheta * forceScalingFactor * bias;
+
+            if (agent.agentEnergy > 0) {
+                agent.agentEnergy -= Math.abs(forceMagnitude / 1000000);
+            }
 
             // Calculate the force vector
             let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
@@ -910,13 +920,14 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
     this.index = this.genome.metadata.agentIndex;
     this.group = null;
     let mainBodyRadius = this.genome.bodyPlan.mainBody.size;
-    const locationBatchSize = 20;
+    const locationBatchSize = 10;
     this.startingX = 200 + (Math.floor(this.index / locationBatchSize) * 5000);
     this.startingY = 600;
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
     this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
     this.position = this.mainBody.getPosition();
-
+    this.startingEnergy = (mainBodyRadius * (simulationLength / 200)) ** 3; // + body segments mass and maybe limbs later
+    this.agentEnergy = this.startingEnergy;
     this.rayCastPoints = [];
 
     this.Score = 0;
@@ -1147,8 +1158,18 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
         //} else {
             weightPenalty = 0;
         //}
+        let massBonus = 0;
+        if (!roundOver) {
+            try {
+                massBonus = this.mainBody.getMass() / 10;
+            } catch (e) {
+                massBonus = 0;
+            }
+        }
 
-        this.Score = XPosScore + YPosScore + jointMovementReward + explorationReward - weightPenalty;
+        // Calculate the mass bonus based on the main body's mass
+
+        this.Score = XPosScore + YPosScore + jointMovementReward + explorationReward - weightPenalty * massBonus;
 
         if (this.Score < 1) {
             this.Score = 1;
@@ -1164,7 +1185,9 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
             YPosScore.toFixed(2),
             weightPenalty.toFixed(2),
             jointMovementReward.toFixed(2),
-            explorationReward.toFixed(2)
+            explorationReward.toFixed(2),
+            massBonus.toFixed(2),
+            this.agentEnergy.toFixed(2)
         ];
     };
 
@@ -1554,7 +1577,7 @@ function createMaps(mapNumber) {
 }
 
 function createWall(x, y, width, height, angle = 0) {
-    for (let i = 0; i < Math.ceil(popSize / 20); i++) {
+    for (let i = 0; i < Math.ceil(popSize / 10); i++) {
         const offset = i * 5000; // Define an appropriate spacing value to separate the sets of walls
         const wallDef = {
             type: 'static',
@@ -1995,7 +2018,7 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
                 bias.value = (alpha * bias1.value) + (beta * bias2.value);
             }
         } catch (e) {
-            console.log("Trying to perform crossover on non matching input nodes, continuing...");
+            // console.log("Trying to perform crossover on non matching input nodes, continuing...");
         }
     }
 
@@ -2018,7 +2041,7 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
                                 weight.value = (alpha * weight1.value) + (beta * weight2.value);
                             }
                         } catch (e) {
-                            console.log("Trying to perform crossover on non matching nodes, continuing...");
+                            // console.log("Trying to perform crossover on non matching nodes, continuing...");
                         }
                     }
                 }
@@ -2031,13 +2054,13 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
                             bias.value = (alpha * bias1.value) + (beta * bias2.value);
                         }
                     } catch (e) {
-                        console.log("Trying to perform crossover on non matching nodes, continuing...");
+                        // console.log("Trying to perform crossover on non matching nodes, continuing...");
                     }
                 }
             }
 
         } catch (e) {
-            console.log("Trying to perform crossover on non matching layers, continuing...");
+            // console.log("Trying to perform crossover on non matching layers, continuing...");
         }
     }
 
@@ -2052,7 +2075,7 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
                     weight.value = (alpha * weight1.value) + (beta * weight2.value);
                 }
             } catch (e) {
-                console.log("Trying to perform crossover on non matching output nodes, continuing...");
+                // console.log("Trying to perform crossover on non matching output nodes, continuing...");
             }
         }
     }
@@ -2065,7 +2088,7 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
                 bias.value = (alpha * bias1.value) + (beta * bias2.value);
             }
         } catch (e) {
-            console.log("Trying to perform crossover on non matching output nodes, continuing...");
+            // console.log("Trying to perform crossover on non matching output nodes, continuing...");
         }
     }
 
@@ -2096,7 +2119,7 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
                 bias.value = newBias.value;
             }
         } catch (e) {
-            console.log("Trying to perform crossover on non matching Input nodes, continuing...");
+           //  console.log("Trying to perform crossover on non matching Input nodes, continuing...");
         }
     }
 
@@ -2114,7 +2137,7 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
                         weight.value = newWeight.value;
                     }
                 } catch (e) {
-                    console.log("Trying to perform crossover on non matching nodes, continuing...");
+                    // console.log("Trying to perform crossover on non matching nodes, continuing...");
                 }
             }
         }
@@ -2127,7 +2150,7 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
                     bias.value = newBias.value;
                 }
             } catch (e) {
-                console.log("Trying to perform crossover on non matching nodes, continuing...");
+                // console.log("Trying to perform crossover on non matching nodes, continuing...");
             }
         }
     }
@@ -2143,7 +2166,7 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
                     weight.value = newWeight.value;
                 }
             } catch (e) {
-                console.log("Trying to perform crossover on non matching output nodes, continuing...");
+                // console.log("Trying to perform crossover on non matching output nodes, continuing...");
             }
         }
     }
@@ -2156,7 +2179,7 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
                 bias.value = newBias.value;
             }
         } catch (e) {
-            console.log("Trying to perform crossover on non matching output nodes, continuing...");
+            // console.log("Trying to perform crossover on non matching output nodes, continuing...");
         }
     }
     return childGenome;
@@ -2543,7 +2566,7 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
         // console.log("output: ", output);
         for (let i = 0; i < this.joints.length; i++) {
             if (outputJointSpeed) {
-                let adjustment = output[outputIndex] * MAX_ADJUSTMENT;
+                let adjustment = output[outputIndex] * MAX_ADJUSTMENT * (this.agentEnergy / this.startingEnergy);
                 this.joints[i].setMotorSpeed(adjustment);
                 outputIndex++;
             }

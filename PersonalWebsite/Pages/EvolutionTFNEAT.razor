@@ -519,8 +519,10 @@
             Genome genome = new Genome();
             genome.Metadata.AgentIndex = i;
 
+            int numLimbs = random.Next(2, 6);
+
             // Initialize genes, examples used for now, will be randomised once the constructor is complete
-            genome.InputLayerGenes.Add(InitializeInputLayer());
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs));
 
             int numLayers = random.Next(1, 5);
 
@@ -536,7 +538,7 @@
             //genome.LayerGenes.Add(InitializeLayer(3, 10));
 
             genome.OutputLayerGenes.Add(InitializeOutputLayer());
-            genome.BodyPlan = InitializeBodyPlan();
+            genome.BodyPlan = InitializeBodyPlan(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
             var randomName = new Random();
             var consonants = "bcdfghjklmnpqrstvwxyz";
@@ -570,13 +572,13 @@
         //}
     }
 
-    private InputLayerGene InitializeInputLayer()
+    private InputLayerGene InitializeInputLayer(int numLimbs)
     {
         return new InputLayerGene
             {
-                NumberOfNeurons = 13, // 13 inputs
+                NumberOfNeurons = 10 + numLimbs, 
                 ActivationType = ActivationType.ReLU,
-                Inputs = Enumerable.Range(1, 13).ToList() // List of inputs from 1 to 9
+                Inputs = Enumerable.Range(1, 10 + numLimbs).ToList()
             };
     }
 
@@ -601,7 +603,7 @@
             };
     }
 
-    private BodyPlan InitializeBodyPlan()
+    private BodyPlan InitializeBodyPlan(int numLimbs)
     {
         Random random = new Random();
 
@@ -614,9 +616,7 @@
                 }
             };
 
-        int numLimbs = random.Next(2, 6); // Example range: 1 to 3 limbs
-
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < numLimbs; i++)
         {
             double angle = random.NextDouble() * 2 * Math.PI; // Random angle in radians
             Limb limb = new Limb
