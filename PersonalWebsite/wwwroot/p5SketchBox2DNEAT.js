@@ -11,6 +11,12 @@ let offsetY = 0;
 let simulationLengthModified = 0;
 let showRayCasts = false;
 let dragCoefficient; 
+let singleUpdateCompleted = false;
+let updatesPerAgentStart = 2;
+let framesPerUpdateStart = 2;
+let updateCountStart = {};
+let frameCountStart = {};
+let agentIndexStart = 0;
 const GROUP_COLORS_NAMES = [
     'Red Orange', 'Green', 'Very Dark Gray', 'Charcoal', 'Olive Drab', 'Very Dark Red', 'Blue', 'Magenta',
     'Bright Yellow', 'Orange', 'Teal Green', 'Strong Blue', 'Bright Magenta', 'Yellow', 'Brown', 'Gray',
@@ -134,6 +140,7 @@ let sketchNEAT = function (p) {
     let topScoreAgentYScore;
     let topScoreAgentMovementScore;
     let particles = [];
+    let startingTickCounter = 0;
 
     p.setup = function () {
         p.frameRate(60);
@@ -148,6 +155,7 @@ let sketchNEAT = function (p) {
                 phase: Math.random() * Math.PI * 2 // phase for sine wave
             });
         }
+
     };
 
     p.draw = function () {
@@ -170,46 +178,83 @@ let sketchNEAT = function (p) {
 
     function updatePhysics() {
         if (leadingAgent) {
-            // If initialization is complete, then update muscles
+
+            // If initialization is complete, update muscles 1 agent per frame for 1 update
             if (isInitializationComplete && !simulationStarted) {
                 if (areAllAgentsStable()) {
-                    console.log("starting round"); 
+                    // Initialize updateCountStart and frameCountStart for all agents
+                    for (let i = 0; i < agents.length; i++) {
+                        updateCountStart[i] = 0;
+                        frameCountStart[i] = 0;
+                    }
+                    singleUpdateCompleted = false;
+                    agentIndexStart = 0;
                     simulationStarted = true;
+                    currentProcess = "Letting Agents Settle";
+                    console.log("Letting Agents Settle");
                 }
-
             }
 
             if (simulationStarted) {
-                // Check if it's time to update the next batch
-                if (tickCount >= nextBatchFrame) {
-                    // Update muscles only for the current batch of agents
-                    for (let i = currentPhysicsBatch * MUSCLE_BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * MUSCLE_BATCH_SIZE, agents.length); i++) {
-                        agents[i].mainBody.setType('dynamic');
-                        agents[i].updateMusclesNEAT();
+                // If not all agents have been updated x times, update one agent per frame
+                if (!singleUpdateCompleted) {
+                    // Update the agent
+                    //console.log("Updating agent: ", agentIndexStart);
+                    agents[agentIndexStart].mainBody.setType('dynamic');
+                    agents[agentIndexStart].updateMusclesNEAT();
 
-                        //for (let joint of agents[i].joints) {
-                        //    joint.setAngle(0);
-                        //}
+                    // Initialize or increment the update count for this agent
+                    frameCountStart[agentIndexStart] = (frameCountStart[agentIndexStart] || 0) + 1;
 
-                        if (i == 1) {
-                            console.log("updating agent 1's muscles");
-                        }
+                    // Add log to check frameCountStart for the current agent
+                    //console.log("Frame count for agent " + agentIndexStart + ": " + (frameCountStart[agentIndexStart] || 0));
+
+                    // If frameCount for the agent reaches framesPerUpdate, reset it and increment updateCount
+                    if (frameCountStart[agentIndexStart] >= framesPerUpdateStart) {
+                        frameCountStart[agentIndexStart] = 0;
+                        updateCountStart[agentIndexStart] = (updateCountStart[agentIndexStart] || 0) + 1;
                     }
 
-                    // Move to the next batch
-                    currentPhysicsBatch++;
-
-                    // Reset to the start if all batches are processed
-                    if (currentPhysicsBatch * MUSCLE_BATCH_SIZE >= agents.length) {
-                        currentPhysicsBatch = 0;
-
-                        // Wait for muscleUpdateFrames before updating muscles again
-                        nextBatchFrame = tickCount + muscleUpdateFrames;
-                    } else {
-                        // Wait for batchDelay frames before moving to the next batch
-                        nextBatchFrame = tickCount + SOME_DELAY_FRAME_COUNT;
+                    // Move to the next agent, and cycle back to the beginning if at the end of the array
+                    agentIndexStart = (agentIndexStart + 1) % agents.length;
+                    //console.log("updateCountStart", updateCountStart);
+                    // Check if we've updated each agent x times
+                    if (Object.values(updateCountStart).every(countStart => countStart >= updatesPerAgentStart)) {
+                        singleUpdateCompleted = true;
+                        console.log("Agents Settled");
+                        startingTickCounter = 0;
                     }
                 }
+                // Check if all agents are stable before proceeding with batch updates
+                else { //if (areAllAgentsStable())
+                    // Check if it's time to update the next batch
+                    if (startingTickCounter >= nextBatchFrame) {
+                        // Update muscles only for the current batch of agents
+                        for (let i = currentPhysicsBatch * MUSCLE_BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * MUSCLE_BATCH_SIZE, agents.length); i++) {
+                            // agents[i].mainBody.setType('dynamic');
+                            agents[i].updateMusclesNEAT();
+
+                            if (i == 1) {
+                                console.log("updating agent 1's muscles");
+                            }
+                        }
+
+                        // Move to the next batch
+                        currentPhysicsBatch++;
+
+                        // Reset to the start if all batches are processed
+                        if (currentPhysicsBatch * MUSCLE_BATCH_SIZE >= agents.length) {
+                            currentPhysicsBatch = 0;
+                            // Wait for muscleUpdateFrames before updating muscles again
+                            nextBatchFrame = startingTickCounter + muscleUpdateFrames;
+                        } else {
+                            // Wait for batchDelay frames before moving to the next batch
+                            nextBatchFrame = startingTickCounter + SOME_DELAY_FRAME_COUNT;
+                        }
+                    }
+                }
+                // Increment tick count each frame
+                startingTickCounter++;
             }
 
             // Allow agents to swim and interactively control their joints
@@ -236,7 +281,7 @@ let sketchNEAT = function (p) {
                 console.error("An error occurred stepping physics simulation: ", error);
             }
             // If initialization is complete, increment the tick count
-            if (simulationStarted) {
+            if (simulationStarted && singleUpdateCompleted) {
                 tickCount++;
                 if (tickCount >= simulationLengthModified) {
                     endSimulationNEAT(p);
@@ -466,7 +511,7 @@ let sketchNEAT = function (p) {
             p.text(`Agents on screen: ${agentsToRender.size}`, 10, 260);
             p.text(`Agents in simulation: ${agents.length}`, 10, 290);
 
-            if (!simulationStarted) {
+            if (!simulationStarted || !singleUpdateCompleted) {
                 p.fill(255, 0, 0);
                 p.text(`${currentProcess}`, 10, 350);
             }
@@ -926,7 +971,7 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
     this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
     this.position = this.mainBody.getPosition();
-    this.startingEnergy = (mainBodyRadius * (simulationLength / 200)) ** 3; // + body segments mass and maybe limbs later
+    this.startingEnergy = 100 + (mainBodyRadius / 6 * (simulationLength / 1000)) ** 5; // + body segments mass and maybe limbs later
     this.agentEnergy = this.startingEnergy;
     this.rayCastPoints = [];
 
@@ -1326,7 +1371,7 @@ function createLimbNEAT(world, x, y, width, height, angle, agentNo, limbNo) {
         density: 0.1,
         filterCategoryBits: CATEGORY_AGENT_LIMB,
         filterMaskBits: CATEGORY_GROUND,  // Only allow collision with the ground
-        filterGroupIndex: groupIndex      // Set the group index
+        // filterGroupIndex: groupIndex      // Set the group index
     };
     body.createFixture(fixtureDef);
     // body.setUserData("Agent " + agentNo + " Limb " + limbNo);
@@ -1618,7 +1663,6 @@ function createWall(x, y, width, height, angle = 0) {
 
 function createNeuralNetworkNEAT(genome) {
     const model = tf.sequential();
-    let weightID = 0;  // Initialize a counter for weight IDs
     let biasID = 0;  // Initialize a counter for bias IDs
     let layerID = 0; // Initialize a counter for layer IDs
 
@@ -1644,7 +1688,8 @@ function createNeuralNetworkNEAT(genome) {
         });
         model.add(layer);
         weightsBiases = layer.getWeights();
-        genome.layerGenes[i].weights = weightsBiases[0].arraySync().map(wRow => wRow.map(w => ({ id: weightID++, value: w }))); // Assign IDs and save weights to genome
+        genome.layerGenes[i].weights = weightsBiases[0].arraySync().map((wRow, fromNodeID) =>
+            wRow.map((w, toNodeID) => ({ fromNodeID, toNodeID, value: w }))); // Assign fromNodeID and toNodeID and save weights to genome
         genome.layerGenes[i].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b })); // Assign IDs and save biases to genome
         genome.layerGenes[i].layerID = layerID++; // Assign ID to hidden layer
 
@@ -1658,16 +1703,17 @@ function createNeuralNetworkNEAT(genome) {
     });
     model.add(outputLayer);
     weightsBiases = outputLayer.getWeights();
-    genome.outputLayerGenes[0].weights = weightsBiases[0].arraySync().map(wRow => wRow.map(w => ({ id: weightID++, value: w }))); // Assign IDs and save weights to genome
+    genome.outputLayerGenes[0].weights = weightsBiases[0].arraySync().map((wRow, fromNodeID) =>
+        wRow.map((w, toNodeID) => ({ fromNodeID, toNodeID, value: w }))); // Assign fromNodeID and toNodeID and save weights to genome
     genome.outputLayerGenes[0].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b })); // Assign IDs and save biases to genome
 
     // Add used IDs to genome
-    genome.UsedWeightIDs = Array.from({ length: weightID }, (_, i) => i);
     genome.UsedBiasIDs = Array.from({ length: biasID }, (_, i) => i);
     genome.UsedHiddenLayerIDs = Array.from({ length: layerID }, (_, i) => i);
 
     return model;
 }
+
 
 function activationTypeToString(type) {
     const types = ["relu", "sigmoid", "tanh"]; // add other types as needed
@@ -1877,6 +1923,10 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, topPerformerNumb
                 } else {
                     childGenome = randomSelectionCrossoverNEAT(parent1, parent2);
                 }
+
+                // Crossover the body plan
+                // childGenome = bodyPlanCrossover(childGenome, parent1.genome, parent2.genome);
+
                 // Code to update mutation rate commented for now as highly inefficient. It was adding 10 seconds + to the start of each round.
                 // childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
 
@@ -2182,6 +2232,42 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
             // console.log("Trying to perform crossover on non matching output nodes, continuing...");
         }
     }
+    return childGenome;
+}
+
+function bodyPlanCrossover(childGenome, parent1, parent2) {
+
+    // Choose mainBody.size from one of the parents
+    const mainBodySize = Math.random() < 0.5 ? parent1.bodyPlan.mainBody.size : parent2.bodyPlan.mainBody.size;
+
+    // Combine limbs from both parents
+    const limbs = parent1.bodyPlan.limbs.concat(parent2.bodyPlan.limbs);
+
+    // Randomly remove limbs until the count is between 2 and 6.  Might alter this to favour the same number of limbs as the higher scoring parent
+    const desiredNumLimbs = 2 + Math.floor(Math.random() * 5);
+    while (limbs.length > desiredNumLimbs) {
+        limbs.splice(Math.floor(Math.random() * limbs.length), 1);
+    }
+
+    // Recalculate attachment points for the limbs
+    for (const limb of limbs) {
+        const angle = limb.startingAngle;
+        limb.attachment.x = mainBodySize * Math.cos(angle);
+        limb.attachment.y = mainBodySize * Math.sin(angle);
+        //childGenome.outputLayerGenes[0].find(l => l.biases.id === limb.limbID
+        //Find the output node for this limb and remove the bias and weights associated
+        //childGenome.outputLayerGenes[0].biases.splice(childGenome.genome.outputLayerGenes[0].biases.findIndex(b => b.id === limb.limbID), 1);
+        //childGenome.outputLayerGenes[0].weights.splice(childGenome.genome.outputLayerGenes[0].weights.findIndex(w => w.id === limb.limbID), 1);
+
+    }
+
+    childGenome.bodyPlan.mainBody.size = mainBodySize;
+    childGenome.bodyPlan.limbs = limbs;
+    childGenome.inputLayerGenes[0].numberOfNeurons = 10 + limbs.length;
+    childGenome.outputLayerGenes[0].numberOfNeurons = limbs.length;
+
+    // parent.layerGenes.find(l => l.layerID === layerID).weights[j].find(w => w.id === id);
+
     return childGenome;
 }
 

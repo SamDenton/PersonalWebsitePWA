@@ -423,7 +423,7 @@
         public string agentInCentre { get; set; } = "leader";
         public int numAgents { get; set; } = 50;
         public int tournamentSize { get; set; } = 10;
-        public double migrationRate { get; set; } = 0.01;
+        public double migrationRate { get; set; } = 0.002;
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 20;
         public int uiRefreshRate { get; set; } = 500;
@@ -519,7 +519,7 @@
             Genome genome = new Genome();
             genome.Metadata.AgentIndex = i;
 
-            int numLimbs = random.Next(2, 6);
+            int numLimbs = random.Next(2, 5);
 
             // Initialize genes, examples used for now, will be randomised once the constructor is complete
             genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs));
@@ -537,7 +537,7 @@
             //genome.LayerGenes.Add(InitializeLayer(2, 15));
             //genome.LayerGenes.Add(InitializeLayer(3, 10));
 
-            genome.OutputLayerGenes.Add(InitializeOutputLayer());
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs));
             genome.BodyPlan = InitializeBodyPlan(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
             var randomName = new Random();
@@ -593,13 +593,13 @@
             };
     }
 
-    private OutputLayerGene InitializeOutputLayer()
+    private OutputLayerGene InitializeOutputLayer(int numLimbs)
     {
         return new OutputLayerGene
             {
-                NumberOfNeurons = 3, // 3 outputs
+                NumberOfNeurons = numLimbs, // 3 outputs
                 ActivationType = ActivationType.Tanh,
-                Outputs = Enumerable.Range(1, 3).ToList() // List of outputs from 1 to 3
+                Outputs = Enumerable.Range(1, numLimbs).ToList() // List of outputs from 1 to 3
             };
     }
 
@@ -621,9 +621,10 @@
             double angle = random.NextDouble() * 2 * Math.PI; // Random angle in radians
             Limb limb = new Limb
                 {
+                    LimbID = i,
                     Shape = "Rectangle",
                     Length = 10 + random.NextDouble() * 50.0,
-                    Width = random.NextDouble() * 20.0,
+                    Width = 2 + random.NextDouble() * 20.0,
                     StartingAngle = angle,
                     Attachment = new AttachmentPoint
                     {
@@ -633,8 +634,8 @@
                     Constraints = new JointConstraints
                     {
                         MaxTorque = random.NextDouble() * 100000, 
-                        MinAngle = -(Math.PI / random.Next(1, 4)),
-                        MaxAngle = (Math.PI / random.Next(1, 4))
+                        MinAngle = -(Math.PI / random.Next(2, 5)),
+                        MaxAngle = (Math.PI / random.Next(2, 5))
                     }
                 };
             bodyPlan.Limbs.Add(limb);
@@ -708,6 +709,7 @@
 
     public class Limb
     {
+        public int LimbID { get; set; }
         public string Shape { get; set; }
         public double Length { get; set; }
         public double Width { get; set; }
@@ -876,12 +878,16 @@
 
     public class Weight
     {
-        public int ID { get; set; }
+        //public int ID { get; set; }
+        public int FromNodeID { get; set; }
+        public int ToNodeID { get; set; }
         public double Value { get; set; }
 
-        public Weight(int id, double value)
+        public Weight(int fromNodeID, int toNodeID, double value)
         {
-            ID = id;
+            //ID = id;
+            FromNodeID = fromNodeID;
+            ToNodeID = toNodeID;
             Value = value;
         }
     }
