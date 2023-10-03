@@ -12,8 +12,8 @@ let simulationLengthModified = 0;
 let showRayCasts = false;
 let dragCoefficient; 
 let singleUpdateCompleted = false;
-let updatesPerAgentStart = 2;
-let framesPerUpdateStart = 2;
+let updatesPerAgentStart = 1;
+let framesPerUpdateStart = 10;
 let updateCountStart = {};
 let frameCountStart = {};
 let agentIndexStart = 0;
@@ -200,7 +200,7 @@ let sketchNEAT = function (p) {
                 if (!singleUpdateCompleted) {
                     // Update the agent
                     //console.log("Updating agent: ", agentIndexStart);
-                    agents[agentIndexStart].mainBody.setType('dynamic');
+                    // agents[agentIndexStart].mainBody.setType('dynamic');
                     agents[agentIndexStart].updateMusclesNEAT();
 
                     // Initialize or increment the update count for this agent
@@ -231,7 +231,7 @@ let sketchNEAT = function (p) {
                     if (startingTickCounter >= nextBatchFrame) {
                         // Update muscles only for the current batch of agents
                         for (let i = currentPhysicsBatch * MUSCLE_BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * MUSCLE_BATCH_SIZE, agents.length); i++) {
-                            // agents[i].mainBody.setType('dynamic');
+                            agents[i].mainBody.setType('dynamic');
                             agents[i].updateMusclesNEAT();
 
                             if (i == 1) {
@@ -884,7 +884,7 @@ function initializeAgentBatchNEAT(startIndex, endIndex, agentsPerGroup, populati
 function initializeAgentNEAT(i, agentsPerGroup, genome) {
     setTimeout(() => {
         // Using genome properties to initialize the agent
-        let agent = new AgentNEAT(genome, i);
+        let agent = new AgentNEAT(genome, i, false);
 
         let randomAngle = -Math.random() * Math.PI / 2;
         agent.mainBody.setAngle(randomAngle);
@@ -956,7 +956,7 @@ function logModelWeights(agent) {
 //this agent will do for now, but I intend to replace with with a dynamic body plan that can 'evolve' over time.
 //I think a JSON file defining a series of body and limb shapes, possibly with limbs connected to limbs etc
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and exolving complexity based on randomness and fitness might work.
-function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
+function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.genome = _.cloneDeep(agentGenome); // Deep copy of genome
     // console.log(this.genome);
     agentGenome = null;
@@ -1057,7 +1057,13 @@ function AgentNEAT(agentGenome, agentNo, existingBrain = null) {
     // Use the genome to give the agent a brain!
     if (existingBrain) {
         this.brain = existingBrain;
-    } else {
+    } else if (mutatedBrain) {
+        // dispose of old brain
+        if (this.brain) {
+            this.brain.dispose();
+        }
+        this.brain = constructModelFromGenome(this.genome);
+    }  else {
         this.brain = createNeuralNetworkNEAT(this.genome);
     }
 
@@ -1664,35 +1670,47 @@ function createWall(x, y, width, height, angle = 0) {
 function createNeuralNetworkNEAT(genome) {
     const model = tf.sequential();
     let biasID = 0;  // Initialize a counter for bias IDs
-    let layerID = 0; // Initialize a counter for layer IDs
 
     // Input layer
     const inputLayer = tf.layers.dense({
         units: genome.inputLayerGenes[0].numberOfNeurons,
         activation: activationTypeToString(genome.inputLayerGenes[0].activationType),
         inputShape: [genome.inputLayerGenes[0].inputs.length],
-        biasInitializer: 'heNormal',  // bias initializer
-        kernelInitializer: 'heNormal'  // weight initializer
+        biasInitializer: 'heNormal',
+        kernelInitializer: 'heNormal'
     });
     model.add(inputLayer);
     let weightsBiases = inputLayer.getWeights();
-    genome.inputLayerGenes[0].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b })); // Assign IDs and save biases to genome
+    genome.inputLayerGenes[0].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b }));
+
+    // Save the IDs of biases from the input layer to assign them as fromNodeID for the first hidden layer
+    const previousLayerBiasIDs = genome.inputLayerGenes[0].biases.map(b => b.id);
 
     // Hidden layers
     for (let i = 0; i < genome.layerGenes.length; i++) {
         const layer = tf.layers.dense({
             units: genome.layerGenes[i].numberOfNeurons,
             activation: activationTypeToString(genome.layerGenes[i].activationType),
-            biasInitializer: 'heNormal',  // bias initializer
-            kernelInitializer: 'heNormal'  // weight initializer
+            biasInitializer: 'heNormal',
+            kernelInitializer: 'heNormal'
         });
         model.add(layer);
         weightsBiases = layer.getWeights();
-        genome.layerGenes[i].weights = weightsBiases[0].arraySync().map((wRow, fromNodeID) =>
-            wRow.map((w, toNodeID) => ({ fromNodeID, toNodeID, value: w }))); // Assign fromNodeID and toNodeID and save weights to genome
-        genome.layerGenes[i].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b })); // Assign IDs and save biases to genome
-        genome.layerGenes[i].layerID = layerID++; // Assign ID to hidden layer
 
+        genome.layerGenes[i].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b }));
+
+        genome.layerGenes[i].weights = weightsBiases[0].arraySync().map((wRow, rowIndex) =>
+            wRow.map((w, colIndex) => ({
+                fromNodeID: previousLayerBiasIDs[rowIndex],
+                toNodeID: genome.layerGenes[i].biases[colIndex].id,
+                value: w
+            }))
+        );
+
+        // Save the IDs of biases from the current hidden layer to assign them as fromNodeID for the next layer
+        const currentLayerBiasIDs = genome.layerGenes[i].biases.map(b => b.id);
+        previousLayerBiasIDs.length = 0;
+        Array.prototype.push.apply(previousLayerBiasIDs, currentLayerBiasIDs);
     }
 
     // Output layer
@@ -1703,13 +1721,113 @@ function createNeuralNetworkNEAT(genome) {
     });
     model.add(outputLayer);
     weightsBiases = outputLayer.getWeights();
-    genome.outputLayerGenes[0].weights = weightsBiases[0].arraySync().map((wRow, fromNodeID) =>
-        wRow.map((w, toNodeID) => ({ fromNodeID, toNodeID, value: w }))); // Assign fromNodeID and toNodeID and save weights to genome
-    genome.outputLayerGenes[0].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b })); // Assign IDs and save biases to genome
+    genome.outputLayerGenes[0].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b }));
+
+    genome.outputLayerGenes[0].weights = weightsBiases[0].arraySync().map((wRow, rowIndex) =>
+        wRow.map((w, colIndex) => ({
+            fromNodeID: previousLayerBiasIDs[rowIndex],
+            toNodeID: genome.outputLayerGenes[0].biases[colIndex].id,
+            value: w
+        }))
+    );
 
     // Add used IDs to genome
-    genome.UsedBiasIDs = Array.from({ length: biasID }, (_, i) => i);
-    genome.UsedHiddenLayerIDs = Array.from({ length: layerID }, (_, i) => i);
+    genome.usedBiasIDs = Array.from({ length: biasID }, (_, i) => i);
+
+    return model;
+}
+
+function constructModelFromGenome(genome) {
+    const model = tf.sequential();
+
+    // Extract the number of input neurons from the genome.
+    const inputNeurons = genome.inputLayerGenes[0].numberOfNeurons;
+
+    // Input layer.
+    const inputLayer = tf.layers.dense({
+        units: inputNeurons,
+        inputShape: [genome.inputLayerGenes[0].inputs.length],
+        activation: activationTypeToString(genome.inputLayerGenes[0].activationType)
+    });
+    model.add(inputLayer);
+
+    // Create a mapping from bias IDs to their respective values for the first (input) layer.
+    let previousLayerBiasIDMap = {};
+    genome.inputLayerGenes[0].biases.forEach(b => previousLayerBiasIDMap[b.id] = b.value);
+
+    // Set the weights and biases for each subsequent layer based on the ID mapping.
+    genome.layerGenes.forEach(layerGene => {
+        const layer = tf.layers.dense({
+            units: layerGene.numberOfNeurons,
+            activation: activationTypeToString(layerGene.activationType)
+        });
+        model.add(layer);
+
+        // Create a 2D array for the weight values initialized to 0, using the number of neurons in the previous and current layer.
+        const weightsMatrix = new Array(Object.keys(previousLayerBiasIDMap).length).fill(null).map(() => new Array(layerGene.biases.length).fill(0));
+        const biasesArray = new Array(layerGene.biases.length).fill(0);
+
+        // Populate the weight matrix using the 'fromNodeID' and 'toNodeID'.
+        layerGene.weights.forEach((weightRow, rowIndex) => {
+            weightRow.forEach(weight => {
+                const fromIndex = Object.keys(previousLayerBiasIDMap).indexOf(weight.fromNodeID.toString());
+                const toIndex = layerGene.biases.findIndex(b => b.id === weight.toNodeID);
+                if (fromIndex !== -1 && toIndex !== -1) {
+                    weightsMatrix[fromIndex][toIndex] = weight.value;
+                }
+            });
+        });
+
+        // Populate the biases array using the ID mapping.
+        layerGene.biases.forEach((b, index) => biasesArray[index] = b.value);
+
+        // Apply the weight and bias values to the model layer.
+        tf.tidy(() => {
+            layer.setWeights([
+                tf.tensor(weightsMatrix),
+                tf.tensor1d(biasesArray)
+            ]);
+        });
+
+        // Update the 'previousLayerBiasIDMap' for the next iteration.
+        previousLayerBiasIDMap = {};
+        layerGene.biases.forEach(b => previousLayerBiasIDMap[b.id] = b.value);
+    });
+
+    // Output Layer
+    const outputLayerGene = genome.outputLayerGenes[0];
+    const outputLayer = tf.layers.dense({
+        units: outputLayerGene.numberOfNeurons,
+        activation: activationTypeToString(outputLayerGene.activationType)
+    });
+    model.add(outputLayer);
+
+    // Create a 2D array for the weight values initialized to 0, using the number of neurons in the previous and current layer.
+    const outputWeightsMatrix = new Array(Object.keys(previousLayerBiasIDMap).length).fill(null).map(() => new Array(outputLayerGene.biases.length).fill(0));
+    const outputBiasesArray = new Array(outputLayerGene.biases.length).fill(0);
+
+    // Populate the weight matrix using the 'fromNodeID' and 'toNodeID'.
+    outputLayerGene.weights.forEach((weightRow, rowIndex) => {
+        weightRow.forEach(weight => {
+            const fromIndex = Object.keys(previousLayerBiasIDMap).indexOf(weight.fromNodeID.toString());
+            const toIndex = outputLayerGene.biases.findIndex(b => b.id === weight.toNodeID);
+            if (fromIndex !== -1 && toIndex !== -1) {
+                outputWeightsMatrix[fromIndex][toIndex] = weight.value;
+            }
+        });
+    });
+
+    // Populate the biases array using the ID mapping.
+    outputLayerGene.biases.forEach((b, index) => outputBiasesArray[index] = b.value);
+
+    // Apply the weight and bias values to the model layer.
+    tf.tidy(() => {
+        outputLayer.setWeights([
+            tf.tensor(outputWeightsMatrix),
+            tf.tensor1d(outputBiasesArray)
+        ]);
+    });
+
 
     return model;
 }
@@ -1884,7 +2002,7 @@ function createTopPerformersNEAT(groupAgents, topPerformersCount, newAgents) {
     for (let j = 0; j < topPerformersCount; j++) {
         let oldAgent = groupAgents[j];
         usedIndices.add(oldAgent.index);
-        let newAgent = new AgentNEAT(oldAgent.genome, oldAgent.index, oldAgent.brain);
+        let newAgent = new AgentNEAT(oldAgent.genome, oldAgent.index, false, oldAgent.brain);
         let randomAngle = -Math.random() * Math.PI / 2;
         newAgent.mainBody.setAngle(randomAngle);
         newAgent.group = oldAgent.group;
@@ -1947,7 +2065,7 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, topPerformerNumb
                 }
 
                 usedIndices.add(agentIndex);  // Mark this index as used
-                let childAgent = new AgentNEAT(childGenome, agentIndex);
+                let childAgent = new AgentNEAT(childGenome, agentIndex, true);
                 let randomAngle = -Math.random() * Math.PI / 2;
                 childAgent.mainBody.setAngle(randomAngle);
                 // console.log("generateOffspring, making agent: ", agentIndex);
@@ -2049,8 +2167,8 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
         return genome1;
     }
 
-    let alpha = 10 * TScore1 / totalScore;
-    let beta = 10 * TScore2 / totalScore;
+    let alpha = 1 * TScore1 / totalScore;
+    let beta = 1 * TScore2 / totalScore;
 
     let dominantGenome = (TScore1 > TScore2) ? genome1 : genome2;
     let subGenome = (TScore1 < TScore2) ? genome1 : genome2;
@@ -2076,17 +2194,17 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
     for (const layer of childGenome.layerGenes) {
         let layerID = layer.layerID;
         try {
-
             let layer1 = genome1.layerGenes.find(l => l.layerID === layerID);
             let layer2 = genome2.layerGenes.find(l => l.layerID === layerID);
 
             if (layer1 && layer2) {
                 for (const [j, weights] of layer.weights.entries()) {
                     for (const [k, weight] of weights.entries()) {
-                        let id = weight.id;
+                        let fromNodeID = weight.fromNodeID;
+                        let toNodeID = weight.toNodeID;
                         try {
-                            let weight1 = layer1.weights[j].find(w => w.id === id);
-                            let weight2 = layer2.weights[j].find(w => w.id === id);
+                            let weight1 = layer1.weights[j].find(w => w.fromNodeID === fromNodeID && w.toNodeID === toNodeID);
+                            let weight2 = layer2.weights[j].find(w => w.fromNodeID === fromNodeID && w.toNodeID === toNodeID);
                             if (weight1 && weight2) {
                                 weight.value = (alpha * weight1.value) + (beta * weight2.value);
                             }
@@ -2117,10 +2235,11 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
     // Output Layer
     for (const [j, weights] of childGenome.outputLayerGenes[0].weights.entries()) {
         for (const [k, weight] of weights.entries()) {
-            let id = weight.id;
+            let fromNodeID = weight.fromNodeID;
+            let toNodeID = weight.toNodeID;
             try {
-                let weight1 = genome1.outputLayerGenes[0].weights[j].find(w => w.id === id);
-                let weight2 = genome2.outputLayerGenes[0].weights[j].find(w => w.id === id);
+                let weight1 = genome1.outputLayerGenes[0].weights[j].find(w => w.fromNodeID === fromNodeID && w.toNodeID === toNodeID);
+                let weight2 = genome2.outputLayerGenes[0].weights[j].find(w => w.fromNodeID === fromNodeID && w.toNodeID === toNodeID);
                 if (weight1 && weight2) {
                     weight.value = (alpha * weight1.value) + (beta * weight2.value);
                 }
@@ -2179,10 +2298,14 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
 
         for (const [j, weights] of layer.weights.entries()) {
             for (const [k, weight] of weights.entries()) {
-                let id = weight.id;
+                let fromNodeID = weight.fromNodeID;
+                let toNodeID = weight.toNodeID;
                 try {
                     let parent = Math.random() > 0.5 ? genome1 : genome2;
-                    let newWeight = parent.layerGenes.find(l => l.layerID === layerID).weights[j].find(w => w.id === id);
+                    let newWeight = parent.layerGenes
+                        .find(l => l.layerID === layerID)
+                        .weights[j]
+                        .find(w => w.fromNodeID === fromNodeID && w.toNodeID === toNodeID);
                     if (newWeight) {
                         weight.value = newWeight.value;
                     }
@@ -2208,10 +2331,13 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
     // Output Layer
     for (const [j, weights] of childGenome.outputLayerGenes[0].weights.entries()) {
         for (const [k, weight] of weights.entries()) {
-            let id = weight.id;
+            let fromNodeID = weight.fromNodeID;
+            let toNodeID = weight.toNodeID;
             try {
                 let parent = Math.random() > 0.5 ? genome1 : genome2;
-                let newWeight = parent.outputLayerGenes[0].weights[j].find(w => w.id === id);
+                let newWeight = parent.outputLayerGenes[0]
+                    .weights[j]
+                    .find(w => w.fromNodeID === fromNodeID && w.toNodeID === toNodeID);
                 if (newWeight) {
                     weight.value = newWeight.value;
                 }
@@ -2237,16 +2363,38 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
 
 function bodyPlanCrossover(childGenome, parent1, parent2) {
 
-    // Choose mainBody.size from one of the parents
     const mainBodySize = Math.random() < 0.5 ? parent1.bodyPlan.mainBody.size : parent2.bodyPlan.mainBody.size;
 
-    // Combine limbs from both parents
-    const limbs = parent1.bodyPlan.limbs.concat(parent2.bodyPlan.limbs);
-
-    // Randomly remove limbs until the count is between 2 and 6.  Might alter this to favour the same number of limbs as the higher scoring parent
+    // Combine and optionally remove limbs
+    let limbs = parent1.bodyPlan.limbs.concat(parent2.bodyPlan.limbs);
     const desiredNumLimbs = 2 + Math.floor(Math.random() * 5);
     while (limbs.length > desiredNumLimbs) {
-        limbs.splice(Math.floor(Math.random() * limbs.length), 1);
+        const removedLimb = limbs.splice(Math.floor(Math.random() * limbs.length), 1)[0];
+
+        // Remove associations from input and output layer genes.
+        if (removedLimb.limbID != null) {
+            // Input Layer: Direct Mapping
+            childGenome.inputLayerGenes[0].biases = childGenome.inputLayerGenes[0].biases.filter(b => b.id !== removedLimb.limbID);
+            childGenome.inputLayerGenes[0].weights.forEach(weightRow => {
+                const weightIndex = weightRow.findIndex(w => w.toNodeID === removedLimb.limbID);
+                if (weightIndex !== -1) {
+                    weightRow.splice(weightIndex, 1);
+                }
+            });
+
+            // Output Layer: More Complex Mapping
+            // Find the bias ID associated with the limbID.
+            const biasID = childGenome.outputLayerGenes[0].biases[removedLimb.limbID].id;
+            childGenome.outputLayerGenes[0].biases.splice(removedLimb.limbID, 1);
+
+            // Find and remove weights mapping from previous hidden layer to this bias.
+            childGenome.outputLayerGenes[0].weights.forEach(weightRow => {
+                const weightIndex = weightRow.findIndex(w => w.toNodeID === biasID);
+                if (weightIndex !== -1) {
+                    weightRow.splice(weightIndex, 1);
+                }
+            });
+        }
     }
 
     // Recalculate attachment points for the limbs
@@ -2254,11 +2402,6 @@ function bodyPlanCrossover(childGenome, parent1, parent2) {
         const angle = limb.startingAngle;
         limb.attachment.x = mainBodySize * Math.cos(angle);
         limb.attachment.y = mainBodySize * Math.sin(angle);
-        //childGenome.outputLayerGenes[0].find(l => l.biases.id === limb.limbID
-        //Find the output node for this limb and remove the bias and weights associated
-        //childGenome.outputLayerGenes[0].biases.splice(childGenome.genome.outputLayerGenes[0].biases.findIndex(b => b.id === limb.limbID), 1);
-        //childGenome.outputLayerGenes[0].weights.splice(childGenome.genome.outputLayerGenes[0].weights.findIndex(w => w.id === limb.limbID), 1);
-
     }
 
     childGenome.bodyPlan.mainBody.size = mainBodySize;
@@ -2266,11 +2409,8 @@ function bodyPlanCrossover(childGenome, parent1, parent2) {
     childGenome.inputLayerGenes[0].numberOfNeurons = 10 + limbs.length;
     childGenome.outputLayerGenes[0].numberOfNeurons = limbs.length;
 
-    // parent.layerGenes.find(l => l.layerID === layerID).weights[j].find(w => w.id === id);
-
     return childGenome;
 }
-
 
 function normalizeWeights(genome) {
     let normalizationFactor = 10 / maxWeight;
@@ -2348,71 +2488,81 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
         }
 
         // decide to add or remove a node with equal probability
-        if (Math.random() < 0.5 || randomLayer.biases.length === 1) {
+        if (Math.random() < 0.5 || randomLayer.biases.length === 1 || randomLayer.biases.length >= randomNodeIndex) {
             // Add a node
-            let newBiasId = generateUniqueId(genome.UsedBiasIDs);
+            let newBiasId = generateUniqueId(genome.usedBiasIDs);
             randomLayer.biases.splice(randomNodeIndex, 0, { id: newBiasId, value: Math.random() });
             randomLayer.numberOfNeurons++;
 
-            // Add string detailing mutation to genome.agentHistory.mutations
-            genome.agentHistory.mutations.push("type: node, layer: ", randomLayerIndex, " id: ", newBiasId, " mutation: add");
+            genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + newBiasId + " mutation: add");
 
-
-            // Add a new weight for the new node in each array in the current layer's weights at random index
-            randomLayer.weights.forEach(weightArray => {
-                let newWeightId = generateUniqueId(genome.UsedWeightIDs);
-                weightArray.splice(randomNodeIndex, 0, { id: newWeightId, value: Math.random() });
-            });
-
-            // If it's not the last hidden layer, add a new weight array in the next layer at random index
-            if (randomLayerIndex < genome.layerGenes.length - 1) {
-                let nextLayer = genome.layerGenes[randomLayerIndex + 1];
-                let newWeightArray = Array(nextLayer.biases.length).fill(0).map(() => ({
-                    id: generateUniqueId(genome.UsedWeightIDs),
-                    value: Math.random()
-                }));
-                nextLayer.weights.splice(randomNodeIndex, 0, newWeightArray);
-            }
-            // If it's the last hidden layer, add a new weight in the output layer for the new node at random index
-            else {
-                genome.outputLayerGenes[0].weights.forEach(weightArray => {
-                    let newWeightId = generateUniqueId(genome.UsedWeightIDs);
-                    weightArray.splice(randomNodeIndex, 0, { id: newWeightId, value: Math.random() });
+            if (randomLayerIndex === 0) {
+                // If it's the first hidden layer, link weights from input layer to the new node
+                genome.inputLayerGenes[0].biases.forEach((bias, idx) => {
+                    randomLayer.weights[idx].splice(randomNodeIndex, 0, {
+                        fromNodeID: bias.id,
+                        toNodeID: newBiasId,
+                        value: Math.random()
+                    });
+                });
+            } else {
+                // Link weights from all nodes in the previous hidden layer to the new node
+                let prevLayer = genome.layerGenes[randomLayerIndex - 1];
+                prevLayer.biases.forEach((bias, idx) => {
+                    randomLayer.weights[idx].splice(randomNodeIndex, 0, {
+                        fromNodeID: bias.id,
+                        toNodeID: newBiasId,
+                        value: Math.random()
+                    });
                 });
             }
+
+            // Link weights from the new node to all nodes in the next layer
+            let nextLayer = (randomLayerIndex === genome.layerGenes.length - 1) ? genome.outputLayerGenes[0] : genome.layerGenes[randomLayerIndex + 1];
+            let newWeightArray = nextLayer.biases.map(bias => ({
+                fromNodeID: newBiasId,
+                toNodeID: bias.id,
+                value: Math.random()
+            }));
+            nextLayer.weights.splice(randomNodeIndex, 0, newWeightArray);
+
         } else {
             // Remove a node
             if (randomLayer.biases.length > 1) {
+
                 try {
-                    // Add string detailing mutation to genome.agentHistory.mutations
-                    genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + randomLayer.biases[randomNodeIndex].id + " mutation: remove");
-                } catch (e) {
-                    // Add string detailing mutation to genome.agentHistory.mutations
-                    genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + "Not Found" + " mutation: remove");
-                }
-                randomLayer.biases.splice(randomNodeIndex, 1); // remove a bias at random index
-                randomLayer.numberOfNeurons--;
+                    let removedBiasId = randomLayer.biases[randomNodeIndex].id;
+                    genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + removedBiasId + " mutation: remove");
 
-                // Remove a weight for each array in the current layer's weights at random index
-                randomLayer.weights.forEach(weightArray => {
-                    weightArray.splice(randomNodeIndex, 1);
-                });
+                    randomLayer.biases.splice(randomNodeIndex, 1);
+                    randomLayer.numberOfNeurons--;
 
-                // If it's not the last hidden layer, remove a weight array in the next layer at random index
-                if (randomLayerIndex < genome.layerGenes.length - 1) {
-                    let nextLayer = genome.layerGenes[randomLayerIndex + 1];
-                    nextLayer.weights.splice(randomNodeIndex, 1);
-                }
-                // If it's the last hidden layer, remove a weight in the output layer for the new node at random index
-                else {
-                    genome.outputLayerGenes[0].weights.forEach(weightArray => {
-                        weightArray.splice(randomNodeIndex, 1);
+                    randomLayer.weights.forEach(weightArray => {
+                        let idxToRemove = weightArray.findIndex(w => w.toNodeID === removedBiasId);
+                        if (idxToRemove !== -1) weightArray.splice(idxToRemove, 1);
                     });
+
+                    // Removing the weights from the removed node to the next layer
+                    if (randomLayerIndex < genome.layerGenes.length - 1) {
+                        let nextLayer = genome.layerGenes[randomLayerIndex + 1];
+                        let idxToRemove = nextLayer.weights.findIndex(weightArray => weightArray.some(w => w.fromNodeID === removedBiasId));
+                        if (idxToRemove !== -1) nextLayer.weights.splice(idxToRemove, 1);
+                    }
+                    else {
+                        let idxToRemove = genome.outputLayerGenes[0].weights.findIndex(weightArray => weightArray.some(w => w.fromNodeID === removedBiasId));
+                        if (idxToRemove !== -1) genome.outputLayerGenes[0].weights.splice(idxToRemove, 1);
+                    }
+
+                } catch (e) {
+
+                    genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + randomNodeIndex + "Not Found, skipping mutation");
+
                 }
+
             }
         }
-
     }
+
 
     // Layer mutation (add or remove layer) Commented for now as I cant think of a way to maintain learned traits when adding or removing layers
     //if (Math.random() < layerMutationRate) {

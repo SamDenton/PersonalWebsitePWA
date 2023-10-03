@@ -62,7 +62,7 @@
     display: none;
 }
 
-.floating-button {
+/*.floating-button {
     position: fixed;
     top: 500px;
     right: 20px;
@@ -84,4 +84,40 @@
 
 .toggleLeader-button {
     right: 100px;
+}*/
+
+.floating-button {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 10;
+}
+
+.start-button {
+    background-color: green;
+    right: 300px;
+}
+
+.update-button {
+    right: 20px;
+}
+
+.toggleLeader-button {
+    top: 150px;
+    right: 250px;
+}
+
+.toggleRays-button {
+    top: 150px;
+    right: 20px;
+}
+
+.toggleNN-button {
+    top: 220px;
+    right: 20px;
+}
+
+.logGenomes-button {
+    top: 220px;
+    right: 250px;
 }
