@@ -2363,38 +2363,44 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
 
 function bodyPlanCrossover(childGenome, parent1, parent2) {
 
+    // Choose mainBody.size from one of the parents
     const mainBodySize = Math.random() < 0.5 ? parent1.bodyPlan.mainBody.size : parent2.bodyPlan.mainBody.size;
 
-    // Combine and optionally remove limbs
-    let limbs = parent1.bodyPlan.limbs.concat(parent2.bodyPlan.limbs);
+    // Combine limbs, nodes, and weights from both parents
+    const limbs = [];
+    const inputBiases = [];
+    const inputWeights = [];
+    const outputBiases = [];
+    const outputWeights = [];
+
+    for (const parent of [parent1, parent2]) {
+        for (const [idx, limb] of parent.bodyPlan.limbs.entries()) {
+            const newLimb = _.cloneDeep(limb);
+            const newID = Math.floor(Math.random() * 10000); // or other method to generate a unique ID
+            newLimb.limbID = newID;
+            limbs.push(newLimb);
+
+            // Copying and reassigning nodes and weights
+            inputBiases.push({ ...parent.inputLayerGenes[0].biases[idx], id: newID });
+            inputWeights.push(
+                parent.layerGenes[0].weights.map(subArray =>
+                    subArray.map(w => (w.fromNodeID === limb.id) ? { ...w, fromNodeID: newID } : w)
+                )
+            );
+            outputBiases.push({ ...parent.outputLayerGenes[0].biases[idx], id: newID });
+            outputWeights.push(parent.outputLayerGenes[0].weights.map(wRow => wRow[idx]).map(w => ({ ...w, toNodeID: newID })));
+        }
+    }
+
+    // Randomly remove limbs (and related nodes & weights) until the count is between 2 and 6.
     const desiredNumLimbs = 2 + Math.floor(Math.random() * 5);
     while (limbs.length > desiredNumLimbs) {
-        const removedLimb = limbs.splice(Math.floor(Math.random() * limbs.length), 1)[0];
-
-        // Remove associations from input and output layer genes.
-        if (removedLimb.limbID != null) {
-            // Input Layer: Direct Mapping
-            childGenome.inputLayerGenes[0].biases = childGenome.inputLayerGenes[0].biases.filter(b => b.id !== removedLimb.limbID);
-            childGenome.inputLayerGenes[0].weights.forEach(weightRow => {
-                const weightIndex = weightRow.findIndex(w => w.toNodeID === removedLimb.limbID);
-                if (weightIndex !== -1) {
-                    weightRow.splice(weightIndex, 1);
-                }
-            });
-
-            // Output Layer: More Complex Mapping
-            // Find the bias ID associated with the limbID.
-            const biasID = childGenome.outputLayerGenes[0].biases[removedLimb.limbID].id;
-            childGenome.outputLayerGenes[0].biases.splice(removedLimb.limbID, 1);
-
-            // Find and remove weights mapping from previous hidden layer to this bias.
-            childGenome.outputLayerGenes[0].weights.forEach(weightRow => {
-                const weightIndex = weightRow.findIndex(w => w.toNodeID === biasID);
-                if (weightIndex !== -1) {
-                    weightRow.splice(weightIndex, 1);
-                }
-            });
-        }
+        const removedIdx = Math.floor(Math.random() * limbs.length);
+        limbs.splice(removedIdx, 1);
+        inputBiases.splice(removedIdx, 1);
+        inputWeights.splice(removedIdx, 1);
+        outputBiases.splice(removedIdx, 1);
+        outputWeights.splice(removedIdx, 1);
     }
 
     // Recalculate attachment points for the limbs
@@ -2406,11 +2412,35 @@ function bodyPlanCrossover(childGenome, parent1, parent2) {
 
     childGenome.bodyPlan.mainBody.size = mainBodySize;
     childGenome.bodyPlan.limbs = limbs;
+
+    // Assuming all limb-related nodes are at the start of the array, then:
+    const nonLimbInputBiases = childGenome.inputLayerGenes[0].biases.slice(limbs.length);
+    const nonLimbInputWeights = childGenome.layerGenes[0].weights.map(arr => arr.slice(limbs.length));
+
+    // Insert limb-related nodes
+    childGenome.inputLayerGenes[0].biases = [...inputBiases, ...nonLimbInputBiases];
+
+    // Insert limb-related weights
+    childGenome.layerGenes[0].weights = inputWeights.map((arr, idx) => [...arr, ...nonLimbInputWeights[idx]]);
+
+    childGenome.outputLayerGenes[0].biases = outputBiases;
+
+    // Adjust weights for output layer
+    childGenome.outputLayerGenes[0].weights = [];
+    outputWeights[0].forEach((_, idx) => {
+        const weightRow = outputWeights.map(ow => ow[idx]);
+        childGenome.outputLayerGenes[0].weights.push(weightRow);
+    });
+
     childGenome.inputLayerGenes[0].numberOfNeurons = 10 + limbs.length;
     childGenome.outputLayerGenes[0].numberOfNeurons = limbs.length;
 
+    // Reassign limbID based on index.
+    limbs.forEach((limb, idx) => limb.limbID = idx);
+
     return childGenome;
 }
+
 
 function normalizeWeights(genome) {
     let normalizationFactor = 10 / maxWeight;
