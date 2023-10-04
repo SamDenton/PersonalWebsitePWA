@@ -622,10 +622,10 @@ function applySwimmingForce(agent) {
 
             let forceMagnitude;
 
-            forceMagnitude = deltaTheta * forceScalingFactor * bias;
+            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbs[i].getMass() / 10);
 
             if (agent.agentEnergy > 0) {
-                agent.agentEnergy -= Math.abs(forceMagnitude / 1000000);
+                agent.agentEnergy -= Math.abs(forceMagnitude / 1000000) * (agent.limbs[i].getMass() / 10);
             }
 
             // Calculate the force vector
@@ -971,7 +971,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
     this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
     this.position = this.mainBody.getPosition();
-    this.startingEnergy = 100 + (mainBodyRadius / 6 * (simulationLength / 1000)) ** 5; // + body segments mass and maybe limbs later
+    this.startingEnergy = 100 + (mainBodyRadius / 6 * (simulationLength / 1000)) ** 3; // + body segments mass and maybe limbs later
     this.agentEnergy = this.startingEnergy;
     this.rayCastPoints = [];
 
@@ -1094,7 +1094,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             let currentAngle = this.joints[i].getJointAngle();
 
             // Now that I randomly change the agent's starting angles, we need to only increment score after round starts
-            if (simulationStarted) {
+            if (singleUpdateCompleted) {
                 let change = Math.abs(currentAngle - this.previousJointAngles[i]);
                 totalChange += change;
             }
@@ -1209,18 +1209,18 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         //} else {
             weightPenalty = 0;
         //}
-        let massBonus = 0;
+        this.massBonus = 0;
         if (!roundOver) {
             try {
-                massBonus = this.mainBody.getMass() / 10;
+                this.massBonus = this.mainBody.getMass() / 5;
             } catch (e) {
-                massBonus = 0;
+                this.massBonus = 0;
             }
         }
 
         // Calculate the mass bonus based on the main body's mass
 
-        this.Score = XPosScore + YPosScore + jointMovementReward + explorationReward - weightPenalty * massBonus;
+        this.Score = XPosScore + YPosScore + jointMovementReward + explorationReward - weightPenalty * this.massBonus;
 
         if (this.Score < 1) {
             this.Score = 1;
@@ -1237,7 +1237,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             weightPenalty.toFixed(2),
             jointMovementReward.toFixed(2),
             explorationReward.toFixed(2),
-            massBonus.toFixed(2),
+            this.massBonus.toFixed(2),
             this.agentEnergy.toFixed(2)
         ];
     };
@@ -1309,18 +1309,18 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
 
         // Render second set of joint anchors for testing
-        for (let i = 0; i < this.numLimbs; i++) {
-            if (this.joints[i]) {
-                let jointPos = this.joints[i].getAnchorB();
-                // Check if the current joint's index is within the jointColors array length
-                if (i < JOINT_COLORS.length) {
-                    p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
-                } else {
-                    p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
-                }
-                p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
-            }
-        }
+        //for (let i = 0; i < this.numLimbs; i++) {
+        //    if (this.joints[i]) {
+        //        let jointPos = this.joints[i].getAnchorB();
+        //        // Check if the current joint's index is within the jointColors array length
+        //        if (i < JOINT_COLORS.length) {
+        //            p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
+        //        } else {
+        //            p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
+        //        }
+        //        p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
+        //    }
+        //}
     };
 
     this.renderRayCasts = function (p, offsetX, offsetY) {
@@ -1370,7 +1370,7 @@ function createLimbNEAT(world, x, y, width, height, angle, agentNo, limbNo) {
 
     // Assign a negative group index based on the agent number
     // This ensures that limbs of the same agent will never collide with each other
-    let groupIndex = -agentNo;
+    // let groupIndex = -agentNo;
 
     let fixtureDef = {
         shape: shape,
@@ -1512,7 +1512,9 @@ function createMaps(mapNumber) {
     let startX = 200;
     let startY = 600;
 
-    mapNumber = 1;
+    if (mapNumber == 0 || mapNumber == 3) {
+        mapNumber = 1;
+    }
 
     if (mapNumber == 0) {
         // Map starts agents in a channel with obsticles to get around, then opens up to free space
@@ -1840,6 +1842,9 @@ function activationTypeToString(type) {
 
 function nextGenerationNEAT(p) {
     usedIndices = new Set();
+    if (framesPerUpdateStart > 1) {
+        framesPerUpdateStart--;
+    }
     let newAgents = [];
     let groupAgents;
     let topPerformersCount;
@@ -2043,14 +2048,15 @@ function generateOffspringNEAT(groupAgents, newAgents, groupId, topPerformerNumb
                 }
 
                 // Crossover the body plan
-                // childGenome = bodyPlanCrossover(childGenome, parent1.genome, parent2.genome);
+                childGenome = bodyPlanCrossover(childGenome, parent1, parent2);
 
                 // Code to update mutation rate commented for now as highly inefficient. It was adding 10 seconds + to the start of each round.
                 // childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
 
-                // childBrain = mutate(childBrain, this.mutationRate);
 
                 childGenome = mutateGenome(childGenome, agentMutationRate, 0.1, 0.1);
+
+                childGenome = mutateBodyPlan(childGenome, 0.25);
 
                 // Decay all weights in the brain by a small amount
                 if (brainDecay) {
@@ -2361,100 +2367,127 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
     return childGenome;
 }
 
-function bodyPlanCrossover(childGenome, parent1, parent2) {
+function bodyPlanCrossover(childGenome, agent1, agent2) {
 
-    // Choose mainBody.size from one of the parents
-    const mainBodySize = Math.random() < 0.5 ? parent1.bodyPlan.mainBody.size : parent2.bodyPlan.mainBody.size;
+    // Determine which parent is dominant based on score
+    const isParent1Dominant = agent1.getScore(true)[0] > agent2.getScore(true)[0];
+    const dominantParent = isParent1Dominant ? agent1 : agent2;
+    const submissiveParent = isParent1Dominant ? agent2 : agent1;
 
-    // Combine limbs, nodes, and weights from both parents
-    const limbs = [];
-    const inputBiases = [];
-    const inputWeights = [];
-    const outputBiases = [];
-    const outputWeights = [];
+    let dominantParentGenome = dominantParent.genome;
+    let submissiveParentGenome = submissiveParent.genome;
 
-    for (const parent of [parent1, parent2]) {
-        for (const [idx, limb] of parent.bodyPlan.limbs.entries()) {
-            const newLimb = _.cloneDeep(limb);
-            const newID = Math.floor(Math.random() * 10000); // or other method to generate a unique ID
-            newLimb.limbID = newID;
-            limbs.push(newLimb);
+    // Randomly select the main body size from one of the parents
+    childGenome.bodyPlan.mainBody.size = Math.random() < 0.5 ? dominantParentGenome.bodyPlan.mainBody.size : submissiveParentGenome.bodyPlan.mainBody.size;
 
-            // Copying and reassigning nodes and weights
-            inputBiases.push({ ...parent.inputLayerGenes[0].biases[idx], id: newID });
-            inputWeights.push(
-                parent.layerGenes[0].weights.map(subArray =>
-                    subArray.map(w => (w.fromNodeID === limb.id) ? { ...w, fromNodeID: newID } : w)
-                )
-            );
-            outputBiases.push({ ...parent.outputLayerGenes[0].biases[idx], id: newID });
-            outputWeights.push(parent.outputLayerGenes[0].weights.map(wRow => wRow[idx]).map(w => ({ ...w, toNodeID: newID })));
+    // Check for each limb in the child genome whether to keep it or swap it
+    childGenome.bodyPlan.limbs.forEach((limb, idx) => {
+        // If there's a corresponding limb in both parents, decide whether to swap
+        if (dominantParentGenome.bodyPlan.limbs[idx] && submissiveParentGenome.bodyPlan.limbs[idx]) {
+            if (Math.random() < 0.5) {
+                childGenome.bodyPlan.limbs[idx] = _.cloneDeep(submissiveParentGenome.bodyPlan.limbs[idx]);
+                childGenome.agentHistory.mutations.push("type: limb, mutation: swap from parent: " + submissiveParentGenome.metadata.agentName);
+            }
         }
-    }
 
-    // Randomly remove limbs (and related nodes & weights) until the count is between 2 and 6.
-    const desiredNumLimbs = 2 + Math.floor(Math.random() * 5);
-    while (limbs.length > desiredNumLimbs) {
-        const removedIdx = Math.floor(Math.random() * limbs.length);
-        limbs.splice(removedIdx, 1);
-        inputBiases.splice(removedIdx, 1);
-        inputWeights.splice(removedIdx, 1);
-        outputBiases.splice(removedIdx, 1);
-        outputWeights.splice(removedIdx, 1);
-    }
-
-    // Recalculate attachment points for the limbs
-    for (const limb of limbs) {
-        const angle = limb.startingAngle;
-        limb.attachment.x = mainBodySize * Math.cos(angle);
-        limb.attachment.y = mainBodySize * Math.sin(angle);
-    }
-
-    childGenome.bodyPlan.mainBody.size = mainBodySize;
-    childGenome.bodyPlan.limbs = limbs;
-
-    // Assuming all limb-related nodes are at the start of the array, then:
-    const nonLimbInputBiases = childGenome.inputLayerGenes[0].biases.slice(limbs.length);
-    const nonLimbInputWeights = childGenome.layerGenes[0].weights.map(arr => arr.slice(limbs.length));
-
-    // Insert limb-related nodes
-    childGenome.inputLayerGenes[0].biases = [...inputBiases, ...nonLimbInputBiases];
-
-    // Insert limb-related weights
-    childGenome.layerGenes[0].weights = inputWeights.map((arr, idx) => [...arr, ...nonLimbInputWeights[idx]]);
-
-    childGenome.outputLayerGenes[0].biases = outputBiases;
-
-    // Adjust weights for output layer
-    childGenome.outputLayerGenes[0].weights = [];
-    outputWeights[0].forEach((_, idx) => {
-        const weightRow = outputWeights.map(ow => ow[idx]);
-        childGenome.outputLayerGenes[0].weights.push(weightRow);
+        // If the limb exists in the childGenome (i.e., it was not swapped out), recalculate attachment points
+        if (childGenome.bodyPlan.limbs[idx]) {
+            childGenome.bodyPlan.limbs[idx].attachment.x = childGenome.bodyPlan.mainBody.size * Math.cos(childGenome.bodyPlan.limbs[idx].startingAngle);
+            childGenome.bodyPlan.limbs[idx].attachment.y = childGenome.bodyPlan.mainBody.size * Math.sin(childGenome.bodyPlan.limbs[idx].startingAngle);
+        }
     });
-
-    childGenome.inputLayerGenes[0].numberOfNeurons = 10 + limbs.length;
-    childGenome.outputLayerGenes[0].numberOfNeurons = limbs.length;
-
-    // Reassign limbID based on index.
-    limbs.forEach((limb, idx) => limb.limbID = idx);
 
     return childGenome;
 }
 
+//function bodyPlanCrossover(childGenome, parent1, parent2) {
 
-function normalizeWeights(genome) {
-    let normalizationFactor = 10 / maxWeight;
-    genome.inputLayerGenes[0].biases.forEach(b => b.value *= normalizationFactor);
-    genome.layerGenes.forEach(layer =>
-        layer.weights.forEach(w =>
-            w.forEach(weight => weight.value *= normalizationFactor)
-        )
-    );
-    genome.outputLayerGenes[0].weights.forEach(w =>
-        w.forEach(weight => weight.value *= normalizationFactor)
-    );
-}
+//    // Combine limbs, nodes, and weights from both parents
+//    const limbs = [];
+//    const inputBiases = [];
+//    const inputWeights = [];
+//    const outputBiases = [];
+//    const outputWeights = [];
 
+//    for (const parent of [parent1, parent2]) {
+//        for (const [idx, limb] of parent.bodyPlan.limbs.entries()) {
+//            const newLimb = _.cloneDeep(limb);
+//            const newID = Math.floor(Math.random() * 10000); // or other method to generate a unique ID
+//            newLimb.limbID = newID;
+//            limbs.push(newLimb);
+
+//            // Copying and reassigning nodes and weights
+//            inputBiases.push({ ...parent.inputLayerGenes[0].biases[idx], id: newID });
+//            inputWeights.push(
+//                parent.layerGenes[0].weights.map(subArray =>
+//                    subArray.map(w => (w.fromNodeID === limb.id) ? { ...w, fromNodeID: newID } : w)
+//                )
+//            );
+//            console.log("Expected toNodeID:", parent.outputLayerGenes[0].biases[idx].id);
+
+//            outputBiases.push({ ...parent.outputLayerGenes[0].biases[idx], id: newID });
+//            outputWeights.push(parent.outputLayerGenes[0].weights.map(wRow => wRow[idx]).map(w => ({ ...w, toNodeID: newID })));
+//        }
+//    }
+//    console.log("Temp arrays for body plan crossover, before splice", inputBiases, inputWeights, outputBiases, outputWeights);
+//    const desiredNumLimbs = 2 + Math.floor(Math.random() * 4);
+//    while (limbs.length > desiredNumLimbs) {
+//        // Select limb to remove
+//        const removedIdx = Math.floor(Math.random() * limbs.length);
+//        const removedLimbID = limbs[removedIdx].limbID;
+
+//        // Remove limb and related attributes
+//        limbs.splice(removedIdx, 1);
+
+//        // Remove related neural attributes by ID reference
+//        inputBiases.splice(inputBiases.findIndex(b => b.id === removedLimbID), 1);
+//        inputWeights.splice(inputWeights.findIndex(w => w.some(subW => subW.fromNodeID === removedLimbID)), 1);
+//        outputBiases.splice(outputBiases.findIndex(b => b.id === removedLimbID), 1);
+
+//        // Detailed handling for outputWeights
+//        outputWeights.forEach(arr => {
+//            const weightIdx = arr.findIndex(w => w.toNodeID === removedLimbID);
+//            if (weightIdx !== -1) arr.splice(weightIdx, 1);
+//        });
+//    }
+//    console.log("Temp arrays for body plan crossover, after splice", inputBiases, inputWeights, outputBiases, outputWeights);
+//    // Recalculate attachment points for the limbs
+//    for (const limb of limbs) {
+//        const angle = limb.startingAngle;
+//        limb.attachment.x = mainBodySize * Math.cos(angle);
+//        limb.attachment.y = mainBodySize * Math.sin(angle);
+//    }
+
+//    childGenome.bodyPlan.mainBody.size = mainBodySize;
+//    childGenome.bodyPlan.limbs = limbs;
+
+//    // Assuming all limb-related nodes are at the start of the array, then:
+//    const nonLimbInputBiases = childGenome.inputLayerGenes[0].biases.slice(limbs.length);
+//    const nonLimbInputWeights = childGenome.layerGenes[0].weights.map(arr => arr.slice(limbs.length));
+
+//    // Insert limb-related nodes
+//    childGenome.inputLayerGenes[0].biases = [...inputBiases, ...nonLimbInputBiases];
+
+//    // Insert limb-related weights
+//    childGenome.layerGenes[0].weights = inputWeights.map((arr, idx) => [...arr, ...nonLimbInputWeights[idx]]);
+
+//    childGenome.outputLayerGenes[0].biases = outputBiases;
+
+//    // Adjust weights for output layer
+//    childGenome.outputLayerGenes[0].weights = [];
+//    outputWeights[0].forEach((_, idx) => {
+//        const weightRow = outputWeights.map(ow => ow[idx]);
+//        childGenome.outputLayerGenes[0].weights.push(weightRow);
+//    });
+
+//    childGenome.inputLayerGenes[0].numberOfNeurons = 10 + limbs.length;
+//    childGenome.outputLayerGenes[0].numberOfNeurons = limbs.length;
+
+//    // Reassign limbID based on index.
+//    limbs.forEach((limb, idx) => limb.limbID = idx);
+
+//    return childGenome;
+//}
 
 function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate) {
     let stdDeviation = 0.1;
@@ -2641,6 +2674,41 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
 
     return genome;
 }
+
+function mutateBodyPlan(childGenome, bodyMutationRate) {
+    // Main Body Size Mutation
+    if (Math.random() < bodyMutationRate) {
+        childGenome.bodyPlan.mainBody.size = mutateWithinBounds(childGenome.bodyPlan.mainBody.size, 10, 30);
+    }
+
+    // Limb Properties Mutation
+    childGenome.bodyPlan.limbs.forEach(limb => {
+        if (Math.random() < bodyMutationRate) {
+            limb.constraints.maxTorque = mutateWithinBounds(limb.constraints.maxTorque, 1000, 100000);
+            limb.constraints.maxAngle = mutateWithinBounds(limb.constraints.maxAngle, Math.PI / 5, Math.PI / 2);
+            limb.constraints.minAngle = mutateWithinBounds(limb.constraints.minAngle, -(Math.PI / 2), -(Math.PI / 5));
+            limb.length = mutateWithinBounds(limb.length, 10, 60);
+            limb.width = mutateWithinBounds(limb.width, 2, 22);
+            limb.startingAngle = mutateWithinBounds(limb.startingAngle, 0, 2 * Math.PI);
+
+            // Recalculate the x and y attachments based on potential mainBody size mutation and limb angle mutation.
+            limb.attachment.x = childGenome.bodyPlan.mainBody.size * Math.cos(limb.startingAngle);
+            limb.attachment.y = childGenome.bodyPlan.mainBody.size * Math.sin(limb.startingAngle);
+        }
+    });
+
+    return childGenome;
+}
+
+function mutateWithinBounds(original, min, max) {
+    // Define a mutation rate (this could be dynamic, random, or otherwise defined based on your requirements).
+    let mutationRate = 0.5;
+    // Mutate value.
+    let mutated = original + ((Math.random() - 0.5) * mutationRate * (max - min));
+    // Ensure mutation stays within specified bounds.
+    return Math.min(max, Math.max(min, mutated));
+}
+
 
 
 function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
