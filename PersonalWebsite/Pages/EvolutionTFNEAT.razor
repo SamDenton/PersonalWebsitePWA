@@ -372,7 +372,6 @@
         <p>If you start the simulation with default settings, you will see 6-7 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest right, and the furthest left agent</p>
         <p>Each round, the agents have 2000 ticks, about 34 seconds at 60 fps with default physics speed of 60, to move as far North East as possible.</p>
         <p>The agents are all given a randomly initialised neural network, with a random shape for a brain, the leaders brain is rendered.  They are given a random body plan.  Both the brain and the body plan will evolve over time based on a number of crossover and mutation functions</p>
-        <p>The current selective preasures incude the score for movement NE, a bonus for joint movement that diminishes over time, an exploration bonus, a size bonus, as well as an energy system.  This gives larger boddied agents more starting energy.  They use energy to move, using more energy to move larger limbs, while larger limbs produce more force.  The amount they can move their muscles decreases with energy.</p>
         <p>Between rounds, the agents are sorted by score, where the top 10% from each group are selected to remain unchanged, and the other 90% of the population is built using crossover and mutation.</p>
         <p>Crossover is the function of picking 2 parent agents and combining the weights and biases in their brains, keeping some features from one, and some from the other.  There are a range of methods for this, I am currently using biased Arithmetic Crossover, where there is a weighted bias given by the relative scores of the parents.</p>
         <p>Mutation adds a small chance that each weight, bias, limb or body will be altered by a small, random amount.  Again, there are many methods, currently i am using the Box-Muller transform to get a Gaussian random number for my mutation amount.  I have a function that changes the mutation rate if agents brains get too close to the average</p>
@@ -380,10 +379,24 @@
         <p>I am also using 'Island Populations' or 'Island Spisiation', where parents are always picked from the same distinct group.  This means, with default settings, 3 distinct populations should evolve with different strategies.  There is a small chance that parents are picked from a different group, allowing some sharing of strategies</p>
         <p>You should see some 'evolution' within  50 or so generations, and they can continue to improve indefinatly, however, they can get stuck in whats known as a 'local maxima' where the agents converge on 1 or a few ok strategies, and never seem to improve.  Through mutation, they might eventually, but in those situations, its best to restart.  A greater number of agents or distinct population groups can help with this</p>
         <p>If enabled, I am experementing with a form of normalisation which slowly decays all weights in the network over time.  It's meant to prevent any noise in the network over time, based on a 'use it or loose it' principal.  Useful connections should be maintained by re-selection and un-needed connections will drop away</p>
+        <h4>Current Selective Preasures (to be made configurable)</h4>
+        <ol>
+            <li>Score for movement NE</li>
+            <li>Bonus for joint movement that diminishes over time</li>
+            <li>Exploration bonus</li>
+            <li>Size bonus</li>
+            <li>Larger limbs give more swimming force</li>
+            <li><h5>Energy Sytem:</h5></li>
+                <li>Starting energy based on body size, larger boddies can store more energy</li>
+                <li>More energy is used to move larger limbs</li>
+                <li>Agents limb movement speed is based on their remaining energy %, with no engergy, they cant move at all</li>
+        </ol>
         <h4>Future Plans</h4>
         <p>I want to make all variables customisable, which is a huge number.  I need to find a nice way to arrange them</p>
         <p>I plan on adding further ways the agents can evolve, both the brain and the body.  Currently, they cant gain or loose layers in the network through mutation, only crossover.  I want to allow more complex bocy plans with diffent types of limb and body segment</p>
         <p>I want to add a greater range of crossover, mutation and selection methods to increase diversity, and have them togglable in settings to play with differnet combinations</p>
+        <p>I want to add a way to save and load agents, and a way to download and upload agents to a database</p>
+        <p>I want to add a system where agents from a run are added to a pool, which is maintained for a set number of runs, and crossover and mutation is performed on that pool, effectivly multiplying the number of agents per generation, but decreasing simulation time per agent and increasing training time</p>
 @*        <p>The next update I would like to implement is my own version of the NEAT algorithm, or Neural Evolution of Augmented Topologies.  This involves starting with a simple brain and evolving its 'shape' over time.  The default shape is currently [11, 15, 10, 5], equating to the inputs, 5 limb angles, the agents x,y the agents x and y velocity, their orientation in space, and the time remaining.  The 2 'hidden layers' and 5 outputs for the 5 joint speeds.</p>
         <p>Using NEAT, the shape would start more like [11,5,5], and each generation, as part of the numtaion function, there is a change the brain will gain a node within a layer, or a whole new layer</p>
         <p>I intend to take this a little further, by also evolving the agents body, and the inputs and outputs.  This would mean starting with a simple agent, like they are now but with 2-3 limbs.  They would be able to mutate additional limbs and body segments over time.  The inputs and outputs would also be selected from a pool</p>
@@ -433,8 +446,8 @@
         public int muscleDelay { get; set; } = 1;
         public int muscleBatch { get; set; } = 5;
         public int totalMuscleUpdateTime { get; set; } = 2;
-        public int velocityIteration { get; set; } = 5;
-        public int positionIteration { get; set; } = 3;
+        public int velocityIteration { get; set; } = 4;
+        public int positionIteration { get; set; } = 2;
         public double physicsGranularityMultipliers { get; set; } = 1;
         public double liquidViscosity { get; set; } = 0.99;
         public bool timeIncrease { get; set; } = true;
@@ -531,9 +544,9 @@
             int numLayers = random.Next(1, 5);
 
             // assuming you want to add 3 layers, and the layer numbers are between 1 and 3, and sizes between 10 and 20
-            for (int j = 0; j < 3; j++)
+            for (int j = 0; j < numLayers; j++)
             {
-                int randomSize = random.Next(5, 30); // Generates a random integer between 10 and 20
+                int randomSize = random.Next(3, 20); // Generates a random integer between 3 and 20
                 genome.LayerGenes.Add(InitializeLayer(j, randomSize));
             }
 
@@ -660,7 +673,6 @@
         public AgentHistory AgentHistory { get; set; }
         public Hyperparameters Hyperparameters { get; set; }
         public Metadata Metadata { get; set; }
-        public List<int> UsedWeightIDs { get; set; }
         public List<int> UsedBiasIDs { get; set; }
         public List<int> UsedLayerIDs { get; set; }
 
@@ -675,7 +687,6 @@
             this.AgentHistory = new AgentHistory();
             this.Hyperparameters = new Hyperparameters();
             this.Metadata = new Metadata();
-            this.UsedWeightIDs = new List<int>();
             this.UsedBiasIDs = new List<int>();
             this.UsedLayerIDs = new List<int>();
         }
@@ -751,8 +762,8 @@
         public int RoundsAsTopPerformer { get; set; }
         public int UsedAsParent { get; set; }
         public List<String> Mutations { get; set; }
-        public List<double> RankInGroup { get; set; }
-        public List<double> RankInPop { get; set; }
+        public double RankInGroup { get; set; }
+        public double RankInPop { get; set; }
 
         public AgentHistory()
         {
@@ -761,8 +772,6 @@
             this.RoundsAsTopPerformer = 0;
             this.UsedAsParent = 0;
             this.Mutations = new List<String>();
-            this.RankInGroup = new List<double>();
-            this.RankInPop = new List<double>();
         }
     }
 
@@ -770,6 +779,7 @@
     {
         public double Score { get; set; }
         public int Map { get; set; }
+        public int Generation { get; set; }
     }
 
     public class Hyperparameters

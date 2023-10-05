@@ -624,7 +624,7 @@ function applySwimmingForce(agent) {
             forceMagnitude = deltaTheta * forceScalingFactor * bias * (2 * agent.limbMass[i] / 150) * Math.max(0, (agent.agentEnergy / agent.startingEnergy));
 
             if (agent.agentEnergy > 0) {
-                agent.agentEnergy -= Math.abs(forceMagnitude / 1000000) * (agent.limbMass[i] / 15);
+                agent.agentEnergy -= Math.abs(forceMagnitude / 1000000) * (agent.limbMass[i] / 15) * (agent.brainSize / 50);
             }
 
             // Calculate the force vector
@@ -1029,40 +1029,15 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         this.biases.push(1.5);
     }
 
-    //for (let i = 0; i < this.numLimbs; i++) {
-    //    let limbGenome = this.genome.bodyPlan.limbs[i];
-    //    let limb = createLimbNEAT(world, limbGenome, agentNo);
-    //    this.limbs.push(limb);
-
-    //    let joint = createRevoluteJointNEAT(world, this.mainBody, limb, limbGenome);
-    //    this.joints.push(joint);
-    //}
-
-    // this.limbWidth = 10; // Example limb width
-    // this.limbLength = 40; // Example limb length
-    //this.smallestAngle;
-    //this.largestAngle;
-    //if (jointMaxMove != 0) {
-    //    this.smallestAngle = -(Math.PI / jointMaxMove);
-    //    this.largestAngle = Math.PI / jointMaxMove;
-    //} else {
-    //    this.smallestAngle = 360;
-    //    this.largestAngle = 360;
-    //}
-
-    const angleIncrement = 2 * Math.PI / this.numLimbs;
+    // give the agent a this.brainSize property counting the number of nodes in the whole this.genome.inputLayerGenes.numberOfNeurons + this.genome.outputLayerGenes.numberOfNeurons + this.genome.layerGenes.numberOfNeurons;
+    this.brainSize = this.genome.inputLayerGenes[0].numberOfNeurons + this.genome.outputLayerGenes[0].numberOfNeurons;
+    for (let i = 0; i < this.genome.layerGenes.length; i++) {
+        this.brainSize += this.genome.layerGenes[i].numberOfNeurons;
+    }
 
     for (let i = 0; i < this.numLimbs; i++) {
-        // const angle = i * angleIncrement;
+
         const angle = this.genome.bodyPlan.limbs[i].startingAngle;
-
-        let cosAngle = Math.cos(angle);
-        let sinAngle = Math.sin(angle);
-
-        //let limbX = this.startingX + cosAngle * (mainBodyRadius + this.genome.bodyPlan.limbs[i].length);
-        //let limbY = this.startingY + sinAngle * (mainBodyRadius + this.genome.bodyPlan.limbs[i].length);
-
-        //console.log("Comparing old position values: ", limbX, limbY, i * angleIncrement, " With new values: ", this.startingX + this.genome.bodyPlan.limbs[i].attachment.x, this.startingY + this.genome.bodyPlan.limbs[i].attachment.y, this.genome.bodyPlan.limbs[i].startingAngle)
 
         let limbX = this.startingX + this.genome.bodyPlan.limbs[i].attachment.x;
         let limbY = this.startingY + this.genome.bodyPlan.limbs[i].attachment.y;
@@ -1070,12 +1045,6 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         let limb = createLimbNEAT(world, limbX, limbY, this.genome.bodyPlan.limbs[i].length, this.genome.bodyPlan.limbs[i].width, angle - Math.PI / 2, agentNo, i);
         this.limbs.push(limb);
         this.limbMass.push(limb.getMass());
-
-        //// Calculate local anchor for bodyA (main body)
-        //let localAnchorA = planck.Vec2(
-        //    mainBodyRadius * cosAngle,
-        //    mainBodyRadius * sinAngle
-        //);
 
         let localAnchorA = planck.Vec2(
             this.genome.bodyPlan.limbs[i].attachment.x,
@@ -1172,56 +1141,10 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         return this.coveredCellCount;
     };
 
-    //this.totalXMovementReward = 0;
-    //this.totalYMovementReward = 0;
-
-    // Old tracking variables for incremental pos score: Initialize previousXPos to starting x-position
-    //this.previousXPos = this.startingX;
-    //this.previousYPos = this.startingY;
-
     this.furthestXPos = this.startingX;
     this.furthestYPos = this.startingY;
 
     this.getScore = function (roundOver) {
-
-        // Old incrementing Movement score, with time factor included(In use on old genetic evolution sim):
-        /*
-        // Calculate change in x-position
-        let deltaX = this.position.x - this.previousXPos;
-        let deltaY = this.position.y - this.previousYPos;
-
-        let currentXReward;
-        let currentYReward;
-
-        if (displayedTimeLeft > 1) {
-            // let TimeFactor = 1 + tickCount / simulationLength;
-            let TimeFactor = 1;
-            // currentXReward = deltaX * TimeFactor * 2;  // Linier growth of x reward
-            // currentXReward = deltaX ** TimeFactor ** 2; // non linier,
-            currentXReward = deltaX * Math.exp(TimeFactor - 1);
-            currentYReward = deltaY * Math.exp(TimeFactor - 1);
-        } else {
-            currentXReward = 0;
-            currentYReward = 0;
-        }
-
-
-         Accumulate x movement reward
-        this.totalXMovementReward += Math.abs(currentXReward);
-        this.totalYMovementReward += Math.abs(currentYReward);
-
-         Update the previous x position for next time
-        this.previousXPos = this.position.x;
-        this.previousYPos = this.position.y;
-
-        let XPosScore = this.totalXMovementReward * 1;
-        let YPosScore = Math.abs(this.totalYMovementReward) * 1;
-        */
-
-        //Old simple X,Y score calculation
-        //let XPosScore = (Math.floor(this.position.x - this.startingX) * 1);
-        //let YPosScore = (Math.floor(this.startingY - this.position.y) * 1);
-
 
         if (this.position.x > this.furthestXPos) {
             this.furthestXPos = this.position.x;
@@ -1294,9 +1217,6 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
             // Draw the main body
             p.ellipse(0, 0, mainBodyRadius * 2, mainBodyRadius * 2);
-
-            // Rotate arrow stem 90 degrees clockwise (to face East or 3:00)
-           /* p.rotate(Math.PI / 2);*/
 
             p.fill(0);
             // Draw arrow stem pointing right (East)
@@ -1910,14 +1830,17 @@ function nextGenerationNEAT(p) {
 
     // loop through all agents scores and log them
     for (let i = 0; i < agents.length; i++) {
-        // Push agent's score to the agent's genome's agentHistory array
         let thisScore = agents[i].getScore(false)[0];
-        agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap });
-        // Push agent's rank to the agent's genome's agentHistory.RankInPop array
-        agents[i].genome.agentHistory.rankInPop.push(i + 1);
-        // Update the agent.genome.agentHistory.bestScore if their agent.getScore(false)[0] is better
+
+        // Store the score only if the generation is a multiple of STORE_EVERY_N_GENERATIONS
+        if (genCount % 5 === 0) {
+            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap, generation: genCount });
+        }
+
+        agents[i].genome.agentHistory.rankInPop = (i + 1);
+
         if (thisScore > agents[i].genome.metadata.bestScore) {
-            agents[i].genome.metadata.bestScore = agents[i].getScore(false)[0];
+            agents[i].genome.metadata.bestScore = thisScore;
         }
     }
 
@@ -1973,20 +1896,6 @@ function waitForInitializationCompletionNEAT(newAgents) {
     if (newAgents.length >= popSize) {
         currentProcess = "New agents added to world!";
 
-        //let toDisposeBrains = new Set(agents.map(agent => agent.brain));
-        //let toDisposeGenomes = new Set(agents.map(agent => agent.genome));
-
-        //// Assume newAgents is your new generation of agents
-        //newAgents.forEach(newAgent => {
-        //    toDisposeBrains.delete(newAgent.brain);
-        //    toDisposeGenomes.delete(newAgent.genome);
-        //});
-
-        //toDisposeBrains.forEach(brain => brain.dispose());
-        //toDisposeGenomes.forEach(genome => genome = null);
-
-        //agents = newAgents;
-
         // Get a list of brains in the new generation
         let newBrains = newAgents.map(agent => agent.brain);
 
@@ -2001,14 +1910,6 @@ function waitForInitializationCompletionNEAT(newAgents) {
         });
 
         agents = newAgents;
-
-        //let genomes = [];
-        //agents.forEach(agent => {
-        //    // add agent's genome to the genomes array
-        //    genomes.push(agent.genome);
-        //});
-        //// log the entire genomes array
-        //console.log(genomes);
 
         // Randomly select agents to render for each group
         randomlySelectedAgents = [];
@@ -2421,7 +2322,7 @@ function bodyPlanCrossover(childGenome, agent1, agent2) {
         if (dominantParentGenome.bodyPlan.limbs[idx] && submissiveParentGenome.bodyPlan.limbs[idx]) {
             if (Math.random() < 0.5) {
                 childGenome.bodyPlan.limbs[idx] = _.cloneDeep(submissiveParentGenome.bodyPlan.limbs[idx]);
-                childGenome.agentHistory.mutations.push("type: limb, mutation: swap from parent: " + submissiveParentGenome.metadata.agentName);
+                // childGenome.agentHistory.mutations.push("type: limb, mutation: swap from parent: " + submissiveParentGenome.metadata.agentName);
             }
         }
 
@@ -2935,7 +2836,7 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
         // console.log("output: ", output);
         for (let i = 0; i < this.joints.length; i++) {
             if (outputJointSpeed) {
-                let adjustment = output[outputIndex] * MAX_ADJUSTMENT * Math.max(0, (this.agentEnergy / this.startingEnergy));
+                let adjustment = output[outputIndex] * MAX_ADJUSTMENT;
                 this.joints[i].setMotorSpeed(adjustment);
                 outputIndex++;
             }
