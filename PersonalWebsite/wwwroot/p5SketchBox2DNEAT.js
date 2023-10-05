@@ -621,11 +621,10 @@ function applySwimmingForce(agent) {
             let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
 
             let forceMagnitude;
-
-            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbs[i].getMass() / 10);
+            forceMagnitude = deltaTheta * forceScalingFactor * bias * (2 * agent.limbMass[i] / 150);
 
             if (agent.agentEnergy > 0) {
-                agent.agentEnergy -= Math.abs(forceMagnitude / 1000000) * (agent.limbs[i].getMass() / 10);
+                agent.agentEnergy -= Math.abs(forceMagnitude / 1000000) * (agent.limbMass[i] / 15);
             }
 
             // Calculate the force vector
@@ -659,7 +658,7 @@ function applyDrag(agent) {
 
     // Apply drag to the main body's angular velocity
     let bodyAngularVelocity = agent.mainBody.getAngularVelocity();
-    agent.mainBody.setAngularVelocity(bodyAngularVelocity * dragCoefficient);
+    agent.mainBody.setAngularVelocity(bodyAngularVelocity * (dragCoefficient ** 2));
 
     // Apply drag to each limb
     for (let limb of agent.limbs) {
@@ -669,7 +668,7 @@ function applyDrag(agent) {
 
         // Angular velocity drag
         let limbAngularVelocity = limb.getAngularVelocity();
-        limb.setAngularVelocity(limbAngularVelocity * dragCoefficient);
+        limb.setAngularVelocity(limbAngularVelocity * (dragCoefficient ** 2));
     }
 
 }
@@ -734,6 +733,25 @@ function initializeSketchBox2DNEAT(stageProperties) {
     lastFPSCalculationTime = 0;
     tickCount = 0;
     displayedTimeLeft = 0;
+    MAX_ADJUSTMENT_TORQUE = 500000;
+    offsetY = 0;
+    showRayCasts = false;
+    singleUpdateCompleted = false;
+    updatesPerAgentStart = 1;
+    framesPerUpdateStart = 10;
+    updateCountStart = {};
+    frameCountStart = {};
+    agentIndexStart = 0;
+    leadingAgents = [];
+    randomlySelectedAgents = [];
+    currentAgentIndex = 0;
+    offsetX = 0;
+    displayedFPS = 0;
+    lastUIUpdateTime = 0;
+    topScoreEver = 0;
+    stabilityCounter = 0;
+    selectedColor = null;
+
     currentProcess = "Initializing world!";
 
     // If there are existing agents with models, dispose of them
@@ -741,6 +759,21 @@ function initializeSketchBox2DNEAT(stageProperties) {
         if (agent.brain) {
             agent.brain.dispose();
         }
+    }
+
+    // If there are existing walls, destroy them
+    if (wallBodies) {
+        for (let wall of wallBodies) {
+            world.destroyBody(wall.body);
+        }
+        wallBodies = [];
+    }
+
+    if (duplicateWalls) {
+        for (let wall of duplicateWalls) {
+            world.destroyBody(wall.body);
+        }
+        duplicateWalls = [];
     }
 
     // If there's an existing p5 instance, remove it
@@ -988,6 +1021,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     }
 
     this.limbs = [];
+    this.limbMass = [];
     this.joints = [];
     this.biases = [];
 
@@ -1035,6 +1069,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
         let limb = createLimbNEAT(world, limbX, limbY, this.genome.bodyPlan.limbs[i].length, this.genome.bodyPlan.limbs[i].width, angle - Math.PI / 2, agentNo, i);
         this.limbs.push(limb);
+        this.limbMass.push(limb.getMass());
 
         //// Calculate local anchor for bodyA (main body)
         //let localAnchorA = planck.Vec2(
@@ -1050,7 +1085,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         // Calculate the point after rotation
         let localAnchorB = planck.Vec2(0, -this.genome.bodyPlan.limbs[i].length / 2);
 
-        let joint = createRevoluteJointNEAT(world, this.mainBody, limb, localAnchorA, localAnchorB, this.genome.bodyPlan.limbs[i].constraints.minAngle, this.genome.bodyPlan.limbs[i].constraints.maxAngle);
+        let joint = createRevoluteJointNEAT(world, this.mainBody, limb, localAnchorA, localAnchorB, this.genome.bodyPlan.limbs[i].constraints.minAngle, this.genome.bodyPlan.limbs[i].constraints.maxAngle, this.genome.bodyPlan.limbs[i].constraints.maxTorque);
         this.joints.push(joint);
     }
 
@@ -1212,7 +1247,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         this.massBonus = 0;
         if (!roundOver) {
             try {
-                this.massBonus = this.mainBody.getMass() / 5;
+                this.massBonus = this.mainBody.getMass() / 2;
             } catch (e) {
                 this.massBonus = 0;
             }
@@ -1309,18 +1344,18 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
 
         // Render second set of joint anchors for testing
-        //for (let i = 0; i < this.numLimbs; i++) {
-        //    if (this.joints[i]) {
-        //        let jointPos = this.joints[i].getAnchorB();
-        //        // Check if the current joint's index is within the jointColors array length
-        //        if (i < JOINT_COLORS.length) {
-        //            p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
-        //        } else {
-        //            p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
-        //        }
-        //        p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
-        //    }
-        //}
+        for (let i = 0; i < this.numLimbs; i++) {
+            if (this.joints[i]) {
+                let jointPos = this.joints[i].getAnchorB();
+                // Check if the current joint's index is within the jointColors array length
+                if (i < JOINT_COLORS.length) {
+                    p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
+                } else {
+                    p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
+                }
+                p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
+            }
+        }
     };
 
     this.renderRayCasts = function (p, offsetX, offsetY) {
@@ -1358,7 +1393,7 @@ function createMainBodyNEAT(world, x, y, radius, agentNo) {
     return body;
 }
 
-function createLimbNEAT(world, x, y, width, height, angle, agentNo, limbNo) {
+function createLimbNEAT(world, x, y, length, width, angle, agentNo, limbNo) {
     let bodyDef = {
         type: 'dynamic',
         position: planck.Vec2(x, y),
@@ -1366,7 +1401,7 @@ function createLimbNEAT(world, x, y, width, height, angle, agentNo, limbNo) {
     };
 
     let body = world.createBody(bodyDef);
-    let shape = planck.Box(width / 2, height / 2);
+    let shape = planck.Box(width / 2, length / 2);
 
     // Assign a negative group index based on the agent number
     // This ensures that limbs of the same agent will never collide with each other
@@ -1385,7 +1420,7 @@ function createLimbNEAT(world, x, y, width, height, angle, agentNo, limbNo) {
     return body;
 }
 
-function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB, lowerAngle, upperAngle) {
+function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB, lowerAngle, upperAngle, limbTorque) {
     let limiter = true;
     if (jointMaxMove == 0) {
         limiter = false;
@@ -1399,7 +1434,7 @@ function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB
         upperAngle: upperAngle,
         enableLimit: limiter,
         motorSpeed: 0.0,
-        maxMotorTorque: torque,
+        maxMotorTorque: limbTorque,
         enableMotor: true
     };
 
@@ -2900,7 +2935,7 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
         // console.log("output: ", output);
         for (let i = 0; i < this.joints.length; i++) {
             if (outputJointSpeed) {
-                let adjustment = output[outputIndex] * MAX_ADJUSTMENT * (this.agentEnergy / this.startingEnergy);
+                let adjustment = output[outputIndex] * MAX_ADJUSTMENT * Math.max(0, (this.agentEnergy / this.startingEnergy));
                 this.joints[i].setMotorSpeed(adjustment);
                 outputIndex++;
             }

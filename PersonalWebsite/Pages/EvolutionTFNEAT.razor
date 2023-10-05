@@ -516,6 +516,7 @@
 
     public async Task InitializePopulation(int populationSize)
     {
+        population = new List<Genome>();
         for (int i = 0; i < populationSize; i++)
         {
             Random random = new Random();
