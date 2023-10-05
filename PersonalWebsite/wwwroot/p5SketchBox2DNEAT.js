@@ -621,7 +621,7 @@ function applySwimmingForce(agent) {
             let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
 
             let forceMagnitude;
-            forceMagnitude = deltaTheta * forceScalingFactor * bias * (2 * agent.limbMass[i] / 150);
+            forceMagnitude = deltaTheta * forceScalingFactor * bias * (2 * agent.limbMass[i] / 150) * Math.max(0, (agent.agentEnergy / agent.startingEnergy));
 
             if (agent.agentEnergy > 0) {
                 agent.agentEnergy -= Math.abs(forceMagnitude / 1000000) * (agent.limbMass[i] / 15);
