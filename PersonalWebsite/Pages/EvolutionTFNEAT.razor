@@ -441,7 +441,7 @@
         public int tournamentSize { get; set; } = 10;
         public double migrationRate { get; set; } = 0.002;
         public int minPopGroupSize { get; set; } = 10;
-        public int maxPopGroupSize { get; set; } = 20;
+        public int maxPopGroupSize { get; set; } = 50;
         public int uiRefreshRate { get; set; } = 500;
         public int muscleDelay { get; set; } = 1;
         public int muscleBatch { get; set; } = 5;
@@ -527,12 +527,44 @@
         await JSRuntime.InvokeVoidAsync("logGenomes");
     }
 
+    void Shuffle<T>(List<T> list, Random random)
+    {
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = random.Next(n + 1);
+            T value = list[k];
+            list[k] = list[n];
+            list[n] = value;
+        }
+    }
+
     public async Task InitializePopulation(int populationSize)
     {
         population = new List<Genome>();
-        for (int i = 0; i < populationSize; i++)
+        Random random = new Random();
+        //let agentsPerGroup = Math.ceil(totalPopulationGenomes.length / numGroups);
+        // For now, set manual total population size as 10 * numAgents
+        int totalPopulation = populationSize * 10;
+        // Calculate the number of groups
+        int numGroups = Math.Max(1, (int)Math.Ceiling((double)totalPopulation / stageProperties.maxPopGroupSize));
+        List<int> runGroups = Enumerable.Range(0, 10)
+                                         .SelectMany(x => Enumerable.Repeat(x, totalPopulation / 10))
+                                         .ToList();
+
+        // If the total population isn't perfectly divisible by 10,
+        // add extra run groups to fill up the list
+        while (runGroups.Count < totalPopulation)
         {
-            Random random = new Random();
+            runGroups.Add(new Random().Next(0, 10));
+        }
+
+        // Shuffle the list
+        runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
+
+        for (int i = 0; i < totalPopulation; i++)
+        {
             Genome genome = new Genome();
             genome.Metadata.AgentIndex = i;
 
@@ -550,10 +582,6 @@
                 genome.LayerGenes.Add(InitializeLayer(j, randomSize));
             }
 
-            //genome.LayerGenes.Add(InitializeLayer(1, 20));
-            //genome.LayerGenes.Add(InitializeLayer(2, 15));
-            //genome.LayerGenes.Add(InitializeLayer(3, 10));
-
             genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs));
             genome.BodyPlan = InitializeBodyPlan(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
@@ -562,8 +590,8 @@
             var vowels = "aeiou";
             var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
             genome.Metadata.AgentName = agentName;
-
-            // Further initialization
+            genome.Metadata.RunGroup = runGroups[i];
+            genome.Metadata.AgentGroup = i % numGroups;
 
             population.Add(genome);
         }
@@ -758,6 +786,8 @@
 
     public class AgentHistory
     {
+        public bool RunThisGeneration { get; set; }
+        public ScoreHistory LastScore { get; set; }
         public List<ScoreHistory> ScoreHistory { get; set; }
         public int RoundsAsTopPerformer { get; set; }
         public int UsedAsParent { get; set; }
@@ -768,6 +798,7 @@
         public AgentHistory()
         {
             // Initialize properties with defaults.
+            this.RunThisGeneration = false;
             this.ScoreHistory = new List<ScoreHistory>();
             this.RoundsAsTopPerformer = 0;
             this.UsedAsParent = 0;
@@ -829,6 +860,8 @@
 
     public class Metadata
     {
+        public int RunGroup { get; set; }
+        public int AgentGroup { get; set; }
         public string AgentName { get; set; }
         public int AgentIndex { get; set; }
         public string GroupName { get; set; }
