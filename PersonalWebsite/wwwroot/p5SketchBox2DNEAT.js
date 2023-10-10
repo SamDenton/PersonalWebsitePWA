@@ -1,9 +1,4 @@
-///* Initialization vars taken from C# */
-//let canvasWidth, canvasHeight, groundY, GravityStrength, FrictionStrength, simulationSpeed, showNeuralNetwork, delay, UIUpdateInterval, simulationLength, torque, maxJointMovement, jointMaxMove;
-//let renderedAgents, popSize, topPerformerNo, agentToFix, BATCH_SIZE, MAX_ADJUSTMENT, CROSS_GROUP_PROBABILITY, MIN_GROUP_SIZE, MAX_GROUP_SIZE, TOURNAMENT_SIZE, MUSCLE_BATCH_SIZE, SOME_DELAY_FRAME_COUNT, muscleUpdateFrames, brainDecay;
-//let velocityIterations, positionIterations, physicsGranularityMultiplier;
-
-// import cloneDeep from 'lodash/cloneDeep';
+// Variables specific to NEAT version
 
 let liquidViscosityDecay, mapNo;
 let MAX_ADJUSTMENT_TORQUE = 500000;
@@ -22,59 +17,27 @@ let agentPool = [];
 let tempAgentPool = [];
 let randMap = 0;
 let runCount = 0;
+
 const GROUP_COLORS_NAMES = [
-    'Red Orange', 'Green', 'Very Dark Gray', 'Charcoal', 'Olive Drab', 'Very Dark Red', 'Blue', 'Magenta',
-    'Bright Yellow', 'Orange', 'Teal Green', 'Strong Blue', 'Bright Magenta', 'Yellow', 'Brown', 'Gray',
-    'Dark Red', 'Cool Gray', 'Golden', 'Deep Red'
+    'Traffic purple', 'Grass green', 'Yellow orange', 'Maize yellow', 'Quartz grey', 'Salmon range', 'Pearl black berry', 'Golden yellow', 'Pearl light grey', 'Red lilac',
+    'Violet blue', 'Pure green', 'Light ivory', 'Patina green', 'Traffic yellow', 'Ocean blue', 'Pastel blue', 'Reed green', 'Luminous red', 'Turquoise blue',
+    'Red Orange', 'Green', 'Very Dark Gray', 'Charcoal', 'Olive Drab', 'Very Dark Red', 'Blue', 'Magenta', 'Bright Yellow', 'Orange',
+    'Teal Green', 'Strong Blue', 'Bright Magenta', 'Yellow', 'Brown', 'Gray', 'Dark Red', 'Cool Gray', 'Golden', 'Deep Red'
 ];
 
-///* Index's, flags */
-//let currentAgentIndex = 0;
-//let offsetX = 0;
-//let displayedFPS = 0;
-//let tickCount = 0;
-//let lastUIUpdateTime = 0;
-//let topScoreEver = 0;
-//let stabilityCounter = 0;
-//let isInitializationComplete, lastFPSCalculationTime, genCount, displayedTimeLeft, frameCountSinceLastFPS, simulationStarted, nextBatchFrame, usedIndice, averageScore, currentProcess;
-
-///* P5 vars */
-//let p5Instance = null;
-
-///* Grouping arrays */
-//let agents = [];
-//let leadingAgents = [];
-//let randomlySelectedAgents = [];
-
-///* Agent and joint colours */
-//const GROUP_COLORS = [
-//    '#FF5733', '#33FF57', '#25221B', '#474B4E', '#424632', '#4A192C', '#3357FF', '#FF33F4', '#FFFC33', '#F05703',
-//    '#376D57', '#3328CF', '#FF33FF', '#F4FC33', '#8A6642', '#B5B8B1', '#781F19', '#8A9597', '#F5D033', '#633A34'
-//];
-//const JOINT_COLORS = [
-//    '#376D57', '#3328CF', '#FF33FF', '#F4FC33', '#8A6642', '#B5B8B1', '#781F19', '#8A9597', '#F5D033', '#633A34',
-//    '#FF5733', '#33FF57', '#25221B', '#474B4E', '#424632', '#4A192C', '#3357FF', '#FF33F4', '#FFFC33', '#F05703'
-//];
-
-///* Planck vars */
-//let world, groundBody;
-//const CATEGORY_GROUND = 0x0001;
-//const CATEGORY_AGENT_BODY = 0x0002;
-//const CATEGORY_AGENT_LIMB = 0x0004;
-
-///* TensorFlow vars */
-//let numGroups;
+let wallBodies = [];
+let duplicateWalls = [];
 
 /* 
-Further Optomisations:
+Further Optimizations:
             -Currently using both frame counts and ms counts for batch processing
-            -Optomize how often I call getScore() as its very taxing now
+            -Optimize how often I call getScore() as its very taxing now
             -Can spread out agent spawning further
-            -Can speard out agent muscle descisions further (seems less impactful)
+            -Can spread out agent muscle decisions further (seems less impactful)
             -Can set physics updates lower while agents are spawning
-            -Can set collision logic lower while spawning, could hold agents in position so thay cant fall through ground and have collisions turned off while spawning, then slowly turn it back on before round starts
+            -Can set collision logic lower while spawning, could hold agents in position so they cant fall through ground and have collisions turned off while spawning, then slowly turn it back on before round starts
             -I should Turn most of my global vars into an object, or multiple, and pass that between the functions that require it
-            -I should experament with how often I actually need physics collisions to run, they only interact with the ground, and dont move very fast.  I could also make the ground thicker
+            -I should experiment with how often I actually need physics collisions to run, they only interact with the ground, and don't move very fast.  I could also make the ground thicker
             -These are the functions causing the biggest frame drops and delays:
                 41485 ms  Scripting
                 55 ms  Rendering
@@ -104,21 +67,15 @@ Further Optomisations:
 
 /* 
 Ideas:      
-            -I want to evolve agent body plan over time, use a json for construction.  Agents should start simple and get more complex over time so they dont have to leavn to control a complex body right away.  I think thats the best way.  Wings????
-            -I want to have the enviromet both configurable on startup, and for it to get more challenging over generations
+            -I want to evolve agent body plan over time, use a JSON for construction.  Agents should start simple and get more complex over time so they don't have to leave to control a complex body right away.  I think thats the best way.  Wings????
+            -I want to have the environment both configurable on startup, and for it to get more challenging over generations
             -I want to save agents, either individuals or populations, to re-use later.  Would be good to have a property tracking agent history, its own top score, what the parameters where when it got that score, etc.
             -I want to evolve the inputs and outputs of the network, from a selection of available
-            -I want to evolve the topology of the networks themselevs using NEAT so they can decide how complex they need to be
+            -I want to evolve the topology of the networks themselves using NEAT so they can decide how complex they need to be
             -As part of NEAT, look at different limb types (wheels, single limb, jointed/double limb, wing(?), balance)
 
             -Could look into ideas like regularization and pruning.  Think about reducing agents brain weights over time selectively?
 */
-
-
-/*  Everything above this is initialised in old JS, will move vars across as they are updated */
-
-let wallBodies = [];
-let duplicateWalls = [];
 
 let sketchNEAT = function (p) {
     nextBatchFrame = 0;
@@ -278,13 +235,13 @@ let sketchNEAT = function (p) {
                 }
             }
 
-
             // Step the Planck world
             try {
                 world.step(fixedTimeStep / 1000 * physicsGranularityMultiplier, velocityIterations, positionIterations);
             } catch (error) {
                 console.error("An error occurred stepping physics simulation: ", error);
             }
+
             // If initialization is complete, increment the tick count
             if (simulationStarted && singleUpdateCompleted) {
                 tickCount++;
@@ -483,7 +440,7 @@ let sketchNEAT = function (p) {
 
             p.text(`Distinct Population groups: ${numGroups}`, 10, 200);
             const circleDiameter = 20;
-            // Render clickable circles for each group
+            // Render click-able circles for each group
             for (let i = 0; i < numGroups + 1; i++) {
                 if (i == numGroups) {
                     p.fill(255);
@@ -513,7 +470,7 @@ let sketchNEAT = function (p) {
                 }
             };
             p.fill(155);
-            p.text(`Select a colour above to filter that group, or white to clear`, 10, 260);
+            p.text(`Select a color above to filter that group, or white to clear`, 10, 260);
             p.text(`Agents in population: ${agentGenomePool.length}`, 10, 290);
             p.text(`Agents in simulation: ${agents.length}`, 10, 320);
             p.text(`Agents on screen: ${agentsToRender.size}`, 10, 350);
@@ -734,6 +691,7 @@ function initializeSketchBox2DNEAT(stageProperties) {
     liquidViscosityDecay = stageProperties.liquidViscosity;
     increaseTimePerGen = stageProperties.timeIncrease;
     mapNo = stageProperties.map;
+    numAgentsMultiplier = stageProperties.totalNumAgentsMultiplier;
 
     simulationLengthModified = simulationLength;
     frameCountSinceLastFPS = 0;
@@ -912,7 +870,7 @@ function initializeAgentsBox2DNEAT(agentProperties, totalPopulationGenomes) {
     // let populationGenomes equal a selection of totalPopulationGenomes based on the totalPopulationGenomes[i].metadata.runGroup.  Just runGroup 0 here
     let populationGenomes = totalPopulationGenomes.filter(genome => genome.metadata.runGroup === 0);
 
-    // console.log("populationGenomes for first intergen batch: ", runCount, ": ", populationGenomes);
+    // console.log("populationGenomes for first inter-gen batch: ", runCount, ": ", populationGenomes);
 
     // console.log("Initial population without brain", populationGenomes);
     // Initialize agents in batches
@@ -956,12 +914,12 @@ function initializeAgentNEAT(i, genome) {
 }
 
 function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopulationGenomes) {
-    // Check if agents initialised
+    // Check if agents initialized
     if (isInitializationComplete) {
 
         runCount++;
 
-        // set numgroups to the largest value in agentGenomePool.metadata.AgentGroup
+        // set numGroups to the largest value in agentGenomePool.metadata.AgentGroup
         numGroups = Math.max(...agentGenomePool.map(genome => genome.metadata.agentGroup)) + 1;
 
         // Randomly select agents to render for each group
@@ -995,7 +953,7 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopula
         offsetX = 0;
 
     } else {
-        // If the agents not initialised, wait for some time and check again
+        // If the agents not initialized, wait for some time and check again
         setTimeout(waitForFirstInitializationCompletionNEAT, 100); // Checking every 100ms
     }
 }
@@ -1018,7 +976,7 @@ function logModelWeights(agent) {
 
 //this agent will do for now, but I intend to replace with with a dynamic body plan that can 'evolve' over time.
 //I think a JSON file defining a series of body and limb shapes, possibly with limbs connected to limbs etc
-//Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and exolving complexity based on randomness and fitness might work.
+//Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and evolving complexity based on randomness and fitness might work.
 function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.genome = _.cloneDeep(agentGenome); // Deep copy of genome
     // console.log(this.genome);
@@ -1028,8 +986,8 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.index = this.genome.metadata.agentIndex;
     this.group = null;
     let mainBodyRadius = this.genome.bodyPlan.mainBody.size;
-    const locationBatchSize = 10;
-    this.startingX = 200 + (Math.floor(this.index / locationBatchSize) * 5000);
+    // const locationBatchSize = 10;
+    this.startingX = 200 + (Math.floor(this.genome.metadata.runGroup) * 5000);
     this.startingY = 600;
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
     this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
@@ -1396,7 +1354,7 @@ function getLeadingAgentNEAT(frameCounter) {
 
     if (frameCounter % 30 === 0) {
 
-        // Truncate randomlySelectedAgents to keep initialised picks
+        // Truncate randomlySelectedAgents to keep initialized picks
         randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * renderedAgents);
 
         // Create an array of the leading agents from each group
@@ -1484,7 +1442,7 @@ function endSimulationNEAT(p) {
     agents.forEach(agent => tempAgentPool.push(agent));
 
     // Continue to the next generation once the tempAgentPool is full
-    if (tempAgentPool.length >= popSize * 10) {
+    if (tempAgentPool.length >= popSize * numAgentsMultiplier) {
         nextGenerationNEAT(p);
     } else {
         nextAgentgroupNEAT(p);
@@ -1519,7 +1477,7 @@ function createMaps(mapNumber) {
     }
 
     if (mapNumber == 0) {
-        // Map starts agents in a channel with obsticles to get around, then opens up to free space
+        // Map starts agents in a channel with obstacles to get around, then opens up to free space
         let channelWidth = 200;
         let channelLength = 800;
 
@@ -1530,13 +1488,13 @@ function createMaps(mapNumber) {
         // Create the short wall at the bottom of the path
         createWall(startX - 50, startY + 100, 10, channelWidth, -Math.PI / 4); // Bottom wall
 
-        // Obsticles
+        // Obstacles
         createWall(startX + 50, startY - 80, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 130 + channelWidth, startY - channelWidth, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 460, startY - 490, 10, channelWidth / 2, -Math.PI / 4);
 
     } else if (mapNumber == 1) {
-        // Map starts egants in free space and forces them to find the channel and complete it to move further
+        // Map starts agents in free space and forces them to find the channel and complete it to move further
         let channelWidth = 200;
         let channelLength = 800;
 
@@ -1547,13 +1505,13 @@ function createMaps(mapNumber) {
         createWall(startX + 150, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
         createWall(startX + 100 + channelWidth, startY - 100, 10, channelLength, Math.PI / 4); // Right wall
 
-        // Create the boundry walls to force agents through channel
+        // Create the boundary walls to force agents through channel
         createWall(startX - 480, startY - 330, 10, 1000, -Math.PI / 4);
         createWall(startX + 380, startY + 530, 10, 1000, -Math.PI / 4);
         createWall(startX + 150 - 1000, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
         createWall(startX + 100 + channelWidth, startY - 100 + 1000, 10, channelLength, Math.PI / 4); // Right wall
 
-        // Obsticles
+        // Obstacles
         createWall(startX + 50, startY - 80, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 130 + channelWidth, startY - channelWidth, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 460, startY - 490, 10, channelWidth / 2, -Math.PI / 4);
@@ -1586,7 +1544,7 @@ function createMaps(mapNumber) {
         }
 
     } else if (mapNumber == 3) {
-        // Map starts agents in a channel with obsticles to get around, then opens up to free space
+        // Map starts agents in a channel with obstacles to get around, then opens up to free space
         let channelWidth = 200;
         let channelLength = 800;
 
@@ -1600,13 +1558,13 @@ function createMaps(mapNumber) {
         // Create the short wall at the bottom of the path
         createWall(startX - 50, startY + 100, 10, channelWidth, -Math.PI / 4); // Bottom wall
 
-        // Obsticles
+        // Obstacles
         createWall(startX + 50 + 75, startY - 80 + 75, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 130 + 75, startY - channelWidth - 50, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 460 + 75, startY - 490 + 75, 10, channelWidth / 2, -Math.PI / 4);
 
     } else if (mapNumber == 4) {
-        // Map starts egants in free space and forces them to find the channel and complete it to move further
+        // Map starts agents in free space and forces them to find the channel and complete it to move further
         let channelWidth = 200;
         let channelLength = 800;
 
@@ -1617,13 +1575,13 @@ function createMaps(mapNumber) {
         createWall(startX + 150, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
         createWall(startX + 100 + channelWidth, startY - 100, 10, channelLength, Math.PI / 4); // Right wall
 
-        // Create the boundry walls to force agents through channel
+        // Create the boundary walls to force agents through channel
         createWall(startX - 480, startY - 330, 10, 1000, -Math.PI / 4);
         createWall(startX + 380, startY + 530, 10, 1000, -Math.PI / 4);
         createWall(startX + 150 - 1000, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
         createWall(startX + 100 + channelWidth, startY - 100 + 1000, 10, channelLength, Math.PI / 4); // Right wall
 
-        // Obsticles
+        // Obstacles
         createWall(startX + 50 + 75, startY - 80 + 75, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 130 + 75, startY - channelWidth - 50, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 460 + 75, startY - 490 + 75, 10, channelWidth / 2, -Math.PI / 4);
@@ -1632,7 +1590,8 @@ function createMaps(mapNumber) {
 }
 
 function createWall(x, y, width, height, angle = 0) {
-    for (let i = 0; i < Math.ceil(popSize / 10); i++) {
+
+    for (let i = 0; i < Math.ceil(numAgentsMultiplier); i++) {
         const offset = i * 5000; // Define an appropriate spacing value to separate the sets of walls
         const wallDef = {
             type: 'static',
@@ -1873,7 +1832,7 @@ function nextAgentgroupNEAT(p) {
     // let populationGenomes equal a selection of totalPopulationGenomes based on the agentGenomePool[i].metadata.runGroup. Can use the inter generation run counter runCount for the search
     let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
 
-    // console.log("populationGenomes for a new intergen batch: ", runCount, ": ", populationGenomes);
+    // console.log("populationGenomes for a new inter-gen batch: ", runCount, ": ", populationGenomes);
 
     // Initialize agents in batches
     if (Array.isArray(populationGenomes) && populationGenomes.length === popSize) {
@@ -1913,7 +1872,7 @@ function waitForInitializationCompletionBatchNEAT() {
             let groupAgents = agents.filter(agent => agent.group === groupId);
 
             // log the entire genomes array
-            // console.log("population array after initialisation complete", populationGenomes);
+            // console.log("population array after initialization complete", populationGenomes);
 
             // Select few random agents
             for (let i = 0; i < renderedAgents; i++) {
@@ -2036,7 +1995,7 @@ function nextGenerationNEAT(p) {
 // Recursive function checking if agents have finished loading into world
 function waitForInitializationCompletionNEAT() {
     // Check if the condition is met
-    if (agentPool.length >= popSize * 10) {
+    if (agentPool.length >= popSize * numAgentsMultiplier) {
 
         agentGenomePool = [];
 
@@ -2048,21 +2007,21 @@ function waitForInitializationCompletionNEAT() {
         currentProcess = "Adding agents from pool";
 
         agents = [];  // Reset the agents array
-        console.log("agentGenomePool after a generation", agentGenomePool);
+        // console.log("agentGenomePool after a generation", agentGenomePool);
 
-        // Randomise the order of the agentGenomePool
+        // Randomize the order of the agentGenomePool
         agentGenomePool = _.shuffle(agentGenomePool);
 
         // Assign all agents a runGroup from 0 to 9, making sure each group has the same number of agents
         for (let i = 0; i < agentGenomePool.length; i++) {
-            agentGenomePool[i].metadata.runGroup = i % 10;
+            agentGenomePool[i].metadata.runGroup = i % numAgentsMultiplier;
         }
 
 
         // let populationGenomes equal a selection of totalPopulationGenomes based on the agentGenomePool[i].metadata.runGroup. Can use the inter generation run counter runCount for the search
         let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
 
-        console.log("populationGenomes for first new intergen batch: ", runCount, ": ", populationGenomes);
+        // console.log("populationGenomes for first new inter-gen batch: ", runCount, ": ", populationGenomes);
 
         // Initialize agents in batches
         if (Array.isArray(populationGenomes) && populationGenomes.length === popSize) {
@@ -2146,7 +2105,7 @@ function generateOffspringNEAT(groupAgents, groupId, topPerformerCount) {
         if (agentPool.filter(agent => agent.metadata.agentGroup === groupId).length >= topPerformerCount) {
             let currentGroupAgents = agentPool.filter(agent => agent.metadata.agentGroup === groupId).length;
             let numToCreate = Math.min(BATCH_SIZE, groupAgents.length - currentGroupAgents);
-            console.log("Creating offspring for group: ", groupId, " from index: ", startIndex, " to index: ", startIndex + numToCreate);
+            // console.log("Creating offspring for group: ", groupId, " from index: ", startIndex, " to index: ", startIndex + numToCreate);
             for (let i = 0; i < numToCreate; i++) {
 
                 // Select 2 parents, using different methods for varying outcomes
@@ -3083,7 +3042,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
         // 5. Score normalized based on MAX_SCORE
         let score = this.getScore(false);
         let TScore = parseFloat(score[0]);
-        inputs.push(TScore / MAX_SCORE); // I dont think this is actually useful to the agent
+        inputs.push(TScore / MAX_SCORE); // I don't think this is actually useful to the agent
     }
 
     if (inputsOrientation) {
@@ -3097,7 +3056,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
     }
 
     if (inputsDistanceSensors) {
-        // 8. Raycast distances to the closest obstacle in a few directions from the agent's body
+        // 8. Ray-cast distances to the closest obstacle in a few directions from the agent's body
         const baseDirections = [
             planck.Vec2(1, 0),       // E
             planck.Vec2(1, 1),  // NE
