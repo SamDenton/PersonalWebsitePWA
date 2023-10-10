@@ -1143,7 +1143,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
         // If the agent has made new progress in the x or y direction, update the furthest position.
         let XPosScore = Math.floor(this.furthestXPos - this.startingX) * 2;
-        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 2.2;
+        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 2;
 
         let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 5; // Adjust multiplier if needed
 
