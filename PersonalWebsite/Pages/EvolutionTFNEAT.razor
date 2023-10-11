@@ -603,6 +603,8 @@
             genome.Metadata.AgentName = agentName;
             genome.Metadata.RunGroup = runGroups[i];
             genome.Metadata.AgentGroup = i % numGroups;
+            // add ids to usedLayerIDs, 1 to numLayers
+            genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
 
             population.Add(genome);
         }
