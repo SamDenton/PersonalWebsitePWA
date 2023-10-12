@@ -427,7 +427,7 @@ let sketchNEAT = function (p) {
             p.fill(255);  // Black color for the text
             p.textSize(18);  // Font size
             p.text(`FPS: ${displayedFPS}`, 10, 20);
-            p.text(`Batch Within Generation: ${runCount}`, 10, 50);
+            p.text(`Batch Within Generation: ${runCount} of ${numAgentsMultiplier}`, 10, 50);
             p.text(`Generation: ${genCount}`, 10, 80);
             p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 110);
             p.text(`Top Score: ${topScoreEver.toFixed(2)}`, 10, 140);
@@ -807,10 +807,10 @@ function updateSimulationNEAT(stageProperties) {
 }
 
 function initializeAgentsBox2DNEAT(agentProperties, totalPopulationGenomes) {
-    limbsPerAgent = agentProperties.numLimbs; // To be replaced
-    torque = agentProperties.musculeTorque; // To be replaced
+    // limbsPerAgent = agentProperties.numLimbs; // To be replaced
+    // torque = agentProperties.musculeTorque; // To be replaced
     MAX_ADJUSTMENT = agentProperties.maxJointSpeed;  // To be replaced
-    jointMaxMove = agentProperties.maxJointMoveDivider;  // To be replaced
+    // jointMaxMove = agentProperties.maxJointMoveDivider;  // To be replaced
     brainDecay = agentProperties.brainDecayOverTime;
     inputsJointAngle = agentProperties.inputJointAngle;  // To be replaced
     inputsJointSpeed = agentProperties.inputJointSpeed;  // To be replaced
@@ -821,12 +821,18 @@ function initializeAgentsBox2DNEAT(agentProperties, totalPopulationGenomes) {
     inputsTimeRemaining = agentProperties.inputTimeRemaining;  // To be replaced
     inputsGroundSensors = agentProperties.inputGroundSensors;  // To be replaced
     inputsDistanceSensors = agentProperties.inputDistanceSensors;  // To be replaced
-    agentMutationRate = agentProperties.offspringMutationRate; 
+    // agentMutationRate = agentProperties.offspringMutationRate; 
     outputJointSpeed = agentProperties.outputsJointSpeed;
     outputJointTorque = agentProperties.outputsJointTorque;
     outputBias = agentProperties.outputsBias;
     swimStrengthMultiplier = agentProperties.swimStrength;
     swimBiasMultiplier = agentProperties.swimBias; 
+    xScoreMult = agentProperties.xScoreMultiplier;
+    yScoreMult = agentProperties.yScoreMultiplier;
+    movementScoreMult = agentProperties.movementScoreMultiplier;
+    explorationScoreMult = agentProperties.explorationScoreMultiplier;
+    sizeScoreMult = agentProperties.sizeScoreMultiplier;
+
 
     genCount = 1;
     simulationStarted = false;
@@ -1142,12 +1148,12 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
 
         // If the agent has made new progress in the x or y direction, update the furthest position.
-        let XPosScore = Math.floor(this.furthestXPos - this.startingX) * 2;
-        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * 2;
+        let XPosScore = Math.floor(this.furthestXPos - this.startingX) * xScoreMult;
+        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * yScoreMult;
 
-        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * 5; // Adjust multiplier if needed
+        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * movementScoreMult; // Adjust multiplier if needed
 
-        let explorationReward = this.getExplorationReward() * 50;
+        let explorationReward = this.getExplorationReward() * explorationScoreMult;
 
         let weightPenalty;
         //if (roundOver) {
@@ -1158,7 +1164,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         this.massBonus = 0;
         if (!roundOver) {
             try {
-                this.massBonus = this.mainBody.getMass() / 2;
+                this.massBonus = this.mainBody.getMass() * sizeScoreMult;
             } catch (e) {
                 this.massBonus = 0;
             }
@@ -1252,18 +1258,18 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
 
         // Render second set of joint anchors for testing
-        for (let i = 0; i < this.numLimbs; i++) {
-            if (this.joints[i]) {
-                let jointPos = this.joints[i].getAnchorB();
-                // Check if the current joint's index is within the jointColors array length
-                if (i < JOINT_COLORS.length) {
-                    p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
-                } else {
-                    p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
-                }
-                p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
-            }
-        }
+        //for (let i = 0; i < this.numLimbs; i++) {
+        //    if (this.joints[i]) {
+        //        let jointPos = this.joints[i].getAnchorB();
+        //        // Check if the current joint's index is within the jointColors array length
+        //        if (i < JOINT_COLORS.length) {
+        //            p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
+        //        } else {
+        //            p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
+        //        }
+        //        p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
+        //    }
+        //}
     };
 
     this.renderRayCasts = function (p, offsetX, offsetY) {
@@ -1329,10 +1335,7 @@ function createLimbNEAT(world, x, y, length, width, angle, agentNo, limbNo) {
 }
 
 function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB, lowerAngle, upperAngle, limbTorque) {
-    let limiter = true;
-    if (jointMaxMove == 0) {
-        limiter = false;
-    }
+
     let jointDef = {
         bodyA: bodyA,
         bodyB: bodyB,
@@ -1340,7 +1343,7 @@ function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB
         localAnchorB: localAnchorB,
         lowerAngle: lowerAngle,
         upperAngle: upperAngle,
-        enableLimit: limiter,
+        enableLimit: true,
         motorSpeed: 0.0,
         maxMotorTorque: limbTorque,
         enableMotor: true
@@ -2131,10 +2134,9 @@ function generateOffspringNEAT(groupAgents, groupId, topPerformerCount) {
                 // Code to update mutation rate commented for now as highly inefficient. It was adding 10 seconds + to the start of each round.
                 // childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
 
+                childGenome = mutateGenome(childGenome, childGenome.hyperparameters.mutationRate, childGenome.hyperparameters.nodeMutationRate, childGenome.hyperparameters.layerMutationRate);
 
-                childGenome = mutateGenome(childGenome, agentMutationRate, 0.1, 0.1);
-
-                childGenome = mutateBodyPlan(childGenome, 0.25);
+                childGenome = mutateBodyPlan(childGenome, childGenome.hyperparameters.limbMutationRate);
 
                 // Decay all weights in the brain by a small amount
                 if (brainDecay) {
@@ -2478,95 +2480,6 @@ function bodyPlanCrossover(childGenome, agent1, agent2) {
     return childGenome;
 }
 
-//function bodyPlanCrossover(childGenome, parent1, parent2) {
-
-//    // Combine limbs, nodes, and weights from both parents
-//    const limbs = [];
-//    const inputBiases = [];
-//    const inputWeights = [];
-//    const outputBiases = [];
-//    const outputWeights = [];
-
-//    for (const parent of [parent1, parent2]) {
-//        for (const [idx, limb] of parent.bodyPlan.limbs.entries()) {
-//            const newLimb = _.cloneDeep(limb);
-//            const newID = Math.floor(Math.random() * 10000); // or other method to generate a unique ID
-//            newLimb.limbID = newID;
-//            limbs.push(newLimb);
-
-//            // Copying and reassigning nodes and weights
-//            inputBiases.push({ ...parent.inputLayerGenes[0].biases[idx], id: newID });
-//            inputWeights.push(
-//                parent.layerGenes[0].weights.map(subArray =>
-//                    subArray.map(w => (w.fromNodeID === limb.id) ? { ...w, fromNodeID: newID } : w)
-//                )
-//            );
-//            console.log("Expected toNodeID:", parent.outputLayerGenes[0].biases[idx].id);
-
-//            outputBiases.push({ ...parent.outputLayerGenes[0].biases[idx], id: newID });
-//            outputWeights.push(parent.outputLayerGenes[0].weights.map(wRow => wRow[idx]).map(w => ({ ...w, toNodeID: newID })));
-//        }
-//    }
-//    console.log("Temp arrays for body plan crossover, before splice", inputBiases, inputWeights, outputBiases, outputWeights);
-//    const desiredNumLimbs = 2 + Math.floor(Math.random() * 4);
-//    while (limbs.length > desiredNumLimbs) {
-//        // Select limb to remove
-//        const removedIdx = Math.floor(Math.random() * limbs.length);
-//        const removedLimbID = limbs[removedIdx].limbID;
-
-//        // Remove limb and related attributes
-//        limbs.splice(removedIdx, 1);
-
-//        // Remove related neural attributes by ID reference
-//        inputBiases.splice(inputBiases.findIndex(b => b.id === removedLimbID), 1);
-//        inputWeights.splice(inputWeights.findIndex(w => w.some(subW => subW.fromNodeID === removedLimbID)), 1);
-//        outputBiases.splice(outputBiases.findIndex(b => b.id === removedLimbID), 1);
-
-//        // Detailed handling for outputWeights
-//        outputWeights.forEach(arr => {
-//            const weightIdx = arr.findIndex(w => w.toNodeID === removedLimbID);
-//            if (weightIdx !== -1) arr.splice(weightIdx, 1);
-//        });
-//    }
-//    console.log("Temp arrays for body plan crossover, after splice", inputBiases, inputWeights, outputBiases, outputWeights);
-//    // Recalculate attachment points for the limbs
-//    for (const limb of limbs) {
-//        const angle = limb.startingAngle;
-//        limb.attachment.x = mainBodySize * Math.cos(angle);
-//        limb.attachment.y = mainBodySize * Math.sin(angle);
-//    }
-
-//    childGenome.bodyPlan.mainBody.size = mainBodySize;
-//    childGenome.bodyPlan.limbs = limbs;
-
-//    // Assuming all limb-related nodes are at the start of the array, then:
-//    const nonLimbInputBiases = childGenome.inputLayerGenes[0].biases.slice(limbs.length);
-//    const nonLimbInputWeights = childGenome.layerGenes[0].weights.map(arr => arr.slice(limbs.length));
-
-//    // Insert limb-related nodes
-//    childGenome.inputLayerGenes[0].biases = [...inputBiases, ...nonLimbInputBiases];
-
-//    // Insert limb-related weights
-//    childGenome.layerGenes[0].weights = inputWeights.map((arr, idx) => [...arr, ...nonLimbInputWeights[idx]]);
-
-//    childGenome.outputLayerGenes[0].biases = outputBiases;
-
-//    // Adjust weights for output layer
-//    childGenome.outputLayerGenes[0].weights = [];
-//    outputWeights[0].forEach((_, idx) => {
-//        const weightRow = outputWeights.map(ow => ow[idx]);
-//        childGenome.outputLayerGenes[0].weights.push(weightRow);
-//    });
-
-//    childGenome.inputLayerGenes[0].numberOfNeurons = 10 + limbs.length;
-//    childGenome.outputLayerGenes[0].numberOfNeurons = limbs.length;
-
-//    // Reassign limbID based on index.
-//    limbs.forEach((limb, idx) => limb.limbID = idx);
-
-//    return childGenome;
-//}
-
 // Generate a unique ID
 function generateUniqueId(usedIds) {
     let newId;
@@ -2704,64 +2617,121 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
         }
     }
 
-    // Layer mutation (duplicate a hidden layer)
+    // Layer mutation
     if (Math.random() < layerMutationRate) {
-        // Randomly select a hidden layer to duplicate
-        let randomLayerIndex = Math.floor(Math.random() * genome.layerGenes.length);
-        let layerToDuplicate = genome.layerGenes[randomLayerIndex];
+        if (Math.random < 0.5) {
+            // Add a layer
+            // Randomly select a hidden layer to duplicate
+            let randomLayerIndex = Math.floor(Math.random() * genome.layerGenes.length);
+            let layerToDuplicate = genome.layerGenes[randomLayerIndex];
 
-        // Create a deep copy of the layer
-        let duplicatedLayer = _.cloneDeep(layerToDuplicate);
+            // Create a deep copy of the layer
+            let duplicatedLayer = _.cloneDeep(layerToDuplicate);
 
-        // Map old IDs to new unique IDs
-        let idMap = {};
-        duplicatedLayer.biases.forEach(bias => {
-            let oldID = bias.id;
-            bias.id = generateUniqueId(genome.usedBiasIDs);
-            idMap[oldID] = bias.id;
-        });
-
-        // Generate new weights for the duplicated layer
-        let newWeights = [];
-        layerToDuplicate.biases.forEach((oldBias, index) => {
-            let weightArray = [];
-            duplicatedLayer.biases.forEach(newBias => {
-                if (newBias.id == idMap[oldBias.id]) {
-                    weightArray.push({ fromNodeID: oldBias.id, toNodeID: newBias.id, value: 1 });
-                } else {
-                    weightArray.push({ fromNodeID: oldBias.id, toNodeID: newBias.id, value: 0 });
-                }
+            // Map old IDs to new unique IDs
+            let idMap = {};
+            duplicatedLayer.biases.forEach(bias => {
+                let oldID = bias.id;
+                bias.id = generateUniqueId(genome.usedBiasIDs);
+                idMap[oldID] = bias.id;
             });
-            newWeights.push(weightArray);
-        });
-        duplicatedLayer.weights = newWeights;
 
-        // Update connections of subsequent layers to point to the new layer
-        if (randomLayerIndex < genome.layerGenes.length - 1) {
-            let nextLayer = genome.layerGenes[randomLayerIndex + 1];
-            nextLayer.weights.forEach(weightArray => {
-                weightArray.forEach(weight => {
-                    weight.fromNodeID = idMap[weight.fromNodeID] || weight.fromNodeID;
+            // Generate new weights for the duplicated layer
+            let newWeights = [];
+            layerToDuplicate.biases.forEach((oldBias, index) => {
+                let weightArray = [];
+                duplicatedLayer.biases.forEach(newBias => {
+                    if (newBias.id == idMap[oldBias.id]) {
+                        weightArray.push({ fromNodeID: oldBias.id, toNodeID: newBias.id, value: 1 });
+                    } else {
+                        weightArray.push({ fromNodeID: oldBias.id, toNodeID: newBias.id, value: 0 });
+                    }
                 });
+                newWeights.push(weightArray);
             });
+            duplicatedLayer.weights = newWeights;
+
+            // Update connections of subsequent layers to point to the new layer
+            if (randomLayerIndex < genome.layerGenes.length - 1) {
+                let nextLayer = genome.layerGenes[randomLayerIndex + 1];
+                nextLayer.weights.forEach(weightArray => {
+                    weightArray.forEach(weight => {
+                        weight.fromNodeID = idMap[weight.fromNodeID] || weight.fromNodeID;
+                    });
+                });
+            } else {
+                // If we duplicated the last hidden layer, update the output layer
+                genome.outputLayerGenes[0].weights.forEach(weightArray => {
+                    weightArray.forEach(weight => {
+                        weight.fromNodeID = idMap[weight.fromNodeID] || weight.fromNodeID;
+                    });
+                });
+            }
+
+            // Insert the duplicated layer after the original layer
+            genome.layerGenes.splice(randomLayerIndex + 1, 0, duplicatedLayer);
+
+            // Loop through hidden layers and update the layerIDs to be sequential from 0
+            genome.layerGenes.forEach((layer, idx) => layer.layerID = idx);
+
+            genome.agentHistory.mutations.push("type: layer, new layer after layer: " + randomLayerIndex + " mutation: add copy");
+
         } else {
-            // If we duplicated the last hidden layer, update the output layer
-            genome.outputLayerGenes[0].weights.forEach(weightArray => {
-                weightArray.forEach(weight => {
-                    weight.fromNodeID = idMap[weight.fromNodeID] || weight.fromNodeID;
-                });
-            });
+            // Remove a layer
+            if (genome.layerGenes.length > 2) {
+                // 1. Select a Layer to Remove
+                let randomLayerIndex = Math.floor(Math.random() * (genome.layerGenes.length - 1)) + 1;
+                if (genome.layerGenes.length > 1) {
+                    let prevLayer = genome.layerGenes[randomLayerIndex - 1];
+                    let nextLayer = (randomLayerIndex === genome.layerGenes.length - 1) ? genome.outputLayerGenes[0] : genome.layerGenes[randomLayerIndex + 1];
+
+                    // 2. Calculate New Weights
+                    let newWeights = [];
+                    prevLayer.biases.forEach((prevBias) => {
+                        let newWeightArray = [];
+                        nextLayer.biases.forEach((nextBias) => {
+                            // Initialize new weight as zero
+                            let newWeightValue = 0;
+
+                            try {
+                                // Loop through all nodes in the layer to be removed
+                                genome.layerGenes[randomLayerIndex].biases.forEach((removedBias, removedIdx) => {
+                                    // Find and accumulate the associated weight values
+                                    let prevToRemovedWeight = genome.layerGenes[randomLayerIndex].weights.find(w => w.fromNodeID === prevBias.id && w.toNodeID === removedBias.id)?.value || 0;
+                                    let removedToNextWeight = nextLayer.weights.find(w => w.fromNodeID === removedBias.id && w.toNodeID === nextBias.id)?.value || 0;
+
+                                    // Sum the products of weights a->b and b->c
+                                    newWeightValue += prevToRemovedWeight * removedToNextWeight;
+                                });
+                            } catch (e) {
+                                console.error("Error in weight calculation: ", e);
+                            }
+
+                            // Assign the new weight from a to c
+                            newWeightArray.push({
+                                fromNodeID: prevBias.id,
+                                toNodeID: nextBias.id,
+                                value: newWeightValue
+                            });
+                        });
+                        newWeights.push(newWeightArray);
+                    });
+                    nextLayer.weights = newWeights;
+
+                    // 3. Remove Layer
+                    genome.layerGenes.splice(randomLayerIndex, 1);
+
+                    // Update layer IDs
+                    genome.layerGenes.forEach((layer, idx) => layer.layerID = idx);
+
+                    genome.agentHistory.mutations.push("type: layer, removed layer: " + randomLayerIndex + " mutation: remove");
+                }
+
+            } else {
+                genome.agentHistory.mutations.push("type: layer, no layer to remove, mutation: remove");
+            }
         }
-
-        // Insert the duplicated layer after the original layer
-        genome.layerGenes.splice(randomLayerIndex + 1, 0, duplicatedLayer);
-
-        // Loop through hidden layers and update the layerIDs to be sequential from 0
-        genome.layerGenes.forEach((layer, idx) => layer.layerID = idx);
-
-        genome.agentHistory.mutations.push("type: layer, new layer after layer: " + randomLayerIndex + " mutation: add copy");
     }
-
 
     return genome;
 }
@@ -2788,60 +2758,100 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
         limb.attachment.y = childGenome.bodyPlan.mainBody.size * Math.sin(limb.startingAngle);
     });
 
-    // Limb Addition Mutation
-    if (Math.random() < bodyMutationRate) {
-        let angle = Math.random() * 2 * Math.PI;
-        let newLimb = {
-            limbID: childGenome.bodyPlan.limbs.length,
-            startingAngle: angle,
-            attachment: {
-                x: childGenome.bodyPlan.mainBody.size * Math.cos(angle),
-                y: childGenome.bodyPlan.mainBody.size * Math.sin(angle)
-            },
-            constraints: {
-                maxTorque: Math.random() * 100000,
-                maxAngle: Math.PI / (2 + Math.floor(Math.random(4))),
-                minAngle: -Math.PI / (2 + Math.floor(Math.random(4)))
-            },
-            length: 10 + Math.floor(Math.random(50)),
-            width: 2 + Math.floor(Math.random(20)),
-        };
-        childGenome.bodyPlan.limbs.push(newLimb);
+    // Limb Number Mutation, half as often as other body mutations
+    if (Math.random() < bodyMutationRate / 2) {
+        if (Math.random() < 0.5) {
+            // Add a new limb
+            let angle = Math.random() * 2 * Math.PI;
+            let newLimb = {
+                limbID: childGenome.bodyPlan.limbs.length,
+                startingAngle: angle,
+                attachment: {
+                    x: childGenome.bodyPlan.mainBody.size * Math.cos(angle),
+                    y: childGenome.bodyPlan.mainBody.size * Math.sin(angle)
+                },
+                constraints: {
+                    maxTorque: Math.random() * 100000,
+                    maxAngle: Math.PI / (2 + Math.floor(Math.random(4))),
+                    minAngle: -Math.PI / (2 + Math.floor(Math.random(4)))
+                },
+                length: 10 + Math.floor(Math.random(50)),
+                width: 2 + Math.floor(Math.random(20)),
+            };
+            childGenome.bodyPlan.limbs.push(newLimb);
 
-        // Add a new node to the input layer for the limb
-        let inputLayer = childGenome.inputLayerGenes[0];
-        let inputNodeIndex = newLimb.limbID;  // Index of the node equals ID of the limb
-        let inputNodeId = generateUniqueId(childGenome.usedBiasIDs);  // Generate a unique ID for this node
-        inputLayer.biases.splice(inputNodeIndex, 0, { id: inputNodeId, value: Math.random() }); // Insert at index = limb ID
-        inputLayer.numberOfNeurons++;
-        childGenome.inputLayerGenes[0].inputs.push(childGenome.inputLayerGenes[0].inputs.length);
+            // Add a new node to the input layer for the limb
+            let inputLayer = childGenome.inputLayerGenes[0];
+            let inputNodeIndex = newLimb.limbID;  // Index of the node equals ID of the limb
+            let inputNodeId = generateUniqueId(childGenome.usedBiasIDs);  // Generate a unique ID for this node
+            inputLayer.biases.splice(inputNodeIndex, 0, { id: inputNodeId, value: Math.random() }); // Insert at index = limb ID
+            inputLayer.numberOfNeurons++;
+            childGenome.inputLayerGenes[0].inputs.push(childGenome.inputLayerGenes[0].inputs.length);
 
-        // Add a new node to the output layer for the limb
-        let outputLayer = childGenome.outputLayerGenes[0];
-        let outputNodeID = outputLayer.biases.length; // ID of the node equals its index in the output layer
-        outputLayer.biases.push({ id: outputNodeID, value: Math.random() });
-        outputLayer.numberOfNeurons++;
+            // Add a new node to the output layer for the limb
+            let outputLayer = childGenome.outputLayerGenes[0];
+            let outputNodeID = outputLayer.biases.length; // ID of the node equals its index in the output layer
+            outputLayer.biases.push({ id: outputNodeID, value: Math.random() });
+            outputLayer.numberOfNeurons++;
 
-        // Add new weights associated with the new nodes
-        // For the input layer, link weights from the new input node to all nodes in the first hidden layer
-        let firstHiddenLayer = childGenome.layerGenes[0];
-        let inputWeightArray = firstHiddenLayer.biases.map(bias => ({
-            fromNodeID: inputNodeId,  // Use the new unique ID here
-            toNodeID: bias.id,
-            value: Math.random()
-        }));
-        firstHiddenLayer.weights.splice(inputNodeIndex, 0, inputWeightArray);  // Insert at index = limb ID
-
-        // For the output layer, link weights from all nodes in the last hidden layer to the new output node
-        let lastHiddenLayer = childGenome.layerGenes[childGenome.layerGenes.length - 1];
-        lastHiddenLayer.biases.forEach((bias, idx) => {
-            outputLayer.weights[idx].splice(outputNodeID, 0, {
-                fromNodeID: bias.id,
-                toNodeID: outputNodeID,
+            // Add new weights associated with the new nodes
+            // For the input layer, link weights from the new input node to all nodes in the first hidden layer
+            let firstHiddenLayer = childGenome.layerGenes[0];
+            let inputWeightArray = firstHiddenLayer.biases.map(bias => ({
+                fromNodeID: inputNodeId,  // Use the new unique ID here
+                toNodeID: bias.id,
                 value: Math.random()
+            }));
+            firstHiddenLayer.weights.splice(inputNodeIndex, 0, inputWeightArray);  // Insert at index = limb ID
+
+            // For the output layer, link weights from all nodes in the last hidden layer to the new output node
+            let lastHiddenLayer = childGenome.layerGenes[childGenome.layerGenes.length - 1];
+            lastHiddenLayer.biases.forEach((bias, idx) => {
+                outputLayer.weights[idx].splice(outputNodeID, 0, {
+                    fromNodeID: bias.id,
+                    toNodeID: outputNodeID,
+                    value: Math.random()
+                });
             });
-        });
+
+            childGenome.agentHistory.mutations.push("type: limb, id: " + newLimb.limbID + " mutation: add");
+
+        } else {
+            // Remove a limb
+            let limbToRemoveIdx = Math.floor(Math.random() * childGenome.bodyPlan.limbs.length);
+
+            // Remove the limb from the body plan
+            childGenome.bodyPlan.limbs.splice(limbToRemoveIdx, 1);
+
+            // Update the limbID for all limbs after the removed one
+            for (let i = limbToRemoveIdx; i < childGenome.bodyPlan.limbs.length; i++) {
+                childGenome.bodyPlan.limbs[i].limbID--;
+            }
+
+            // Remove node from the input layer
+            childGenome.inputLayerGenes[0].biases.splice(limbToRemoveIdx, 1);
+            childGenome.inputLayerGenes[0].numberOfNeurons--;
+            childGenome.inputLayerGenes[0].inputs.splice(limbToRemoveIdx, 1);
+
+            // Remove weights connected to the removed input node from the first hidden layer
+            childGenome.layerGenes[0].weights.splice(limbToRemoveIdx, 1);
+
+            // Remove node from the output layer
+            let outputLayer = childGenome.outputLayerGenes[0];
+            outputLayer.biases.pop();
+            outputLayer.numberOfNeurons--;
+
+            // Remove weights connected to the removed output node in the last hidden layer
+            let lastHiddenLayer = childGenome.layerGenes[childGenome.layerGenes.length - 1];
+            lastHiddenLayer.weights.forEach(weightArray => {
+                weightArray.pop();
+            });
+
+            // Record the mutation into the agent's history
+            childGenome.agentHistory.mutations.push("type: limb, id: " + limbToRemoveIdx + " mutation: remove");
+        }
     }
+
 
     return childGenome;
 }

@@ -88,13 +88,13 @@
         <h2>Agent Properties</h2>
 
         <!-- Number of limbs per agent -->
-        <div class="setting">
+@*        <div class="setting">
             <label for="numLimbs" title="Number of limbs per agent.">Number of Limbs per Agent</label>
             <div class="slider-container">
                 <input type="range" id="numLimbs" @bind="agentProperties.numLimbs" min="1" max="20" step="1">
                 <input type="number" @bind="agentProperties.numLimbs" min="1" max="20" step="1">
             </div>
-        </div>
+        </div>*@
 
         <!-- Max Joint Speed -->
         <div class="setting">
@@ -106,31 +106,58 @@
         </div>
 
         <!-- Number of limbs per agent -->
-        <div class="setting">
+@*        <div class="setting">
             <label for="musculeTorque" title="Number of limbs per agent.">Max Torque Per Joint</label>
             <div class="slider-container">
                 <input type="range" id="musculeTorque" @bind="agentProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
                 <input type="number" @bind="agentProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
             </div>
+        </div>*@
+
+        <!-- Weight and Bias Mutation rate -->
+        <div class="setting">
+            <label for="offspringMutationRate" title="The mutation rate for weights and biases within the network">Mutation rate for weights and biases</label>
+            <div class="slider-container">
+                <input type="range" id="offspringMutationRate" @bind="agentProperties.offspringMutationRate" min="0" max="10" step="0.001">
+                <input type="number" @bind="agentProperties.offspringMutationRate" min="0" max="10" step="0.001">
+            </div>
         </div>
 
-        <!-- Mutation rate, to by replaced -->
+        <!-- Node Mutation rate -->
         <div class="setting">
-            <label for="offspringMutationRate" title="Number of limbs per agent.">Mutation rate, also updates over time</label>
+            <label for="offspringNodeMutationRate" title="The Mutation rate for gaining or loosing a node in a random layer">Mutation rate for gaining or loosing a node</label>
             <div class="slider-container">
-                <input type="range" id="offspringMutationRate" @bind="agentProperties.offspringMutationRate" min="0.01" max="50" step="0.01">
-                <input type="number" @bind="agentProperties.offspringMutationRate" min="0.01" max="50" step="0.01">
+                <input type="range" id="offspringNodeMutationRate" @bind="agentProperties.offspringNodeMutationRate" min="0" max="10" step="0.001">
+                <input type="number" @bind="agentProperties.offspringNodeMutationRate" min="0" max="10" step="0.001">
+            </div>
+        </div>
+
+        <!-- Layer Mutation rate -->
+        <div class="setting">
+            <label for="offspringLayerMutationRate" title="The Mutation rate for gaining or loosing a network layer at a random position">Mutation rate for gaining or loosing a network layer</label>
+            <div class="slider-container">
+                <input type="range" id="offspringLayerMutationRate" @bind="agentProperties.offspringLayerMutationRate" min="0" max="10" step="0.001">
+                <input type="number" @bind="agentProperties.offspringLayerMutationRate" min="0" max="10" step="0.001">
+            </div>
+        </div>
+
+        <!-- Body Plan Mutation rate -->
+        <div class="setting">
+            <label for="offspringLimbMutationRate" title="The Mutation rate for the body plan, gaining or loosing limbs is half this amount">Mutation rate for the body plan, gaining or loosing limbs is half this amount</label>
+            <div class="slider-container">
+                <input type="range" id="offspringLimbMutationRate" @bind="agentProperties.offspringLimbMutationRate" min="0" max="10" step="0.001">
+                <input type="number" @bind="agentProperties.offspringLimbMutationRate" min="0" max="10" step="0.001">
             </div>
         </div>
 
         <!-- Max limb movement -->
-        <div class="setting">
+@*        <div class="setting">
             <label for="maxJointMoveDivider" title="Number of limbs per agent.">Joint Movement Restriction (0 means no restriction, 2 means half their possible movement)</label>
             <div class="slider-container">
                 <input type="range" id="maxJointMoveDivider" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
                 <input type="number" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
             </div>
-        </div>
+        </div>*@
 
         <!-- liquid Viscosity -->
         <div class="setting">
@@ -202,6 +229,51 @@
 
             <label for="outputsBias" title="The amount of bias towards direction agent is facing">Limb Directional Bias</label>
             <input type="checkbox" id="outputsBias" @bind="agentProperties.outputsBias" />
+        </div>
+
+        <!-- X Score Multiplier -->
+        <div class="setting">
+            <label for="xScoreMultiplier" title="Multiplier for score gained for moving in the x direction">X Score Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="xScoreMultiplier" @bind="agentProperties.xScoreMultiplier" min="0" max="10" step="0.5">
+                <input type="number" @bind="agentProperties.xScoreMultiplier" min="0" max="10" step="0.5">
+            </div>
+        </div>
+
+        <!-- Y Score Multiplier -->
+        <div class="setting">
+            <label for="yScoreMultiplier" title="Multiplier for score gained for moving in the y direction">Y Score Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="yScoreMultiplier" @bind="agentProperties.yScoreMultiplier" min="0" max="10" step="0.5">
+                <input type="number" @bind="agentProperties.yScoreMultiplier" min="0" max="10" step="0.5">
+            </div>
+        </div>
+
+        <!-- Movement Score Multiplier -->
+        <div class="setting">
+            <label for="movementScoreMultiplier" title="Multiplier for score gained for moving limbs about.  This decays for progressive movement.  Designed to create active agents early on">Limb Movement Score Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="movementScoreMultiplier" @bind="agentProperties.movementScoreMultiplier" min="0" max="10" step="0.5">
+                <input type="number" @bind="agentProperties.movementScoreMultiplier" min="0" max="10" step="0.5">
+            </div>
+        </div>
+
+        <!-- Exploration Score Multiplier -->
+        <div class="setting">
+            <label for="explorationScoreMultiplier" title="Multiplier for score gained for exploring more of the map.  Each 50x50 pixels explored is worth this much score. Max of 500x500 squares to explore.  No points are given for moving below or lef of the starting position">Exploration Score Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="explorationScoreMultiplier" @bind="agentProperties.explorationScoreMultiplier" min="0" max="100" step="1">
+                <input type="number" @bind="agentProperties.explorationScoreMultiplier" min="0" max="100" step="1">
+            </div>
+        </div>
+
+        <!-- Size Score Multiplier -->
+        <div class="setting">
+            <label for="sizeScoreMultiplier" title="Small bonus given to score for being larger.  This is to combat agents all becoming tiny to move faster.">Size Score Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="sizeScoreMultiplier" @bind="agentProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
+                <input type="number" @bind="agentProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
+            </div>
         </div>
 
     </div>
@@ -404,14 +476,10 @@
         </ol>
         <h4>Future Plans</h4>
         <p>I want to make all variables customizable, which is a huge number.  I need to find a nice way to arrange them</p>
-        <p>I plan on adding further ways the agents can evolve, both the brain and the body.  Currently, they cant gain or loose layers in the network through mutation, only crossover.  I want to allow more complex body plans with different types of limb and body segment</p>
+        <p>I plan on adding further ways the agents can evolve. I want to allow more complex body plans with different types of limb and body segment</p>
         <p>I want to add a greater range of crossover, mutation and selection methods to increase diversity, and have them toggle in settings to play with different combinations</p>
         <p>I want to add a way to save and load agents, and a way to download and upload agents to a database</p>
-@*        <p>The next update I would like to implement is my own version of the NEAT algorithm, or Neural Evolution of Augmented Topologies.  This involves starting with a simple brain and evolving its 'shape' over time.  The default shape is currently [11, 15, 10, 5], equating to the inputs, 5 limb angles, the agents x,y the agents x and y velocity, their orientation in space, and the time remaining.  The 2 'hidden layers' and 5 outputs for the 5 joint speeds.</p>
-        <p>Using NEAT, the shape would start more like [11,5,5], and each generation, as part of the mutation function, there is a change the brain will gain a node within a layer, or a whole new layer</p>
-        <p>I intend to take this a little further, by also evolving the agents body, and the inputs and outputs.  This would mean starting with a simple agent, like they are now but with 2-3 limbs.  They would be able to mutate additional limbs and body segments over time.  The inputs and outputs would also be selected from a pool</p>
-        <p>This will involve encoding the agents brain shape, inputs and outputs, body plan, history, brain weights and biases, into a single object, that can be stored and reused later, which has the side benefit of not having to keep retraining from scratch</p>
-        <p>I intend to host a database of agents that do well and be able to download and upload agents from anywhere.</p>*@
+        <p>I want to add the ability to see genomes on screen somehow</p>
     </div>
 
 </div>
@@ -467,11 +535,14 @@
 
     public class AgentProperties
     {
-        public int numLimbs { get; set; } = 3;
-        public double musculeTorque { get; set; } = 1000000.0;
+        // public int numLimbs { get; set; } = 3;
+        // public double musculeTorque { get; set; } = 1000000.0;
         public double maxJointSpeed { get; set; } = 2.5;
         public double offspringMutationRate { get; set; } = 0.1;
-        public double maxJointMoveDivider { get; set; } = 3;
+        public double offspringNodeMutationRate { get; set; } = 0.05;
+        public double offspringLayerMutationRate { get; set; } = 0.01;
+        public double offspringLimbMutationRate { get; set; } = 0.01;
+        // public double maxJointMoveDivider { get; set; } = 3;
         public bool brainDecayOverTime { get; set; } = false;
         public bool inputJointAngle { get; set; } = true;
         public bool inputJointSpeed { get; set; } = false;
@@ -486,6 +557,11 @@
         public bool outputsBias { get; set; } = false;
         public int swimStrength { get; set; } = 500000;
         public double swimBias { get; set; } = 1.5; 
+        public double xScoreMultiplier { get; set; } = 2;
+        public double yScoreMultiplier { get; set; } = 2;
+        public double movementScoreMultiplier { get; set; } = 5;
+        public double explorationScoreMultiplier { get; set; } = 50;
+        public double sizeScoreMultiplier { get; set; } = 0.25;
         // public int hiddenLayersNN { get; set; } = 3;
         // public int nodesPerHiddenLayer { get; set; } = 10; // half for final hidden layer
     }
@@ -603,6 +679,11 @@
             genome.Metadata.AgentName = agentName;
             genome.Metadata.RunGroup = runGroups[i];
             genome.Metadata.AgentGroup = i % numGroups;
+            genome.Hyperparameters.MutationRate = agentProperties.offspringMutationRate;
+            genome.Hyperparameters.NodeMutationRate = agentProperties.offspringNodeMutationRate;
+            genome.Hyperparameters.LayerMutationRate = agentProperties.offspringLayerMutationRate;
+            genome.Hyperparameters.LimbMutationRate = agentProperties.offspringLimbMutationRate;
+
             // add ids to usedLayerIDs, 1 to numLayers
             genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
 
@@ -828,13 +909,13 @@
 
     public class Hyperparameters
     {
+        //agentNodeMutationRate
+        //agentLayerMutationRate
+        //agentLimbMutationRate
         public double MutationRate { get; set; }
-
-        public Hyperparameters()
-        {
-            // Initialize properties with defaults or random values.
-            this.MutationRate = 0.1;
-        }
+        public double NodeMutationRate { get; set; }
+        public double LayerMutationRate { get; set; }
+        public double LimbMutationRate { get; set; }
     }
 
     public class Metadata
