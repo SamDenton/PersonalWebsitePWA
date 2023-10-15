@@ -491,6 +491,7 @@
 <button class="floating-button toggleLeader-button" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
 <button class="floating-button toggleRays-button" @onclick="toggleRayCasts">Toggle Ray-casts Rendering</button>
 <button class="floating-button logGenomes-button" @onclick="LogGenomes">Log Genomes</button>
+<button class="floating-button retrieveGenomes-button" @onclick="RetrieveGenomes">Retrieve Genomes</button>
 
 @code {
     private StageProperties stageProperties = new StageProperties();
@@ -498,6 +499,7 @@
     public bool box2dPhysics { get; set; } = true;
     private bool showAdvancedSettings = true;
     public List<Genome> population = new List<Genome>();
+    public List<Genome> evolvedPopulation = new List<Genome>();
 
     public class StageProperties
     {
@@ -612,6 +614,31 @@
     private async Task LogGenomes()
     {
         await JSRuntime.InvokeVoidAsync("logGenomes");
+    }
+
+    private async Task RetrieveGenomes()
+    {
+        var genomeJson = await JSRuntime.InvokeAsync<string>("retrieveGenomes");
+
+        var jsonOptions = new JsonSerializerOptions
+            {
+                WriteIndented = true, // To make it pretty-printed and more readable
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+        try
+        {
+            List<Genome> evolvedPopulation = JsonSerializer.Deserialize<List<Genome>>(genomeJson, jsonOptions);
+            // Use evolvedPopulation...
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine("Error serialising the genome" + ex);
+        }
+
+        var genomeReJson = JsonSerializer.Serialize(evolvedPopulation, jsonOptions);
+        Console.WriteLine(genomeReJson);
     }
 
     void Shuffle<T>(List<T> list, Random random)
