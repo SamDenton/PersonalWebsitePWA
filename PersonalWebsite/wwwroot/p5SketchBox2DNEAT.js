@@ -29,81 +29,34 @@ let wallBodies = [];
 let duplicateWalls = [];
 
 /* 
-Further Optimizations:
-            -Currently using both frame counts and ms counts for batch processing
-            -Optimize how often I call getScore() as its very taxing now
-            -Can spread out agent spawning further
-            -Can spread out agent muscle decisions further (seems less impactful)
-            -Can set physics updates lower while agents are spawning
-            -Can set collision logic lower while spawning, could hold agents in position so they cant fall through ground and have collisions turned off while spawning, then slowly turn it back on before round starts
-            -I should Turn most of my global vars into an object, or multiple, and pass that between the functions that require it
-            -I should experiment with how often I actually need physics collisions to run, they only interact with the ground, and don't move very fast.  I could also make the ground thicker
-            -These are the functions causing the biggest frame drops and delays:
-                41485 ms  Scripting
-                55 ms  Rendering
-                1002 ms  Painting
-                1971 ms  System
-                663 ms  Idle
-                45177 ms  Total
-
-                t.createContact
-                e.solveVelocityConstraints
-                e._solvePositionConstraint
-                e.initVelocityConstraints
-                renderNeuralNetwork
-                t.tidy > t.dataSync > n.getValuesFromTexture > ... > readPixels > Optimize Code
-                getLeadingAgent
-
-                updatePhysics > t.step > t.query > release > set length
-
-                ???
-                updatePhysics > t.step > t.query > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > e.solveWorldTOI > t.recycle > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > Event Timing > t.step > World.ts:784:3 > t.query > DynamicTree.ts:736:3 >  e.solveWorld > Solver.ts:168:3 > e.solveIsland > e.solveVelocityConstraints > RevoluteJoint.ts:558:3 > t.solve33 > Mat33.ts:84:3 > t.addCombine > Vec2.ts:246:3 > t.crossNumVec2 > Vec3 > Minor GC
-
-
-                -issue might be bodies on top of each other.  can we spread them in the world, but render them on top of each other?
-
-
- */
-
-/* 
 Ideas:      
-            -I want to evolve agent body plan over time, use a JSON for construction.  Agents should start simple and get more complex over time so they don't have to leave to control a complex body right away.  I think thats the best way.  Wings????
             -I want to have the environment both configurable on startup, and for it to get more challenging over generations
             -I want to save agents, either individuals or populations, to re-use later.  Would be good to have a property tracking agent history, its own top score, what the parameters where when it got that score, etc.
             -I want to evolve the inputs and outputs of the network, from a selection of available
-            -I want to evolve the topology of the networks themselves using NEAT so they can decide how complex they need to be
-            -As part of NEAT, look at different limb types (wheels, single limb, jointed/double limb, wing(?), balance)
-
-            -Could look into ideas like regularization and pruning.  Think about reducing agents brain weights over time selectively?
+            -Look at different limb types (wheels, single limb, jointed/double limb, wing(?), balance)
+            -Further explore options for regularization and pruning.
 */
 
+//SketchNEAT is called once to start the simulation, and it then calls draw() repeatedly.
 let sketchNEAT = function (p) {
+
+    // Variables for rendering.
     nextBatchFrame = 0;
     let fixedTimeStep = (1.0 / simulationSpeed) * 1000; // 'simulationSpeed' updates per second for physics
     let accumulator = 0;
     let lastTime = 0;
     let leadingAgent;
     let currentPhysicsBatch = 0;
-    let leadingAgentScores;
-    let leadingAgentScore;
-    let leadingAgentXScore;
-    let leadingAgentYScore;
-    let leadingAgentMovementScore;
-    let trailingAgent = agents[agents.length - 1];
-    let trailingAgentScores;
-    let trailingAgentScore;
-    let trailingAgentXScore;
-    let trailingAgentYScore;
-    let trailingAgentMovementScore;
-    let topScoreAgent = agents[0];
-    let topScoreAgentScores;
-    let topScoreAgentScore;
-    let topScoreAgentXScore;
-    let topScoreAgentYScore;
-    let topScoreAgentMovementScore;
-    let particles = [];
     let startingTickCounter = 0;
+    let particles = [];
 
+    let trailingAgent = agents[agents.length - 1];
+    let topScoreAgent = agents[0];
+    let leadingAgentScores, leadingAgentScore, leadingAgentXScore, leadingAgentYScore, leadingAgentMovementScore;
+    let trailingAgentScores, trailingAgentScore, trailingAgentXScore, trailingAgentYScore, trailingAgentMovementScore;
+    let topScoreAgentScores, topScoreAgentScore, topScoreAgentXScore, topScoreAgentYScore, topScoreAgentMovementScore;
+
+    // Runs once at the start of the simulation
     p.setup = function () {
         p.frameRate(60);
         p.createCanvas(canvasWidth, canvasHeight);
@@ -473,7 +426,12 @@ let sketchNEAT = function (p) {
             p.text(`Select a color above to filter that group, or white to clear`, 10, 260);
             p.text(`Agents in population: ${agentGenomePool.length}`, 10, 290);
             p.text(`Agents in simulation: ${agents.length}`, 10, 320);
-            p.text(`Agents on screen: ${agentsToRender.size}`, 10, 350);
+
+            if (selectedColor === null) {
+                p.text(`Agents on screen: ${agentsToRender.size}`, 10, 350);
+            } else {
+                p.text(`Agents on screen: ${agents.filter(agent => agent.genome.metadata.agentGroup == selectedColor).length }`, 10, 350);
+            }
 
             if (!simulationStarted || !singleUpdateCompleted) {
                 p.fill(255, 0, 0);
@@ -1987,6 +1945,13 @@ function nextGenerationNEAT(p) {
             groupAgents[i].genome.agentHistory.rankInGroup = i + 1;
         }
         let agentsNeeded = Math.floor((numAgentsMultiplier * popSize) / numGroups);
+
+        // Not a good way to do this, but this line checks if our rounding is going to produce an off by 1 error
+        // Could switch back to using the number of agents already present in the group to determine how many agents are needed, but this was causing inconsistencies for a while.
+        if (groupAgents.length == agentsNeeded + 1) {
+            agentsNeeded += 1;
+        }
+
         let topPerformersCount = Math.floor(topPerformerNo * agentsNeeded);
 
         createTopPerformersNEAT(groupAgents, topPerformersCount);
@@ -2067,6 +2032,8 @@ function waitForInitializationCompletionNEAT() {
             console.log("Issue with population genomes");
         }
 
+        waitForFinalInitializationCompletionNEAT();
+
     } else {
         // If the condition is not met, wait for some time and check again
         setTimeout(() => waitForInitializationCompletionNEAT(), 100); // Checking every 100ms for example
@@ -2075,7 +2042,7 @@ function waitForInitializationCompletionNEAT() {
 
 function waitForFinalInitializationCompletionNEAT() {
     // Check if the condition is met
-    if (agenta.length >= popSize) {
+    if (agents.length >= popSize) {
 
         createMaps(randMap);
 

@@ -260,7 +260,7 @@
 
         <!-- Exploration Score Multiplier -->
         <div class="setting">
-            <label for="explorationScoreMultiplier" title="Multiplier for score gained for exploring more of the map.  Each 50x50 pixels explored is worth this much score. Max of 500x500 squares to explore.  No points are given for moving below or lef of the starting position">Exploration Score Multiplier</label>
+            <label for="explorationScoreMultiplier" title="Multiplier for score gained for exploring more of the map.  Each 50x50 pixels explored is worth this much score. Max of 500x500 squares to explore.  No points are given for moving below or left of the starting position">Exploration Score Multiplier</label>
             <div class="slider-container">
                 <input type="range" id="explorationScoreMultiplier" @bind="agentProperties.explorationScoreMultiplier" min="0" max="100" step="1">
                 <input type="number" @bind="agentProperties.explorationScoreMultiplier" min="0" max="100" step="1">
@@ -616,29 +616,34 @@
         await JSRuntime.InvokeVoidAsync("logGenomes");
     }
 
+    public override string ToString()
+    {
+        return JsonSerializer.Serialize(this);
+    }
+
     private async Task RetrieveGenomes()
     {
         var genomeJson = await JSRuntime.InvokeAsync<string>("retrieveGenomes");
-
+        Console.WriteLine(genomeJson);
         var jsonOptions = new JsonSerializerOptions
-            {
-                WriteIndented = true, // To make it pretty-printed and more readable
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
+        {
+            WriteIndented = true, // To make it pretty-printed and more readable
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
 
         try
         {
             List<Genome> evolvedPopulation = JsonSerializer.Deserialize<List<Genome>>(genomeJson, jsonOptions);
-            // Use evolvedPopulation...
+            Console.WriteLine(evolvedPopulation[0].Metadata.AgentName);
+            //var singleGenome = JsonSerializer.Deserialize<Genome>(genomeJson, jsonOptions);
+            //Console.WriteLine(singleGenome.Metadata.AgentName);
         }
-        catch (JsonException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine("Error serialising the genome" + ex);
+            Console.WriteLine($"Error serializing the genome: {ex.Message}");
         }
 
-        var genomeReJson = JsonSerializer.Serialize(evolvedPopulation, jsonOptions);
-        Console.WriteLine(genomeReJson);
     }
 
     void Shuffle<T>(List<T> list, Random random)
@@ -818,12 +823,11 @@
         public List<OutputLayerGene> OutputLayerGenes { get; set; }
         // public List<InnovationEntry> InnovationLog { get; set; }
         public BodyPlan BodyPlan { get; set; }
-        public Dictionary<string, string> Stats { get; set; }
         public AgentHistory AgentHistory { get; set; }
         public Hyperparameters Hyperparameters { get; set; }
         public Metadata Metadata { get; set; }
-        public List<int> UsedBiasIDs { get; set; }
-        public List<int> UsedLayerIDs { get; set; }
+        public List<int>? UsedBiasIDs { get; set; }
+        public List<int>? UsedLayerIDs { get; set; }
 
         public Genome()
         {
@@ -836,8 +840,6 @@
             this.AgentHistory = new AgentHistory();
             this.Hyperparameters = new Hyperparameters();
             this.Metadata = new Metadata();
-            this.UsedBiasIDs = new List<int>();
-            this.UsedLayerIDs = new List<int>();
         }
     }
 
@@ -845,42 +847,42 @@
 
     public class MainBody
     {
-        public string Shape { get; set; }
-        public double Size { get; set; }
+        public string? Shape { get; set; }
+        public double? Size { get; set; }
     }
 
     public class AttachmentPoint
     {
-        public double X { get; set; }
-        public double Y { get; set; }
+        public double? X { get; set; }
+        public double? Y { get; set; }
     }
 
     public class JointConstraints
     {
-        public double MaxTorque { get; set; }
-        public double MinAngle { get; set; }
-        public double MaxAngle { get; set; }
+        public double? MaxTorque { get; set; }
+        public double? MinAngle { get; set; }
+        public double? MaxAngle { get; set; }
     }
 
     public class BodySegment
     {
-        public string Shape { get; set; }
-        public double Size { get; set; }
-        public AttachmentPoint AttachmentOnMainBody { get; set; }
-        public AttachmentPoint AttachmentOnSegment { get; set; }
-        public JointConstraints Constraints { get; set; }
+        public string? Shape { get; set; }
+        public double? Size { get; set; }
+        public AttachmentPoint? AttachmentOnMainBody { get; set; }
+        public AttachmentPoint? AttachmentOnSegment { get; set; }
+        public JointConstraints? Constraints { get; set; }
     }
 
     public class Limb
     {
         public int LimbID { get; set; }
-        public string Shape { get; set; }
+        public string? Shape { get; set; }
         public double Length { get; set; }
         public double Width { get; set; }
         public double StartingAngle { get; set; }
         public double SwimBias { get; set; }
-        public AttachmentPoint Attachment { get; set; }
-        public JointConstraints Constraints { get; set; }
+        public AttachmentPoint? Attachment { get; set; }
+        public JointConstraints? Constraints { get; set; }
 
         public Limb()
         {
@@ -891,9 +893,9 @@
 
     public class BodyPlan
     {
-        public MainBody MainBody { get; set; }
-        public List<BodySegment> BodySegments { get; set; }
-        public List<Limb> Limbs { get; set; }
+        public MainBody? MainBody { get; set; }
+        public List<BodySegment>? BodySegments { get; set; }
+        public List<Limb>? Limbs { get; set; }
 
         public BodyPlan()
         {
@@ -908,17 +910,17 @@
     public class AgentHistory
     {
         public bool RunThisGeneration { get; set; }
-        public ScoreHistory LastScore { get; set; }
-        public List<ScoreHistory> ScoreHistory { get; set; }
+        public ScoreHistory? LastScore { get; set; }
+        public List<ScoreHistory>? ScoreHistory { get; set; }
         public int RoundsAsTopPerformer { get; set; }
         public int UsedAsParent { get; set; }
-        public List<String> Mutations { get; set; }
+        public List<String>? Mutations { get; set; }
         public double RankInGroup { get; set; }
         public double RankInPop { get; set; }
 
         public AgentHistory()
         {
-            // Initialize properties with defaults.
+            this.LastScore = new ScoreHistory();
             this.RunThisGeneration = false;
             this.ScoreHistory = new List<ScoreHistory>();
             this.RoundsAsTopPerformer = 0;
@@ -936,9 +938,6 @@
 
     public class Hyperparameters
     {
-        //agentNodeMutationRate
-        //agentLayerMutationRate
-        //agentLimbMutationRate
         public double MutationRate { get; set; }
         public double NodeMutationRate { get; set; }
         public double LayerMutationRate { get; set; }
@@ -955,7 +954,6 @@
         public string Species { get; set; }
         public double BestScore { get; set; }
         public int CompatabilityDistance { get; set; }
-        // ... 
 
         public Metadata()
         {
@@ -973,12 +971,12 @@
     {
         public int NumberOfNeurons { get; set; }
         public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<Bias> Biases { get; set; }
-        public List<int> Inputs { get; set; }
+        public List<Bias>? Biases { get; set; }
+        public List<int>? Inputs { get; set; }
 
         public InputLayerGene()
         {
-            // List inputs
+            this.Biases = new List<Bias>();
             this.Inputs = new List<int>();
         }
     }
@@ -989,23 +987,28 @@
         public LayerType LayerType { get; set; }  // "Dense", "Conv", "LSTM", etc.
         public int NumberOfNeurons { get; set; }
         public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<List<Weight>> Weights { get; set; }
-        public List<Bias> Biases { get; set; }
+        public List<List<Weight>>? Weights { get; set; }
+        public List<Bias>? Biases { get; set; }
 
-        // ...other layer-related properties
+        public LayerGene()
+        {
+            this.Weights = new List<List<Weight>>();
+            this.Biases = new List<Bias>();            
+        }
     }
 
     public class OutputLayerGene
     {
         public int NumberOfNeurons { get; set; }
         public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<List<Weight>> Weights { get; set; }
-        public List<Bias> Biases { get; set; }
-        public List<int> Outputs { get; set; }
+        public List<List<Weight>>? Weights { get; set; }
+        public List<Bias>? Biases { get; set; }
+        public List<int>? Outputs { get; set; }
 
         public OutputLayerGene()
         {
-            // List inputs
+            this.Weights = new List<List<Weight>>();
+            this.Biases = new List<Bias>();
             this.Outputs = new List<int>();
         }
     }
@@ -1015,27 +1018,13 @@
         //public int ID { get; set; }
         public int FromNodeID { get; set; }
         public int ToNodeID { get; set; }
-        public double Value { get; set; }
-
-        public Weight(int fromNodeID, int toNodeID, double value)
-        {
-            //ID = id;
-            FromNodeID = fromNodeID;
-            ToNodeID = toNodeID;
-            Value = value;
-        }
+        public double? Value { get; set; }
     }
 
     public class Bias
     {
         public int ID { get; set; }
-        public double Value { get; set; }
-
-        public Bias(int id, double value)
-        {
-            ID = id;
-            Value = value;
-        }
+        public double? Value { get; set; }
     }
 
     public enum LayerType
