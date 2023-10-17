@@ -508,7 +508,7 @@
         public float GroundY { get; set; } = 700;  // Y position of the ground in the canvas
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 1000;
+        public int SimulationLength { get; set; } = 2000;
         public int renderedAgents { get; set; } = 1;
         public int simSpeed { get; set; } = 60;
         public double topPerformerNumber { get; set; } = 10;
@@ -517,12 +517,12 @@
         public bool showNN { get; set; } = false;
         public bool showRays { get; set; } = false;
         public string agentInCentre { get; set; } = "leader";
-        public int numAgents { get; set; } = 50;
-        public int totalNumAgentsMultiplier { get; set; } = 10;
+        public int numAgents { get; set; } = 25;
+        public int totalNumAgentsMultiplier { get; set; } = 8;
         public int tournamentSize { get; set; } = 10;
         public double migrationRate { get; set; } = 0.002;
         public int minPopGroupSize { get; set; } = 10;
-        public int maxPopGroupSize { get; set; } = 50;
+        public int maxPopGroupSize { get; set; } = 25;
         public int uiRefreshRate { get; set; } = 500;
         public int muscleDelay { get; set; } = 2;
         public int muscleBatch { get; set; } = 5;
@@ -563,7 +563,7 @@
         public double yScoreMultiplier { get; set; } = 2;
         public double movementScoreMultiplier { get; set; } = 5;
         public double explorationScoreMultiplier { get; set; } = 50;
-        public double sizeScoreMultiplier { get; set; } = 0.25;
+        public double sizeScoreMultiplier { get; set; } = 0.1;
         // public int hiddenLayersNN { get; set; } = 3;
         // public int nodesPerHiddenLayer { get; set; } = 10; // half for final hidden layer
     }
@@ -783,7 +783,8 @@
                 MainBody = new MainBody
                 {
                     Shape = "Circle",
-                    Size = 10 + random.NextDouble() * 30.0 // Example range from 0 to 40
+                    Size = 10 + random.NextDouble() * 30.0,
+                    Density = 0.1 + random.NextDouble() * 0.9
                 }
             };
 
@@ -849,6 +850,7 @@
     {
         public string? Shape { get; set; }
         public double? Size { get; set; }
+        public double? Density { get; set; }
     }
 
     public class AttachmentPoint

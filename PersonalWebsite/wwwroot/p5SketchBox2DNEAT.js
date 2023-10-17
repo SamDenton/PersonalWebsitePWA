@@ -13,7 +13,7 @@ let updateCountStart = {};
 let frameCountStart = {};
 let agentIndexStart = 0;
 let agentGenomePool = [];
-let agentPool = [];
+let tempAgentGenomePool = [];
 let tempAgentPool = [];
 let randMap = 0;
 let runCount = 0;
@@ -96,7 +96,7 @@ let sketchNEAT = function (p) {
 
             // If initialization is complete, update muscles 1 agent per frame for 1 update
             if (isInitializationComplete && !simulationStarted) {
-                if (areAllAgentsStable()) {
+                if (areAllAgentsStableNEAT()) {
                     // Initialize updateCountStart and frameCountStart for all agents
                     for (let i = 0; i < agents.length; i++) {
                         updateCountStart[i] = 0;
@@ -113,16 +113,12 @@ let sketchNEAT = function (p) {
             if (simulationStarted) {
                 // If not all agents have been updated x times, update one agent per frame
                 if (!singleUpdateCompleted) {
+
                     // Update the agent
-                    //console.log("Updating agent: ", agentIndexStart);
-                    // agents[agentIndexStart].mainBody.setType('dynamic');
                     agents[agentIndexStart].updateMusclesNEAT();
 
                     // Initialize or increment the update count for this agent
                     frameCountStart[agentIndexStart] = (frameCountStart[agentIndexStart] || 0) + 1;
-
-                    // Add log to check frameCountStart for the current agent
-                    //console.log("Frame count for agent " + agentIndexStart + ": " + (frameCountStart[agentIndexStart] || 0));
 
                     // If frameCount for the agent reaches framesPerUpdate, reset it and increment updateCount
                     if (frameCountStart[agentIndexStart] >= framesPerUpdateStart) {
@@ -132,16 +128,16 @@ let sketchNEAT = function (p) {
 
                     // Move to the next agent, and cycle back to the beginning if at the end of the array
                     agentIndexStart = (agentIndexStart + 1) % agents.length;
-                    //console.log("updateCountStart", updateCountStart);
+
                     // Check if we've updated each agent x times
-                    if (Object.values(updateCountStart).every(countStart => countStart >= updatesPerAgentStart) && areAllAgentsStable()) {
+                    if (Object.values(updateCountStart).every(countStart => countStart >= updatesPerAgentStart) && areAllAgentsStableNEAT()) {
                         singleUpdateCompleted = true;
                         console.log("Agents Settled");
                         startingTickCounter = 0;
                     }
                 }
                 // Check if all agents are stable before proceeding with batch updates
-                else { //if (areAllAgentsStable())
+                else { //if (areAllAgentsStableNEAT())
                     // Check if it's time to update the next batch
                     if (startingTickCounter >= nextBatchFrame) {
                         // Update muscles only for the current batch of agents
@@ -327,7 +323,6 @@ let sketchNEAT = function (p) {
 
             let currentTime = p.millis();
 
-            //console.log(currentTime, lastUIUpdateTime);
             if (currentTime - lastUIUpdateTime > UIUpdateInterval && simulationStarted) {
 
                 topScoreAgent = getHighestScoreNEAT();
@@ -496,6 +491,42 @@ let sketchNEAT = function (p) {
     };
 };
 
+function areAllAgentsStableNEAT() {
+    const stabilityThreshold = 0.25;  // Define a small threshold value for stability
+    const stabilityFrames = 50;  // Number of frames to wait before confirming stability
+
+    let allAgentsStable = true;
+
+    for (let agent of agents) {
+        if (agent.mainBody) {
+            // Loop through limbs to check if they are stable
+            for (let limb of agent.limbs) {
+                if (Math.abs(limb.getAngularVelocity()) > stabilityThreshold || Math.abs(limb.getLinearVelocity()) > stabilityThreshold) {
+                    allAgentsStable = false;
+                    break;
+                }
+            }
+
+            if (Math.abs(agent.mainBody.getAngularVelocity()) > stabilityThreshold || Math.abs(agent.mainBody.getLinearVelocity()) > stabilityThreshold) {
+                allAgentsStable = false;
+                break;
+            }
+        }
+    }
+
+    if (allAgentsStable) {
+        stabilityCounter++;
+        if (stabilityCounter >= stabilityFrames) {
+            stabilityCounter = 0;  // Reset counter
+            return true;
+        }
+    } else {
+        stabilityCounter = 0;  // Reset counter if any agent is not stable
+    }
+
+    return false;
+}
+
 function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
     // Calculate the angle difference
     let angleDifference = forceDirection - agentFacingDirection;
@@ -543,7 +574,7 @@ function applySwimmingForce(agent) {
             let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
 
             let forceMagnitude;
-            forceMagnitude = deltaTheta * forceScalingFactor * bias * (2 * agent.limbMass[i] / 150) * Math.max(0, (agent.agentEnergy / agent.startingEnergy));
+            forceMagnitude = deltaTheta * forceScalingFactor * bias * (2 * agent.limbMass[i] / 150) * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
 
             if (agent.agentEnergy > 0) {
                 agent.agentEnergy -= Math.abs(forceMagnitude / 1000000) * (agent.limbMass[i] / 15) * (agent.brainSize / 50);
@@ -730,10 +761,10 @@ function logGenomes() {
     console.log("tempAgentPool Array Sorted by Score: ", tempAgents);
 
     let newGenomes = [];
-    agentPool.forEach(agent => {
+    tempAgentGenomePool.forEach(agent => {
         newGenomes.push(agent);
     });
-    console.log("agentPool: ", newGenomes);
+    console.log("tempAgentGenomePool: ", newGenomes);
 
     let genomes = [];
     agentGenomePool.forEach(agent => {
@@ -829,18 +860,19 @@ function initializeAgentsBox2DNEAT(agentProperties, totalPopulationGenomes) {
         }
     }
 
-    // console.log(totalPopulationGenomes);
-
     agentGenomePool = _.cloneDeep(totalPopulationGenomes);
+
+    // Loop through agents array and dispose of all tensors manually
+    for (let i = 0; i < agents.length; i++) {
+        agents[i].brain.dispose();
+    }
 
     agents = [];  // Reset the agents array
     currentProcess = "Initializing first generation!";
+
     // let populationGenomes equal a selection of totalPopulationGenomes based on the totalPopulationGenomes[i].metadata.runGroup.  Just runGroup 0 here
     let populationGenomes = totalPopulationGenomes.filter(genome => genome.metadata.runGroup === 0);
 
-    // console.log("populationGenomes for first inter-gen batch: ", runCount, ": ", populationGenomes);
-
-    // console.log("Initial population without brain", populationGenomes);
     // Initialize agents in batches
     if (Array.isArray(populationGenomes) && populationGenomes.length === popSize) {
         for (let i = 0; i < popSize; i += BATCH_SIZE) {
@@ -898,7 +930,6 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopula
             for (let i = 0; i < renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgents.length);
                 randomlySelectedAgents.push(groupAgents[randomIndex]);
-                // console.log("adding random agent to render list, group: " + groupId);
             }
         }
 
@@ -910,12 +941,6 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopula
             // add agent's genome to the genomes array
             tempPopulationGenomes.push(agent.genome);
         });
-        // log the entire genomes array
-        // console.log("re-building whole pop array from each agents genome", tempPopulationGenomes);
-
-        //agents.forEach(agent => {
-        //    logModelWeights(agent);
-        //});
 
         offsetX = 0;
 
@@ -946,7 +971,6 @@ function logModelWeights(agent) {
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and evolving complexity based on randomness and fitness might work.
 function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.genome = _.cloneDeep(agentGenome); // Deep copy of genome
-    // console.log(this.genome);
     agentGenome = null;
     this.numLimbs = this.genome.bodyPlan.limbs.length;
     this.numSegments = this.genome.bodyPlan.bodySegments.length + 1; // +1 for the main body
@@ -956,10 +980,9 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.startingX = 200 + (Math.floor(this.genome.metadata.runGroup) * 5000);
     this.startingY = 600;
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
-    this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, agentNo);
+    let mainBodyDensity = this.genome.bodyPlan.mainBody.density;
+    this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, mainBodyDensity);
     this.position = this.mainBody.getPosition();
-    this.startingEnergy = 100 + (mainBodyRadius / 6 * (simulationLength / 1000)) ** 3; // + body segments mass and maybe limbs later
-    this.agentEnergy = this.startingEnergy;
     this.rayCastPoints = [];
 
     this.Score = 0;
@@ -1024,7 +1047,16 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     }  else {
         this.brain = createNeuralNetworkNEAT(this.genome);
     }
+    this.limbMassTot = 0;
+    // Score and energy stuff
+    if (this.limbMassTot < 10) {
+        for (let i = 0; i < this.limbs.length; i++) {
+            this.limbMassTot += this.limbs[i].getMass();
+        }
+    }
 
+    this.startingEnergy = 100 + ((this.mainBody.getMass() / 10000 + this.limbMassTot / 50) * (simulationLength / 1000)) ** 3; // + body segments mass and maybe limbs later
+    this.agentEnergy = this.startingEnergy;
     this.weightPenaltyCache = null;
     this.weightPenaltyCounter = 0;
 
@@ -1053,7 +1085,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
             // Now that I randomly change the agent's starting angles, we need to only increment score after round starts
             if (singleUpdateCompleted) {
-                let change = Math.abs(currentAngle - this.previousJointAngles[i]);
+                let change = Math.abs(currentAngle - this.previousJointAngles[i]) * (this.limbs[i].getMass() / 100);
                 totalChange += change;
             }
 
@@ -1082,8 +1114,8 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.getExplorationReward = function () {
 
         // Calculate the position relative to the map's origin (considering the granularity)
-        let gridX = Math.floor((this.position.x - this.startingX) / 50);
-        let gridY = Math.floor((this.startingY - this.position.y) / 50);  // Subtracting due to flipped Y-axis
+        let gridX = Math.floor((this.position.x - this.startingX) + 10 / 50) + 5;  // Start in cell 5,5 slightly offset from the origin so they can explore backwards.  The +10 is to account for the agent spawning on the boundary of a grid, so getting 4 cells explored instantly
+        let gridY = Math.floor((this.startingY - this.position.y) + 10 / 50) + 5;  // Subtracting due to flipped Y-axis
 
         if (gridX >= 0 && gridX < 500 && gridY >= 0 && gridY < 500) {
             if (!this.internalMap[gridY][gridX]) { // If the cell hasn't been visited yet
@@ -1122,9 +1154,13 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             weightPenalty = 0;
         //}
 
-        if (!roundOver) {
+        if (!roundOver && this.massBonus < 10) {
             try {
                 this.massBonus = this.mainBody.getMass() * sizeScoreMult;
+                // loop through limbs and add their mass to the massBonus
+                for (let i = 0; i < this.limbs.length; i++) {
+                    this.massBonus += this.limbs[i].getMass() * sizeScoreMult;
+                }
             } catch (e) {
                 this.massBonus = 0;
             }
@@ -1248,7 +1284,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
 }
 
-function createMainBodyNEAT(world, x, y, radius, agentNo) {
+function createMainBodyNEAT(world, x, y, radius, mainBodyDensity) {
     let bodyDef = {
         type: 'static',
         position: planck.Vec2(x, y)
@@ -1258,7 +1294,7 @@ function createMainBodyNEAT(world, x, y, radius, agentNo) {
     let shape = planck.Circle(radius);
     let fixtureDef = {
         shape: shape,
-        density: 0.5,
+        density: mainBodyDensity,
         filterCategoryBits: CATEGORY_AGENT_BODY,
         filterMaskBits: CATEGORY_GROUND  // Only allow collision with the ground
     };
@@ -1407,7 +1443,6 @@ function endSimulationNEAT(p) {
     for (let groupId = 0; groupId < numGroups; groupId++) {
         // Re-filter by group
         let newGroupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
-        console.log("Group " + groupId + " has " + newGroupAgents.length + " agents");
     }
 
     // Continue to the next generation once the tempAgentPool is full
@@ -1604,65 +1639,77 @@ function createNeuralNetworkNEAT(genome) {
     let biasID = 0;  // Initialize a counter for bias IDs
 
     // Input layer
-    const inputLayer = tf.layers.dense({
-        units: genome.inputLayerGenes[0].numberOfNeurons,
-        activation: activationTypeToString(genome.inputLayerGenes[0].activationType),
-        inputShape: [genome.inputLayerGenes[0].inputs.length],
-        biasInitializer: 'heNormal',
-        kernelInitializer: 'heNormal'
+    tf.tidy(() => {
+        const inputLayer = tf.layers.dense({
+            units: genome.inputLayerGenes[0].numberOfNeurons,
+            activation: activationTypeToString(genome.inputLayerGenes[0].activationType),
+            inputShape: [genome.inputLayerGenes[0].inputs.length],
+            biasInitializer: 'heNormal',
+            kernelInitializer: 'heNormal'
+        });
+        model.add(inputLayer);
+        let weightsBiases = inputLayer.getWeights();
+        genome.inputLayerGenes[0].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b }));
+        // weightsBiases.forEach(tensor => tensor.dispose());
     });
-    model.add(inputLayer);
-    let weightsBiases = inputLayer.getWeights();
-    genome.inputLayerGenes[0].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b }));
 
     // Save the IDs of biases from the input layer to assign them as fromNodeID for the first hidden layer
     const previousLayerBiasIDs = genome.inputLayerGenes[0].biases.map(b => b.id);
 
     // Hidden layers
     for (let i = 0; i < genome.layerGenes.length; i++) {
+        tf.tidy(() => {
 
-        const layer = tf.layers.dense({
-            units: genome.layerGenes[i].numberOfNeurons,
-            activation: activationTypeToString(genome.layerGenes[i].activationType),
-            biasInitializer: 'heNormal',
-            kernelInitializer: 'heNormal'
+            const layer = tf.layers.dense({
+                units: genome.layerGenes[i].numberOfNeurons,
+                activation: activationTypeToString(genome.layerGenes[i].activationType),
+                biasInitializer: 'heNormal',
+                kernelInitializer: 'heNormal'
+            });
+            model.add(layer);
+            let weightsBiases = layer.getWeights();
+
+            genome.layerGenes[i].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b }));
+
+            genome.layerGenes[i].weights = weightsBiases[0].arraySync().map((wRow, rowIndex) =>
+                wRow.map((w, colIndex) => ({
+                    fromNodeID: previousLayerBiasIDs[rowIndex],
+                    toNodeID: genome.layerGenes[i].biases[colIndex].id,
+                    value: w
+                }))
+            );
+
+            // weightsBiases.forEach(tensor => tensor.dispose());
+
+            // Save the IDs of biases from the current hidden layer to assign them as fromNodeID for the next layer
+            const currentLayerBiasIDs = genome.layerGenes[i].biases.map(b => b.id);
+            previousLayerBiasIDs.length = 0;
+            Array.prototype.push.apply(previousLayerBiasIDs, currentLayerBiasIDs);
+
         });
-        model.add(layer);
-        weightsBiases = layer.getWeights();
+    }
 
-        genome.layerGenes[i].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b }));
+    // Output layer
+    tf.tidy(() => {
+        const outputLayer = tf.layers.dense({
+            units: genome.outputLayerGenes[0].numberOfNeurons,
+            activation: activationTypeToString(genome.outputLayerGenes[0].activationType),
+            biasInitializer: 'heNormal'
+        });
+        model.add(outputLayer);
+        let weightsBiases = outputLayer.getWeights();
+        genome.outputLayerGenes[0].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b }));
 
-        genome.layerGenes[i].weights = weightsBiases[0].arraySync().map((wRow, rowIndex) =>
+        genome.outputLayerGenes[0].weights = weightsBiases[0].arraySync().map((wRow, rowIndex) =>
             wRow.map((w, colIndex) => ({
                 fromNodeID: previousLayerBiasIDs[rowIndex],
-                toNodeID: genome.layerGenes[i].biases[colIndex].id,
+                toNodeID: genome.outputLayerGenes[0].biases[colIndex].id,
                 value: w
             }))
         );
 
-        // Save the IDs of biases from the current hidden layer to assign them as fromNodeID for the next layer
-        const currentLayerBiasIDs = genome.layerGenes[i].biases.map(b => b.id);
-        previousLayerBiasIDs.length = 0;
-        Array.prototype.push.apply(previousLayerBiasIDs, currentLayerBiasIDs);
-    }
-
-    // Output layer
-    const outputLayer = tf.layers.dense({
-        units: genome.outputLayerGenes[0].numberOfNeurons,
-        activation: activationTypeToString(genome.outputLayerGenes[0].activationType),
-        biasInitializer: 'heNormal'
+        // weightsBiases.forEach(tensor => tensor.dispose());
     });
-    model.add(outputLayer);
-    weightsBiases = outputLayer.getWeights();
-    genome.outputLayerGenes[0].biases = weightsBiases[1].arraySync().map(b => ({ id: biasID++, value: b }));
-
-    genome.outputLayerGenes[0].weights = weightsBiases[0].arraySync().map((wRow, rowIndex) =>
-        wRow.map((w, colIndex) => ({
-            fromNodeID: previousLayerBiasIDs[rowIndex],
-            toNodeID: genome.outputLayerGenes[0].biases[colIndex].id,
-            value: w
-        }))
-    );
 
     // Add used IDs to genome
     genome.usedBiasIDs = Array.from({ length: biasID }, (_, i) => i);
@@ -1797,12 +1844,15 @@ function nextAgentgroupNEAT(p) {
 
     currentProcess = "Adding agents from pool";
 
+    // Loop through agents array and dispose of all tensors manually
+    for (let i = 0; i < agents.length; i++) {
+        agents[i].brain.dispose();
+    }
+
     agents = [];  // Reset the agents array
 
     // let populationGenomes equal a selection of totalPopulationGenomes based on the agentGenomePool[i].metadata.runGroup. Can use the inter generation run counter runCount for the search
     let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
-
-    // console.log("populationGenomes for a new inter-gen batch: ", runCount, ": ", populationGenomes);
 
     // Initialize agents in batches
     if (Array.isArray(populationGenomes) && populationGenomes.length === popSize) {
@@ -1835,8 +1885,6 @@ function waitForInitializationCompletionBatchNEAT() {
         runCount++;
         currentProcess = "New agents added to world!";
 
-        // console.log("tempAgentPool after single run", tempAgentPool);
-
         randomlySelectedAgents = [];
         for (let groupId = 0; groupId < numGroups; groupId++) {
             let groupAgentsForRender = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
@@ -1845,7 +1893,6 @@ function waitForInitializationCompletionBatchNEAT() {
             for (let i = 0; i < renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgentsForRender.length);
                 randomlySelectedAgents.push(groupAgentsForRender[randomIndex]);
-                // console.log("adding random agent to render list, group: " + groupId);
             }
         }
 
@@ -1870,7 +1917,6 @@ function nextGenerationNEAT(p) {
     }
     runCount = 0;
 
-    // console.log("Score example: ", agents[37].getScore(false)[0]);
     randMap = Math.floor(Math.random() * 5);
     createMaps(randMap);
 
@@ -1892,6 +1938,11 @@ function nextGenerationNEAT(p) {
         if (thisScore > agents[i].genome.metadata.bestScore) {
             agents[i].genome.metadata.bestScore = thisScore;
         }
+    }
+
+    // Loop through agents array and dispose of all tensors manually
+    for (let i = 0; i < agents.length; i++) {
+        agents[i].brain.dispose();
     }
 
     agents = [];  // Reset the agents array
@@ -1936,10 +1987,8 @@ function nextGenerationNEAT(p) {
     }
 
     function buildNewAgentGroup(groupId, callback) {
-        console.log("Building group: " + groupId);
 
         let groupAgents = tempAgentPool.filter(agent => agent.genome.metadata.agentGroup === groupId);
-        console.log("Group " + groupId + " has " + groupAgents.length + " agents");
 
         for (let i = 0; i < groupAgents.length; i++) {
             groupAgents[i].genome.agentHistory.rankInGroup = i + 1;
@@ -1959,7 +2008,8 @@ function nextGenerationNEAT(p) {
 
         // Check for the condition to see if the current group is completely built
         function checkGroupBuilt() {
-            if (agentPool.filter(agentGenome => agentGenome.metadata.agentGroup === groupId).length >= agentsNeeded) {
+            if (tempAgentGenomePool.filter(agentGenome => agentGenome.metadata.agentGroup === groupId).length >= agentsNeeded) {
+                groupAgents = [];
                 // If condition is met, execute callback (which will build the next group)
                 callback();
             } else {
@@ -1999,16 +2049,20 @@ function nextGenerationNEAT(p) {
 // Recursive function checking if agents have finished loading into world
 function waitForInitializationCompletionNEAT() {
     // Check if the condition is met
-    if (agentPool.length >= popSize * numAgentsMultiplier) {
+    if (tempAgentGenomePool.length >= popSize * numAgentsMultiplier) {
 
         agentGenomePool = [];
 
-        agentGenomePool = [...agentPool.map(agentGenome => _.cloneDeep(agentGenome))];
+        agentGenomePool = [...tempAgentGenomePool.map(agentGenome => _.cloneDeep(agentGenome))];
 
         currentProcess = "Adding agents from pool";
 
+        // Loop through agents array and dispose of all tensors manually
+        for (let i = 0; i < agents.length; i++) {
+            agents[i].brain.dispose();
+        }
+
         agents = [];  // Reset the agents array
-        // console.log("agentGenomePool after a generation", agentGenomePool);
 
         // Randomize the order of the agentGenomePool
         agentGenomePool = _.shuffle(agentGenomePool);
@@ -2020,8 +2074,6 @@ function waitForInitializationCompletionNEAT() {
 
         // let populationGenomes equal a selection of totalPopulationGenomes based on the agentGenomePool[i].metadata.runGroup. Can use the inter generation run counter runCount for the search
         let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
-
-        // console.log("populationGenomes for first new inter-gen batch: ", runCount, ": ", populationGenomes);
 
         // Initialize agents in batches
         if (Array.isArray(populationGenomes) && populationGenomes.length === popSize) {
@@ -2046,7 +2098,12 @@ function waitForFinalInitializationCompletionNEAT() {
 
         createMaps(randMap);
 
-        agentPool = [];
+        // loop through tempAgentPool and dispose of all tensors manually
+        for (let i = 0; i < tempAgentPool.length; i++) {
+            tempAgentPool[i].brain.dispose();
+        }
+
+        tempAgentGenomePool = [];
         tempAgentPool = [];
 
         // Randomly select agents to render for each group
@@ -2055,12 +2112,11 @@ function waitForFinalInitializationCompletionNEAT() {
 
             // Re-filter by group
             let newGroupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
-            console.log("Group " + groupId + " has " + newGroupAgents.length + " agents");
+
             // Select few random agents
             for (let i = 0; i < renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * newGroupAgents.length);
                 randomlySelectedAgents.push(newGroupAgents[randomIndex]);
-                // console.log("adding random agent to render list, group: " + groupId);
             }
         }
         runCount++;
@@ -2089,7 +2145,7 @@ function createTopPerformersNEAT(groupAgents, topPerformersCount) {
         newAgentGenome.metadata.agentGroup = oldAgent.genome.metadata.agentGroup;
         newAgentGenome.agentHistory.roundsAsTopPerformer++;
 
-        agentPool.push(newAgentGenome);
+        tempAgentGenomePool.push(newAgentGenome);
     }
 }
 
@@ -2097,20 +2153,14 @@ function createTopPerformersNEAT(groupAgents, topPerformersCount) {
 function generateOffspringNEAT(groupAgents, groupId, topPerformerCount, agentsNeeded) {
     currentProcess = "Creating offspring from weighted random parents!";
 
-    let agentsalreadycreated = agentPool.filter(agentGenome => agentGenome.metadata.agentGroup === groupId).length;
+    let agentsalreadycreated = tempAgentGenomePool.filter(agentGenome => agentGenome.metadata.agentGroup === groupId).length;
 
     if (agentsalreadycreated >= agentsNeeded) {
 
-        console.log("All agents for this group have been created", groupAgents.length);
         // All agents for this group have been created
         return;
 
     } else if (agentsalreadycreated >= topPerformerCount) {
-
-        // let numToCreate = Math.min(BATCH_SIZE, groupAgents.length - agentsalreadycreated);
-        let numToCreate = agentsNeeded - agentsalreadycreated;
-
-        console.log("Creating offspring for group: ", groupId, " top performers already present: ", agentsalreadycreated, " so making: ", numToCreate, " new agents");
 
         createAgentGroup(groupAgents, groupId, agentsNeeded);
 
@@ -2127,7 +2177,7 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
     parent2.genome.agentHistory.usedAsParent++;
 
     let childGenome;
-    // console.log("Selected agents: ", parent1.genome, parent2.genome);
+
     if (Math.random() < 0.5) {
         childGenome = biasedArithmeticCrossoverNEAT(parent1, parent2);
     } else {
@@ -2165,8 +2215,8 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
     childGenome.metadata.agentGroup = groupId;
 
     // Once an agent is created, add to agent pool
-    agentPool.push(childGenome);
-    if (agentPool.filter(agentGenome => agentGenome.metadata.agentGroup === groupId).length < agentsNeeded) {
+    tempAgentGenomePool.push(childGenome);
+    if (tempAgentGenomePool.filter(agentGenome => agentGenome.metadata.agentGroup === groupId).length < agentsNeeded) {
         // Schedule the next agent creation after a short timeout
         setTimeout(() => {
             createAgentGroup(groupAgents, groupId, agentsNeeded);
@@ -2219,12 +2269,10 @@ function selectAgentWeightedNEAT(agentsLocal, allAgents, excludedAgent = null) {
     }
 
     let randomValue = Math.random() * cumulativeSum;
-    // log all values used in calculation to see why following console log never triggers
-    // console.log("Random value: ", randomValue, " Cumulative sum: ", cumulativeSum, " Normalized scores: ", normalizedScores, " Min Score: ", minScore, " OffsetScore: ", offsetScore);
+
     // If the random value is greater than the current iterated score, take that agent
     for (let i = 0; i < normalizedScores.length; i++) {
         if (randomValue <= normalizedScores[i]) {
-            // console.log("Selected agents: ", agentsLocal[i].genome, excludedAgent.genome);
             return agentsLocal[i];
         }
     }
@@ -2737,6 +2785,7 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
     // Main Body Size Mutation
     if (Math.random() < bodyMutationRate) {
         childGenome.bodyPlan.mainBody.size = mutateWithinBounds(childGenome.bodyPlan.mainBody.size, 10, 30);
+        childGenome.bodyPlan.mainBody.density = mutateWithinBounds(childGenome.bodyPlan.mainBody.density, 0.1, 1);
     }
 
     // Limb Properties Mutation
@@ -3055,7 +3104,7 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
     return tf.tidy(() => {
         const output = this.brain.predict(tf.tensor([inputs])).dataSync();
         let outputIndex = 0;
-        // console.log("output: ", output);
+
         for (let i = 0; i < this.joints.length; i++) {
             if (outputJointSpeed) {
                 let adjustment = output[outputIndex] * MAX_ADJUSTMENT;
@@ -3190,13 +3239,11 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
                 this.rayCastPoints[i] = { start: startPoint, end: endPoint };
             }
 
-            // console.log(detectedDistance / MAX_DETECTION_DISTANCE);
             // Normalize detected distance and push to inputs
             inputs.push(detectedDistance / MAX_DETECTION_DISTANCE);
         }
     }
 
-    // console.log("agent inputs: position: ", (position.x - this.startingX) / MAX_X, position.y / MAX_Y, "Velocity: ", velocity.x / MAX_VX, velocity.y / MAX_VY, this.mainBody.getAngle() / Math.PI, displayedTimeLeft / MAX_TIME)
     return inputs;
 };
 
