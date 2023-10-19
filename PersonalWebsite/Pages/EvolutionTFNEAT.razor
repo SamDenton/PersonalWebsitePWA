@@ -2,8 +2,11 @@
 @inject IJSRuntime JSRuntime
 
 <h2>Semi-NEAT Genetic Evolution Simulation</h2>
-<p>You will get the best results with more agents, and higher muscle update frequencies, it will take some fiddling with performance settings to get a stable frame rate, with the highest values possible</p>
-<p>Beta product, please be patient. This works on mobile, but I recommend very low settings</p>
+
+<p>My Implementation of the NEAT algorithm, adapted for TesnorFlow.JS</p>
+<p>Like most of the site, this will work on mobile, but its not designed for it</p>
+<p>The documentation below, and on the <a style="text-decoration: none" href="/Projects/all/all">Projects Page of the Wiki</a> will give an explanation of whats going on and how to get started</p>
+
 <div id="canvas-container-NEAT"></div>
 
 <div class="settings-container">
@@ -450,8 +453,10 @@
         <p>Showing the Neural Network on screen adds a fair amount of lag so its hidden by default</p>
         <p>I am making use of P5.JS for my rendering, Planck.JS, which is a port of Box2D for my physics, and TensorFlow.JS for my neural network processing</p>
         <h4>So whats going on?</h4>
-        <p>If you start the simulation with default settings, you will see about 10 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest right, and the furthest left agent</p>
-        <p>Default settings will produce 500 agents in the population, split into batches of 50, as well as species groups.  50 agents from the run group are evaluated at a time, with a random selection of species</p>
+        <p>If you start the simulation with default settings, you will see about 15 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest right, and the furthest left agent</p>
+        <p>Default settings will produce 200 agents in the population, split into batches of 25, as well as species groups.  25 agents from the run group are evaluated at a time, with a random selection of species</p>
+        <p>On my PC, using a Ryzen 7 3700X CPU about 3.5Ghz per core, I can target about 150 agents at a time, with 10 Agents Per Batch of Joint Updates.  The Number of Inter-gen Batches will not effect performance, but will increase training time, as only 1 batch can be evaluated at a time</p>
+        <p>Since i'm making use of JS, the bottleneck for most systems is going to be the speed of a single CPU core.  Some configurations may reach a browser memory limit before a CPU limit, if you have a high number of inter-gen batches.  Browsers I have tested seem ok up to about 1000 agents total</p>
         <p>Each round, the agents have 2000 ticks, about 34 seconds at 60 fps with default physics speed of 60, to move as far North East as possible.</p>
         <p>The agents are all given a randomly initialized neural network, with a random shape for a brain, the leaders brain is rendered.  They are given a random body plan.  Both the brain and the body plan will evolve over time based on a number of crossover and mutation functions</p>
         <p>Between rounds, the agents are sorted by score, where the top 10% from each species are selected to remain unchanged, and the other 90% of the population is built using crossover and mutation.</p>
@@ -464,15 +469,17 @@
         <p>If enabled, I am experimenting with a form of normalization which slowly decays all weights in the network over time.  It's meant to prevent any noise in the network over time, based on a 'use it or loose it' principal.  Useful connections should be maintained by re-selection and unused connections will drop away</p>
         <h4>Current Selective Pressures (to be made configurable)</h4>
         <ol>
-            <li>Score for movement NE</li>
+            <li>Score for movement North East</li>
             <li>Bonus for joint movement that diminishes over time</li>
             <li>Exploration bonus</li>
             <li>Size bonus</li>
             <li>Larger limbs give more swimming force</li>
-            <li><h5>Energy System:</h5></li>
-                <li>Starting energy based on body size, larger bodies can store more energy</li>
-                <li>More energy is used to move larger limbs</li>
-                <li>Agents limb movement speed is based on their remaining energy %, with no energy, they cant move at all</li>
+        </ol>
+        <h5>Energy System:</h5>
+        <ol>
+            <li>Starting energy based on body size, larger bodies can store more energy</li>
+            <li>More energy is used to move larger limbs</li>
+            <li>Agents limb movement speed is based on their remaining energy %, with no energy, they cant move at all</li>
         </ol>
         <h4>Future Plans</h4>
         <p>I want to make all variables customizable, which is a huge number.  I need to find a nice way to arrange them</p>
@@ -484,14 +491,17 @@
 
 </div>
 
-
-<button class="floating-button start-button" @onclick="ResetSimulation">Start/Reset</button>
-<button class="floating-button update-button" title="You can update the round length, number of rendered agents, physics speed, spawn delay and batch size, parent tournament size, migration rate, max and min population group size and the agent to fix the camera on" @onclick="UpdateSimulation">Update</button>
-<button class="floating-button toggleNN-button" @onclick="toggleNN">Toggle Neural Network</button>
-<button class="floating-button toggleLeader-button" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
-<button class="floating-button toggleRays-button" @onclick="toggleRayCasts">Toggle Ray-casts Rendering</button>
-<button class="floating-button logGenomes-button" @onclick="LogGenomes">Log Genomes</button>
-<button class="floating-button retrieveGenomes-button" @onclick="RetrieveGenomes">Retrieve Genomes</button>
+<div class="button-container">
+    <button class="floating-button start-button rightColumn" @onclick="ResetSimulation">Start/Reset</button>
+    <button class="floating-button update-button leftColumn" title="You can update the round length, number of rendered agents, physics speed, spawn delay and batch size, parent tournament size, migration rate, max and min population group size and the agent to fix the camera on" @onclick="UpdateSimulation">Update</button>
+    <button class="floating-button toggleNN-button rightColumn" @onclick="toggleNN">Toggle Neural Network</button>
+    <button class="floating-button toggleLeader-button leftColumn" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
+    <button class="floating-button toggleRays-button rightColumn" @onclick="toggleRayCasts">Toggle Ray-casts</button>
+    <button class="floating-button logGenomes-button leftColumn" @onclick="LogGenomes">Log Genomes</button>
+    <button class="floating-button retrieveGenomes-button rightColumn" @onclick="RetrieveGenomes">Retrieve Genomes</button>
+    <button class="floating-button skip10Gen-button rightColumn" title="Skips 10 generations by disabling rendering and increasing physics speed.  This will still take a while" @onclick="Skip10Gen">Skip 10 Generations</button>
+    <button class="floating-button skip100Gen-button leftColumn" title="Skips 100 generations by disabling rendering and increasing physics speed. This will still take a while" @onclick="Skip100Gen">Skip 100 Generations</button>
+</div>
 
 @code {
     private StageProperties stageProperties = new StageProperties();
@@ -562,8 +572,8 @@
         public double xScoreMultiplier { get; set; } = 2;
         public double yScoreMultiplier { get; set; } = 2;
         public double movementScoreMultiplier { get; set; } = 5;
-        public double explorationScoreMultiplier { get; set; } = 50;
-        public double sizeScoreMultiplier { get; set; } = 0.1;
+        public double explorationScoreMultiplier { get; set; } = 10;
+        public double sizeScoreMultiplier { get; set; } = 0.2;
         // public int hiddenLayersNN { get; set; } = 3;
         // public int nodesPerHiddenLayer { get; set; } = 10; // half for final hidden layer
     }
@@ -644,6 +654,16 @@
             Console.WriteLine($"Error serializing the genome: {ex.Message}");
         }
 
+    }
+
+    public async Task Skip10Gen()
+    {
+        await JSRuntime.InvokeVoidAsync("skipGen", 10);
+    }
+
+    public async Task Skip100Gen()
+    {
+        await JSRuntime.InvokeVoidAsync("skipGen", 100);
     }
 
     void Shuffle<T>(List<T> list, Random random)

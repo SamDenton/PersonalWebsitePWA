@@ -5,6 +5,7 @@ let MAX_ADJUSTMENT_TORQUE = 500000;
 let offsetY = 0;
 let simulationLengthModified = 0;
 let showRayCasts = false;
+let render = true;
 let dragCoefficient; 
 let singleUpdateCompleted = false;
 let updatesPerAgentStart = 1;
@@ -17,6 +18,7 @@ let tempAgentGenomePool = [];
 let tempAgentPool = [];
 let randMap = 0;
 let runCount = 0;
+let fixedTimeStep = 1.0 / 60.0 * 1000;
 
 const GROUP_COLORS_NAMES = [
     'Traffic purple', 'Grass green', 'Yellow orange', 'Maize yellow', 'Quartz grey', 'Salmon range', 'Pearl black berry', 'Golden yellow', 'Pearl light grey', 'Red lilac',
@@ -42,7 +44,7 @@ let sketchNEAT = function (p) {
 
     // Variables for rendering.
     nextBatchFrame = 0;
-    let fixedTimeStep = (1.0 / simulationSpeed) * 1000; // 'simulationSpeed' updates per second for physics
+    fixedTimeStep = (1.0 / simulationSpeed) * 1000; // 'simulationSpeed' updates per second for physics
     let accumulator = 0;
     let lastTime = 0;
     let leadingAgent;
@@ -87,8 +89,9 @@ let sketchNEAT = function (p) {
             updatePhysics();
             accumulator -= fixedTimeStep;
         }
-
-        renderScene(p);
+        if (render) {
+            renderScene(p);
+        }
     };
 
     function updatePhysics() {
@@ -180,13 +183,14 @@ let sketchNEAT = function (p) {
 
                     // Apply joint damping to agents to prevent limbs from moving too fast or slamming into boundaries
                     applyJointDamping(agent);
-                    
+
                 }
             }
 
             // Step the Planck world
             try {
-                world.step(fixedTimeStep / 1000 * physicsGranularityMultiplier, velocityIterations, positionIterations);
+                // world.step(fixedTimeStep / 1000 * physicsGranularityMultiplier, velocityIterations, positionIterations);
+                world.step(1 / 60 * physicsGranularityMultiplier, velocityIterations, positionIterations);
             } catch (error) {
                 console.error("An error occurred stepping physics simulation: ", error);
             }
@@ -202,6 +206,104 @@ let sketchNEAT = function (p) {
     }
 
     function renderScene(p) {
+
+        particles.forEach((particle) => {
+            particle.x += Math.sin(particle.phase) * 0.5;
+            particle.y += Math.cos(particle.phase) * 0.5;
+            particle.phase += 0.02;
+
+            if (particle.x > p.width) particle.x = 0;
+            if (particle.x < 0) particle.x = p.width;
+            if (particle.y > p.height) particle.y = 0;
+            if (particle.y < 0) particle.y = p.height;
+            p.push();
+            p.fill(255, 255, 255, 50);
+            p.noStroke();
+            p.ellipse(particle.x, particle.y, 2, 2);
+            p.pop();
+        });
+
+        // To add a zoom out function, I just need to add an offset to this and the agent rendering function
+        // Render walls
+        p.fill(50);
+        for (let wall of wallBodies) {
+            const position = wall.body.getPosition();
+            p.push();  // Save the current drawing settings and transformations
+            p.translate(position.x + offsetX - 200, position.y + offsetY - 600);  // Translate the origin to the wall's position
+            p.rotate(wall.angle);  // Rotate the coordinate system by the wall's angle
+            p.rect(-wall.width / 2, -wall.height / 2, wall.width, wall.height);  // Draw the wall
+            p.pop();  // Restore the drawing settings and transformations
+        }
+
+        calculateFPS(p);
+        // Render the FPS, Gen No, and Time Left
+        p.fill(255);  // Black color for the text
+        p.textSize(18);  // Font size
+        p.text(`FPS: ${displayedFPS}`, 10, 20);
+        p.text(`Batch Within Generation: ${runCount} of ${numAgentsMultiplier}`, 10, 50);
+        p.text(`Generation: ${genCount}`, 10, 80);
+        p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 110);
+        p.text(`Top Score: ${topScoreEver.toFixed(2)}`, 10, 140);
+
+        if (averageScore > - 10) {
+            p.text(`Average Score: ${averageScore.toFixed(2)}`, 10, 170);
+        } else {
+            p.text(`Average Score: 0`, 10, 170);
+        }
+
+        p.text(`Distinct Population groups: ${numGroups}`, 10, 200);
+        const circleDiameter = 20;
+        // Render click-able circles for each group
+        for (let i = 0; i < numGroups + 1; i++) {
+            p.push();
+            if (i == numGroups) {
+                p.fill(255);
+                p.ellipse(40 + i * (circleDiameter + 10), 220, circleDiameter);
+            } else {
+                p.fill(GROUP_COLORS[i]);
+                p.ellipse(40 + i * (circleDiameter + 10), 220, circleDiameter);
+            }
+            p.pop();
+        }
+        // Check for clicks on the circles to select a color
+        p.mousePressed = function () {
+            for (let i = 0; i < numGroups + 1; i++) {
+                let x = 40 + i * (circleDiameter + 10);
+                let y = 220;
+                let d = p.dist(p.mouseX, p.mouseY, x, y);
+                if (i == numGroups) {
+                    if (d < circleDiameter / 2) {
+                        selectedColor = null;
+                        break;
+                    }
+                } else {
+                    if (d < circleDiameter / 2) {
+                        selectedColor = [i];
+                        break;
+                    }
+                }
+            }
+        };
+
+        p.push();
+        p.fill(155);
+        p.text(`Select a color above to filter that group, or white to clear`, 10, 260);
+        p.text(`Agents in population: ${agentGenomePool.length}`, 10, 290);
+        p.text(`Agents in simulation: ${agents.length}`, 10, 320);
+        p.pop();
+
+        if (singleUpdateCompleted) {
+            p.push();
+            p.fill(0, 255, 0);
+            p.text(`Agents can go!`, 10, 380);
+            p.pop();
+        } else {
+            p.push();
+            p.fill(255, 0, 0);
+            p.text(`${currentProcess}`, 10, 380);
+            p.pop();
+        }
+
         if (leadingAgent) {
 
             if (agentToFix == "leader") {
@@ -234,79 +336,6 @@ let sketchNEAT = function (p) {
                 offsetX = p.width / 6 - averageXScore + 100;
                 // offsetY = p.width / 6 - averageXScore + 100;
             }            
-
-            // Target circle in the center
-            //p.fill(100, 0, 0);
-            //p.ellipse(canvasWidth / 2 + offsetX, canvasHeight / 2, 50);
-            //p.noStroke();
-            //p.fill(50, 50, 0); // Dark brownish color
-            //p.rect(0, p.height - 30, p.width, 30); // Bottom rectangle
-
-            //p.fill(100, 100, 0); // Light brownish color
-            //p.ellipse(100, p.height - 20, 20, 20); // Some random rocks
-            //p.ellipse(200, p.height - 25, 30, 30);
-
-
-
-            //for (let i = 0; i < p.height; i += 40) {
-            //    p.stroke(220, 210, 170); // Lighter sand color
-            //    p.noFill();
-            //    p.beginShape();
-            //    for (let j = 0; j < p.width; j++) {
-            //        let yOffset = 5 * Math.sin(j * 0.05 + i * 0.1);
-            //        p.vertex(j, i + yOffset);
-            //    }
-            //    p.endShape();
-            //}
-
-            //const patchCount = 50;
-            //for (let i = 0; i < patchCount; i++) {
-            //    p.fill(60, 120, 80, 60); // Semi-transparent greenish-brown
-            //    let x = Math.random() * p.width;
-            //    let y = Math.random() * p.height;
-            //    let w = 20 + Math.random() * 40;
-            //    let h = 20 + Math.random() * 40;
-            //    p.ellipse(x, y, w, h);
-            //}
-
-            //const stoneCount = 30;
-            //for (let i = 0; i < stoneCount; i++) {
-            //    p.fill(100 + Math.random() * 50, 100 + Math.random() * 50, 100 + Math.random() * 50);
-            //    let x = Math.random() * p.width;
-            //    let y = Math.random() * p.height;
-            //    p.ellipse(x, y, 10 + Math.random() * 15, 10 + Math.random() * 15);
-            //}
-
-
-
-            particles.forEach((particle) => {
-                particle.x += Math.sin(particle.phase) * 0.5;
-                particle.y += Math.cos(particle.phase) * 0.5;
-                particle.phase += 0.02;
-
-                if (particle.x > p.width) particle.x = 0;
-                if (particle.x < 0) particle.x = p.width;
-                if (particle.y > p.height) particle.y = 0;
-                if (particle.y < 0) particle.y = p.height;
-
-                p.fill(255, 255, 255, 50);
-                p.noStroke();
-                p.ellipse(particle.x, particle.y, 2, 2);
-            });
-
-            // To add a zoom out function, I just need to add an offset to this and the agent rendering function
-            // Render walls
-            p.fill(50);
-            for (let wall of wallBodies) {
-                const position = wall.body.getPosition();
-                p.push();  // Save the current drawing settings and transformations
-                p.translate(position.x + offsetX - 200, position.y + offsetY - 600);  // Translate the origin to the wall's position
-                p.rotate(wall.angle);  // Rotate the coordinate system by the wall's angle
-                p.rect(-wall.width / 2, -wall.height / 2, wall.width, wall.height);  // Draw the wall
-                p.pop();  // Restore the drawing settings and transformations
-            }
-
-            calculateFPS(p);
 
             let agentsToRender = new Set(randomlySelectedAgents);  // Use a Set to ensure uniqueness
 
@@ -371,73 +400,14 @@ let sketchNEAT = function (p) {
                 lastUIUpdateTime = currentTime;
             }
 
-            // Render the FPS, Gen No, and Time Left
-            p.fill(255);  // Black color for the text
-            p.textSize(18);  // Font size
-            p.text(`FPS: ${displayedFPS}`, 10, 20);
-            p.text(`Batch Within Generation: ${runCount} of ${numAgentsMultiplier}`, 10, 50);
-            p.text(`Generation: ${genCount}`, 10, 80);
-            p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 110);
-            p.text(`Top Score: ${topScoreEver.toFixed(2)}`, 10, 140);
-
-            if (averageScore > - 10) {
-                p.text(`Average Score: ${averageScore.toFixed(2)}`, 10, 170);
-            } else {
-                p.text(`Average Score: 0`, 10, 170);
-            }
-
-            p.text(`Distinct Population groups: ${numGroups}`, 10, 200);
-            const circleDiameter = 20;
-            // Render click-able circles for each group
-            for (let i = 0; i < numGroups + 1; i++) {
-                if (i == numGroups) {
-                    p.fill(255);
-                    p.ellipse(50 + i * (circleDiameter + 10), 230, circleDiameter);
-                } else {
-                    p.fill(GROUP_COLORS[i]);
-                    p.ellipse(50 + i * (circleDiameter + 10), 230, circleDiameter);
-                }
-            }
-            // Check for clicks on the circles to select a color
-            p.mousePressed = function () {
-                for (let i = 0; i < numGroups + 1; i++) {
-                    let x = 50 + i * (circleDiameter + 10);
-                    let y = 230;
-                    let d = p.dist(p.mouseX, p.mouseY, x, y);
-                    if (i == numGroups) {
-                        if (d < circleDiameter / 2) {
-                            selectedColor = null;
-                            break;
-                        }
-                    } else {
-                        if (d < circleDiameter / 2) {
-                            selectedColor = [i];
-                            break;
-                        }
-                    }
-                }
-            };
-            p.fill(155);
-            p.text(`Select a color above to filter that group, or white to clear`, 10, 260);
-            p.text(`Agents in population: ${agentGenomePool.length}`, 10, 290);
-            p.text(`Agents in simulation: ${agents.length}`, 10, 320);
-
             if (selectedColor === null) {
                 p.text(`Agents on screen: ${agentsToRender.size}`, 10, 350);
             } else {
-                p.text(`Agents on screen: ${agents.filter(agent => agent.genome.metadata.agentGroup == selectedColor).length }`, 10, 350);
-            }
-
-            if (!simulationStarted || !singleUpdateCompleted) {
-                p.fill(255, 0, 0);
-                p.text(`${currentProcess}`, 10, 380);
-            }
-            else {
-                p.fill(0, 255, 0);
-                p.text(`Agents can go!`, 10, 380);
+                p.text(`Agents on screen: ${agents.filter(agent => agent.genome.metadata.agentGroup == selectedColor).length}`, 10, 350);
             }
 
             if (topScoreAgentScore > - 1000 && simulationStarted) {
+                p.push();
                 p.textSize(16);
                 p.fill(GROUP_COLORS[topScoreAgent.genome.metadata.agentGroup]);
                 p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Bonus: ${topScoreAgentMovementScore} + Exploration Bonus: ${topScoreAgentExplorationReward} + Size Bonus: ${topScoreAgentSizeReward})  Remaining Energy: ${topScoreAgentEnergy}`, 10, groundY + 30);  // Displaying the score just below the ground
@@ -447,9 +417,11 @@ let sketchNEAT = function (p) {
 
                 p.fill(GROUP_COLORS[trailingAgent.genome.metadata.agentGroup]);
                 p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Bonus: ${trailingAgentMovementScore} + Exploration Bonus: ${trailingAgentExplorationReward} + Size Bonus: ${trailingAgentSizeReward}) Remaining Energy: ${trailingAgentEnergy}`, 10, groundY + 70);
+                p.pop();
             }
 
             if (showNeuralNetwork == true && simulationStarted) {
+                p.push();
                 if (agentToFix == "trailer") {
                     p.text(`Showing Trailing Agents Brain`, 370, 20);
                     // Render NN for leading agent
@@ -461,6 +433,7 @@ let sketchNEAT = function (p) {
                     p.fill(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]);
                     leadingAgent.renderNNNEAT(p, canvasWidth - 1000, (canvasHeight / 2) - 40, tickCount);
                 }
+                p.pop();
             }
 
             if (agentsToRender.size > 1 && simulationStarted) {
@@ -486,13 +459,12 @@ let sketchNEAT = function (p) {
                     }
                 }
             }
-            p.fill(255);
         }
     };
 };
 
 function areAllAgentsStableNEAT() {
-    const stabilityThreshold = 0.25;  // Define a small threshold value for stability
+    const stabilityThreshold = 0.35;  // Define a small threshold value for stability
     const stabilityFrames = 50;  // Number of frames to wait before confirming stability
 
     let allAgentsStable = true;
@@ -777,6 +749,25 @@ function retrieveGenomes() {
     return JSON.stringify(agentGenomePool);
 }
 
+function skipGen(skipNo) {
+    // Function to skip a number of generations by disabling the rendering flag and speeding up physics ticks.  Make use of the 'render' flag, the genCount, which increments automatically every generation, and the simulationSpeed which can be set to 480.  Make use of recursive function to check if genCount has increased by skipNo since the function was called.  We do not need to increment genCount, it already counts generations as they pass
+    if (skipNo > 0) {
+        simulationSpeed = 480;
+        fixedTimeStep = (1.0 / simulationSpeed) * 1000;
+        render = false;
+        let currentGen = genCount;
+        let skipGenRecursive = function () {
+            if (genCount < currentGen + skipNo) {
+                setTimeout(skipGenRecursive, 100);
+            } else {
+                simulationSpeed = 60;
+                render = true;
+            }
+        };
+        skipGenRecursive();
+    }
+}
+
 function updateSimulationNEAT(stageProperties) {
     simulationLength = stageProperties.simulationLength;
     renderedAgents = stageProperties.renderedAgents;
@@ -862,11 +853,6 @@ function initializeAgentsBox2DNEAT(agentProperties, totalPopulationGenomes) {
 
     agentGenomePool = _.cloneDeep(totalPopulationGenomes);
 
-    // Loop through agents array and dispose of all tensors manually
-    for (let i = 0; i < agents.length; i++) {
-        agents[i].brain.dispose();
-    }
-
     agents = [];  // Reset the agents array
     currentProcess = "Initializing first generation!";
 
@@ -894,7 +880,6 @@ function initializeAgentBatchNEAT(startIndex, endIndex, populationGenomes) {
     }
 }
 
-
 // Function to initialize a single agent
 function initializeAgentNEAT(i, genome) {
     setTimeout(() => {
@@ -917,7 +902,7 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopula
     if (isInitializationComplete) {
 
         runCount++;
-
+        currentProcess = "Starting first round of simulation!";
         // set numGroups to the largest value in agentGenomePool.metadata.AgentGroup
         numGroups = Math.max(...agentGenomePool.map(genome => genome.metadata.agentGroup)) + 1;
 
@@ -951,6 +936,7 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopula
 }
 
 function logModelWeights(agent) {
+
     // Filtering tensors to get only weights (even indices)
     let allWeightTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 0);
     // Flat mapping tensors to extract weight values
@@ -964,12 +950,15 @@ function logModelWeights(agent) {
     // Logging the weights and biases
     console.log("Weights: ", allWeights);
     console.log("Biases: ", allBiases);
+
 }
 
 //this agent will do for now, but I intend to replace with with a dynamic body plan that can 'evolve' over time.
 //I think a JSON file defining a series of body and limb shapes, possibly with limbs connected to limbs etc
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and evolving complexity based on randomness and fitness might work.
 function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
+
+    // Should clean up the order of initialization of these variables and group functions together
     this.genome = _.cloneDeep(agentGenome); // Deep copy of genome
     agentGenome = null;
     this.numLimbs = this.genome.bodyPlan.limbs.length;
@@ -1006,7 +995,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         this.biases.push(1.5);
     }
 
-    // give the agent a this.brainSize property counting the number of nodes in the whole this.genome.inputLayerGenes.numberOfNeurons + this.genome.outputLayerGenes.numberOfNeurons + this.genome.layerGenes.numberOfNeurons;
+    // Brain size is used to calculate how much energy the agent uses for movement, bigger brains use more energy.  Could include weight sum too
     this.brainSize = this.genome.inputLayerGenes[0].numberOfNeurons + this.genome.outputLayerGenes[0].numberOfNeurons;
     for (let i = 0; i < this.genome.layerGenes.length; i++) {
         this.brainSize += this.genome.layerGenes[i].numberOfNeurons;
@@ -1047,16 +1036,18 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     }  else {
         this.brain = createNeuralNetworkNEAT(this.genome);
     }
-    this.limbMassTot = 0;
+
     // Score and energy stuff
+    this.limbMassTot = 0;
+
     if (this.limbMassTot < 10) {
         for (let i = 0; i < this.limbs.length; i++) {
             this.limbMassTot += this.limbs[i].getMass();
         }
     }
-
     this.startingEnergy = 100 + ((this.mainBody.getMass() / 10000 + this.limbMassTot / 50) * (simulationLength / 1000)) ** 3; // + body segments mass and maybe limbs later
     this.agentEnergy = this.startingEnergy;
+
     this.weightPenaltyCache = null;
     this.weightPenaltyCounter = 0;
 
@@ -1166,8 +1157,6 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             }
         }
 
-        // Calculate the mass bonus based on the main body's mass
-
         this.Score = XPosScore + YPosScore + jointMovementReward + explorationReward - weightPenalty + this.massBonus;
 
         if (this.Score < 1) {
@@ -1243,6 +1232,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         for (let i = 0; i < this.numLimbs; i++) {
             if (this.joints[i]) {
                 let jointPos = this.joints[i].getAnchorA();
+                p.push();
                 // Check if the current joint's index is within the jointColors array length
                 if (i < JOINT_COLORS.length) {
                     p.fill(JOINT_COLORS[i]);  // Set the fill color to the corresponding color from the jointColors array
@@ -1250,12 +1240,14 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
                     p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
                 }
                 p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 7, 7);  // Added offsetX
+                p.pop();
             }
         }
 
         // Render second set of joint anchors for testing
         //for (let i = 0; i < this.numLimbs; i++) {
         //    if (this.joints[i]) {
+        //        p.push();
         //        let jointPos = this.joints[i].getAnchorB();
         //        // Check if the current joint's index is within the jointColors array length
         //        if (i < JOINT_COLORS.length) {
@@ -1264,11 +1256,13 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         //            p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
         //        }
         //        p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
+        //        p.pop();
         //    }
         //}
     };
 
     this.renderRayCasts = function (p, offsetX, offsetY) {
+        p.push()
         p.stroke(255, 0, 0);  // Set the color of the rays (red in this case)
 
         for (let ray of this.rayCastPoints) {
@@ -1280,6 +1274,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             p.line(startX, startY, endX, endY);
         }
 
+        p.pop();
     };
 
 }
@@ -1437,13 +1432,26 @@ function endSimulationNEAT(p) {
     }
     duplicateWalls = [];
 
+    // loop through all agents scores and log them
+    for (let i = 0; i < agents.length; i++) {
+        let thisScore = agents[i].getScore(false)[0];
+
+        agents[i].genome.agentHistory.lastScore = { score: thisScore, map: randMap, generation: genCount };
+
+        // Store the score only if the generation is a multiple of STORE_EVERY_N_GENERATIONS
+        if (genCount % 5 === 0) {
+            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap, generation: genCount });
+        }
+
+        agents[i].genome.agentHistory.rankInPop = (i + 1);
+
+        if (thisScore > agents[i].genome.metadata.bestScore) {
+            agents[i].genome.metadata.bestScore = thisScore;
+        }
+    }
+
     // loop through agents array with a for each and add each agent to tempAgentPool
     agents.forEach(agent => tempAgentPool.push(_.cloneDeep(agent)));
-
-    for (let groupId = 0; groupId < numGroups; groupId++) {
-        // Re-filter by group
-        let newGroupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
-    }
 
     // Continue to the next generation once the tempAgentPool is full
     if (tempAgentPool.length >= popSize * numAgentsMultiplier) {
@@ -1456,6 +1464,7 @@ function endSimulationNEAT(p) {
 
 function setupPlanckWorldNEAT() {
     // Create the Planck.js world
+    // Could use the gravity property to add a 'current' to the world, rather than creating it with forces manually.  I assume this property is fixed once the world is created though
     const gravity = planck.Vec2(0.0, GravityStrength * 9.8);
     world = planck.World(planck.Vec2(0.0, 0.0));
 
@@ -1476,8 +1485,8 @@ function createMaps(mapNumber) {
     let startX = 200;
     let startY = 600;
 
-    if (mapNumber == 0 || mapNumber == 3) {
-        mapNumber = 1;
+    while (mapNumber == 0 || mapNumber == 3) {
+        mapNumber = Math.floor(Math.random() * 5);
     }
 
     if (mapNumber == 0) {
@@ -1711,8 +1720,19 @@ function createNeuralNetworkNEAT(genome) {
         // weightsBiases.forEach(tensor => tensor.dispose());
     });
 
-    // Add used IDs to genome
-    genome.usedBiasIDs = Array.from({ length: biasID }, (_, i) => i);
+    // Check if usedBiasIDs already contains values outside of the range of biasID, and keep them in a temp array, populate usedBiasIDs with values from biasID, then add the temp array back to usedBiasIDs
+    let tempUsedBiasIDs = [];
+    if (genome.usedBiasIDs) {
+        for (let i = 0; i < genome.usedBiasIDs.length; i++) {
+            if (genome.usedBiasIDs[i] >= biasID) {
+                tempUsedBiasIDs.push(genome.usedBiasIDs[i]);
+            }
+        }
+        genome.usedBiasIDs = Array.from({ length: biasID }, (_, i) => i);
+        genome.usedBiasIDs.push(...tempUsedBiasIDs);
+    } else {
+        genome.usedBiasIDs = Array.from({ length: biasID }, (_, i) => i);
+    }
 
     return model;
 }
@@ -1824,29 +1844,33 @@ function nextAgentgroupNEAT(p) {
     //    framesPerUpdateStart--;
     //}
 
-    // loop through all agents scores and log them
-    for (let i = 0; i < agents.length; i++) {
-        let thisScore = agents[i].getScore(false)[0];
+    currentProcess = "Filtering batch from total pool";
 
-        agents[i].genome.agentHistory.lastScore = { score: thisScore, map: randMap, generation: genCount };
-
-        // Store the score only if the generation is a multiple of STORE_EVERY_N_GENERATIONS
-        if (genCount % 5 === 0) {
-            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap, generation: genCount });
+    // OTT manual disposal and destruction of all bodies and joints
+    for (let agent of agents) {
+        // Destroy the joints first
+        for (let joint of agent.joints) {
+            if (joint) { // Check if joint exists and is in the world
+                world.destroyJoint(joint);
+            }
         }
 
-        agents[i].genome.agentHistory.rankInPop = (i + 1);
-
-        if (thisScore > agents[i].genome.metadata.bestScore) {
-            agents[i].genome.metadata.bestScore = thisScore;
+        // Destroy the limbs
+        for (let limb of agent.limbs) {
+            if (limb) { // Check if body exists and is in the world
+                world.destroyBody(limb);
+            }
         }
-    }
 
-    currentProcess = "Adding agents from pool";
+        // Destroy the main body
+        if (agent.mainBody) {
+            world.destroyBody(agent.mainBody);
+        }
 
-    // Loop through agents array and dispose of all tensors manually
-    for (let i = 0; i < agents.length; i++) {
-        agents[i].brain.dispose();
+        agent.brain.dispose();
+        agent.joints = [];
+        agent.limbs = [];
+        agent.mainBody = null;
     }
 
     agents = [];  // Reset the agents array
@@ -1879,12 +1903,13 @@ function nextAgentgroupNEAT(p) {
     // p.loop();
 }
 
-function waitForInitializationCompletionBatchNEAT() {
+function waitForInitializationCompletionBatchNEAT(populationGenomes) {
     // Check if the condition is met
     if (agents.length >= popSize) {
         runCount++;
-        currentProcess = "New agents added to world!";
+        currentProcess = "Starting next round";
 
+        populationGenomes = [];
         randomlySelectedAgents = [];
         for (let groupId = 0; groupId < numGroups; groupId++) {
             let groupAgentsForRender = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
@@ -1916,7 +1941,7 @@ function nextGenerationNEAT(p) {
         framesPerUpdateStart--;
     }
     runCount = 0;
-
+    currentProcess = "Performing Crossover, Mutation, and Selection on total population to create offspring";
     randMap = Math.floor(Math.random() * 5);
     createMaps(randMap);
 
@@ -1940,9 +1965,31 @@ function nextGenerationNEAT(p) {
         }
     }
 
-    // Loop through agents array and dispose of all tensors manually
-    for (let i = 0; i < agents.length; i++) {
-        agents[i].brain.dispose();
+    // OTT manual disposal and destruction of all bodies and joints
+    for (let agent of agents) {
+        // Destroy the joints first
+        for (let joint of agent.joints) {
+            if (joint) { // Check if joint exists and is in the world
+                world.destroyJoint(joint);
+            }
+        }
+
+        // Destroy the limbs
+        for (let limb of agent.limbs) {
+            if (limb) { // Check if body exists and is in the world
+                world.destroyBody(limb);
+            }
+        }
+
+        // Destroy the main body
+        if (agent.mainBody) {
+            world.destroyBody(agent.mainBody);
+        }
+
+        agent.brain.dispose();
+        agent.joints = [];
+        agent.limbs = [];
+        agent.mainBody = null;
     }
 
     agents = [];  // Reset the agents array
@@ -1968,8 +2015,6 @@ function nextGenerationNEAT(p) {
     //for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
     //    console.log(agents[i].index);
     //}
-
-    currentProcess = "Starting selection process!";
 
     function buildAgentGroups(groupId) {
         // Base case to end the recursion
@@ -2055,11 +2100,33 @@ function waitForInitializationCompletionNEAT() {
 
         agentGenomePool = [...tempAgentGenomePool.map(agentGenome => _.cloneDeep(agentGenome))];
 
-        currentProcess = "Adding agents from pool";
+        currentProcess = "Selecting batch from offspring";
 
-        // Loop through agents array and dispose of all tensors manually
-        for (let i = 0; i < agents.length; i++) {
-            agents[i].brain.dispose();
+        // OTT manual disposal and destruction of all bodies and joints
+        for (let agent of agents) {
+            // Destroy the joints first
+            for (let joint of agent.joints) {
+                if (joint) { // Check if joint exists and is in the world
+                    world.destroyJoint(joint);
+                }
+            }
+
+            // Destroy the limbs
+            for (let limb of agent.limbs) {
+                if (limb) { // Check if body exists and is in the world
+                    world.destroyBody(limb);
+                }
+            }
+
+            // Destroy the main body
+            if (agent.mainBody) {
+                world.destroyBody(agent.mainBody);
+            }
+
+            agent.brain.dispose();
+            agent.joints = [];
+            agent.limbs = [];
+            agent.mainBody = null;
         }
 
         agents = [];  // Reset the agents array
@@ -2098,9 +2165,33 @@ function waitForFinalInitializationCompletionNEAT() {
 
         createMaps(randMap);
 
-        // loop through tempAgentPool and dispose of all tensors manually
-        for (let i = 0; i < tempAgentPool.length; i++) {
-            tempAgentPool[i].brain.dispose();
+        currentProcess = "Starting next generation";
+
+        // OTT manual disposal and destruction of all bodies and joints
+        for (let agent of tempAgentPool) {
+            // Destroy the joints first
+            for (let joint of agent.joints) {
+                if (joint) { // Check if joint exists and is in the world
+                    world.destroyJoint(joint);
+                }
+            }
+
+            // Destroy the limbs
+            for (let limb of agent.limbs) {
+                if (limb) { // Check if body exists and is in the world
+                    world.destroyBody(limb);
+                }
+            }
+
+            // Destroy the main body
+            if (agent.mainBody) {
+                world.destroyBody(agent.mainBody);
+            }
+
+            agent.brain.dispose();
+            agent.joints = [];
+            agent.limbs = [];
+            agent.mainBody = null;
         }
 
         tempAgentGenomePool = [];
@@ -2135,7 +2226,7 @@ function waitForFinalInitializationCompletionNEAT() {
 
 // Create top performers for the next generation
 function createTopPerformersNEAT(groupAgents, topPerformersCount) {
-    currentProcess = "Keeping top performers!";
+
     for (let j = 0; j < topPerformersCount; j++) {
         let oldAgent = groupAgents[j];
         usedIndices.add(oldAgent.index);
@@ -2151,7 +2242,6 @@ function createTopPerformersNEAT(groupAgents, topPerformersCount) {
 
 // Function to generate offspring for the next generation
 function generateOffspringNEAT(groupAgents, groupId, topPerformerCount, agentsNeeded) {
-    currentProcess = "Creating offspring from weighted random parents!";
 
     let agentsalreadycreated = tempAgentGenomePool.filter(agentGenome => agentGenome.metadata.agentGroup === groupId).length;
 
@@ -2529,7 +2619,7 @@ function bodyPlanCrossover(childGenome, agent1, agent2) {
 function generateUniqueId(usedIds) {
     let newId;
     do {
-        newId = Math.floor(Math.random() * 1000000);
+        newId = 1000 + Math.floor(Math.random() * 1000000);
     } while (usedIds.includes(newId));
     usedIds.push(newId);
     return newId;
@@ -2926,7 +3016,7 @@ function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
     let allWeights;
     let allBiasesTensors;
     let allBiases;
-
+    p.push();
     p.fill(GROUP_COLORS[agent.genome.metadata.agentGroup]);
 
     let inputLabels = [];
@@ -3097,7 +3187,7 @@ function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
         }
         x += layerGap;
     }
-    p.strokeWeight(1); // Reset the default stroke weight
+    p.pop();
 }
 
 AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {

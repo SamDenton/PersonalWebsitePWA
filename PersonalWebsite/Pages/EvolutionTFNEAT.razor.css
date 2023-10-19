@@ -62,39 +62,97 @@
     display: none;
 }
 
-.floating-button {
+/* Container to hold the buttons */
+.button-container {
     position: fixed;
     top: 80px;
-    right: 20px;
+    right: 0px;
+    width: 130px;
+    height: 270px;
     z-index: 10;
+    transition: all 0.3s ease-out;
 }
 
+    .button-container:hover .leftColumn {
+        right: 230px;
+    }
+
+    .button-container:hover .rightColumn {
+        right: 20px;
+    }
+
+    .button-container:hover {
+        width: 430px;
+    }
+
+.floating-button {
+    position: absolute; /* Absolute positioning within the container */
+    z-index: 10;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: all 0.3s ease-out;
+}
+
+/* Specific button placements */
 .start-button {
-    background-color: green;
-    right: 300px;
+    top: 240px;
+    right: -70px;
+    background-color: #4CAF50;
 }
 
 .update-button {
-    right: 20px;
+    top: 0;
+    right: -250px;
+    background-color: #0d385b;
 }
 
 .toggleLeader-button {
-    top: 150px;
-    right: 250px;
+    top: 60px;
+    right: -250px;
+    background-color: #0d385b;
 }
 
 .toggleRays-button {
-    top: 150px;
-    right: 20px;
+    top: 60px;
+    right: -70px;
+    background-color: #0d385b;
 }
 
 .toggleNN-button {
-    top: 220px;
-    right: 20px;
+    top: 120px;
+    right: -70px;
+    background-color: #0d385b;
 }
 
 .logGenomes-button {
-
-    top: 220px;
-    right: 250px;
+    top: 120px;
+    right: -250px;
+    background-color: #0d385b;
 }
+
+.skip10Gen-button {
+    top: 180px;
+    right: -70px;
+    background-color: #0d385b;
+}
+
+.skip100Gen-button {
+    top: 180px;
+    right: -250px;
+    background-color: #0d385b;
+}
+
+.retrieveGenomes-button {
+    top: 0px;
+    right: -70px;
+    background-color: #0d385b;
+}
+
