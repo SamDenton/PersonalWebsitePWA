@@ -234,7 +234,7 @@
             </select>
         </div>
 
-        <!-- Gravity Strength Multiplyer -->
+        <!-- Gravity Strength Multiplier -->
         <div class="setting">
             <label for="Gravity" title="Gravity Strength Multiplier.">Gravity Strength Multiplier</label>
             <div class="slider-container">
@@ -243,7 +243,7 @@
             </div>
         </div>
 
-        <!-- Friction Strength Multiplyer -->
+        <!-- Friction Strength Multiplier -->
         <div class="setting">
             <label for="Friction" title="Friction Strength Multiplier.">Friction Strength Multiplier (Not implemented yet)</label>
             <div class="slider-container">
@@ -297,7 +297,7 @@
 
         <!-- physicsGranularity for plank -->
         <div class="setting">
-            <label for="physicsGranularityMultipliers" title="Physics Granularity Multiplier applyed inversly (1 / multiplier).  Seems buggy past 2">Physics Granularity Reduction</label>
+            <label for="physicsGranularityMultipliers" title="Physics Granularity Multiplier applied inversely (1 / multiplier).  Seems buggy past 2">Physics Granularity Reduction</label>
             <div class="slider-container">
                 <input type="range" id="physicsGranularityMultipliers" @bind="stageProperties.physicsGranularityMultipliers" min="1" max="10" step="1">
                 <input type="number" @bind="stageProperties.physicsGranularityMultipliers" min="1" max="10" step="1">
@@ -306,8 +306,8 @@
     </div>
 
     <div class="simDescription">
-        <h3>Some Explenation</h3>
-        <p>This is my take on a genetic evolution simulation.  For the best results, target a high value for 'Agents Per Batch of Joint Updates' a low value for 'Delay Between Batch of Joint Updates' and a high value for 'Number of Agents'</p>
+        <h3>Some Explanation</h3>
+        <p>This is my first take on a genetic evolution simulation.  For the best results, target a high value for 'Agents Per Batch of Joint Updates' a low value for 'Delay Between Batch of Joint Updates' and a high value for 'Number of Agents'</p>
         <p>The default values result in 100 agents, where each agent can move update its muscle speeds about 2-3 times a second</p>
         <p>If it looks like agents are glitching about, its because the best performer is always rendered, as well as the best from each group, and the worst, and this changes over time.  Only a small fraction of the population is rendered</p>
         <p>Resetting/updating is a little buggy, its currently best to close and reopen the page if you want to try new settings</p>
@@ -316,22 +316,22 @@
         <h4>So whats going on?</h4>
         <p>If you start the simulation with default settings, you will see 4-6 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest right, and the furthest left agent</p>
         <p>Each round, the agents have 2000 ticks, about 34 seconds at 60 fps with default physics speed of 60, to move as far to the right as possible.  They get a small bonus to their score for staying upright, and moving limbs more (as well as a greater score for progress later in the round, and a penalty for a 'heavier' brain)</p>
-        <p>The agents are all given a randomly initialised neural network for a brain, the leaders brain is rendered.</p>
+        <p>The agents are all given a randomly initialized neural network for a brain, the leaders brain is rendered.</p>
         <p>Between rounds, the agents are sorted by score, where the top 20% from each group are selected to remain unchanged, and the other 75% of the population is built using crossover and mutation.</p>
         <p>Crossover is the function of picking 2 parent agents and combining the weights and biases in their brains, keeping some features from one, and some from the other.  There are a range of methods for this, I am currently using biased Arithmetic Crossover, where there is a weighted bias given by the relative scores of the parents.</p>
-        <p>Mutation adds a small chance that each weight or bias will be altered by a small, random amount.  Again, there are many methods, currently i am using the Box-Muller transform to get a Gaussian random number for my mutation amount.  I have a function that changes the mutation rate if agents brains get too close to the average, but it is very computationaly eexpensive</p>
-        <p>The parents for crossover can be selected in many ways, I am actually using 1 method for 1 parent, and another for the other.  The first is picked via tournament selection, where 10 random agents are selected from the group, and the best of those if picked.  The second is picked via a weighted random selection, where ever agent is entered into a lottery with more enteries for a higher score, and a random agent is picked from the pool.</p>
+        <p>Mutation adds a small chance that each weight or bias will be altered by a small, random amount.  Again, there are many methods, currently i am using the Box-Muller transform to get a Gaussian random number for my mutation amount.  I have a function that changes the mutation rate if agents brains get too close to the average, but it is very computationally expensive</p>
+        <p>The parents for crossover can be selected in many ways, I am actually using 1 method for 1 parent, and another for the other.  The first is picked via tournament selection, where 10 random agents are selected from the group, and the best of those if picked.  The second is picked via a weighted random selection, where ever agent is entered into a lottery with more entries for a higher score, and a random agent is picked from the pool.</p>
         <p>I am also using 'Island Populations' or 'Island Spisiation', where parents are always picked from the same distinct group.  This means, with default settings, 2 distinct populations should evolve with different strategies.  There is a small chance that parents are picked from a different group, allowing some sharing of strategies</p>
-        <p>If enabled, I am experementing with a form of normalisation which slowly decays all weights in the network over time.  It's meant to prevent any noise in the network over time, based on a 'use it or loose it' principal.  Useful connections should be maintained by re-selection and un-needed connections will drop away</p>
-        <p>You should see some 'evolution' within  50 or so generations, and they can continue to improve indefinatly, however, they can get stuck in whats known as a 'local maxima' where the agents converge on 1 or a few ok strategies, and never seem to improve.  Through mutation, they might eventually, but in those situations, its best to restart.  A greater number of agents or distinct population groups can help with this</p>
+        <p>If enabled, I am experimenting with a form of normalization which slowly decays all weights in the network over time.  It's meant to prevent any noise in the network over time, based on a 'use it or loose it' principal.  Useful connections should be maintained by re-selection and un-needed connections will drop away</p>
+        <p>You should see some 'evolution' within  50 or so generations, and they can continue to improve indefinitely, however, they can get stuck in whats known as a 'local maxima' where the agents converge on 1 or a few ok strategies, and never seem to improve.  Through mutation, they might eventually, but in those situations, its best to restart.  A greater number of agents or distinct population groups can help with this</p>
         <h4>Future Plans</h4>
         <p>The next update I would like to implement is my own version of the NEAT algorithm, or Neural Evolution of Augmented Topologies.  This involves starting with a simple brain and evolving its 'shape' over time.  The default shape is currently [11, 15, 10, 5], equating to the inputs, 5 limb angles, the agents x,y the agents x and y velocity, their orientation in space, and the time remaining.  The 2 'hidden layers' and 5 outputs for the 5 joint speeds.</p>
-        <p>Using NEAT, the shape would start more like [11,5,5], and each generation, as part of the numtaion function, there is a change the brain will gain a node within a layer, or a whole new layer</p>
+        <p>Using NEAT, the shape would start more like [11,5,5], and each generation, as part of the mutation function, there is a change the brain will gain a node within a layer, or a whole new layer</p>
         <p>I intend to take this a little further, by also evolving the agents body, and the inputs and outputs.  This would mean starting with a simple agent, like they are now but with 2-3 limbs.  They would be able to mutate additional limbs and body segments over time.  The inputs and outputs would also be selected from a pool</p>
         <p>This will involve encoding the agents brain shape, inputs and outputs, body plan, history, brain weights and biases, into a single object, that can be stored and reused later, which has the side benefit of not having to keep retraining from scratch</p>
         <p>I intend to host a database of agents that do well and be able to download and upload agents from anywhere.</p>
 
-        <p>I have branched this project to implement NEAT with a new enviroment and objective</p>
+        <p>I have branched this project to implement NEAT with a new environment and objective</p>
     </div>
 
 </div>
@@ -394,7 +394,7 @@
         public bool inputTimeRemaining { get; set; } = true;
         public bool inputGroundSensors { get; set; } = true;
         // public int hiddenLayersNN { get; set; } = 3;
-        // public int nodesPerHiddenLayer { get; set; } = 10; // half for fanal hidden layer
+        // public int nodesPerHiddenLayer { get; set; } = 10; // half for final hidden layer
     }
 
     private async Task ResetSimulation()

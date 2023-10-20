@@ -19,6 +19,20 @@ let tempAgentPool = [];
 let randMap = 0;
 let runCount = 0;
 let fixedTimeStep = 1.0 / 60.0 * 1000;
+let cachedLeadingAgent = null;
+//let xScoreMult;
+//let yScoreMult;
+//let movementScoreMult;
+//let explorationScoreMult;
+//let sizeScoreMult;
+//let startingEnergyBaseJS;
+//let startingEnergyMassPowerJS;
+//let startingEnergyBodyMassMultJS;
+//let startingEnergyLimbMassMultJS;
+//let energyUseForceSizeMultJS;
+//let energyUseLimbSizeMultJS;
+//let energyUseBrainSizeMultJS;
+// let brainDecay, inputsJointAngle, inputsJointSpeed, inputsAgentPos, inputsAgentV, inputsScore, inputsOrientation, inputsTimeRemaining, inputsGroundSensors, inputsDistanceSensors, outputJointSpeed, outputJointTorque, outputBias, swimStrengthMultiplier, swimBiasMultiplier;
 
 const GROUP_COLORS_NAMES = [
     'Traffic purple', 'Grass green', 'Yellow orange', 'Maize yellow', 'Quartz grey', 'Salmon range', 'Pearl black berry', 'Golden yellow', 'Pearl light grey', 'Red lilac',
@@ -91,6 +105,8 @@ let sketchNEAT = function (p) {
         }
         if (render) {
             renderScene(p);
+        } else {
+            renderSkip(p);
         }
     };
 
@@ -460,6 +476,11 @@ let sketchNEAT = function (p) {
                 }
             }
         }
+
+    };
+
+    function renderSkip(p) {
+        p.text(`Fast-Forwarding Generation: ${genCount}`, 10, 20);
     };
 };
 
@@ -546,11 +567,13 @@ function applySwimmingForce(agent) {
             let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
 
             let forceMagnitude;
+
             forceMagnitude = deltaTheta * forceScalingFactor * bias * (2 * agent.limbMass[i] / 150) * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
 
-            if (agent.agentEnergy > 0) {
-                agent.agentEnergy -= Math.abs(forceMagnitude / 1000000) * (agent.limbMass[i] / 15) * (agent.brainSize / 50);
+            if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
+                agent.agentEnergy -= (Math.abs(forceMagnitude / 1000000) * energyUseForceSizeMultJS) * ((agent.limbMass[i] / 15) * energyUseLimbSizeMultJS) * ((agent.brainSize / 50) * energyUseBrainSizeMultJS);
             }
+
 
             // Calculate the force vector
             let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
@@ -761,6 +784,7 @@ function skipGen(skipNo) {
                 setTimeout(skipGenRecursive, 100);
             } else {
                 simulationSpeed = 60;
+                fixedTimeStep = (1.0 / simulationSpeed) * 1000;
                 render = true;
             }
         };
@@ -816,6 +840,13 @@ function initializeAgentsBox2DNEAT(agentProperties, totalPopulationGenomes) {
     movementScoreMult = agentProperties.movementScoreMultiplier;
     explorationScoreMult = agentProperties.explorationScoreMultiplier;
     sizeScoreMult = agentProperties.sizeScoreMultiplier;
+    startingEnergyBaseJS = agentProperties.startingEnergyBase;
+    startingEnergyMassPowerJS = agentProperties.startingEnergyMassPower;
+    startingEnergyBodyMassMultJS = agentProperties.startingEnergyBodyMassMult;
+    startingEnergyLimbMassMultJS = agentProperties.startingEnergyLimbMassMult;
+    energyUseForceSizeMultJS = agentProperties.energyUseForceSizeMult;
+    energyUseLimbSizeMultJS = agentProperties.energyUseLimbSizeMult;
+    energyUseBrainSizeMultJS = agentProperties.energyUseBrainSizeMult;
 
 
     genCount = 1;
@@ -978,12 +1009,14 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.internalMap = [];
     this.coveredCellCount = 0;
 
-    for (let i = 0; i < 500; i++) {
-        let row = [];
-        for (let n = 0; n < 500; n++) {
-            row.push(false);
+    if (explorationScoreMult > 0) {
+        for (let i = 0; i < 500; i++) {
+            let row = [];
+            for (let n = 0; n < 500; n++) {
+                row.push(false);
+            }
+            this.internalMap.push(row);
         }
-        this.internalMap.push(row);
     }
 
     this.limbs = [];
@@ -1045,8 +1078,14 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             this.limbMassTot += this.limbs[i].getMass();
         }
     }
-    this.startingEnergy = 100 + ((this.mainBody.getMass() / 10000 + this.limbMassTot / 50) * (simulationLength / 1000)) ** 3; // + body segments mass and maybe limbs later
-    this.agentEnergy = this.startingEnergy;
+
+    if (startingEnergyBodyMassMultJS > 0) {
+        this.startingEnergy = startingEnergyBaseJS + (((this.mainBody.getMass() / 20000 * startingEnergyBodyMassMultJS) + (this.limbMassTot / 100) * startingEnergyLimbMassMultJS) * (simulationLength / 1000)) ** startingEnergyMassPowerJS; // + body segments mass and maybe limbs later
+        this.agentEnergy = this.startingEnergy;
+    } else {
+        this.startingEnergy = 1;
+        this.agentEnergy = this.startingEnergy;
+    }
 
     this.weightPenaltyCache = null;
     this.weightPenaltyCounter = 0;
@@ -1134,9 +1173,16 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         let XPosScore = Math.floor(this.furthestXPos - this.startingX) * xScoreMult;
         let YPosScore = Math.floor(this.startingY - this.furthestYPos) * yScoreMult;
 
-        let jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * movementScoreMult; // Adjust multiplier if needed
+        let jointMovementReward = 0;
+        if (movementScoreMult > 0) {
+            jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * movementScoreMult; // Adjust multiplier if needed
+        }
 
-        let explorationReward = this.getExplorationReward() * explorationScoreMult;
+        let explorationReward = 0;
+
+        if (explorationScoreMult > 0) {
+            explorationReward = this.getExplorationReward() * explorationScoreMult;
+        }
 
         let weightPenalty;
         //if (roundOver) {
@@ -1145,7 +1191,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             weightPenalty = 0;
         //}
 
-        if (!roundOver && this.massBonus < 10) {
+        if (!roundOver && this.massBonus < 10 && sizeScoreMult > 0) {
             try {
                 this.massBonus = this.mainBody.getMass() * sizeScoreMult;
                 // loop through limbs and add their mass to the massBonus
@@ -1177,6 +1223,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             parseFloat(this.massBonus.toFixed(2)),
             parseFloat(this.agentEnergy.toFixed(2))
         ];
+
     };
 
     this.render = function (p, offsetX, offsetY) {
@@ -1343,11 +1390,12 @@ function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB
     return world.createJoint(planck.RevoluteJoint(jointDef, bodyA, bodyB));
 }
 
+
 function getLeadingAgentNEAT(frameCounter) {
+
     if (agents.length === 0) return null;
 
     if (frameCounter % 30 === 0) {
-
         // Truncate randomlySelectedAgents to keep initialized picks
         randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * renderedAgents);
 
@@ -1364,12 +1412,14 @@ function getLeadingAgentNEAT(frameCounter) {
 
         randomlySelectedAgents.push(...leadingAgents);
 
+        // Update the cached leading agent
+        cachedLeadingAgent = agents.reduce((leading, agent) =>
+            (((agent.position.x - agent.startingX) + (1 - agent.position.y - agent.startingY)) > ((leading.position.x - leading.startingX) + (1 - leading.position.y - leading.startingY)) ? agent : leading),
+            agents[0]
+        );
     }
 
-    return agents.reduce((leading, agent) =>
-        (((agent.position.x - agent.startingX) + (1 - agent.position.y - agent.startingY)) > ((leading.position.x - leading.startingX) + (1 - leading.position.y - leading.startingY)) ? agent : leading),
-        agents[0]
-    );
+    return cachedLeadingAgent;
 }
 
 function getLastAgentNEAT() {
@@ -1482,6 +1532,22 @@ function setupPlanckWorldNEAT() {
 }
 
 function createMaps(mapNumber) {
+
+    // If there are existing walls, destroy them
+    if (wallBodies) {
+        for (let wall of wallBodies) {
+            world.destroyBody(wall.body);
+        }
+        wallBodies = [];
+    }
+
+    if (duplicateWalls) {
+        for (let wall of duplicateWalls) {
+            world.destroyBody(wall.body);
+        }
+        duplicateWalls = [];
+    }
+
     let startX = 200;
     let startY = 600;
 
@@ -2919,6 +2985,14 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
             };
             childGenome.bodyPlan.limbs.push(newLimb);
 
+            // Find the limb with the closest starting angle to the new limb
+            let closestLimb = childGenome.bodyPlan.limbs.reduce((closest, currentLimb) => {
+                let currentAngleDiff = Math.abs(currentLimb.startingAngle - newLimb.startingAngle);
+                let closestAngleDiff = closest ? Math.abs(closest.startingAngle - newLimb.startingAngle) : Infinity;
+
+                return currentAngleDiff < closestAngleDiff ? currentLimb : closest;
+            }, null);
+
             // Add a new node to the input layer for the limb
             let inputLayer = childGenome.inputLayerGenes[0];
             let inputNodeIndex = newLimb.limbID;  // Index of the node equals ID of the limb
@@ -2936,24 +3010,45 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
             // Add new weights associated with the new nodes
             // For the input layer, link weights from the new input node to all nodes in the first hidden layer
             let firstHiddenLayer = childGenome.layerGenes[0];
-            let inputWeightArray = firstHiddenLayer.biases.map(bias => ({
-                fromNodeID: inputNodeId,  // Use the new unique ID here
-                toNodeID: bias.id,
-                value: Math.random()
-            }));
-            firstHiddenLayer.weights.splice(inputNodeIndex, 0, inputWeightArray);  // Insert at index = limb ID
-
-            // For the output layer, link weights from all nodes in the last hidden layer to the new output node
             let lastHiddenLayer = childGenome.layerGenes[childGenome.layerGenes.length - 1];
-            lastHiddenLayer.biases.forEach((bias, idx) => {
-                outputLayer.weights[idx].splice(outputNodeID, 0, {
-                    fromNodeID: bias.id,
-                    toNodeID: outputNodeID,
-                    value: Math.random()
-                });
-            });
+            // Use the weights from the closest limb for the new limb, if a closest limb is found
+            if (closestLimb) {
+                // Assuming weights for limbs are stored in an array-like structure indexed by limbID
+                let closestLimbInputWeights = firstHiddenLayer.weights[closestLimb.limbID];
+                let closestLimbOutputWeights = outputLayer.weights.map(weightsArray => weightsArray[closestLimb.limbID]);
 
-            childGenome.agentHistory.mutations.push("type: limb, id: " + newLimb.limbID + " mutation: add");
+                firstHiddenLayer.weights[inputNodeIndex] = closestLimbInputWeights.map(weight => ({
+                    ...weight,
+                    fromNodeID: inputNodeId // Use the new unique ID here
+                }));
+
+                lastHiddenLayer.biases.forEach((bias, idx) => {
+                    outputLayer.weights[idx].splice(outputNodeID, 0, {
+                        ...closestLimbOutputWeights[idx],
+                        toNodeID: outputNodeID
+                    });
+                });
+
+                childGenome.agentHistory.mutations.push("type: limb, id: " + newLimb.limbID + " mutation: add" + "Copied weights from limb: " + closestLimb.limbID);
+            } else {
+                // If no closest limb is found, initialize with random weights (original behavior)
+                let inputWeightArray = firstHiddenLayer.biases.map(bias => ({
+                    fromNodeID: inputNodeId,  // Use the new unique ID here
+                    toNodeID: bias.id,
+                    value: Math.random()
+                }));
+                firstHiddenLayer.weights.splice(inputNodeIndex, 0, inputWeightArray);  // Insert at index = limb ID
+
+                lastHiddenLayer.biases.forEach((bias, idx) => {
+                    outputLayer.weights[idx].splice(outputNodeID, 0, {
+                        fromNodeID: bias.id,
+                        toNodeID: outputNodeID,
+                        value: Math.random()
+                    });
+                });
+                childGenome.agentHistory.mutations.push("type: limb, id: " + newLimb.limbID + " mutation: add" + "Used random weights");
+            }
+
 
         } else {
             if (childGenome.bodyPlan.limbs.length > 1) {
@@ -3196,8 +3291,9 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
         let outputIndex = 0;
 
         for (let i = 0; i < this.joints.length; i++) {
+
             if (outputJointSpeed) {
-                let adjustment = output[outputIndex] * MAX_ADJUSTMENT;
+                let adjustment = output[outputIndex] * MAX_ADJUSTMENT * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
                 this.joints[i].setMotorSpeed(adjustment);
                 outputIndex++;
             }

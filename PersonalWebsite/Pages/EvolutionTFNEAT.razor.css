@@ -108,6 +108,12 @@
     background-color: #4CAF50;
 }
 
+.simpleStart-button {
+    top: 240px;
+    right: -250px;
+    background-color: #4CAF50;
+}
+
 .update-button {
     top: 0;
     right: -250px;

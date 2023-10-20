@@ -234,6 +234,10 @@
             <input type="checkbox" id="outputsBias" @bind="agentProperties.outputsBias" />
         </div>
 
+    </div>
+
+    <div class="settings-section">
+        <h2>Score and Energy</h2>
         <!-- X Score Multiplier -->
         <div class="setting">
             <label for="xScoreMultiplier" title="Multiplier for score gained for moving in the x direction">X Score Multiplier</label>
@@ -272,10 +276,73 @@
 
         <!-- Size Score Multiplier -->
         <div class="setting">
-            <label for="sizeScoreMultiplier" title="Small bonus given to score for being larger.  This is to combat agents all becoming tiny to move faster.">Size Score Multiplier</label>
+            <label for="sizeScoreMultiplier" title="Small bonus given to score for being larger.  This is to combat agents all becoming tiny to move faster early in training, before the energy system has much effect">Size Score Multiplier</label>
             <div class="slider-container">
                 <input type="range" id="sizeScoreMultiplier" @bind="agentProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
                 <input type="number" @bind="agentProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
+            </div>
+        </div>
+
+        <!-- Starting Energy -->
+        <div class="setting">
+            <label for="startingEnergyBase" title="Base energy for agents">Base Starting Energy</label>
+            <div class="slider-container">
+                <input type="range" id="startingEnergyBase" @bind="agentProperties.startingEnergyBase" min="0" max="1000" step="1">
+                <input type="number" @bind="agentProperties.startingEnergyBase" min="0" max="1000" step="1">
+            </div>
+        </div>
+
+        <!-- Starting Energy Power -->
+        <div class="setting">
+            <label for="startingEnergyMassPower" title="Power used for giving more energy based on mass">Starting Energy Mass Exponent</label>
+            <div class="slider-container">
+                <input type="range" id="startingEnergyMassPower" @bind="agentProperties.startingEnergyMassPower" min="1" max="5" step="1">
+                <input type="number" @bind="agentProperties.startingEnergyMassPower" min="1" max="5" step="1">
+            </div>
+        </div>
+
+        <!-- Starting Energy Body Mass Multiplier -->
+        <div class="setting">
+            <label for="startingEnergyBodyMassMult" title="Flat multiplier giving energy for main body mass">Starting Energy Body Mass Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="startingEnergyBodyMassMult" @bind="agentProperties.startingEnergyBodyMassMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="agentProperties.startingEnergyBodyMassMult" min="0" max="5" step="0.1">
+            </div>
+        </div>
+
+        <!-- Starting Energy Limb Mass Multiplier -->
+        <div class="setting">
+            <label for="startingEnergyLimbMassMult" title="Flat multiplier giving energy for limbs masses">Starting Energy Limb Mass Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="startingEnergyLimbMassMult" @bind="agentProperties.startingEnergyLimbMassMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="agentProperties.startingEnergyLimbMassMult" min="0" max="5" step="0.1">
+            </div>
+        </div>
+
+        <!-- Energy Use Limb Mass Multiplier -->
+        <div class="setting">
+            <label for="energyUseLimbSizeMult" title="Flat multiplier for how much energy is used based on limb mass">Energy Use From Limb Mass Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="energyUseLimbSizeMult" @bind="agentProperties.energyUseLimbSizeMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="agentProperties.energyUseLimbSizeMult" min="0" max="5" step="0.1">
+            </div>
+        </div>
+
+        <!-- Energy Use Brain Size Multiplier -->
+        <div class="setting">
+            <label for="energyUseBrainSizeMult" title="Flat multiplier for how much energy is used based on size/complexity of the brain">Energy Use From Brain Size Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="energyUseBrainSizeMult" @bind="agentProperties.energyUseBrainSizeMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="agentProperties.energyUseBrainSizeMult" min="0" max="5" step="0.1">
+            </div>
+        </div>
+
+        <!-- Energy Use Limb Mass Multiplier -->
+        <div class="setting">
+            <label for="energyUseForceSizeMult" title="Flat multiplier for how much energy is used based on limb movements">Energy Use From Limb Movements Multiplier</label>
+            <div class="slider-container">
+                <input type="range" id="energyUseForceSizeMult" @bind="agentProperties.energyUseForceSizeMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="agentProperties.energyUseForceSizeMult" min="0" max="5" step="0.1">
             </div>
         </div>
 
@@ -446,28 +513,39 @@
     </div>
 
     <div class="simDescription">
-        <h3>Some Explanation</h3>
-        <p>This is my take on a NEAT genetic evolution simulation.  For the best results, target a high value for 'Agents Per Batch of Joint Updates' a low value for 'Delay Between Batch of Joint Updates' and a high value for 'Number of Agents'</p>
+        <h3>Documentation:</h3>
+        <h4>Quick Start Guide:</h4>
+        <p>I have pre-configured everything to run on a low powered laptop, so default settings should be fine to get started.</p>
+        <p>Please click either Start/Reset or Simplified Start from the top right menu to begin.</p>
+        <p>Start/Reset will respect all configurations, while Simplified Start will remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
+        <p>Simplified Start should see much faster learning, with agents completing the maps with 50 generations or so, using full configurations will result in much more interesting behavior, but will take 100+ generations to see much progress</p>
+        <p>Use the button bank in the top right to toggle rendering of the leading agents brain/neural network, their vision lines/ray casts, switch between the leading agent and training agent or fast-forward generations (only about twice as fast as normal currently)</p>
+        <p>Logging the genomes writes the current population to the console, and retrieving genomes is the first step towards implementing an agent database online where pre-trained agents cam be stored and retrieved.</p>
+        <h4>Some Explanation:</h4>
+        <p>This is my take on a NEAT genetic evolution simulation.</p>
         <p>I would describe this as a 'Semi-NEAT' algorithm since I have restriction on what network shapes can evolve.  This is due to TensorFlow.JS's restriction to static models, where a full NEAT implementation requires dynamic models, and more control over connections</p>
         <p>Resetting/updating is a little buggy, its currently best to refresh the page if you want to try new settings</p>
         <p>Showing the Neural Network on screen adds a fair amount of lag so its hidden by default</p>
-        <p>I am making use of P5.JS for my rendering, Planck.JS, which is a port of Box2D for my physics, and TensorFlow.JS for my neural network processing</p>
+        <p>I am making use of P5.JS for my rendering, Planck.JS; a port of Box2D, for my physics and TensorFlow.JS for my neural network processing</p>
         <h4>So whats going on?</h4>
         <p>If you start the simulation with default settings, you will see about 15 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest right, and the furthest left agent</p>
         <p>Default settings will produce 200 agents in the population, split into batches of 25, as well as species groups.  25 agents from the run group are evaluated at a time, with a random selection of species</p>
         <p>On my PC, using a Ryzen 7 3700X CPU about 3.5Ghz per core, I can target about 150 agents at a time, with 10 Agents Per Batch of Joint Updates.  The Number of Inter-gen Batches will not effect performance, but will increase training time, as only 1 batch can be evaluated at a time</p>
         <p>Since i'm making use of JS, the bottleneck for most systems is going to be the speed of a single CPU core.  Some configurations may reach a browser memory limit before a CPU limit, if you have a high number of inter-gen batches.  Browsers I have tested seem ok up to about 1000 agents total</p>
+        <p>The GPU is also utilized for any Neural Network functions, the most intense of which happen between rounds, so it doesn't really matter how long they take, but during the simulation, the actual decision making also utilities the GPU using WebGL.  I have not found a configuration where this is the bottleneck, but its possible</p>
         <p>Each round, the agents have 2000 ticks, about 34 seconds at 60 fps with default physics speed of 60, to move as far North East as possible.</p>
         <p>The agents are all given a randomly initialized neural network, with a random shape for a brain, the leaders brain is rendered.  They are given a random body plan.  Both the brain and the body plan will evolve over time based on a number of crossover and mutation functions</p>
         <p>Between rounds, the agents are sorted by score, where the top 10% from each species are selected to remain unchanged, and the other 90% of the population is built using crossover and mutation.</p>
         <p>This is performed between generations, on the whole population</p>
         <p>Crossover is the function of picking 2 parent agents and combining the weights and biases in their brains, keeping some features from one, and some from the other.  There are a range of methods for this, I am currently using biased Arithmetic Crossover, where there is a weighted bias given by the relative scores of the parents.</p>
         <p>Mutation adds a small chance that each weight, bias, limb or body will be altered by a small, random amount.  Again, there are many methods, currently i am using the Box-Muller transform to get a Gaussian random number for my mutation amount.  I have a function that changes the mutation rate if agents brains get too close to the average</p>
+        <p>I am currently also mutating the number of limbs and layers in the brain.  These are more complex to mutate than others, as they tend to produce 'dead' agents that need retaining from scratch, which naturaly cant compete with already trained agents.  I am playing with a number of methods to counter this.</p>
+        <p>Now, when a new limb is mutated, it finds an existing limb with a similar starting angle, and copies the weights from that limb.  When a new layer is mutated, it should create a matching layer, where biases are copied from the previous layer, and weights are connected so the old node connects to its new copy with a weight of 1, and all other weights are 0 in the new layer, hopefully copying the previous layers function until new values are evolved.</p>
         <p>The parents for crossover can be selected in many ways, I am actually using 1 method for 1 parent, and another for the other.  The first is picked via tournament selection, where 10 random agents are selected from the group, and the best of those if picked.  The second is picked via a weighted random selection, where ever agent is entered into a lottery with more entries for a higher score, and a random agent is picked from the pool.</p>
         <p>I am also using 'Island Populations' or 'Island Speciation', where parents are always picked from the same distinct group.  This means, with default settings, 3 distinct populations should evolve with different strategies.  There is a small chance that parents are picked from a different group, allowing some sharing of strategies</p>
         <p>You should see some 'evolution' within  50 or so generations, and they can continue to improve indefinitely, however, they can get stuck in whats known as a 'local maxima' where the agents converge on 1 or a few ok strategies, and never seem to improve.  Through mutation, they might eventually, but in those situations, its best to restart.  A greater number of agents or distinct population groups can help with this</p>
         <p>If enabled, I am experimenting with a form of normalization which slowly decays all weights in the network over time.  It's meant to prevent any noise in the network over time, based on a 'use it or loose it' principal.  Useful connections should be maintained by re-selection and unused connections will drop away</p>
-        <h4>Current Selective Pressures (to be made configurable)</h4>
+        <h4>Current Selective Pressures:</h4>
         <ol>
             <li>Score for movement North East</li>
             <li>Bonus for joint movement that diminishes over time</li>
@@ -482,25 +560,30 @@
             <li>Agents limb movement speed is based on their remaining energy %, with no energy, they cant move at all</li>
         </ol>
         <h4>Future Plans</h4>
+        <p>I need to work on the maps.  They are too simple, and not varied enough.  I want to implement some goals, like food, tied to the energy system.  A puzzle to open a door or similar could also be interesting</p>
         <p>I want to make all variables customizable, which is a huge number.  I need to find a nice way to arrange them</p>
-        <p>I plan on adding further ways the agents can evolve. I want to allow more complex body plans with different types of limb and body segment</p>
+        <p>I plan on adding further ways the agents can evolve. I want to allow more complex body plans with different types of limb and body segments, such as wings, thrusters, suckers, energy storage limbs etc</p>
         <p>I want to add a greater range of crossover, mutation and selection methods to increase diversity, and have them toggle in settings to play with different combinations</p>
         <p>I want to add a way to save and load agents, and a way to download and upload agents to a database</p>
         <p>I want to add the ability to see genomes on screen somehow</p>
+        <p>I want to play around with a predator and prey scenario, where some agents learn to catch others</p>
+        <p>There are many different ways to adjust the energy system to see more interesting evolution, such as food, recovering energy by resting, reducing update speed based on energy, adding limbs just for energy storage etc</p>
+        <p>I have created a few different versions of my mutate and crossover functions, I would like to let the user pick which is used.  I need to get the old ones working first</p>
     </div>
 
 </div>
 
 <div class="button-container">
-    <button class="floating-button start-button rightColumn" @onclick="ResetSimulation">Start/Reset</button>
+    <button class="floating-button start-button rightColumn" title="Start simulation with full configured settings" @onclick="ResetSimulation">Start/Reset</button>
+    <button class="floating-button simpleStart-button leftColumn" title="Start simulation with no energy or extra score bonuses.  Faster, but less interesting evolution" @onclick="ResetSimulationSimple">Simplified Start</button>
     <button class="floating-button update-button leftColumn" title="You can update the round length, number of rendered agents, physics speed, spawn delay and batch size, parent tournament size, migration rate, max and min population group size and the agent to fix the camera on" @onclick="UpdateSimulation">Update</button>
-    <button class="floating-button toggleNN-button rightColumn" @onclick="toggleNN">Toggle Neural Network</button>
-    <button class="floating-button toggleLeader-button leftColumn" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
-    <button class="floating-button toggleRays-button rightColumn" @onclick="toggleRayCasts">Toggle Ray-casts</button>
-    <button class="floating-button logGenomes-button leftColumn" @onclick="LogGenomes">Log Genomes</button>
-    <button class="floating-button retrieveGenomes-button rightColumn" @onclick="RetrieveGenomes">Retrieve Genomes</button>
-    <button class="floating-button skip10Gen-button rightColumn" title="Skips 10 generations by disabling rendering and increasing physics speed.  This will still take a while" @onclick="Skip10Gen">Skip 10 Generations</button>
-    <button class="floating-button skip100Gen-button leftColumn" title="Skips 100 generations by disabling rendering and increasing physics speed. This will still take a while" @onclick="Skip100Gen">Skip 100 Generations</button>
+    <button class="floating-button toggleNN-button rightColumn" title="Toggle rendering of Neural Network.  Can cause some lag" @onclick="toggleNN">Toggle Neural Network</button>
+    <button class="floating-button toggleLeader-button leftColumn" title="Toggle between following the leading vs trailing agents.  Switches rendered Neural Network as well" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
+    <button class="floating-button toggleRays-button rightColumn" title="Toggle rendering for agents vision lines" @onclick="toggleRayCasts">Toggle Ray-casts</button>
+    <button class="floating-button logGenomes-button leftColumn" title="Post all agent genomes to console" @onclick="LogGenomes">Log Genomes</button>
+    <button class="floating-button retrieveGenomes-button rightColumn" title="Send current list of agent genomes back to C# for saving (in progress)" @onclick="RetrieveGenomes">Retrieve Genomes</button>
+    <button class="floating-button skip10Gen-button rightColumn" title="Skips 10 generations by disabling rendering and increasing physics speed.  This will still take a few minutes" @onclick="Skip10Gen">Skip 10 Generations</button>
+    <button class="floating-button skip100Gen-button leftColumn" title="Skips 1 generation by disabling rendering and increasing physics speed. This will still take a few minutes" @onclick="Skip100Gen">Skip 1 Generations</button>
 </div>
 
 @code {
@@ -550,9 +633,9 @@
         // public int numLimbs { get; set; } = 3;
         // public double musculeTorque { get; set; } = 1000000.0;
         public double maxJointSpeed { get; set; } = 2.5;
-        public double offspringMutationRate { get; set; } = 0.1;
-        public double offspringNodeMutationRate { get; set; } = 0.05;
-        public double offspringLayerMutationRate { get; set; } = 0.01;
+        public double offspringMutationRate { get; set; } = 0.05;
+        public double offspringNodeMutationRate { get; set; } = 0.01;
+        public double offspringLayerMutationRate { get; set; } = 0.005;
         public double offspringLimbMutationRate { get; set; } = 0.01;
         // public double maxJointMoveDivider { get; set; } = 3;
         public bool brainDecayOverTime { get; set; } = false;
@@ -574,12 +657,36 @@
         public double movementScoreMultiplier { get; set; } = 5;
         public double explorationScoreMultiplier { get; set; } = 10;
         public double sizeScoreMultiplier { get; set; } = 0.2;
-        // public int hiddenLayersNN { get; set; } = 3;
-        // public int nodesPerHiddenLayer { get; set; } = 10; // half for final hidden layer
+        public int startingEnergyBase { get; set; } = 100;
+        public int startingEnergyMassPower { get; set; } = 3;
+        public double startingEnergyBodyMassMult { get; set; } = 1;
+        public double startingEnergyLimbMassMult { get; set; } = 1;
+        public double energyUseForceSizeMult { get; set; } = 1;
+        public double energyUseLimbSizeMult { get; set; } = 1;
+        public double energyUseBrainSizeMult { get; set; } = 1;
     }
 
     private async Task ResetSimulation()
     {
+        await InitializePopulation(stageProperties.numAgents);
+        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);
+    }
+
+    private async Task ResetSimulationSimple()
+    {
+        agentProperties.energyUseForceSizeMult = 0;
+        agentProperties.energyUseLimbSizeMult = 0;
+        agentProperties.energyUseBrainSizeMult = 0;
+        agentProperties.startingEnergyMassPower = 0;
+        agentProperties.startingEnergyBase = 1;
+        agentProperties.startingEnergyBodyMassMult = 0;
+        agentProperties.startingEnergyLimbMassMult = 0;
+        agentProperties.movementScoreMultiplier = 1;
+        agentProperties.explorationScoreMultiplier = 0;
+        agentProperties.sizeScoreMultiplier = 0;
+        agentProperties.offspringLayerMutationRate = 0;
+        agentProperties.offspringLimbMutationRate = 0.005;
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);
@@ -663,7 +770,7 @@
 
     public async Task Skip100Gen()
     {
-        await JSRuntime.InvokeVoidAsync("skipGen", 100);
+        await JSRuntime.InvokeVoidAsync("skipGen", 1);
     }
 
     void Shuffle<T>(List<T> list, Random random)
