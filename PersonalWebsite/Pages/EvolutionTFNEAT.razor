@@ -9,6 +9,15 @@
 
 <div id="canvas-container-NEAT"></div>
 
+<div class="settings-preset-Buttons">
+    <h2>Performance Settings presets</h2>
+    <button class="preset-button mobile-button" title="Set mobile powered presets" @onclick="setMobilePresets">Mobile Power Settings Preset</button>
+    <button class="preset-button low-button" title="Set low powered presets" @onclick="setLowPresets">Low Power Settings Preset</button>
+    <button class="preset-button mid-button" title="Set medium powered presets" @onclick="setMidPresets">Medium Power Settings Preset</button>
+    <button class="preset-button high-button" title="Set high powered presets" @onclick="setHighPresets">High Power Settings Preset</button>
+    <button class="preset-button vHigh-button" title="Set very high powered presets" @onclick="setVHighPresets">Very High Power Settings Preset</button>
+</div>
+
 <div class="settings-container">
     <div class="settings-section">
         <h2>Performance Settings</h2>
@@ -576,6 +585,7 @@
 <div class="button-container">
     <button class="floating-button start-button rightColumn" title="Start simulation with full configured settings" @onclick="ResetSimulation">Start/Reset</button>
     <button class="floating-button simpleStart-button leftColumn" title="Start simulation with no energy or extra score bonuses.  Faster, but less interesting evolution" @onclick="ResetSimulationSimple">Simplified Start</button>
+    <button class="floating-button superSimpleStart-button rightColumn" title="Start simulation with no energy, extra score bonuses and a fixed body plan.  Much faster, but less interesting evolution" @onclick="ResetSimulationSuperSimple">Super Simplified Start</button>
     <button class="floating-button update-button leftColumn" title="You can update the round length, number of rendered agents, physics speed, spawn delay and batch size, parent tournament size, migration rate, max and min population group size and the agent to fix the camera on" @onclick="UpdateSimulation">Update</button>
     <button class="floating-button toggleNN-button rightColumn" title="Toggle rendering of Neural Network.  Can cause some lag" @onclick="toggleNN">Toggle Neural Network</button>
     <button class="floating-button toggleLeader-button leftColumn" title="Toggle between following the leading vs trailing agents.  Switches rendered Neural Network as well" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
@@ -584,6 +594,8 @@
     <button class="floating-button retrieveGenomes-button rightColumn" title="Send current list of agent genomes back to C# for saving (in progress)" @onclick="RetrieveGenomes">Retrieve Genomes</button>
     <button class="floating-button skip10Gen-button rightColumn" title="Skips 10 generations by disabling rendering and increasing physics speed.  This will still take a few minutes" @onclick="Skip10Gen">Skip 10 Generations</button>
     <button class="floating-button skip100Gen-button leftColumn" title="Skips 1 generation by disabling rendering and increasing physics speed. This will still take a few minutes" @onclick="Skip100Gen">Skip 1 Generations</button>
+    <!--add a reset settings button-->
+    <!--add a super simplified start button-->
 </div>
 
 @code {
@@ -608,7 +620,7 @@
         public int delay { get; set; } = 20;
         public int BatchSize { get; set; } = 10;
         public bool showNN { get; set; } = false;
-        public bool showRays { get; set; } = false;
+        public bool showRays { get; set; } = true;
         public string agentInCentre { get; set; } = "leader";
         public int numAgents { get; set; } = 25;
         public int totalNumAgentsMultiplier { get; set; } = 8;
@@ -666,6 +678,61 @@
         public double energyUseBrainSizeMult { get; set; } = 1;
     }
 
+    private async Task setMobilePresets()
+    {
+        stageProperties.delay = 10;
+        stageProperties.BatchSize = 5;
+        stageProperties.numAgents = 5;
+        stageProperties.totalNumAgentsMultiplier = 20;
+        stageProperties.muscleDelay = 5;
+        stageProperties.muscleBatch = 1;
+        stageProperties.totalMuscleUpdateTime = 1;
+    }
+
+    private async Task setLowPresets()
+    {
+        stageProperties.delay = 10;
+        stageProperties.BatchSize = 10;
+        stageProperties.numAgents = 20;
+        stageProperties.totalNumAgentsMultiplier = 10;
+        stageProperties.muscleDelay = 2;
+        stageProperties.muscleBatch = 5;
+        stageProperties.totalMuscleUpdateTime = 2;
+    }
+
+    private async Task setMidPresets()
+    {
+        stageProperties.delay = 10;
+        stageProperties.BatchSize = 20;
+        stageProperties.numAgents = 50;
+        stageProperties.totalNumAgentsMultiplier = 5;
+        stageProperties.muscleDelay = 2;
+        stageProperties.muscleBatch = 10;
+        stageProperties.totalMuscleUpdateTime = 2;
+    }
+
+    private async Task setHighPresets()
+    {
+        stageProperties.delay = 5;
+        stageProperties.BatchSize = 20;
+        stageProperties.numAgents = 100;
+        stageProperties.totalNumAgentsMultiplier = 4;
+        stageProperties.muscleDelay = 1;
+        stageProperties.muscleBatch = 10;
+        stageProperties.totalMuscleUpdateTime = 1;
+    }
+
+    private async Task setVHighPresets()
+    {
+        stageProperties.delay = 1;
+        stageProperties.BatchSize = 20;
+        stageProperties.numAgents = 150;
+        stageProperties.totalNumAgentsMultiplier = 3;
+        stageProperties.muscleDelay = 1;
+        stageProperties.muscleBatch = 15;
+        stageProperties.totalMuscleUpdateTime = 1;
+    }
+
     private async Task ResetSimulation()
     {
         await InitializePopulation(stageProperties.numAgents);
@@ -688,6 +755,26 @@
         agentProperties.offspringLayerMutationRate = 0;
         agentProperties.offspringLimbMutationRate = 0.005;
         await InitializePopulation(stageProperties.numAgents);
+        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);
+    }
+
+    private async Task ResetSimulationSuperSimple()
+    {
+        agentProperties.energyUseForceSizeMult = 0;
+        agentProperties.energyUseLimbSizeMult = 0;
+        agentProperties.energyUseBrainSizeMult = 0;
+        agentProperties.startingEnergyMassPower = 0;
+        agentProperties.startingEnergyBase = 1;
+        agentProperties.startingEnergyBodyMassMult = 0;
+        agentProperties.startingEnergyLimbMassMult = 0;
+        agentProperties.movementScoreMultiplier = 1;
+        agentProperties.explorationScoreMultiplier = 0;
+        agentProperties.sizeScoreMultiplier = 0;
+        agentProperties.offspringNodeMutationRate = 0;
+        agentProperties.offspringLayerMutationRate = 0;
+        agentProperties.offspringLimbMutationRate = 0.005;
+        await InitializePopulationSimple(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);
     }
@@ -850,6 +937,65 @@
         }
     }
 
+    public async Task InitializePopulationSimple(int populationSize)
+    {
+        population = new List<Genome>();
+        Random random = new Random();
+        //let agentsPerGroup = Math.ceil(totalPopulationGenomes.length / numGroups);
+        // For now, set manual total population size as 10 * numAgents
+        int totalPopulation = populationSize * stageProperties.totalNumAgentsMultiplier;
+        // Calculate the number of groups
+        int numGroups = Math.Max(1, (int)Math.Ceiling((double)totalPopulation / stageProperties.maxPopGroupSize));
+        List<int> runGroups = Enumerable.Range(0, stageProperties.totalNumAgentsMultiplier)
+                                         .SelectMany(x => Enumerable.Repeat(x, totalPopulation / stageProperties.totalNumAgentsMultiplier))
+                                         .ToList();
+
+        // If the total population isn't perfectly divisible by stageProperties.totalNumAgentsMultiplier,
+        // add extra run groups to fill up the list
+        while (runGroups.Count < totalPopulation)
+        {
+            runGroups.Add(new Random().Next(0, stageProperties.totalNumAgentsMultiplier));
+        }
+
+        // Shuffle the list
+        runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
+
+        for (int i = 0; i < totalPopulation; i++)
+        {
+            Genome genome = new Genome();
+            genome.Metadata.AgentIndex = i;
+
+            int numLimbs = 3;
+
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs));
+
+            int numLayers = 3;
+
+            genome.LayerGenes.Add(InitializeLayer(0, 18));
+            genome.LayerGenes.Add(InitializeLayer(1, 10));
+
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs));
+            genome.BodyPlan = InitializeBodyPlanSimple(numLimbs);
+            // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
+            var randomName = new Random();
+            var consonants = "bcdfghjklmnpqrstvwxyz";
+            var vowels = "aeiou";
+            var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
+            genome.Metadata.AgentName = agentName;
+            genome.Metadata.RunGroup = runGroups[i];
+            genome.Metadata.AgentGroup = i % numGroups;
+            genome.Hyperparameters.MutationRate = agentProperties.offspringMutationRate;
+            genome.Hyperparameters.NodeMutationRate = agentProperties.offspringNodeMutationRate;
+            genome.Hyperparameters.LayerMutationRate = agentProperties.offspringLayerMutationRate;
+            genome.Hyperparameters.LimbMutationRate = agentProperties.offspringLimbMutationRate;
+
+            // add ids to usedLayerIDs, 1 to numLayers
+            genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
+
+            population.Add(genome);
+        }
+    }
+
     public async Task UploadExistingPopulation()
     {
         //foreach (Genome in UploadedGenomes)
@@ -911,7 +1057,7 @@
                 {
                     Shape = "Circle",
                     Size = 10 + random.NextDouble() * 30.0,
-                    Density = 0.1 + random.NextDouble() * 0.9
+                    Density = 0.1 + random.NextDouble() * 0.6
                 }
             };
 
@@ -942,7 +1088,48 @@
 
         return bodyPlan;
     }
-    // Starting to think about implementing NEAT and encoding agent properties within a Genome:
+
+    private BodyPlan InitializeBodyPlanSimple(int numLimbs)
+    {
+        Random random = new Random();
+
+        BodyPlan bodyPlan = new BodyPlan
+            {
+                MainBody = new MainBody
+                {
+                    Shape = "Circle",
+                    Size = 25,
+                    Density = 0.3
+                }
+            };
+
+        for (int i = 0; i < numLimbs; i++)
+        {
+            double angle = (i * 2 * Math.PI) / numLimbs;
+            Limb limb = new Limb
+                {
+                    LimbID = i,
+                    Shape = "Rectangle",
+                    Length = 50,
+                    Width = 10,
+                    StartingAngle = angle,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = bodyPlan.MainBody.Size * Math.Cos(angle),
+                        Y = bodyPlan.MainBody.Size * Math.Sin(angle)
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 80000,
+                        MinAngle = -(Math.PI / 3),
+                        MaxAngle = (Math.PI / 3)
+                    }
+                };
+            bodyPlan.Limbs.Add(limb);
+        }
+
+        return bodyPlan;
+    }
 
     public class Genome
     {

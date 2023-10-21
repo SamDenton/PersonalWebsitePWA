@@ -83,6 +83,7 @@
 
     .button-container:hover {
         width: 430px;
+        height: 320px;
     }
 
 .floating-button {
@@ -110,6 +111,12 @@
 
 .simpleStart-button {
     top: 240px;
+    right: -250px;
+    background-color: #4CAF50;
+}
+
+.superSimpleStart-button{
+    top: 300px;
     right: -250px;
     background-color: #4CAF50;
 }
@@ -162,3 +169,40 @@
     background-color: #0d385b;
 }
 
+.settings-preset-Buttons {
+
+}
+
+.preset-button {
+    z-index: 10;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 12px;
+}
+
+.mobile-button{
+
+}
+
+.low-button {
+
+}
+
+.mid-button {
+
+}
+
+.high-button {
+
+}
+
+.vHigh-button {
+
+}

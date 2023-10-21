@@ -274,10 +274,10 @@ let sketchNEAT = function (p) {
             p.push();
             if (i == numGroups) {
                 p.fill(255);
-                p.ellipse(40 + i * (circleDiameter + 10), 220, circleDiameter);
+                p.ellipse(40 + i * (circleDiameter + 10), 225, circleDiameter);
             } else {
                 p.fill(GROUP_COLORS[i]);
-                p.ellipse(40 + i * (circleDiameter + 10), 220, circleDiameter);
+                p.ellipse(40 + i * (circleDiameter + 10), 225, circleDiameter);
             }
             p.pop();
         }
@@ -285,7 +285,7 @@ let sketchNEAT = function (p) {
         p.mousePressed = function () {
             for (let i = 0; i < numGroups + 1; i++) {
                 let x = 40 + i * (circleDiameter + 10);
-                let y = 220;
+                let y = 225;
                 let d = p.dist(p.mouseX, p.mouseY, x, y);
                 if (i == numGroups) {
                     if (d < circleDiameter / 2) {
@@ -416,11 +416,14 @@ let sketchNEAT = function (p) {
                 lastUIUpdateTime = currentTime;
             }
 
+            p.push();
+            p.fill(155);
             if (selectedColor === null) {
                 p.text(`Agents on screen: ${agentsToRender.size}`, 10, 350);
             } else {
                 p.text(`Agents on screen: ${agents.filter(agent => agent.genome.metadata.agentGroup == selectedColor).length}`, 10, 350);
             }
+            p.pop();
 
             if (topScoreAgentScore > - 1000 && simulationStarted) {
                 p.push();
@@ -568,7 +571,7 @@ function applySwimmingForce(agent) {
 
             let forceMagnitude;
 
-            forceMagnitude = deltaTheta * forceScalingFactor * bias * (2 * agent.limbMass[i] / 150) * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
+            forceMagnitude = deltaTheta * forceScalingFactor * bias * (2 * agent.limbMass[i] / 100) * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
 
             if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
                 agent.agentEnergy -= (Math.abs(forceMagnitude / 1000000) * energyUseForceSizeMultJS) * ((agent.limbMass[i] / 15) * energyUseLimbSizeMultJS) * ((agent.brainSize / 50) * energyUseBrainSizeMultJS);
@@ -1442,6 +1445,7 @@ function getHighestScoreNEAT() {
 
 function endSimulationNEAT(p) {
     // p.noLoop();
+    singleUpdateCompleted = false;
     isInitializationComplete = false;
     simulationStarted = false;
     currentProcess = "Sorting agents by score!";
@@ -2820,7 +2824,7 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
 
     // Layer mutation
     if (Math.random() < layerMutationRate) {
-        if (Math.random < 0.5) {
+        if (Math.random < 0.6) {
             // Add a layer
             // Randomly select a hidden layer to duplicate
             let randomLayerIndex = Math.floor(Math.random() * genome.layerGenes.length);
@@ -2968,6 +2972,15 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
             // Add a new limb
             let angle = Math.random() * 2 * Math.PI;
+
+            // Find the limb with the closest starting angle to the new limb
+            let closestLimb = childGenome.bodyPlan.limbs.reduce((closest, currentLimb) => {
+                let currentAngleDiff = Math.abs(currentLimb.startingAngle - angle);
+                let closestAngleDiff = closest ? Math.abs(closest.startingAngle - angle) : Infinity;
+
+                return currentAngleDiff < closestAngleDiff ? currentLimb : closest;
+            }, null);
+
             let newLimb = {
                 limbID: childGenome.bodyPlan.limbs.length,
                 startingAngle: angle,
@@ -2984,14 +2997,6 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                 width: 2 + Math.floor(Math.random(20)),
             };
             childGenome.bodyPlan.limbs.push(newLimb);
-
-            // Find the limb with the closest starting angle to the new limb
-            let closestLimb = childGenome.bodyPlan.limbs.reduce((closest, currentLimb) => {
-                let currentAngleDiff = Math.abs(currentLimb.startingAngle - newLimb.startingAngle);
-                let closestAngleDiff = closest ? Math.abs(closest.startingAngle - newLimb.startingAngle) : Infinity;
-
-                return currentAngleDiff < closestAngleDiff ? currentLimb : closest;
-            }, null);
 
             // Add a new node to the input layer for the limb
             let inputLayer = childGenome.inputLayerGenes[0];
@@ -3093,10 +3098,19 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 }
 
 function mutateWithinBounds(original, min, max) {
-    // Define a mutation rate (this could be dynamic, random, or otherwise defined based on your requirements).
-    let mutationRate = 0.5;
+
+    let stdDeviation = 0.2;
+    let adjustment = randomGaussian(0, stdDeviation);
+
+    function randomGaussian(mean, sd) {
+        let u1 = Math.random();
+        let u2 = Math.random();
+        let randStdNormal = Math.sqrt(-2.0 * Math.log(u1)) * Math.sin(2.0 * Math.PI * u2);
+        return mean + sd * randStdNormal;
+    }
+
     // Mutate value.
-    let mutated = original + ((Math.random() - 0.5) * mutationRate * (max - min));
+    let mutated = original + ((Math.random() - 0.5) * adjustment * (max - min));
     // Ensure mutation stays within specified bounds.
     return Math.min(max, Math.max(min, mutated));
 }
