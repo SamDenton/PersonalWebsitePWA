@@ -16,6 +16,7 @@
     <button class="preset-button mid-button" title="Set medium powered presets" @onclick="setMidPresets">Medium Power Settings Preset</button>
     <button class="preset-button high-button" title="Set high powered presets" @onclick="setHighPresets">High Power Settings Preset</button>
     <button class="preset-button vHigh-button" title="Set very high powered presets" @onclick="setVHighPresets">Very High Power Settings Preset</button>
+    <button class="preset-button reset-button" title="Resets settings to default everything" @onclick="resetSettings">Reset All Settings</button>
 </div>
 
 <div class="settings-container">
@@ -360,9 +361,9 @@
     <div class="settings-section">
         <h2>Training Settings</h2>
 
-        <!-- Physics ticks per round -->
+        <!-- Starting Physics ticks per round -->
         <div class="setting">
-            <label for="SimulationLength" title="Physics ticks per round/generation, set alongside physics speed.">Physics Ticks Per Round</label>
+            <label for="SimulationLength" title="Starting Physics ticks per round/generation, set alongside physics speed.">Starting Round Length (Physics Ticks)</label>
             <div class="slider-container">
                 <input type="range" id="SimulationLength" @bind="stageProperties.SimulationLength" min="100" max="100000" step="100">
                 <input type="number" @bind="stageProperties.SimulationLength" min="100" max="10000" step="100">
@@ -373,6 +374,24 @@
         <div class="setting">
             <label for="timeIncrease" title="Increase the round length by * 1.005 each round">Increase Round Time Per Generation</label>
             <input type="checkbox" id="timeIncrease" @bind="stageProperties.timeIncrease" />
+        </div>
+
+        <!-- Increase in ticks per round -->
+        <div class="setting">
+            <label for="simulationLengthIncrease" title="Physics ticks per round/generation, set alongside physics speed.">Increase round by x ticks each generation</label>
+            <div class="slider-container">
+                <input type="range" id="simulationLengthIncrease" @bind="stageProperties.simulationLengthIncrease" min="1" max="500" step="1">
+                <input type="number" @bind="stageProperties.simulationLengthIncrease" min="1" max="500" step="1">
+            </div>
+        </div>
+
+        <!-- Maximum Physics ticks per round -->
+        <div class="setting">
+            <label for="maxSimulationLength" title="Maximum Physics ticks per round/generation, set alongside physics speed.">Maximum Round Length (Physics Ticks)</label>
+            <div class="slider-container">
+                <input type="range" id="maxSimulationLength" @bind="stageProperties.maxSimulationLength" min="1000" max="10000000" step="100">
+                <input type="number" @bind="stageProperties.maxSimulationLength" min="1000" max="1000000" step="100">
+            </div>
         </div>
 
         <!-- Group Tournament Size -->
@@ -441,12 +460,21 @@
             </select>
         </div>
 
+        <!-- Randomize Map -->
+        <div class="setting">
+            <label for="randomMap" title="Decay all weights in agents brain by a small amount each round">Brain Decay Over Time</label>
+            <input type="checkbox" id="randomMap" @bind="stageProperties.randomMap" />
+        </div>
+
         <!-- Map -->
         <div class="setting">
             <label for="map" title="Pick between maps">Map Selector</label>
             <select id="map" @bind="stageProperties.map">
-                <option value="1">1</option>
-                <option value="2">2</option>
+                <option value="0">1</option>
+                <option value="1">2</option>
+                <option value="2">3</option>
+                <option value="3">4</option>
+                <option value="4">5</option>
             </select>
         </div>
 
@@ -524,12 +552,14 @@
     <div class="simDescription">
         <h3>Documentation:</h3>
         <h4>Quick Start Guide:</h4>
-        <p>I have pre-configured everything to run on a low powered laptop, so default settings should be fine to get started.</p>
-        <p>Please click either Start/Reset or Simplified Start from the top right menu to begin.</p>
+        <p>Please select a pre-configuration from the top to get a good starting point.</p>
+        <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
         <p>Start/Reset will respect all configurations, while Simplified Start will remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
         <p>Simplified Start should see much faster learning, with agents completing the maps with 50 generations or so, using full configurations will result in much more interesting behavior, but will take 100+ generations to see much progress</p>
+        <p>Super Simplified Start will also give agents a small, fixed brain and preset body plan, and will see agents complete the maps in 20-30 generations</p>
         <p>Use the button bank in the top right to toggle rendering of the leading agents brain/neural network, their vision lines/ray casts, switch between the leading agent and training agent or fast-forward generations (only about twice as fast as normal currently)</p>
         <p>Logging the genomes writes the current population to the console, and retrieving genomes is the first step towards implementing an agent database online where pre-trained agents cam be stored and retrieved.</p>
+        <p>The skip x generation buttons will disable the rendering and increase the physics update rate by 4x.  If you are already running at the limit of what your computer can handle, IE. your fps is below 30-40 at normal speed, this is not going to actually speed up much.  The rendering only adds about 10% to the processing time per frame.</p>
         <h4>Some Explanation:</h4>
         <p>This is my take on a NEAT genetic evolution simulation.</p>
         <p>I would describe this as a 'Semi-NEAT' algorithm since I have restriction on what network shapes can evolve.  This is due to TensorFlow.JS's restriction to static models, where a full NEAT implementation requires dynamic models, and more control over connections</p>
@@ -569,7 +599,7 @@
             <li>Agents limb movement speed is based on their remaining energy %, with no energy, they cant move at all</li>
         </ol>
         <h4>Future Plans</h4>
-        <p>I need to work on the maps.  They are too simple, and not varied enough.  I want to implement some goals, like food, tied to the energy system.  A puzzle to open a door or similar could also be interesting</p>
+        <p>I need to work on the maps.  They are too simple and not varied enough.  I want to implement some goals, like food, tied to the energy system.  A puzzle to open a door or similar could also be interesting</p>
         <p>I want to make all variables customizable, which is a huge number.  I need to find a nice way to arrange them</p>
         <p>I plan on adding further ways the agents can evolve. I want to allow more complex body plans with different types of limb and body segments, such as wings, thrusters, suckers, energy storage limbs etc</p>
         <p>I want to add a greater range of crossover, mutation and selection methods to increase diversity, and have them toggle in settings to play with different combinations</p>
@@ -606,6 +636,8 @@
     public List<Genome> population = new List<Genome>();
     public List<Genome> evolvedPopulation = new List<Genome>();
 
+
+    // Should move all these to the agent genome
     public class StageProperties
     {
         public float Width { get; set; } = 1600;  // Canvas width
@@ -638,17 +670,22 @@
         public double liquidViscosity { get; set; } = 0.99;
         public bool timeIncrease { get; set; } = true;
         public int map { get; set; } = 1;
+        public bool randomMap { get; set; } = true;
+        public int simulationLengthIncrease { get; set; } = 25;
+        public int maxSimulationLength { get; set; } = 50000;
+        public bool agentsRequireStablising { get; set; } = true;
+
     }
 
     public class AgentProperties
     {
         // public int numLimbs { get; set; } = 3;
         // public double musculeTorque { get; set; } = 1000000.0;
-        public double maxJointSpeed { get; set; } = 2.5;
-        public double offspringMutationRate { get; set; } = 0.05;
-        public double offspringNodeMutationRate { get; set; } = 0.01;
-        public double offspringLayerMutationRate { get; set; } = 0.005;
-        public double offspringLimbMutationRate { get; set; } = 0.01;
+        public double maxJointSpeed { get; set; } = 1.5;
+        public double offspringMutationRate { get; set; } = 0.04;
+        public double offspringNodeMutationRate { get; set; } = 0.005;
+        public double offspringLayerMutationRate { get; set; } = 0.001;
+        public double offspringLimbMutationRate { get; set; } = 0.005;
         // public double maxJointMoveDivider { get; set; } = 3;
         public bool brainDecayOverTime { get; set; } = false;
         public bool inputJointAngle { get; set; } = true;
@@ -662,13 +699,13 @@
         public bool outputsJointSpeed { get; set; } = true;
         public bool outputsJointTorque { get; set; } = false;
         public bool outputsBias { get; set; } = false;
-        public int swimStrength { get; set; } = 500000;
+        public int swimStrength { get; set; } = 600000;
         public double swimBias { get; set; } = 1.5; 
-        public double xScoreMultiplier { get; set; } = 2;
-        public double yScoreMultiplier { get; set; } = 2;
-        public double movementScoreMultiplier { get; set; } = 5;
-        public double explorationScoreMultiplier { get; set; } = 10;
-        public double sizeScoreMultiplier { get; set; } = 0.2;
+        public double xScoreMultiplier { get; set; } = 3;
+        public double yScoreMultiplier { get; set; } = 3;
+        public double movementScoreMultiplier { get; set; } = 3;
+        public double explorationScoreMultiplier { get; set; } = 5;
+        public double sizeScoreMultiplier { get; set; } = 0.5;
         public int startingEnergyBase { get; set; } = 100;
         public int startingEnergyMassPower { get; set; } = 3;
         public double startingEnergyBodyMassMult { get; set; } = 1;
@@ -733,6 +770,77 @@
         stageProperties.totalMuscleUpdateTime = 1;
     }
 
+    private async Task resetSettings()
+    {
+        stageProperties.Width = 1600;  // Canvas width
+        stageProperties.Height = 800;  // Canvas height
+        stageProperties.GroundY = 700;  // Y position of the ground in the canvas
+        stageProperties.Gravity = 1;
+        stageProperties.Friction = 0.4;
+        stageProperties.SimulationLength = 2000;
+        stageProperties.renderedAgents = 1;
+        stageProperties.simSpeed = 60;
+        stageProperties.topPerformerNumber = 10;
+        stageProperties.delay = 20;
+        stageProperties.BatchSize = 10;
+        stageProperties.showNN = false;
+        stageProperties.showRays = true;
+        stageProperties.agentInCentre = "leader";
+        stageProperties.numAgents = 25;
+        stageProperties.totalNumAgentsMultiplier = 8;
+        stageProperties.tournamentSize = 10;
+        stageProperties.migrationRate = 0.002;
+        stageProperties.minPopGroupSize = 10;
+        stageProperties.maxPopGroupSize = 25;
+        stageProperties.uiRefreshRate = 500;
+        stageProperties.muscleDelay = 2;
+        stageProperties.muscleBatch = 5;
+        stageProperties.totalMuscleUpdateTime = 2;
+        stageProperties.velocityIteration = 4;
+        stageProperties.positionIteration = 2;
+        stageProperties.physicsGranularityMultipliers = 1;
+        stageProperties.liquidViscosity = 0.99;
+        stageProperties.timeIncrease = true;
+        stageProperties.map = 1;
+        stageProperties.randomMap = true;
+        stageProperties.simulationLengthIncrease = 25;
+        stageProperties.maxSimulationLength = 50000;
+        stageProperties.agentsRequireStablising = true;
+
+        agentProperties.maxJointSpeed = 1.5;
+        agentProperties.offspringMutationRate = 0.04;
+        agentProperties.offspringNodeMutationRate = 0.005;
+        agentProperties.offspringLayerMutationRate = 0.001;
+        agentProperties.offspringLimbMutationRate = 0.005;
+        agentProperties. brainDecayOverTime = false;
+        agentProperties. inputJointAngle = true;
+        agentProperties. inputJointSpeed = false;
+        agentProperties. inputAgentPos = true;
+        agentProperties. inputAgentV = true;
+        agentProperties. inputScore = false;
+        agentProperties. inputOrientation = true;
+        agentProperties. inputTimeRemaining = true;
+        agentProperties. inputDistanceSensors = true;
+        agentProperties. outputsJointSpeed = true;
+        agentProperties. outputsJointTorque = false;
+        agentProperties. outputsBias = false;
+        agentProperties. swimStrength = 600000;
+        agentProperties.swimBias = 1.5;
+        agentProperties.xScoreMultiplier = 3;
+        agentProperties.yScoreMultiplier = 3;
+        agentProperties.movementScoreMultiplier = 3;
+        agentProperties.explorationScoreMultiplier = 5;
+        agentProperties.sizeScoreMultiplier = 0.5;
+        agentProperties. startingEnergyBase = 100;
+        agentProperties. startingEnergyMassPower = 3;
+        agentProperties.startingEnergyBodyMassMult = 1;
+        agentProperties.startingEnergyLimbMassMult = 1;
+        agentProperties.energyUseForceSizeMult = 1;
+        agentProperties.energyUseLimbSizeMult = 1;
+        agentProperties.energyUseBrainSizeMult = 1;
+
+    }
+
     private async Task ResetSimulation()
     {
         await InitializePopulation(stageProperties.numAgents);
@@ -754,6 +862,7 @@
         agentProperties.sizeScoreMultiplier = 0;
         agentProperties.offspringLayerMutationRate = 0;
         agentProperties.offspringLimbMutationRate = 0.005;
+        stageProperties.agentsRequireStablising = false;
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);
@@ -774,6 +883,10 @@
         agentProperties.offspringNodeMutationRate = 0;
         agentProperties.offspringLayerMutationRate = 0;
         agentProperties.offspringLimbMutationRate = 0.005;
+        agentProperties.swimStrength = 1000000;
+        stageProperties.randomMap = false;
+        stageProperties.map = 1;
+        stageProperties.agentsRequireStablising = false;
         await InitializePopulationSimple(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);

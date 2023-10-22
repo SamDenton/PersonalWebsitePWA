@@ -8,6 +8,7 @@ let showRayCasts = false;
 let render = true;
 let dragCoefficient; 
 let singleUpdateCompleted = false;
+let stabilised = false;
 let updatesPerAgentStart = 1;
 let framesPerUpdateStart = 5;
 let updateCountStart = {};
@@ -131,32 +132,38 @@ let sketchNEAT = function (p) {
 
             if (simulationStarted) {
                 // If not all agents have been updated x times, update one agent per frame
-                if (!singleUpdateCompleted) {
+                if (!stabilised) {
 
-                    // Update the agent
-                    agents[agentIndexStart].updateMusclesNEAT();
+                    if (!singleUpdateCompleted && requireStablising) {
+                        // Update the agent
+                        agents[agentIndexStart].updateMusclesNEAT();
 
-                    // Initialize or increment the update count for this agent
-                    frameCountStart[agentIndexStart] = (frameCountStart[agentIndexStart] || 0) + 1;
+                        // Initialize or increment the update count for this agent
+                        frameCountStart[agentIndexStart] = (frameCountStart[agentIndexStart] || 0) + 1;
 
-                    // If frameCount for the agent reaches framesPerUpdate, reset it and increment updateCount
-                    if (frameCountStart[agentIndexStart] >= framesPerUpdateStart) {
-                        frameCountStart[agentIndexStart] = 0;
-                        updateCountStart[agentIndexStart] = (updateCountStart[agentIndexStart] || 0) + 1;
+                        // If frameCount for the agent reaches framesPerUpdate, reset it and increment updateCount
+                        if (frameCountStart[agentIndexStart] >= framesPerUpdateStart) {
+                            frameCountStart[agentIndexStart] = 0;
+                            updateCountStart[agentIndexStart] = (updateCountStart[agentIndexStart] || 0) + 1;
+                        }
+
+                        // Move to the next agent, and cycle back to the beginning if at the end of the array
+                        agentIndexStart = (agentIndexStart + 1) % agents.length;
                     }
 
-                    // Move to the next agent, and cycle back to the beginning if at the end of the array
-                    agentIndexStart = (agentIndexStart + 1) % agents.length;
-
                     // Check if we've updated each agent x times
-                    if (Object.values(updateCountStart).every(countStart => countStart >= updatesPerAgentStart) && areAllAgentsStableNEAT()) {
+                    if (Object.values(updateCountStart).every(countStart => countStart >= updatesPerAgentStart) || !requireStablising) {
                         singleUpdateCompleted = true;
-                        console.log("Agents Settled");
-                        startingTickCounter = 0;
+                        // All agents have been updated the required number of times, now check for stability
+                        if (areAllAgentsStableNEAT() || !requireStablising) {
+                            stabilised = true;
+                            console.log("Agents Settled");
+                            startingTickCounter = 0;
+                        }
                     }
                 }
                 // Check if all agents are stable before proceeding with batch updates
-                else { //if (areAllAgentsStableNEAT())
+                else {
                     // Check if it's time to update the next batch
                     if (startingTickCounter >= nextBatchFrame) {
                         // Update muscles only for the current batch of agents
@@ -212,7 +219,7 @@ let sketchNEAT = function (p) {
             }
 
             // If initialization is complete, increment the tick count
-            if (simulationStarted && singleUpdateCompleted) {
+            if (simulationStarted && singleUpdateCompleted && stabilised) {
                 tickCount++;
                 if (tickCount >= simulationLengthModified) {
                     endSimulationNEAT(p);
@@ -308,7 +315,7 @@ let sketchNEAT = function (p) {
         p.text(`Agents in simulation: ${agents.length}`, 10, 320);
         p.pop();
 
-        if (singleUpdateCompleted) {
+        if (stabilised) {
             p.push();
             p.fill(0, 255, 0);
             p.text(`Agents can go!`, 10, 380);
@@ -487,23 +494,33 @@ let sketchNEAT = function (p) {
     };
 };
 
-function areAllAgentsStableNEAT() {
-    const stabilityThreshold = 0.35;  // Define a small threshold value for stability
+function areAllAgentsStableNEAT(agentsToCheck = agents) {
+
+    // If agentsToCheck is not an array, make it an array.  Allows this function to be called with a single agent as an argument. Might use for energy recovery or similar
+    if (!Array.isArray(agentsToCheck)) {
+        agentsToCheck = [agentsToCheck];
+    }
+
+
+    // Define small thresholds for stability
+    const linearStabilityThresholdBody = 0.01; 
+    const angularStabilityThresholdBody = 0.15;
+    const angularStabilityThresholdLimb = 0.1;
     const stabilityFrames = 50;  // Number of frames to wait before confirming stability
 
     let allAgentsStable = true;
 
-    for (let agent of agents) {
+    for (let agent of agentsToCheck) {
         if (agent.mainBody) {
             // Loop through limbs to check if they are stable
             for (let limb of agent.limbs) {
-                if (Math.abs(limb.getAngularVelocity()) > stabilityThreshold || Math.abs(limb.getLinearVelocity()) > stabilityThreshold) {
+                if (Math.abs(limb.getAngularVelocity()) > angularStabilityThresholdLimb) {
                     allAgentsStable = false;
                     break;
                 }
             }
 
-            if (Math.abs(agent.mainBody.getAngularVelocity()) > stabilityThreshold || Math.abs(agent.mainBody.getLinearVelocity()) > stabilityThreshold) {
+            if (Math.abs(agent.mainBody.getAngularVelocity()) > angularStabilityThresholdBody || Math.abs(agent.mainBody.getLinearVelocity()) > linearStabilityThresholdBody) {
                 allAgentsStable = false;
                 break;
             }
@@ -654,6 +671,7 @@ function initializeSketchBox2DNEAT(stageProperties) {
     canvasHeight = stageProperties.height;
     groundY = stageProperties.groundY;
     popSize = stageProperties.numAgents;
+    numAgentsMultiplier = stageProperties.totalNumAgentsMultiplier;
     GravityStrength = stageProperties.gravity;
     FrictionStrength = stageProperties.fiction;
     simulationLength = stageProperties.simulationLength;
@@ -678,7 +696,11 @@ function initializeSketchBox2DNEAT(stageProperties) {
     liquidViscosityDecay = stageProperties.liquidViscosity;
     increaseTimePerGen = stageProperties.timeIncrease;
     mapNo = stageProperties.map;
-    numAgentsMultiplier = stageProperties.totalNumAgentsMultiplier;
+    randomMapSelector = stageProperties.randomMap;
+    maxSimulationLengthCount = stageProperties.simulationLengthIncrease;
+    simulationLengthIncreaseCount = stageProperties.maxSimulationLength;
+    requireStablising = stageProperties.agentsRequireStablising;
+
 
     simulationLengthModified = simulationLength;
     frameCountSinceLastFPS = 0;
@@ -1117,7 +1139,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             let currentAngle = this.joints[i].getJointAngle();
 
             // Now that I randomly change the agent's starting angles, we need to only increment score after round starts
-            if (singleUpdateCompleted) {
+            if (stabilised) {
                 let change = Math.abs(currentAngle - this.previousJointAngles[i]) * (this.limbs[i].getMass() / 100);
                 totalChange += change;
             }
@@ -1199,7 +1221,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
                 this.massBonus = this.mainBody.getMass() * sizeScoreMult;
                 // loop through limbs and add their mass to the massBonus
                 for (let i = 0; i < this.limbs.length; i++) {
-                    this.massBonus += this.limbs[i].getMass() * sizeScoreMult;
+                    this.massBonus += this.limbs[i].getMass() * (sizeScoreMult / 3);
                 }
             } catch (e) {
                 this.massBonus = 0;
@@ -1445,6 +1467,7 @@ function getHighestScoreNEAT() {
 
 function endSimulationNEAT(p) {
     // p.noLoop();
+    stabilised = false;
     singleUpdateCompleted = false;
     isInitializationComplete = false;
     simulationStarted = false;
@@ -1476,15 +1499,15 @@ function endSimulationNEAT(p) {
         agent.mainBody = null;
     }
 
-    for (let wall of wallBodies) {
-        world.destroyBody(wall.body);
-    }
-    wallBodies = []; 
+    //for (let wall of wallBodies) {
+    //    world.destroyBody(wall.body);
+    //}
+    //wallBodies = []; 
 
-    for (let wall of duplicateWalls) {
-        world.destroyBody(wall.body);
-    }
-    duplicateWalls = [];
+    //for (let wall of duplicateWalls) {
+    //    world.destroyBody(wall.body);
+    //}
+    //duplicateWalls = [];
 
     // loop through all agents scores and log them
     for (let i = 0; i < agents.length; i++) {
@@ -1531,8 +1554,8 @@ function setupPlanckWorldNEAT() {
 
     //    console.log("Collision between:", bodyA.getUserData(), "and", bodyB.getUserData());
     //});
-    randMap = Math.floor(Math.random() * 5);
-    createMaps(randMap);
+
+    createMaps(mapNo);
 }
 
 function createMaps(mapNumber) {
@@ -1957,8 +1980,6 @@ function nextAgentgroupNEAT(p) {
         console.log("Issue with population genomes");
     }
 
-    createMaps(randMap);
-
     waitForInitializationCompletionBatchNEAT();
 
     console.log('Restarting simulation with next set of agents!');
@@ -2012,8 +2033,11 @@ function nextGenerationNEAT(p) {
     }
     runCount = 0;
     currentProcess = "Performing Crossover, Mutation, and Selection on total population to create offspring";
-    randMap = Math.floor(Math.random() * 5);
-    createMaps(randMap);
+
+    if (randomMapSelector) {
+        randMap = Math.floor(Math.random() * 5);
+        createMaps(randMap);
+    }
 
     // calculate average network 'pattern'
     // Will need to create a NEAT version of calculateAllAverageDistances to handle different brain shapes
@@ -2145,9 +2169,9 @@ function nextGenerationNEAT(p) {
     console.log('Restarting simulation with evolved agents!');
 
     // Increase the time per generation up to about 15 mins
-    if (increaseTimePerGen && simulationLengthModified < 50000) {
+    if (increaseTimePerGen && simulationLengthModified < maxSimulationLengthCount) {
         // simulationLengthModified += simulationLengthModified * 0.005;
-        simulationLengthModified += 25;
+        simulationLengthModified += simulationLengthIncreaseCount;
     }
 
     // Reset simulation
@@ -2232,8 +2256,6 @@ function waitForInitializationCompletionNEAT() {
 function waitForFinalInitializationCompletionNEAT() {
     // Check if the condition is met
     if (agents.length >= popSize) {
-
-        createMaps(randMap);
 
         currentProcess = "Starting next generation";
 
@@ -3403,7 +3425,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
             dir.normalize();
         }
 
-        const MAX_DETECTION_DISTANCE = 300;  // Max distance of detection, will make a mutatable part of genome later
+        const MAX_DETECTION_DISTANCE = 250;  // Max distance of detection, will make a mutatable part of genome later
 
         const agentAngle = this.mainBody.getAngle();
 
