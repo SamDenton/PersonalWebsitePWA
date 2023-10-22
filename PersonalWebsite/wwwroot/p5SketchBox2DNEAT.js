@@ -709,7 +709,7 @@ function initializeSketchBox2DNEAT(stageProperties) {
     displayedTimeLeft = 0;
     MAX_ADJUSTMENT_TORQUE = 500000;
     offsetY = 0;
-    showRayCasts = false;
+    showRayCasts = true;
     singleUpdateCompleted = false;
     updatesPerAgentStart = 1;
     framesPerUpdateStart = 10;
