@@ -608,6 +608,9 @@
         <p>I want to play around with a predator and prey scenario, where some agents learn to catch others</p>
         <p>There are many different ways to adjust the energy system to see more interesting evolution, such as food, recovering energy by resting, reducing update speed based on energy, adding limbs just for energy storage etc</p>
         <p>I have created a few different versions of my mutate and crossover functions, I would like to let the user pick which is used.  I need to get the old ones working first</p>
+        <p>Could look at creating 4 routs for re-populating instead of 2; some top performers unchanged, some top performers mutated, some offspring, and some offspring mutated</p>
+        <p>Could look at implementing another idea from NEAT, where agents are given a metric based on their properties, and have a higher chance to reproduce with similar agents.  This can create species groups even within my island populations, leading to a greater variety of solutions.  This may require larger populations to work well, 100-200 agents per group, where I currently have 25 per group.</p>
+        <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge</p>
     </div>
 
 </div>
@@ -648,7 +651,7 @@
         public int SimulationLength { get; set; } = 2000;
         public int renderedAgents { get; set; } = 1;
         public int simSpeed { get; set; } = 60;
-        public double topPerformerNumber { get; set; } = 10;
+        public double topPerformerNumber { get; set; } = 5;
         public int delay { get; set; } = 20;
         public int BatchSize { get; set; } = 10;
         public bool showNN { get; set; } = false;
@@ -682,10 +685,10 @@
         // public int numLimbs { get; set; } = 3;
         // public double musculeTorque { get; set; } = 1000000.0;
         public double maxJointSpeed { get; set; } = 1.5;
-        public double offspringMutationRate { get; set; } = 0.04;
-        public double offspringNodeMutationRate { get; set; } = 0.005;
-        public double offspringLayerMutationRate { get; set; } = 0.001;
-        public double offspringLimbMutationRate { get; set; } = 0.005;
+        public double offspringMutationRate { get; set; } = 0.02;
+        public double offspringNodeMutationRate { get; set; } = 0.001;
+        public double offspringLayerMutationRate { get; set; } = 0.0005;
+        public double offspringLimbMutationRate { get; set; } = 0.001;
         // public double maxJointMoveDivider { get; set; } = 3;
         public bool brainDecayOverTime { get; set; } = false;
         public bool inputJointAngle { get; set; } = true;
@@ -705,7 +708,7 @@
         public double yScoreMultiplier { get; set; } = 3;
         public double movementScoreMultiplier { get; set; } = 3;
         public double explorationScoreMultiplier { get; set; } = 5;
-        public double sizeScoreMultiplier { get; set; } = 0.5;
+        public double sizeScoreMultiplier { get; set; } = 0.25;
         public int startingEnergyBase { get; set; } = 100;
         public int startingEnergyMassPower { get; set; } = 3;
         public double startingEnergyBodyMassMult { get; set; } = 1;
@@ -780,7 +783,7 @@
         stageProperties.SimulationLength = 2000;
         stageProperties.renderedAgents = 1;
         stageProperties.simSpeed = 60;
-        stageProperties.topPerformerNumber = 10;
+        stageProperties.topPerformerNumber = 5;
         stageProperties.delay = 20;
         stageProperties.BatchSize = 10;
         stageProperties.showNN = false;
@@ -808,31 +811,31 @@
         stageProperties.agentsRequireStablising = true;
 
         agentProperties.maxJointSpeed = 1.5;
-        agentProperties.offspringMutationRate = 0.04;
-        agentProperties.offspringNodeMutationRate = 0.005;
-        agentProperties.offspringLayerMutationRate = 0.001;
-        agentProperties.offspringLimbMutationRate = 0.005;
-        agentProperties. brainDecayOverTime = false;
-        agentProperties. inputJointAngle = true;
-        agentProperties. inputJointSpeed = false;
-        agentProperties. inputAgentPos = true;
-        agentProperties. inputAgentV = true;
-        agentProperties. inputScore = false;
-        agentProperties. inputOrientation = true;
-        agentProperties. inputTimeRemaining = true;
-        agentProperties. inputDistanceSensors = true;
-        agentProperties. outputsJointSpeed = true;
-        agentProperties. outputsJointTorque = false;
-        agentProperties. outputsBias = false;
-        agentProperties. swimStrength = 600000;
+        agentProperties.offspringMutationRate = 0.02;
+        agentProperties.offspringNodeMutationRate = 0.001;
+        agentProperties.offspringLayerMutationRate = 0.0005;
+        agentProperties.offspringLimbMutationRate = 0.001;
+        agentProperties.brainDecayOverTime = false;
+        agentProperties.inputJointAngle = true;
+        agentProperties.inputJointSpeed = false;
+        agentProperties.inputAgentPos = true;
+        agentProperties.inputAgentV = true;
+        agentProperties.inputScore = false;
+        agentProperties.inputOrientation = true;
+        agentProperties.inputTimeRemaining = true;
+        agentProperties.inputDistanceSensors = true;
+        agentProperties.outputsJointSpeed = true;
+        agentProperties.outputsJointTorque = false;
+        agentProperties.outputsBias = false;
+        agentProperties.swimStrength = 600000;
         agentProperties.swimBias = 1.5;
         agentProperties.xScoreMultiplier = 3;
         agentProperties.yScoreMultiplier = 3;
         agentProperties.movementScoreMultiplier = 3;
         agentProperties.explorationScoreMultiplier = 5;
-        agentProperties.sizeScoreMultiplier = 0.5;
-        agentProperties. startingEnergyBase = 100;
-        agentProperties. startingEnergyMassPower = 3;
+        agentProperties.sizeScoreMultiplier = 0.25;
+        agentProperties.startingEnergyBase = 100;
+        agentProperties.startingEnergyMassPower = 3;
         agentProperties.startingEnergyBodyMassMult = 1;
         agentProperties.startingEnergyLimbMassMult = 1;
         agentProperties.energyUseForceSizeMult = 1;
@@ -1017,7 +1020,7 @@
             int numLimbs = random.Next(2, 5);
 
             // Initialize genes, examples used for now, will be randomized once the constructor is complete
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs));
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 2));
 
             int numLayers = random.Next(1, 5);
 
@@ -1028,8 +1031,8 @@
                 genome.LayerGenes.Add(InitializeLayer(j, randomSize));
             }
 
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs));
-            genome.BodyPlan = InitializeBodyPlan(numLimbs);
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 2));
+            genome.MainBody = InitializeBodyPlan(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
             var randomName = new Random();
             var consonants = "bcdfghjklmnpqrstvwxyz";
@@ -1080,15 +1083,15 @@
 
             int numLimbs = 3;
 
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs));
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 2));
 
             int numLayers = 3;
 
             genome.LayerGenes.Add(InitializeLayer(0, 18));
             genome.LayerGenes.Add(InitializeLayer(1, 10));
 
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs));
-            genome.BodyPlan = InitializeBodyPlanSimple(numLimbs);
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 2));
+            genome.MainBody = InitializeBodyPlanSimple(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
             var randomName = new Random();
             var consonants = "bcdfghjklmnpqrstvwxyz";
@@ -1160,76 +1163,121 @@
             };
     }
 
-    private BodyPlan InitializeBodyPlan(int numLimbs)
+    private MainBody InitializeBodyPlan(int numLimbs)
     {
         Random random = new Random();
 
-        BodyPlan bodyPlan = new BodyPlan
+        MainBody mainBody = new MainBody
             {
-                MainBody = new MainBody
-                {
-                    Shape = "Circle",
-                    Size = 10 + random.NextDouble() * 30.0,
-                    Density = 0.1 + random.NextDouble() * 0.6
-                }
+                PartID = 0,
+                NumberInChain = 0,
+                Shape = "Circle",
+                Size = 10 + random.NextDouble() * 30.0,
+                Density = 0.1 + random.NextDouble() * 0.6,
+                Arms = new List<Arm>() // Initializing the Limbs list
             };
 
-        for (int i = 0; i < numLimbs; i++)
+        for (int i = 1; i <= numLimbs; i++)
         {
             double angle = random.NextDouble() * 2 * Math.PI; // Random angle in radians
-            Limb limb = new Limb
+
+            // reserve ids 0 to 10 for body segments
+            int id = i + 10;
+
+            Arm arm = new Arm
                 {
-                    LimbID = i,
+                    PartID = id,
+                    ParentPartID = 0,
+                    NumberInChain = 1,
+                    Type = "Arm",
                     Shape = "Rectangle",
                     Length = 10 + random.NextDouble() * 50.0,
                     Width = 2 + random.NextDouble() * 20.0,
                     StartingAngle = angle,
                     Attachment = new AttachmentPoint
                     {
-                        X = bodyPlan.MainBody.Size * Math.Cos(angle),
-                        Y = bodyPlan.MainBody.Size * Math.Sin(angle)
+                        X = mainBody.Size * Math.Cos(angle),
+                        Y = mainBody.Size * Math.Sin(angle)
                     },
                     Constraints = new JointConstraints
                     {
-                        MaxTorque = random.NextDouble() * 100000, 
+                        MaxTorque = random.NextDouble() * 100000,
                         MinAngle = -(Math.PI / random.Next(2, 5)),
                         MaxAngle = (Math.PI / random.Next(2, 5))
                     }
                 };
-            bodyPlan.Limbs.Add(limb);
+
+            // Add sub arm (elbow) initiation here
+            Arm subArm = new Arm
+                {
+                    PartID = id + numLimbs,
+                    ParentPartID = id,
+                    NumberInChain = 2,
+                    Type = "Arm",
+                    Shape = "Rectangle",
+                    Length = 30,
+                    Width = 10,
+                    StartingAngle = angle,
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 80000,
+                        MinAngle = -(Math.PI / 3),
+                        MaxAngle = (Math.PI / 3)
+                    }
+                };
+
+            // Assuming the sub arm attaches to the end of the main arm
+            double subArmAttachmentX = arm.Attachment.X.Value + arm.Length * Math.Cos(arm.StartingAngle);
+            double subArmAttachmentY = arm.Attachment.Y.Value + arm.Length * Math.Sin(arm.StartingAngle);
+
+            subArm.Attachment = new AttachmentPoint
+                {
+                    X = subArmAttachmentX,
+                    Y = subArmAttachmentY
+                };
+
+            arm.SubArms.Add(subArm); // Attach the sub arm to the main arm
+
+            mainBody.Arms.Add(arm);
         }
 
-        return bodyPlan;
+        return mainBody;
     }
 
-    private BodyPlan InitializeBodyPlanSimple(int numLimbs)
+
+    private MainBody InitializeBodyPlanSimple(int numLimbs)
     {
         Random random = new Random();
 
-        BodyPlan bodyPlan = new BodyPlan
+        MainBody mainBody = new MainBody
             {
-                MainBody = new MainBody
-                {
-                    Shape = "Circle",
-                    Size = 25,
-                    Density = 0.3
-                }
+                PartID = 0,
+                Shape = "Circle",
+                Size = 25,
+                Density = 0.3,
+                Arms = new List<Arm>() // Initializing the Limbs list
             };
 
-        for (int i = 0; i < numLimbs; i++)
+        for (int i = 1; i <= numLimbs; i++)
         {
-            double angle = (i * 2 * Math.PI) / numLimbs;
-            Limb limb = new Limb
+            double angle = ((i - 1) * 2 * Math.PI) / numLimbs;
+
+            // reserve ids 0 to 10 for body segments
+            int id = i + 10;
+
+            Arm arm = new Arm
                 {
-                    LimbID = i,
+                    PartID = id,
+                    ParentPartID = 0,
+                    Type = "Arm",
                     Shape = "Rectangle",
-                    Length = 50,
+                    Length = 50.0,
                     Width = 10,
                     StartingAngle = angle,
                     Attachment = new AttachmentPoint
                     {
-                        X = bodyPlan.MainBody.Size * Math.Cos(angle),
-                        Y = bodyPlan.MainBody.Size * Math.Sin(angle)
+                        X = mainBody.Size * Math.Cos(angle),
+                        Y = mainBody.Size * Math.Sin(angle)
                     },
                     Constraints = new JointConstraints
                     {
@@ -1238,10 +1286,41 @@
                         MaxAngle = (Math.PI / 3)
                     }
                 };
-            bodyPlan.Limbs.Add(limb);
+
+            // Add sub arm (elbow) initiation here
+            Arm subArm = new Arm
+                {
+                    PartID = id + numLimbs,
+                    ParentPartID = id,
+                    Type = "SubArm",
+                    Shape = "Rectangle",
+                    Length = 30,
+                    Width = 10,
+                    StartingAngle = angle, // Adjust as needed
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 80000,
+                        MinAngle = -(Math.PI / 3),
+                        MaxAngle = (Math.PI / 3)
+                    }
+                };
+
+            // Assuming the sub arm attaches to the end of the main arm
+            double subArmAttachmentX = arm.Attachment.X.Value + arm.Length * Math.Cos(arm.StartingAngle);
+            double subArmAttachmentY = arm.Attachment.Y.Value + arm.Length * Math.Sin(arm.StartingAngle);
+
+            subArm.Attachment = new AttachmentPoint
+                {
+                    X = subArmAttachmentX,
+                    Y = subArmAttachmentY
+                };
+
+            arm.SubArms.Add(subArm); // Attach the sub arm to the main arm
+
+            mainBody.Arms.Add(arm);
         }
 
-        return bodyPlan;
+        return mainBody;
     }
 
     public class Genome
@@ -1250,7 +1329,7 @@
         public List<LayerGene> LayerGenes { get; set; }
         public List<OutputLayerGene> OutputLayerGenes { get; set; }
         // public List<InnovationEntry> InnovationLog { get; set; }
-        public BodyPlan BodyPlan { get; set; }
+        public MainBody MainBody { get; set; }
         public AgentHistory AgentHistory { get; set; }
         public Hyperparameters Hyperparameters { get; set; }
         public Metadata Metadata { get; set; }
@@ -1264,20 +1343,89 @@
             this.LayerGenes = new List<LayerGene>();
             this.OutputLayerGenes = new List<OutputLayerGene>();
             // this.InnovationLog = new List<InnovationEntry>();
-            this.BodyPlan = new BodyPlan();
+            this.MainBody = new MainBody();
             this.AgentHistory = new AgentHistory();
             this.Hyperparameters = new Hyperparameters();
             this.Metadata = new Metadata();
         }
     }
 
-    // An initial attempt at encoding the agents body plan into the genome:
-
     public class MainBody
     {
-        public string? Shape { get; set; }
-        public double? Size { get; set; }
-        public double? Density { get; set; }
+        public int PartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Shape { get; set; }
+        public double Size { get; set; }
+        public double Density { get; set; }
+        public List<Arm> Arms { get; set; } = new List<Arm>();
+        public List<Wing> Wings { get; set; } = new List<Wing>();
+        public List<Thruster> Thrusters { get; set; } = new List<Thruster>();
+        public List<BodySegment> BodySegments { get; set; } = new List<BodySegment>();
+    }
+
+    public class BodySegment
+    {
+        public int PartID { get; set; }
+        public int ParentPartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Type { get; set; }
+        public string Shape { get; set; }
+        public double Size { get; set; }
+        public double Density { get; set; }
+        public JointConstraints? Constraints { get; set; }
+        public AttachmentPoint Attachment { get; set; }
+        public List<Arm> Arms { get; set; } = new List<Arm>();
+        public List<Wing> Wings { get; set; } = new List<Wing>();
+        public List<Thruster> Thrusters { get; set; } = new List<Thruster>();
+    }
+
+    public class Arm
+    {
+        public int PartID { get; set; }
+        public int ParentPartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Type { get; set; }
+        public string Shape { get; set; }
+        public double Length { get; set; }
+        public double Width { get; set; }
+        public double StartingAngle { get; set; }
+        public double SwimBias { get; set; }
+        public JointConstraints Constraints { get; set; } = new JointConstraints();
+        public AttachmentPoint Attachment { get; set; }
+        public List<Arm> SubArms { get; set; } = new List<Arm>(); 
+        public List<Wing> SubWings { get; set; } = new List<Wing>(); 
+        public List<Thruster> SubThrusters { get; set; } = new List<Thruster>(); 
+    }
+
+    public class Wing
+    {
+        public int PartID { get; set; }
+        public int ParentPartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Type { get; set; }
+        public string Shape { get; set; }
+        public double Length { get; set; }
+        public double Width { get; set; }
+        public double StartingAngle { get; set; }
+        public double SwimBias { get; set; }
+        public JointConstraints Constraints { get; set; } = new JointConstraints();
+        public AttachmentPoint Attachment { get; set; }
+    }
+
+    public class Thruster
+    {
+        public double ThrustForce { get; set; }
+        public int PartID { get; set; }
+        public int ParentPartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Type { get; set; }
+        public string Shape { get; set; }
+        public double Length { get; set; }
+        public double Width { get; set; }
+        public double StartingAngle { get; set; }
+        public double SwimBias { get; set; }
+        public JointConstraints Constraints { get; set; } = new JointConstraints();
+        public AttachmentPoint Attachment { get; set; }
     }
 
     public class AttachmentPoint
@@ -1291,47 +1439,6 @@
         public double? MaxTorque { get; set; }
         public double? MinAngle { get; set; }
         public double? MaxAngle { get; set; }
-    }
-
-    public class BodySegment
-    {
-        public string? Shape { get; set; }
-        public double? Size { get; set; }
-        public AttachmentPoint? AttachmentOnMainBody { get; set; }
-        public AttachmentPoint? AttachmentOnSegment { get; set; }
-        public JointConstraints? Constraints { get; set; }
-    }
-
-    public class Limb
-    {
-        public int LimbID { get; set; }
-        public string? Shape { get; set; }
-        public double Length { get; set; }
-        public double Width { get; set; }
-        public double StartingAngle { get; set; }
-        public double SwimBias { get; set; }
-        public AttachmentPoint? Attachment { get; set; }
-        public JointConstraints? Constraints { get; set; }
-
-        public Limb()
-        {
-            this.Attachment = new AttachmentPoint();
-            this.Constraints = new JointConstraints();
-        }
-    }
-
-    public class BodyPlan
-    {
-        public MainBody? MainBody { get; set; }
-        public List<BodySegment>? BodySegments { get; set; }
-        public List<Limb>? Limbs { get; set; }
-
-        public BodyPlan()
-        {
-            // Initialize with default or random values
-            this.BodySegments = new List<BodySegment>();
-            this.Limbs = new List<Limb>();
-        }
     }
 
     // Encode the agents history into the genome:

@@ -212,8 +212,7 @@ let sketchNEAT = function (p) {
 
             // Step the Planck world
             try {
-                // world.step(fixedTimeStep / 1000 * physicsGranularityMultiplier, velocityIterations, positionIterations);
-                world.step(1 / 60 * physicsGranularityMultiplier, velocityIterations, positionIterations);
+                // world.step(1 / 60 * physicsGranularityMultiplier, velocityIterations, positionIterations);
             } catch (error) {
                 console.error("An error occurred stepping physics simulation: ", error);
             }
@@ -558,7 +557,8 @@ function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
 }
 
 function applySwimmingForce(agent) {
-    for (let i = 0; i < agent.joints.length; i++) {
+    // Temporary fix * 0.5 to target only the main arm, not sub arms.  Need to change back
+    for (let i = 0; i < agent.joints.length / 2; i++) {
         let angle = (i * 2 * Math.PI) / agent.numLimbs;
         let joint = agent.joints[i];
         let currentAngle = joint.getJointAngle();
@@ -599,8 +599,8 @@ function applySwimmingForce(agent) {
             let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
 
             // Calculate the point on the limb to apply the force
-            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(angle) * (agent.genome.bodyPlan.limbs[i].length / 1);
-            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.genome.bodyPlan.limbs[i].length / 1);
+            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(angle) * (agent.genome.mainBody.arms[i].length / 1);
+            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.genome.mainBody.arms[i].length / 1);
 
             let forceApplyPoint = planck.Vec2(forceApplyPointX, forceApplyPointY);
 
@@ -644,11 +644,12 @@ function applyDrag(agent) {
 function applyJointDamping(agent) {
     let maxTorqueForDamping = 10000;
 
+    // Temporary fix * 0.5 to target only the main arm, not sub arms.  Need to change back
     // Damping on approaching joint limits
-    for (let i = 0; i < agent.joints.length; i++) {
+    for (let i = 0; i < agent.joints.length / 2; i++) {
         let currentAngle = agent.joints[i].getJointAngle();
-        let angleDifferenceFromUpperLimit = agent.genome.bodyPlan.limbs[i].constraints.maxAngle - currentAngle;
-        let angleDifferenceFromLowerLimit = currentAngle - agent.genome.bodyPlan.limbs[i].constraints.minAngle;
+        let angleDifferenceFromUpperLimit = agent.genome.mainBody.arms[i].constraints.maxAngle - currentAngle;
+        let angleDifferenceFromLowerLimit = currentAngle - agent.genome.mainBody.arms[i].constraints.minAngle;
 
         let threshold = 0.5; // This is just an initial value, you might need to adjust it.
 
@@ -697,8 +698,8 @@ function initializeSketchBox2DNEAT(stageProperties) {
     increaseTimePerGen = stageProperties.timeIncrease;
     mapNo = stageProperties.map;
     randomMapSelector = stageProperties.randomMap;
-    maxSimulationLengthCount = stageProperties.simulationLengthIncrease;
-    simulationLengthIncreaseCount = stageProperties.maxSimulationLength;
+    maxSimulationLengthCount = stageProperties.maxSimulationLength;
+    simulationLengthIncreaseCount = stageProperties.simulationLengthIncrease;
     requireStablising = stageProperties.agentsRequireStablising;
 
 
@@ -943,7 +944,7 @@ function initializeAgentNEAT(i, genome) {
         let agent = new AgentNEAT(genome, i, false);
 
         let randomAngle = -Math.random() * Math.PI / 2;
-        agent.mainBody.setAngle(randomAngle);
+        agent.mainBody.setAngle(0);
         agent.genome.metadata.groupName = GROUP_COLORS_NAMES[agent.genome.metadata.agentGroup];
         agents.push(agent);
 
@@ -1017,15 +1018,59 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     // Should clean up the order of initialization of these variables and group functions together
     this.genome = _.cloneDeep(agentGenome); // Deep copy of genome
     agentGenome = null;
-    this.numLimbs = this.genome.bodyPlan.limbs.length;
-    this.numSegments = this.genome.bodyPlan.bodySegments.length + 1; // +1 for the main body
+
+    this.numArms = this.genome.mainBody.arms.length;
+    this.armGenes = this.genome.mainBody.arms;
+
+    // loop through each limb and count sub limbs
+    //this.numSubArms = 0;
+    //this.subArmGenes = [];
+    //for (let i = 0; i < this.genome.mainBody.arms.length; i++) {
+    //    if (this.genome.mainBody.arms[i].subArms) {
+    //        this.numSubArms += this.genome.mainBody.arms[i].subArms.length;
+    //        this.subArmGenes.push(this.genome.mainBody.arms[i].subArms[0]);
+    //    }
+    //}
+    // loop through each limb and count sub limbs, as well as looping though each sub limb and counting sub sub limbs, continuing until there are no more sub limbs
+
+    class Creature {
+        constructor(genome) {
+            this.genome = genome;
+            this.numSubArms = 0;
+            this.subArmGenes = [];
+            this.processArms(this.genome.mainBody.arms);
+        }
+
+        processArms(arms) {
+            if (!arms) return;
+
+            for (let i = 0; i < arms.length; i++) {
+                if (arms[i].subArms) {
+                    this.numSubArms += arms[i].subArms.length;
+                    this.subArmGenes.push(arms[i].subArms[0]);
+                    this.processArms(arms[i].subArms);
+                }
+            }
+        }
+    }
+
+    this.numSegments = this.genome.mainBody.bodySegments.length;
+    this.bodySegmentGenes = this.genome.mainBody.bodySegments;
+
+    this.numLimbs = this.numArms + this.numSubArms;
+
+    this.numBodyParts = this.numLimbs + this.numSegments + 1; // inc 1 for the main body
+
+    this.bodyParts = [this.genome.mainBody].concat(this.armGenes, this.subArmGenes);
+
+
     this.index = this.genome.metadata.agentIndex;
-    let mainBodyRadius = this.genome.bodyPlan.mainBody.size;
+    let mainBodyRadius = this.genome.mainBody.size;
     // const locationBatchSize = 10;
     this.startingX = 200 + (Math.floor(this.genome.metadata.runGroup) * 5000);
     this.startingY = 600;
-    this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
-    let mainBodyDensity = this.genome.bodyPlan.mainBody.density;
+    this.limbBuffer = Array(this.numLimbs * 2).fill().map(() => []);
+    let mainBodyDensity = this.genome.mainBody.density;
     this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, mainBodyDensity);
     this.position = this.mainBody.getPosition();
     this.rayCastPoints = [];
@@ -1044,6 +1089,11 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
     }
 
+    this.bodySegments = [];
+    this.bodySegmentsbMass = [];
+    this.arms = [];
+    this.wings = [];
+    this.thrusters = [];
     this.limbs = [];
     this.limbMass = [];
     this.joints = [];
@@ -1059,28 +1109,98 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         this.brainSize += this.genome.layerGenes[i].numberOfNeurons;
     }
 
-    for (let i = 0; i < this.numLimbs; i++) {
+    for (let part of this.bodyParts) {
+        let parentLimb;
+        if (part.numberInChain === 1) {
+            parentLimb = this.mainBody;
+        } else {
+            parentLimb = this.limbs.find(limb => limb.partID === part.parentPartID);
+        }
+        // if (part.type == "BodySegment") {
+        //      body segment constructor
+        //      this.bodySegments.push(bodySegment);
+        //      this.bodySegmentsbMass.push(bodySegment.getMass());
+        // else 
+        if (part.type == "Arm") {
+            const angle = part.startingAngle;
 
-        const angle = this.genome.bodyPlan.limbs[i].startingAngle;
+            // Calculate the position of the limb's center
+            let offsetFromMainLimb = parentLimb.length / 2 + subArm.length / 2;
+            part.limbX = parentLimb.limbX + offsetFromMainLimb * Math.cos(angle);
+            part.limbY = parentLimb.limbY + offsetFromMainLimb * Math.sin(angle);
 
-        let limbX = this.startingX + this.genome.bodyPlan.limbs[i].attachment.x;
-        let limbY = this.startingY + this.genome.bodyPlan.limbs[i].attachment.y;
+            let arm = createLimbNEAT(world, part.limbX, part.limbY, part.length, part.width, angle);
 
-        let limb = createLimbNEAT(world, limbX, limbY, this.genome.bodyPlan.limbs[i].length, this.genome.bodyPlan.limbs[i].width, angle - Math.PI / 2, agentNo, i);
-        this.limbs.push(limb);
-        this.limbMass.push(limb.getMass());
+            let localAnchorA = planck.Vec2(
+                part.attachment.x,
+                part.attachment.y
+            );
 
-        let localAnchorA = planck.Vec2(
-            this.genome.bodyPlan.limbs[i].attachment.x,
-            this.genome.bodyPlan.limbs[i].attachment.y
-        );
+            // Calculate the point after rotation
+            let localAnchorB = planck.Vec2(0, -part.length / 2);
 
-        // Calculate the point after rotation
-        let localAnchorB = planck.Vec2(0, -this.genome.bodyPlan.limbs[i].length / 2);
+            let joint = createRevoluteJointNEAT(world, parentLimb, arm, localAnchorA, localAnchorB, part.constraints.minAngle, part.constraints.maxAngle, part.constraints.maxTorque);
+            this.joints.push(joint);
 
-        let joint = createRevoluteJointNEAT(world, this.mainBody, limb, localAnchorA, localAnchorB, this.genome.bodyPlan.limbs[i].constraints.minAngle, this.genome.bodyPlan.limbs[i].constraints.maxAngle, this.genome.bodyPlan.limbs[i].constraints.maxTorque);
-        this.joints.push(joint);
+            // body segment constructor
+            this.arms.push(arm);
+            this.limbs.push(arm);
+            this.limbMass.push(arm.getMass());
+        }
+        // else if (part.type == "Wing") {
+        //      body segment constructor
+        //      this.wings.push(wing);
+        //      this.limbs.push(wing);
+        //      this.limbMass.push(wing.getMass());
+        // else if (part.type == "Thruster") {
+        // ... other constructors
+
     }
+
+    //for (let i = 0; i < this.numLimbs; i++) {
+
+    //    const angle = this.genome.mainBody.arms[i].startingAngle;
+
+    //    // Calculate the position of the limb's center
+    //    let offsetFromMainBody = mainBodyRadius + this.genome.mainBody.arms[i].length / 2;
+    //    let limbX = this.startingX + offsetFromMainBody * Math.cos(angle);
+    //    let limbY = this.startingY + offsetFromMainBody * Math.sin(angle);
+
+    //    let limb = createLimbNEAT(world, limbX, limbY, this.genome.mainBody.arms[i].length, this.genome.mainBody.arms[i].width, angle, agentNo, i);
+    //    this.limbs.push(limb);
+    //    this.limbMass.push(limb.getMass());
+
+    //    let localAnchorA = planck.Vec2(
+    //        this.genome.mainBody.arms[i].attachment.x,
+    //        this.genome.mainBody.arms[i].attachment.y
+    //    );
+
+    //    // Calculate the point after rotation
+    //    let localAnchorB = planck.Vec2(0, -this.genome.mainBody.arms[i].length / 2);
+
+    //    let joint = createRevoluteJointNEAT(world, this.mainBody, limb, localAnchorA, localAnchorB, this.genome.mainBody.arms[i].constraints.minAngle, this.genome.mainBody.arms[i].constraints.maxAngle, this.genome.mainBody.arms[i].constraints.maxTorque);
+    //    this.joints.push(joint);
+
+    //    // Check if the arm has a subArm
+    //    if (this.genome.mainBody.arms[i].subArms && this.genome.mainBody.arms[i].subArms.length > 0) {
+    //        let subArm = this.genome.mainBody.arms[i].subArms[0];  // Assuming one sub arm for now
+
+    //        // Calculate the position of the secondary limb's center
+    //        let offsetFromMainLimb = this.genome.mainBody.arms[i].length / 2 + subArm.length / 2;
+    //        let subArmX = limbX + offsetFromMainLimb * Math.cos(angle);
+    //        let subArmY = limbY + offsetFromMainLimb * Math.sin(angle);
+
+    //        let subArmBody = createLimbNEAT(world, subArmX, subArmY, subArm.length, subArm.width, angle, agentNo, i + this.numLimbs); // Adjust limbNo for sub arms
+    //        this.limbs.push(subArmBody);
+    //        this.limbMass.push(subArmBody.getMass());
+
+    //        let localAnchorSubA = planck.Vec2(0, this.genome.mainBody.arms[i].length / 2);
+    //        let localAnchorSubB = planck.Vec2(0, -subArm.length / 2);
+
+    //        let subJoint = createRevoluteJointNEAT(world, limb, subArmBody, localAnchorSubA, localAnchorSubB, subArm.constraints.minAngle, subArm.constraints.maxAngle, subArm.constraints.maxTorque);
+    //        this.joints.push(subJoint);
+    //    }
+    //}
 
     // Use the genome to give the agent a brain!
     if (existingBrain) {
@@ -1286,12 +1406,21 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         //p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
 
         // Render the limbs
-        for (let i = 0; i < this.numLimbs; i++) {
+        for (let i = 0; i < this.limbs.length; i++) {
             let limb = this.limbs[i];
             if (limb) {
                 let limbPos = limb.getPosition();
                 let limbAngle = limb.getAngle();
-                let genomeLimb = this.genome.bodyPlan.limbs[i];
+                let genomeLimb;
+
+                if (!limb.isSubLimb) {
+                    genomeLimb = this.genome.mainBody.arms[i];
+                } else {
+                    // Find the parent limb's index and get the sub limb from there
+                    let parentIndex = this.limbs.findIndex(mainLimb => mainLimb === limb.parentIndex);
+                    genomeLimb = this.genome.mainBody.arms[parentIndex].subArms[0];
+                }
+
                 p.push();
                 p.translate(limbPos.x + offsetX, limbPos.y + offsetY);
                 p.rotate(limbAngle);
@@ -1301,7 +1430,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
 
         // Render the joints
-        for (let i = 0; i < this.numLimbs; i++) {
+        for (let i = 0; i < this.limbs.length; i++) {
             if (this.joints[i]) {
                 let jointPos = this.joints[i].getAnchorA();
                 p.push();
@@ -1317,20 +1446,20 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
 
         // Render second set of joint anchors for testing
-        //for (let i = 0; i < this.numLimbs; i++) {
-        //    if (this.joints[i]) {
-        //        p.push();
-        //        let jointPos = this.joints[i].getAnchorB();
-        //        // Check if the current joint's index is within the jointColors array length
-        //        if (i < JOINT_COLORS.length) {
-        //            p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
-        //        } else {
-        //            p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
-        //        }
-        //        p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
-        //        p.pop();
-        //    }
-        //}
+        for (let i = 0; i < this.limbs.length; i++) {
+            if (this.joints[i]) {
+                p.push();
+                let jointPos = this.joints[i].getAnchorB();
+                // Check if the current joint's index is within the jointColors array length
+                if (i < JOINT_COLORS.length) {
+                    p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
+                } else {
+                    p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
+                }
+                p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
+                p.pop();
+            }
+        }
     };
 
     this.renderRayCasts = function (p, offsetX, offsetY) {
@@ -1370,7 +1499,12 @@ function createMainBodyNEAT(world, x, y, radius, mainBodyDensity) {
     return body;
 }
 
-function createLimbNEAT(world, x, y, length, width, angle, agentNo, limbNo) {
+function createLimbNEAT(world, x, y, length, width, angle) {
+    // Check if length is greater than width and adjust angle accordingly
+    if (length > width) {
+        angle -= Math.PI / 2;
+    }
+
     let bodyDef = {
         type: 'dynamic',
         position: planck.Vec2(x, y),
@@ -1380,16 +1514,11 @@ function createLimbNEAT(world, x, y, length, width, angle, agentNo, limbNo) {
     let body = world.createBody(bodyDef);
     let shape = planck.Box(width / 2, length / 2);
 
-    // Assign a negative group index based on the agent number
-    // This ensures that limbs of the same agent will never collide with each other
-    // let groupIndex = -agentNo;
-
     let fixtureDef = {
         shape: shape,
         density: 0.1,
         filterCategoryBits: CATEGORY_AGENT_LIMB,
         filterMaskBits: CATEGORY_GROUND,  // Only allow collision with the ground
-        // filterGroupIndex: groupIndex      // Set the group index
     };
     body.createFixture(fixtureDef);
     // body.setUserData("Agent " + agentNo + " Limb " + limbNo);
@@ -2685,22 +2814,22 @@ function bodyPlanCrossover(childGenome, agent1, agent2) {
     let submissiveParentGenome = submissiveParent.genome;
 
     // Randomly select the main body size from one of the parents
-    childGenome.bodyPlan.mainBody.size = Math.random() < 0.5 ? dominantParentGenome.bodyPlan.mainBody.size : submissiveParentGenome.bodyPlan.mainBody.size;
+    childGenome.mainBody.size = Math.random() < 0.5 ? dominantParentGenome.mainBody.size : submissiveParentGenome.mainBody.size;
 
     // Check for each limb in the child genome whether to keep it or swap it
-    childGenome.bodyPlan.limbs.forEach((limb, idx) => {
+    childGenome.mainBody.arms.forEach((limb, idx) => {
         // If there's a corresponding limb in both parents, decide whether to swap
-        if (dominantParentGenome.bodyPlan.limbs[idx] && submissiveParentGenome.bodyPlan.limbs[idx]) {
+        if (dominantParentGenome.mainBody.arms[idx] && submissiveParentGenome.mainBody.arms[idx]) {
             if (Math.random() < 0.5) {
-                childGenome.bodyPlan.limbs[idx] = _.cloneDeep(submissiveParentGenome.bodyPlan.limbs[idx]);
+                childGenome.mainBody.arms[idx] = _.cloneDeep(submissiveParentGenome.mainBody.arms[idx]);
                 // childGenome.agentHistory.mutations.push("type: limb, mutation: swap from parent: " + submissiveParentGenome.metadata.agentName);
             }
         }
 
         // If the limb exists in the childGenome (i.e., it was not swapped out), recalculate attachment points
-        if (childGenome.bodyPlan.limbs[idx]) {
-            childGenome.bodyPlan.limbs[idx].attachment.x = childGenome.bodyPlan.mainBody.size * Math.cos(childGenome.bodyPlan.limbs[idx].startingAngle);
-            childGenome.bodyPlan.limbs[idx].attachment.y = childGenome.bodyPlan.mainBody.size * Math.sin(childGenome.bodyPlan.limbs[idx].startingAngle);
+        if (childGenome.mainBody.arms[idx]) {
+            childGenome.mainBody.arms[idx].attachment.x = childGenome.mainBody.size * Math.cos(childGenome.mainBody.arms[idx].startingAngle);
+            childGenome.mainBody.arms[idx].attachment.y = childGenome.mainBody.size * Math.sin(childGenome.mainBody.arms[idx].startingAngle);
         }
     });
 
@@ -2966,12 +3095,12 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
 function mutateBodyPlan(childGenome, bodyMutationRate) {
     // Main Body Size Mutation
     if (Math.random() < bodyMutationRate) {
-        childGenome.bodyPlan.mainBody.size = mutateWithinBounds(childGenome.bodyPlan.mainBody.size, 10, 30);
-        childGenome.bodyPlan.mainBody.density = mutateWithinBounds(childGenome.bodyPlan.mainBody.density, 0.1, 1);
+        childGenome.mainBody.size = mutateWithinBounds(childGenome.mainBody.size, 10, 30);
+        childGenome.mainBody.density = mutateWithinBounds(childGenome.mainBody.density, 0.1, 1);
     }
 
     // Limb Properties Mutation
-    childGenome.bodyPlan.limbs.forEach(limb => {
+    childGenome.mainBody.arms.forEach(limb => {
         if (Math.random() < bodyMutationRate) {
             limb.constraints.maxTorque = mutateWithinBounds(limb.constraints.maxTorque, 1000, 100000);
             limb.constraints.maxAngle = mutateWithinBounds(limb.constraints.maxAngle, Math.PI / 5, Math.PI / 2);
@@ -2982,8 +3111,8 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
         }
         // Recalculate the x and y attachments based on potential mainBody size mutation and limb angle mutation.
-        limb.attachment.x = childGenome.bodyPlan.mainBody.size * Math.cos(limb.startingAngle);
-        limb.attachment.y = childGenome.bodyPlan.mainBody.size * Math.sin(limb.startingAngle);
+        limb.attachment.x = childGenome.mainBody.size * Math.cos(limb.startingAngle);
+        limb.attachment.y = childGenome.mainBody.size * Math.sin(limb.startingAngle);
     });
 
     // Limb Number Mutation, half as often as other body mutations
@@ -2996,7 +3125,7 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
             let angle = Math.random() * 2 * Math.PI;
 
             // Find the limb with the closest starting angle to the new limb
-            let closestLimb = childGenome.bodyPlan.limbs.reduce((closest, currentLimb) => {
+            let closestLimb = childGenome.mainBody.arms.reduce((closest, currentLimb) => {
                 let currentAngleDiff = Math.abs(currentLimb.startingAngle - angle);
                 let closestAngleDiff = closest ? Math.abs(closest.startingAngle - angle) : Infinity;
 
@@ -3004,11 +3133,11 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
             }, null);
 
             let newLimb = {
-                limbID: childGenome.bodyPlan.limbs.length,
+                limbID: childGenome.mainBody.arms.length,
                 startingAngle: angle,
                 attachment: {
-                    x: childGenome.bodyPlan.mainBody.size * Math.cos(angle),
-                    y: childGenome.bodyPlan.mainBody.size * Math.sin(angle)
+                    x: childGenome.mainBody.size * Math.cos(angle),
+                    y: childGenome.mainBody.size * Math.sin(angle)
                 },
                 constraints: {
                     maxTorque: Math.random() * 100000,
@@ -3018,7 +3147,7 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                 length: 10 + Math.floor(Math.random(50)),
                 width: 2 + Math.floor(Math.random(20)),
             };
-            childGenome.bodyPlan.limbs.push(newLimb);
+            childGenome.mainBody.arms.push(newLimb);
 
             // Add a new node to the input layer for the limb
             let inputLayer = childGenome.inputLayerGenes[0];
@@ -3078,16 +3207,16 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
 
         } else {
-            if (childGenome.bodyPlan.limbs.length > 1) {
+            if (childGenome.mainBody.arms.length > 1) {
                 // Remove a limb
-                let limbToRemoveIdx = Math.floor(Math.random() * childGenome.bodyPlan.limbs.length);
+                let limbToRemoveIdx = Math.floor(Math.random() * childGenome.mainBody.arms.length);
 
                 // Remove the limb from the body plan
-                childGenome.bodyPlan.limbs.splice(limbToRemoveIdx, 1);
+                childGenome.mainBody.arms.splice(limbToRemoveIdx, 1);
 
                 // Update the limbID for all limbs after the removed one
-                for (let i = limbToRemoveIdx; i < childGenome.bodyPlan.limbs.length; i++) {
-                    childGenome.bodyPlan.limbs[i].limbID--;
+                for (let i = limbToRemoveIdx; i < childGenome.mainBody.arms.length; i++) {
+                    childGenome.mainBody.arms[i].limbID--;
                 }
 
                 // Remove node from the input layer
