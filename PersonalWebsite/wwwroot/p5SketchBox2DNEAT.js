@@ -1031,28 +1031,24 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     //        this.subArmGenes.push(this.genome.mainBody.arms[i].subArms[0]);
     //    }
     //}
+
     // loop through each limb and count sub limbs, as well as looping though each sub limb and counting sub sub limbs, continuing until there are no more sub limbs
+    function processArms(arms, numSubArms, subArmGenes) {
+        if (!arms) return;
 
-    class Creature {
-        constructor(genome) {
-            this.genome = genome;
-            this.numSubArms = 0;
-            this.subArmGenes = [];
-            this.processArms(this.genome.mainBody.arms);
-        }
-
-        processArms(arms) {
-            if (!arms) return;
-
-            for (let i = 0; i < arms.length; i++) {
-                if (arms[i].subArms) {
-                    this.numSubArms += arms[i].subArms.length;
-                    this.subArmGenes.push(arms[i].subArms[0]);
-                    this.processArms(arms[i].subArms);
-                }
+        for (let i = 0; i < arms.length; i++) {
+            if (arms[i].subArms) {
+                numSubArms += arms[i].subArms.length;
+                subArmGenes.push(arms[i].subArms[0]);
+                processArms(arms[i].subArms, numSubArms, subArmGenes);
             }
         }
     }
+
+    // Inside your agent function:
+    this.numSubArms = 0;
+    this.subArmGenes = [];
+    processArms(this.genome.mainBody.arms, this.numSubArms, this.subArmGenes);
 
     this.numSegments = this.genome.mainBody.bodySegments.length;
     this.bodySegmentGenes = this.genome.mainBody.bodySegments;
@@ -1211,7 +1207,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             this.brain.dispose();
         }
         this.brain = constructModelFromGenome(this.genome);
-    }  else {
+    } else {
         this.brain = createNeuralNetworkNEAT(this.genome);
     }
 
