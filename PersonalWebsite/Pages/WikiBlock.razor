@@ -368,6 +368,8 @@
 			// Getting the current state after dispatching the SaveContentAction
 			var currentState = contentState.Value;
 
+			// Console.WriteLine("Current SHA Dictionary: " + currentState.ShaDictionary.ToString());
+
 			// Identifying the updated contents
 			var updatedContent = currentState.Contents[indexParsed];
 			var matchingSectionContents = currentState.Contents.Where(ch => ch.page == updatedContent.page && ch.section == updatedContent.section).ToList();

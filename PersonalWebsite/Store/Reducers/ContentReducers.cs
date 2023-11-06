@@ -39,7 +39,7 @@ namespace PersonalWebsite.Store.Reducers
 			var updatedIsEditing = new List<bool>(state.IsEditing);
 			updatedIsEditing[action.Index] = action.IsEditing;
 
-			return new ContentState(state.Contents, updatedIsEditing, state.FileCount, state.LoadedFilesCount);
+			return new ContentState(state.Contents, state.ShaDictionary, updatedIsEditing, state.FileCount, state.LoadedFilesCount);
 		}
 		[ReducerMethod]
 		public static ContentState ReduceResetIsEditingAction(ContentState state, ResetIsEditingAction action)
@@ -61,19 +61,27 @@ namespace PersonalWebsite.Store.Reducers
 			{
 				updatedContents[index] = action.TempContent;
 			}
-
 			return state with { Contents = updatedContents };
 		}
-		[ReducerMethod]
-		public static ContentState ReduceUpdateShaDictionaryAction(ContentState state, UpdateShaDictionaryAction action)
-		{
-			var updatedShaDictionary = state.ShaDictionary is null
-				? new Dictionary<string, string>()
-				: new Dictionary<string, string>(state.ShaDictionary);
+        [ReducerMethod]
+        public static ContentState ReduceUpdateShaDictionaryAction(ContentState state, UpdateShaDictionaryAction action)
+        {
+			// console log the current ShaDictionary before updating
+			foreach (var entry in state.ShaDictionary)
+			{
+				Console.WriteLine("key: " + entry.Key + " value: " + entry.Value);
+			}
 
-			updatedShaDictionary[action.Section] = action.Sha;
+            var updatedShaDictionary = state.ShaDictionary is null
+                ? new Dictionary<string, string>()
+                : new Dictionary<string, string>(state.ShaDictionary);
 
-			return state with { ShaDictionary = updatedShaDictionary };
-		}
-	}
+            // Log only the entry being added or updated
+            Console.WriteLine($"Adding/updating ShaDictionary entry: Key='{action.Section}', Value='{action.Sha}'");
+
+            updatedShaDictionary[action.Section] = action.Sha;
+
+            return state with { ShaDictionary = updatedShaDictionary };
+        }
+    }
 }

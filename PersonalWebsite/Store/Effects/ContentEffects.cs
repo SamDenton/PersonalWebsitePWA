@@ -17,11 +17,13 @@ namespace PersonalWebsite.Store.Effects
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<ContentEffects> _logger;
+        private readonly IState<ContentState> _contentState;
 
-        public ContentEffects(HttpClient httpClient, ILogger<ContentEffects> logger)
+        public ContentEffects(HttpClient httpClient, ILogger<ContentEffects> logger, IState<ContentState> contentState)
         {
             _httpClient = httpClient;
             _logger = logger;
+            _contentState = contentState;
         }
         [EffectMethod]
         public async Task HandleLoadContentsFromRepoAction(LoadContentsFromRepoAction action, IDispatcher dispatcher)
@@ -93,14 +95,18 @@ namespace PersonalWebsite.Store.Effects
             }
         }
 		[EffectMethod]
-		public async Task Handle(UpdateGitHubContentAction action, IDispatcher dispatcher)
+		public async Task HandleUpdateGitHubContentAction(UpdateGitHubContentAction action, IDispatcher dispatcher)
 		{
             //try
             //{
                 var filename = action.Page + action.Section;
-				//Console.WriteLine("PUT'ing: " + filename);
+				Console.WriteLine("PUT'ing: " + filename);
+                foreach (var entry in _contentState.Value.ShaDictionary)
+                {
+                    Console.WriteLine("key: " + entry.Key + " value: " + entry.Value);
+                }
 				var jsonString = JsonConvert.SerializeObject(action.ContentHolders);
-				var Sha = action.ShaDictionary[filename];
+				var Sha = _contentState.Value.ShaDictionary[filename];
 
 				var body = new
 				{
@@ -130,12 +136,12 @@ namespace PersonalWebsite.Store.Effects
 				{
 					throw new Exception("Error updating content: " + response.ReasonPhrase);
 				}
-			//}
-			//catch (Exception ex)
-			//{
-			//	Console.WriteLine("Error: " + ex.Message);
-			//}
-		}
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine("Error: " + ex.Message);
+            //}
+        }
 		[EffectMethod]
 		public async Task HandleDeleteFileOnGithubAction(DeleteFileOnGithubAction action, IDispatcher dispatcher)
 		{
