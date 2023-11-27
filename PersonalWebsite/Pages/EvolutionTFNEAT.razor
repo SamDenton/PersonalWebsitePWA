@@ -1017,7 +1017,7 @@
             Genome genome = new Genome();
             genome.Metadata.AgentIndex = i;
 
-            int numLimbs = random.Next(2, 5);
+            int numLimbs = 2; // random.Next(2, 5);
 
             // Initialize genes, examples used for now, will be randomized once the constructor is complete
             genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 2));
@@ -1191,7 +1191,7 @@
                     NumberInChain = 1,
                     Type = "Arm",
                     Shape = "Rectangle",
-                    Length = 10 + random.NextDouble() * 50.0,
+                    Length = 50, // 10 + random.NextDouble() * 50.0,
                     Width = 2 + random.NextDouble() * 20.0,
                     StartingAngle = angle,
                     Attachment = new AttachmentPoint
@@ -1227,8 +1227,8 @@
                 };
 
             // Assuming the sub arm attaches to the end of the main arm
-            double subArmAttachmentX = arm.Attachment.X.Value + arm.Length * Math.Cos(arm.StartingAngle);
-            double subArmAttachmentY = arm.Attachment.Y.Value + arm.Length * Math.Sin(arm.StartingAngle);
+            double subArmAttachmentX = arm.Attachment.X.Value + arm.Length * Math.Cos(arm.StartingAngle + Math.PI / 2);
+            double subArmAttachmentY = arm.Attachment.Y.Value + arm.Length * Math.Sin(arm.StartingAngle + Math.PI / 2);
 
             subArm.Attachment = new AttachmentPoint
                 {

@@ -66,18 +66,12 @@ namespace PersonalWebsite.Store.Reducers
         [ReducerMethod]
         public static ContentState ReduceUpdateShaDictionaryAction(ContentState state, UpdateShaDictionaryAction action)
         {
-			// console log the current ShaDictionary before updating
-			foreach (var entry in state.ShaDictionary)
-			{
-				Console.WriteLine("key: " + entry.Key + " value: " + entry.Value);
-			}
-
             var updatedShaDictionary = state.ShaDictionary is null
                 ? new Dictionary<string, string>()
                 : new Dictionary<string, string>(state.ShaDictionary);
 
             // Log only the entry being added or updated
-            Console.WriteLine($"Adding/updating ShaDictionary entry: Key='{action.Section}', Value='{action.Sha}'");
+            // Console.WriteLine($"Adding/updating ShaDictionary entry: Key='{action.Section}', Value='{action.Sha}'");
 
             updatedShaDictionary[action.Section] = action.Sha;
 

@@ -101,10 +101,6 @@ namespace PersonalWebsite.Store.Effects
             //{
                 var filename = action.Page + action.Section;
 				Console.WriteLine("PUT'ing: " + filename);
-                foreach (var entry in _contentState.Value.ShaDictionary)
-                {
-                    Console.WriteLine("key: " + entry.Key + " value: " + entry.Value);
-                }
 				var jsonString = JsonConvert.SerializeObject(action.ContentHolders);
 				var Sha = _contentState.Value.ShaDictionary[filename];
 
