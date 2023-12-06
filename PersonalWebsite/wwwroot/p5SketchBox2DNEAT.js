@@ -1105,10 +1105,12 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     for (let i = 0; i < this.genome.layerGenes.length; i++) {
         this.brainSize += this.genome.layerGenes[i].numberOfNeurons;
     }
+
     console.log(this.bodyParts);
     for (let part of this.bodyParts) {
         let parentLimb;
         let parentLimbLength = 0;
+
         if (part.numberInChain === 1) {
             parentLimb = this.mainBody;
             parentLimbLength = mainBodyRadius;
@@ -1127,51 +1129,33 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             const angle = part.startingAngle;
             // Calculate the position of the limb's center
             let offsetFromMainLimb;
-
             if (part.numberInChain === 1) {
+                // Parent limb is main body
+                parentLimb = this.mainBody;
                 offsetFromMainLimb = mainBodyRadius + part.length / 2;
+                part.attachment = { x: mainBodyRadius * Math.cos(angle), y: -mainBodyRadius * Math.sin(angle) };
                 part.limbX = this.startingX + offsetFromMainLimb * Math.cos(angle);
-                part.limbY = this.startingY + offsetFromMainLimb * Math.sin(angle);
-                // console.log("First in Chain - X: ", part.limbX, "Y: ", part.limbY);
-            } else {
+                part.limbY = this.startingY - offsetFromMainLimb * Math.sin(angle);
+            } else if (part.numberInChain > 1) {
+                // Parent limb is another limb
                 offsetFromMainLimb = parentLimbLength / 2 + part.length / 2;
-                part.limbX = parentLimbGenome.limbX + offsetFromMainLimb * Math.cos(angle);
-                part.limbY = parentLimbGenome.limbY + offsetFromMainLimb * Math.sin(angle);
-                // console.log("Sub Limb - X: ", part.limbX, "Y: ", part.limbY, "Parent X: ", parentLimbGenome.limbX);
+                parentLimbGenome = this.bodyParts.find(limb => limb.partID === part.parentPartID);
+                parentLimb = this.limbs.find(limb => limb.getUserData() === part.parentPartID);
+                part.attachment = { x: 0, y: -parentLimbLength / 2 };
+                part.limbX = parentLimbGenome.limbX + offsetFromMainLimb * Math.cos(part.startingAngle);
+                part.limbY = parentLimbGenome.limbY - offsetFromMainLimb * Math.sin(part.startingAngle);
             }
 
             let arm = createLimbNEAT(world, part.limbX, part.limbY, part.length, part.width, angle, part.partID);
+
             let localAnchorA;
-            if (part.numberInChain > 1) {
-                let parentLimbAngle = parentLimb.getAngle();
-                let parentLimbPos = parentLimb.getPosition();
-
-                // Calculate localAnchorA based on the parent limb's end
-                localAnchorA = planck.Vec2(
-                    (parentLimbLength / 2) * Math.cos(parentLimbAngle),
-                    (parentLimbLength / 2) * Math.sin(parentLimbAngle)
-                );
-
-                // Now transform this point based on the parent limb's position and angle
-                let worldAnchorA = planck.Vec2(
-                    parentLimbPos.x + localAnchorA.x,
-                    parentLimbPos.y + localAnchorA.y
-                );
-
-                // Transform worldAnchorA back to the local coordinates of the main body
-                localAnchorA = planck.Vec2(
-                    worldAnchorA.x - this.mainBody.getPosition().x,
-                    worldAnchorA.y - this.mainBody.getPosition().y
-                );
-            } else {
-                localAnchorA = planck.Vec2(
-                    part.attachment.x,
-                    part.attachment.y
-                );
-            }
-
+            localAnchorA = planck.Vec2(
+                part.attachment.x,
+                part.attachment.y
+            );
+            
             // Calculate the point after rotation
-            let localAnchorB = planck.Vec2(0, -part.length / 2);
+            let localAnchorB = planck.Vec2(0, part.length / 2);
 
             let joint = createRevoluteJointNEAT(world, parentLimb, arm, localAnchorA, localAnchorB, part.constraints.minAngle, part.constraints.maxAngle, part.constraints.maxTorque);
             this.joints.push(joint);
@@ -1486,6 +1470,11 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
                 p.pop();
             }
         }
+        // Draw a small circle at the center of the agent (200, 600)
+        //p.push();
+        //p.fill(0);
+        //p.ellipse(this.startingX + offsetX, this.startingY + offsetY, 10, 10);
+        //p.pop();
     };
 
     this.renderRayCasts = function (p, offsetX, offsetY) {
@@ -1527,9 +1516,9 @@ function createMainBodyNEAT(world, x, y, radius, mainBodyDensity) {
 
 function createLimbNEAT(world, x, y, length, width, angle, limbNo) {
     // Check if length is greater than width and adjust angle accordingly
-    if (length > width) {
-        angle -= Math.PI / 2;
-    }
+    //if (length > width) {
+    //    angle -= Math.PI / 2;
+    //}
 
     let bodyDef = {
         type: 'dynamic',
