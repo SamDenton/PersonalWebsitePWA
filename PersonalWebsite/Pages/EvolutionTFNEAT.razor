@@ -708,7 +708,7 @@
         public double yScoreMultiplier { get; set; } = 3;
         public double movementScoreMultiplier { get; set; } = 3;
         public double explorationScoreMultiplier { get; set; } = 5;
-        public double sizeScoreMultiplier { get; set; } = 0.25;
+        public double sizeScoreMultiplier { get; set; } = 0.2;
         public int startingEnergyBase { get; set; } = 100;
         public int startingEnergyMassPower { get; set; } = 3;
         public double startingEnergyBodyMassMult { get; set; } = 1;
@@ -833,7 +833,7 @@
         agentProperties.yScoreMultiplier = 3;
         agentProperties.movementScoreMultiplier = 3;
         agentProperties.explorationScoreMultiplier = 5;
-        agentProperties.sizeScoreMultiplier = 0.25;
+        agentProperties.sizeScoreMultiplier = 0.2;
         agentProperties.startingEnergyBase = 100;
         agentProperties.startingEnergyMassPower = 3;
         agentProperties.startingEnergyBodyMassMult = 1;
@@ -1017,10 +1017,10 @@
             Genome genome = new Genome();
             genome.Metadata.AgentIndex = i;
 
-            int numLimbs = 1; // random.Next(2, 5);
+            int numLimbs = random.Next(2, 5);
 
             // Initialize genes, examples used for now, will be randomized once the constructor is complete
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 2));
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 1));
 
             int numLayers = random.Next(1, 5);
 
@@ -1031,7 +1031,7 @@
                 genome.LayerGenes.Add(InitializeLayer(j, randomSize));
             }
 
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 2));
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 1));
             genome.MainBody = InitializeBodyPlan(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
             var randomName = new Random();
@@ -1083,14 +1083,14 @@
 
             int numLimbs = 3;
 
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 2));
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 1));
 
             int numLayers = 3;
 
             genome.LayerGenes.Add(InitializeLayer(0, 18));
             genome.LayerGenes.Add(InitializeLayer(1, 10));
 
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 2));
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 1));
             genome.MainBody = InitializeBodyPlanSimple(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
             var randomName = new Random();
@@ -1181,8 +1181,7 @@
         {
             double angle = random.NextDouble() * 2 * Math.PI; // Random angle in radians
 
-            // reserve ids 0 to 10 for body segments
-            int id = i + 10;
+            int id = i;
 
             Arm arm = new Arm
                 {
@@ -1191,7 +1190,7 @@
                     NumberInChain = 1,
                     Type = "Arm",
                     Shape = "Rectangle",
-                    Length = 50, // 10 + random.NextDouble() * 50.0,
+                    Length = 10 + random.NextDouble() * 50.0,
                     Width = 2 + random.NextDouble() * 20.0,
                     StartingAngle = angle,
                     Attachment = new AttachmentPoint
@@ -1215,29 +1214,48 @@
                     NumberInChain = 2,
                     Type = "Arm",
                     Shape = "Rectangle",
-                    Length = 30,
-                    Width = 10,
-                    StartingAngle = angle,
+                    Length = 10 + random.NextDouble() * 50.0,
+                    Width = 2 + random.NextDouble() * 20.0,
+                    StartingAngle = random.NextDouble() * 2 * Math.PI,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
                     Constraints = new JointConstraints
                     {
-                        MaxTorque = 80000,
-                        MinAngle = -(Math.PI / 3),
-                        MaxAngle = (Math.PI / 3)
+                        MaxTorque = random.NextDouble() * 100000,
+                        MinAngle = -(Math.PI / random.Next(2, 5)),
+                        MaxAngle = (Math.PI / random.Next(2, 5))
                     }
                 };
 
-            // Assuming the sub arm attaches to the end of the main arm
-            // double subArmAttachmentX = arm.Attachment.X.Value + arm.Length * Math.Cos(arm.StartingAngle);
-            // double subArmAttachmentY = arm.Attachment.Y.Value - arm.Length * Math.Sin(arm.StartingAngle);
-
-            subArm.Attachment = new AttachmentPoint
+            Arm subArm2 = new Arm
                 {
-                    X = 0,
-                    Y = 0
+                    PartID = id + numLimbs * 2,
+                    ParentPartID = subArm.PartID,
+                    NumberInChain = 3,
+                    Type = "Arm",
+                    Shape = "Rectangle",
+                    Length = 10 + random.NextDouble() * 50.0,
+                    Width = 2 + random.NextDouble() * 20.0,
+                    StartingAngle = random.NextDouble() * 2 * Math.PI,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = random.NextDouble() * 100000,
+                        MinAngle = -(Math.PI / random.Next(2, 5)),
+                        MaxAngle = (Math.PI / random.Next(2, 5))
+                    }
                 };
 
-            arm.SubArms.Add(subArm); // Attach the sub arm to the main arm
 
+            //arm.SubArms.Add(subArm); // testing manually adding more limbs
+            //subArm.SubArms.Add(subArm2);
             mainBody.Arms.Add(arm);
         }
 
@@ -1276,8 +1294,8 @@
                     StartingAngle = angle,
                     Attachment = new AttachmentPoint
                     {
-                        X = mainBody.Size * Math.Cos(angle),
-                        Y = mainBody.Size * Math.Sin(angle)
+                        X = 0,
+                        Y = 0
                     },
                     Constraints = new JointConstraints
                     {
@@ -1305,17 +1323,13 @@
                     }
                 };
 
-            // Assuming the sub arm attaches to the end of the main arm
-            double subArmAttachmentX = arm.Attachment.X.Value + arm.Length * Math.Cos(arm.StartingAngle);
-            double subArmAttachmentY = arm.Attachment.Y.Value + arm.Length * Math.Sin(arm.StartingAngle);
-
             subArm.Attachment = new AttachmentPoint
                 {
-                    X = subArmAttachmentX,
-                    Y = subArmAttachmentY
+                    X = 0,
+                    Y = 0
                 };
 
-            arm.SubArms.Add(subArm); // Attach the sub arm to the main arm
+            // arm.SubArms.Add(subArm); // Attach the sub arm to the main arm
 
             mainBody.Arms.Add(arm);
         }
@@ -1361,6 +1375,7 @@
         public List<Wing> Wings { get; set; } = new List<Wing>();
         public List<Thruster> Thrusters { get; set; } = new List<Thruster>();
         public List<BodySegment> BodySegments { get; set; } = new List<BodySegment>();
+        public List<int> UsedLimbIDs { get; set; } = new List<int>();
     }
 
     public class BodySegment
@@ -1467,7 +1482,7 @@
 
     public class ScoreHistory
     {
-        public double Score { get; set; }
+        public float Score { get; set; }
         public int Map { get; set; }
         public int Generation { get; set; }
     }
