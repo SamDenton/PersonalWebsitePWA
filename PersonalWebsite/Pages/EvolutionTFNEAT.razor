@@ -1020,7 +1020,7 @@
             int numLimbs = random.Next(2, 5);
 
             // Initialize genes, examples used for now, will be randomized once the constructor is complete
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 1));
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 3));
 
             int numLayers = random.Next(1, 5);
 
@@ -1031,7 +1031,7 @@
                 genome.LayerGenes.Add(InitializeLayer(j, randomSize));
             }
 
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 1));
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 3));
             genome.MainBody = InitializeBodyPlan(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
             var randomName = new Random();
@@ -1254,8 +1254,8 @@
                 };
 
 
-            //arm.SubArms.Add(subArm); // testing manually adding more limbs
-            //subArm.SubArms.Add(subArm2);
+            arm.SubArms.Add(subArm); // testing manually adding more limbs
+            subArm.SubArms.Add(subArm2);
             mainBody.Arms.Add(arm);
         }
 

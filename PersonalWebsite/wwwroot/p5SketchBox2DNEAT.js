@@ -1051,6 +1051,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
     this.numSubArms = 0;
     this.subArmGenes = [];
+
     processArms(this.genome.mainBody.arms, this.numSubArms, this.subArmGenes);
 
     this.numSegments = this.genome.mainBody.bodySegments.length;
@@ -1060,7 +1061,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
     this.numBodyParts = this.numLimbs + this.numSegments + 1; // inc 1 for the main body
 
-    this.bodyParts = this.armGenes.concat(this.subArmGenes)//[this.genome.mainBody].concat(this.armGenes, this.subArmGenes);
+    this.bodyParts = this.armGenes.concat(this.subArmGenes);
 
 
     this.index = this.genome.metadata.agentIndex;
@@ -3127,6 +3128,7 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
     // Limb Properties Mutation
     // Will need to alter this to account for different limb types
+    // This is currently randomly deciding if it should mutate, then mutates every single value.  Should be changed to mutate each value independently
     childGenome.mainBody.arms.forEach(limb => {
         if (Math.random() < bodyMutationRate) {
             limb.constraints.maxTorque = mutateWithinBounds(limb.constraints.maxTorque, 1000, 100000);
@@ -3158,87 +3160,116 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
     // Limb Number Mutation, half as often as other body mutations
 
     // My current setup just randomly decides to add or remove a limb, and randomly decides where.  Closer to evolution would be if I gave each limb a chance to have a number of actions occur, such as growing a new limb, altering its own properties, or removing itself.
-    if (Math.random() < bodyMutationRate / 2) { // normally divided by 2 but increase chance for testing
+    if (Math.random() < bodyMutationRate / 0.002) { // normally divided by 2 but increase chance for testing
         if (Math.random() < 0.5) {
 
-            // Pick a random angle for the new limb
-            let angle = Math.random() * 2 * Math.PI;
 
-            // Find the limb with the closest starting angle to the new limb.  Currently, this just looks at parent limbs, not sub limbs
-            let closestLimb = childGenome.mainBody.arms.reduce((closest, currentLimb) => {
-                let currentAngleDiff = Math.abs(currentLimb.startingAngle - angle);
-                let closestAngleDiff = closest ? Math.abs(closest.startingAngle - angle) : Infinity;
+            //// Pick a random angle for the new limb
+            //let angle = Math.random() * 2 * Math.PI;
 
-                return currentAngleDiff < closestAngleDiff ? currentLimb : closest;
-            }, null);
+            //// Find the limb with the closest starting angle to the new limb.  Currently, this just looks at parent limbs, not sub limbs
+            //// I think it should actually looks for limbs with the same parent.  If adding a parent limb, then it should look for the closest parent limb, if adding a sub limb, it should look for the closest sub limb within the same parent.
+            //let closestLimb = childGenome.mainBody.arms.reduce((closest, currentLimb) => {
+            //    let currentAngleDiff = Math.abs(currentLimb.startingAngle - angle);
+            //    let closestAngleDiff = closest ? Math.abs(closest.startingAngle - angle) : Infinity;
 
-
-            let inputNodeIndex;  // Index of the node for new limb
-            let newLimbID;
-            let noInChain = 1;
-            let parentLimbID = 0;
-            let parentLimbIndex;
-
-            // Need to update this to a recursive function to account for sub limbs having sub limbs          
-            let totalLimbs = 0;
-            for (let i = 0; i < childGenome.mainBody.arms.length; i++) {
-                totalLimbs++;
-                totalLimbs += childGenome.mainBody.arms[i].subArms.length;
-            }
-
-            // Decide if we're adding a parent limb or a sub limb randomly
-            if (Math.random() < 0.5) {
-                // New code to add a sub limb
-                // Pick which parent to attach to randomly
-                // To allow limbs of sub limbs, need to include sub limbs in the count.  Can use totalLimbs to get the total number of limbs
-                parentLimbIndex = Math.floor(Math.random() * childGenome.mainBody.arms.length);
-
-                // Need to update this to a recursive function to account for sub limbs having sub limbs
-                let limbsBeforeCount = 0;
-                for (let i = 0; i < parentLimbIndex; i++) {
-                    limbsBeforeCount++;
-                    limbsBeforeCount += childGenome.mainBody.arms[i].subArms.length;
-                }
-
-                // Need to update these to find any limb including sub limbs
-                inputNodeIndex = limbsBeforeCount + childGenome.mainBody.arms[parentLimbIndex].subArms.length;
-                noInChain = childGenome.mainBody.arms[parentLimbIndex].numberInChain + 1;
-                parentLimbID = childGenome.mainBody.arms[parentLimbIndex].partID;
-
-            } else {
-
-                inputNodeIndex = childGenome.mainBody.arms.length;
-
-            }
+            //    return currentAngleDiff < closestAngleDiff ? currentLimb : closest;
+            //}, null);
 
 
-            newLimbID = totalLimbs + 1;
+            //let inputNodeIndex;  // Index of the node for new limb
+            //let newLimbID;
+            //let noInChain = 1;
+            //let parentLimbID = 0;
+            //let parentLimbIndex;
 
-            let newLimb = {
-                partID: newLimbID,
-                startingAngle: angle,
-                attachment: {
-                    x: childGenome.mainBody.size * Math.cos(angle),
-                    y: childGenome.mainBody.size * Math.sin(angle)
-                },
-                constraints: {
-                    maxTorque: Math.random() * 100000,
-                    maxAngle: Math.PI / (2 + Math.floor(Math.random(4))),
-                    minAngle: -Math.PI / (2 + Math.floor(Math.random(4)))
-                },
-                length: 10 + Math.floor(Math.random(50)),
-                width: 2 + Math.floor(Math.random(20)),
-                shape: "rectangle",
-                subArms: [],
-                numberInChain: noInChain,
-                parentPartID: parentLimbID,
-                type: "Arm",
-            };
+            //let armsToCount = childGenome.mainBody.arms;
+            //let totalLimbs = countArms(armsToCount);
+            //console.log("Number of Arms: " + totalLimbs);
+
+            //// Need to update this to a recursive function to account for sub limbs having sub limbs
+            ////for (let i = 0; i < childGenome.mainBody.arms.length; i++) {
+            ////    totalLimbs++;
+            ////    totalLimbs += childGenome.mainBody.arms[i].subArms.length;
+            ////}
+
+            //// Decide if we're adding a parent limb or a sub limb randomly
+            //if (Math.random() < 0.5) {
+            //    // New code to add a sub limb
+            //    // Pick which parent to attach to randomly
+            //    // To allow limbs of sub limbs, need to include sub limbs in the count.  Can use totalLimbs to get the total number of limbs
+            //    parentLimbIndex = Math.floor(Math.random() * childGenome.mainBody.arms.length);
+
+            //    // Need to update this to a recursive function to account for sub limbs having sub limbs
+            //    let limbsBeforeCount = 0;
+            //    // set limbsBeforeToCount to a list of limbs before the selected parent limb index
+            //    let limbsBeforeToCount = childGenome.mainBody.arms.slice(0, parentLimbIndex);
+            //    limbsBeforeCount = countArms(limbsBeforeToCount);
+
+            //    let templimbsBeforeCount = 0;
+            //    for (let i = 0; i < parentLimbIndex; i++) {
+            //        templimbsBeforeCount++;
+            //        templimbsBeforeCount += childGenome.mainBody.arms[i].subArms.length;
+            //    }
+
+            //    console.log("Limbs Before: " + limbsBeforeCount + " Should equal: " + templimbsBeforeCount);
+            //    // Need to update these to find any limb including sub limbs
+            //    inputNodeIndex = limbsBeforeCount + childGenome.mainBody.arms[parentLimbIndex].subArms.length;
+            //    noInChain = childGenome.mainBody.arms[parentLimbIndex].numberInChain + 1;
+            //    parentLimbID = childGenome.mainBody.arms[parentLimbIndex].partID;
+
+            //} else {
+
+            //    inputNodeIndex = childGenome.mainBody.arms.length;
+
+            //}
+
+
+            //newLimbID = totalLimbs + 1;
+
+            //let newLimb = {
+            //    partID: newLimbID,
+            //    startingAngle: angle,
+            //    attachment: {
+            //        x: childGenome.mainBody.size * Math.cos(angle),
+            //        y: childGenome.mainBody.size * Math.sin(angle)
+            //    },
+            //    constraints: {
+            //        maxTorque: Math.random() * 100000,
+            //        maxAngle: Math.PI / (2 + Math.floor(Math.random(4))),
+            //        minAngle: -Math.PI / (2 + Math.floor(Math.random(4)))
+            //    },
+            //    length: 10 + Math.floor(Math.random(50)),
+            //    width: 2 + Math.floor(Math.random(20)),
+            //    shape: "rectangle",
+            //    subArms: [],
+            //    numberInChain: noInChain,
+            //    parentPartID: parentLimbID,
+            //    type: "Arm",
+            //};
+            //if (newLimb.numberInChain == 1) {
+            //    childGenome.mainBody.arms.push(newLimb);
+            //} else {
+            //    // Need to update this to find the correct parent, even if thats a sub limb
+            //    childGenome.mainBody.arms[parentLimbIndex].subArms.push(newLimb);
+            //}
+
+            let totalLimbs = countArms(childGenome.mainBody.arms);
+            let newLimbID = totalLimbs + 1;
+
+            let selectedPart = selectRandomBodyPart(childGenome.mainBody);
+            let closestLimb = findClosestLimbForWeights(selectedPart, childGenome.mainBody.arms);
+
+            let angle = Math.random() * 2 * Math.PI; // Random angle for the new limb
+            let newLimb = createNewLimb(angle, childGenome.mainBody.size, selectedPart, newLimbID);
+
+            addChildLimbToPart(selectedPart, newLimb);
+
             if (newLimb.numberInChain == 1) {
-                childGenome.mainBody.arms.push(newLimb);
+                inputNodeIndex = newLimbID;
             } else {
-                // Need to update this to find the correct parent, even if thats a sub limb
-                childGenome.mainBody.arms[parentLimbIndex].subArms.push(newLimb);
+                let limbsBeforeCount = countArms(childGenome.mainBody.arms.slice(0, selectedPart.partID));
+                inputNodeIndex = limbsBeforeCount + selectedPart.subArms.length;
             }
 
             // Add a new node to the input layer for the limb
@@ -3373,6 +3404,91 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
 
     return childGenome;
+}
+
+function countArms(armsToCount) {
+    let totalArmNo = 0;
+
+    if (!armsToCount) return 0;
+
+    for (let arm of armsToCount) {
+        totalArmNo++; // Count the current arm
+        totalArmNo += countArms(arm.subArms); // Count sub-arms recursively
+    }
+
+    return totalArmNo;
+}
+
+function selectRandomBodyPart(mainBody) {
+    // Flatten the structure of limbs into a single array
+    let allParts = flattenLimbStructure(mainBody.arms, mainBody);
+    let randomIndex = Math.floor(Math.random() * allParts.length);
+    return allParts[randomIndex];
+}
+
+function flattenLimbStructure(limbs, parent) {
+    let parts = [parent];
+    for (let limb of limbs) {
+        parts.push(limb);
+        if (limb.subArms) {
+            parts = parts.concat(flattenLimbStructure(limb.subArms, limb));
+        }
+    }
+    return parts;
+}
+
+function findClosestLimbForWeights(selectedPart, allLimbs) {
+    if (selectedPart.subArms && selectedPart.subArms.length > 0) {
+        return findClosestLimb(selectedPart.subArms, selectedPart.startingAngle, null);
+    }
+    return findClosestLimb(allLimbs, selectedPart.startingAngle, null);
+}
+
+function findClosestLimb(arms, targetAngle, closestLimb) {
+    for (let arm of arms) {
+        let currentAngleDiff = Math.abs(arm.startingAngle - targetAngle);
+        let closestAngleDiff = closestLimb ? Math.abs(closestLimb.startingAngle - targetAngle) : Infinity;
+
+        if (currentAngleDiff < closestAngleDiff) {
+            closestLimb = arm;
+        }
+
+        if (arm.subArms && arm.subArms.length > 0) {
+            closestLimb = findClosestLimb(arm.subArms, targetAngle, closestLimb);
+        }
+    }
+    return closestLimb;
+}
+
+function createNewLimb(angle, mainBodySize, selectedPart, newLimbID) {
+    return {
+        partID: newLimbID,
+        startingAngle: angle,
+        attachment: {
+            x: selectedPart.size * Math.cos(angle),
+            y: selectedPart.size * Math.sin(angle)
+        },
+        constraints: {
+            maxTorque: Math.random() * 100000,
+            maxAngle: Math.PI / (2 + Math.floor(Math.random(4))),
+            minAngle: -Math.PI / (2 + Math.floor(Math.random(4)))
+        },
+        length: 10 + Math.floor(Math.random(50)),
+        width: 2 + Math.floor(Math.random(20)),
+        shape: "rectangle",
+        subArms: [],
+        numberInChain: selectedPart.numberInChain + 1,
+        parentPartID: selectedPart.partID,
+        type: "Arm",
+    };
+}
+
+function addChildLimbToPart(selectedPart, newLimb) {
+    if (selectedPart.type === 'MainBody' || !selectedPart.subArms) {
+        selectedPart.arms.push(newLimb);
+    } else {
+        selectedPart.subArms.push(newLimb);
+    }
 }
 
 function mutateWithinBounds(original, min, max) {
