@@ -462,7 +462,7 @@
 
         <!-- Randomize Map -->
         <div class="setting">
-            <label for="randomMap" title="Decay all weights in agents brain by a small amount each round">Brain Decay Over Time</label>
+            <label for="randomMap" title="Select a random map each generation">Randomize Map</label>
             <input type="checkbox" id="randomMap" @bind="stageProperties.randomMap" />
         </div>
 
@@ -574,7 +574,7 @@
         <p>The GPU is also utilized for any Neural Network functions, the most intense of which happen between rounds, so it doesn't really matter how long they take, but during the simulation, the actual decision making also utilities the GPU using WebGL.  I have not found a configuration where this is the bottleneck, but its possible</p>
         <p>Each round, the agents have 2000 ticks, about 34 seconds at 60 fps with default physics speed of 60, to move as far North East as possible.</p>
         <p>The agents are all given a randomly initialized neural network, with a random shape for a brain, the leaders brain is rendered.  They are given a random body plan.  Both the brain and the body plan will evolve over time based on a number of crossover and mutation functions</p>
-        <p>Between rounds, the agents are sorted by score, where the top 10% from each species are selected to remain unchanged, and the other 90% of the population is built using crossover and mutation.</p>
+        <p>Between rounds, the agents are sorted by score, where the top x% from each species are selected to remain unchanged, and the other 90% of the population is built using crossover and mutation.</p>
         <p>This is performed between generations, on the whole population</p>
         <p>Crossover is the function of picking 2 parent agents and combining the weights and biases in their brains, keeping some features from one, and some from the other.  There are a range of methods for this, I am currently using biased Arithmetic Crossover, where there is a weighted bias given by the relative scores of the parents.</p>
         <p>Mutation adds a small chance that each weight, bias, limb or body will be altered by a small, random amount.  Again, there are many methods, currently i am using the Box-Muller transform to get a Gaussian random number for my mutation amount.  I have a function that changes the mutation rate if agents brains get too close to the average</p>
@@ -599,6 +599,7 @@
             <li>Agents limb movement speed is based on their remaining energy %, with no energy, they cant move at all</li>
         </ol>
         <h4>Future Plans</h4>
+        <p>There is a lot of clean up work to do on the code, the genome and the agent objects.  I have lots of duplicated values and old structures.  I am not making use of 'const' enough, and I am duplicating functions in places</p>
         <p>I need to work on the maps.  They are too simple and not varied enough.  I want to implement some goals, like food, tied to the energy system.  A puzzle to open a door or similar could also be interesting</p>
         <p>I want to make all variables customizable, which is a huge number.  I need to find a nice way to arrange them</p>
         <p>I plan on adding further ways the agents can evolve. I want to allow more complex body plans with different types of limb and body segments, such as wings, thrusters, suckers, energy storage limbs etc</p>
@@ -611,6 +612,7 @@
         <p>Could look at creating 4 routs for re-populating instead of 2; some top performers unchanged, some top performers mutated, some offspring, and some offspring mutated</p>
         <p>Could look at implementing another idea from NEAT, where agents are given a metric based on their properties, and have a higher chance to reproduce with similar agents.  This can create species groups even within my island populations, leading to a greater variety of solutions.  This may require larger populations to work well, 100-200 agents per group, where I currently have 25 per group.</p>
         <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge</p>
+        <p>I want to be able to pan the screen around with arrows, not just locked to the agent.  I can also position the agent better on the screen by default</p>
     </div>
 
 </div>
@@ -624,7 +626,8 @@
     <button class="floating-button toggleLeader-button leftColumn" title="Toggle between following the leading vs trailing agents.  Switches rendered Neural Network as well" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
     <button class="floating-button toggleRays-button rightColumn" title="Toggle rendering for agents vision lines" @onclick="toggleRayCasts">Toggle Ray-casts</button>
     <button class="floating-button logGenomes-button leftColumn" title="Post all agent genomes to console" @onclick="LogGenomes">Log Genomes</button>
-    <button class="floating-button retrieveGenomes-button rightColumn" title="Send current list of agent genomes back to C# for saving (in progress)" @onclick="RetrieveGenomes">Retrieve Genomes</button>
+    <button class="floating-button retrieveGenomes-button rightColumn" title="Save current agent genome pool to continue training later" @onclick="RetrieveGenomes">Save Genomes</button>
+    <button class="floating-button uploadGenomes-button leftColumn" title="Upload agent genome pool to continue training later" @onclick="UploadGenomes">Upload Genomes / Start</button>
     <button class="floating-button skip10Gen-button rightColumn" title="Skips 10 generations by disabling rendering and increasing physics speed.  This will still take a few minutes" @onclick="Skip10Gen">Skip 10 Generations</button>
     <button class="floating-button skip100Gen-button leftColumn" title="Skips 1 generation by disabling rendering and increasing physics speed. This will still take a few minutes" @onclick="Skip100Gen">Skip 1 Generations</button>
     <!--add a reset settings button-->
@@ -646,12 +649,13 @@
         public float Width { get; set; } = 1600;  // Canvas width
         public float Height { get; set; } = 800;  // Canvas height
         public float GroundY { get; set; } = 700;  // Y position of the ground in the canvas
+        // Should add agent position as a variable
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
         public int SimulationLength { get; set; } = 2000;
         public int renderedAgents { get; set; } = 1;
         public int simSpeed { get; set; } = 60;
-        public double topPerformerNumber { get; set; } = 5;
+        public double topPerformerNumber { get; set; } = 25;
         public int delay { get; set; } = 20;
         public int BatchSize { get; set; } = 10;
         public bool showNN { get; set; } = false;
@@ -684,11 +688,11 @@
     {
         // public int numLimbs { get; set; } = 3;
         // public double musculeTorque { get; set; } = 1000000.0;
-        public double maxJointSpeed { get; set; } = 1.5;
+        public double maxJointSpeed { get; set; } = 1;
         public double offspringMutationRate { get; set; } = 0.02;
         public double offspringNodeMutationRate { get; set; } = 0.001;
         public double offspringLayerMutationRate { get; set; } = 0.0005;
-        public double offspringLimbMutationRate { get; set; } = 0.001;
+        public double offspringLimbMutationRate { get; set; } = 0.005;
         // public double maxJointMoveDivider { get; set; } = 3;
         public bool brainDecayOverTime { get; set; } = false;
         public bool inputJointAngle { get; set; } = true;
@@ -702,14 +706,14 @@
         public bool outputsJointSpeed { get; set; } = true;
         public bool outputsJointTorque { get; set; } = false;
         public bool outputsBias { get; set; } = false;
-        public int swimStrength { get; set; } = 600000;
+        public int swimStrength { get; set; } = 500000;
         public double swimBias { get; set; } = 1.5; 
         public double xScoreMultiplier { get; set; } = 3;
         public double yScoreMultiplier { get; set; } = 3;
         public double movementScoreMultiplier { get; set; } = 3;
         public double explorationScoreMultiplier { get; set; } = 5;
         public double sizeScoreMultiplier { get; set; } = 0.2;
-        public int startingEnergyBase { get; set; } = 100;
+        public int startingEnergyBase { get; set; } = 10;
         public int startingEnergyMassPower { get; set; } = 3;
         public double startingEnergyBodyMassMult { get; set; } = 1;
         public double startingEnergyLimbMassMult { get; set; } = 1;
@@ -814,7 +818,7 @@
         agentProperties.offspringMutationRate = 0.02;
         agentProperties.offspringNodeMutationRate = 0.001;
         agentProperties.offspringLayerMutationRate = 0.0005;
-        agentProperties.offspringLimbMutationRate = 0.001;
+        agentProperties.offspringLimbMutationRate = 0.005;
         agentProperties.brainDecayOverTime = false;
         agentProperties.inputJointAngle = true;
         agentProperties.inputJointSpeed = false;
@@ -941,29 +945,37 @@
         return JsonSerializer.Serialize(this);
     }
 
+    // private async Task RetrieveGenomes()
+    // {
+    //     var genomeJson = await JSRuntime.InvokeAsync<string>("retrieveGenomes");
+    //     Console.WriteLine(genomeJson);
+    //     var jsonOptions = new JsonSerializerOptions
+    //     {
+    //         WriteIndented = true, // To make it pretty-printed and more readable
+    //         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    //         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    //     };
+
+    //     try
+    //     {
+    //         List<Genome> evolvedPopulation = JsonSerializer.Deserialize<List<Genome>>(genomeJson, jsonOptions);
+    //         Console.WriteLine(evolvedPopulation[0].Metadata.AgentName);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine($"Error serializing the genome: {ex.Message}");
+    //     }
+
+    // }
+
     private async Task RetrieveGenomes()
     {
-        var genomeJson = await JSRuntime.InvokeAsync<string>("retrieveGenomes");
-        Console.WriteLine(genomeJson);
-        var jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true, // To make it pretty-printed and more readable
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
+        await JSRuntime.InvokeAsync<string>("retrieveGenomes");
+    }
 
-        try
-        {
-            List<Genome> evolvedPopulation = JsonSerializer.Deserialize<List<Genome>>(genomeJson, jsonOptions);
-            Console.WriteLine(evolvedPopulation[0].Metadata.AgentName);
-            //var singleGenome = JsonSerializer.Deserialize<Genome>(genomeJson, jsonOptions);
-            //Console.WriteLine(singleGenome.Metadata.AgentName);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error serializing the genome: {ex.Message}");
-        }
-
+    private async Task UploadGenomes()
+    {
+        await JSRuntime.InvokeAsync<string>("uploadGenomes");
     }
 
     public async Task Skip10Gen()
@@ -1020,7 +1032,7 @@
             int numLimbs = random.Next(2, 5);
 
             // Initialize genes, examples used for now, will be randomized once the constructor is complete
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 3));
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 1));
 
             int numLayers = random.Next(1, 5);
 
@@ -1031,7 +1043,7 @@
                 genome.LayerGenes.Add(InitializeLayer(j, randomSize));
             }
 
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 3));
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 1));
             genome.MainBody = InitializeBodyPlan(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
             var randomName = new Random();
@@ -1200,7 +1212,7 @@
                     },
                     Constraints = new JointConstraints
                     {
-                        MaxTorque = random.NextDouble() * 100000,
+                        MaxTorque = 1000 + random.NextDouble() * 79000,
                         MinAngle = -(Math.PI / random.Next(2, 5)),
                         MaxAngle = (Math.PI / random.Next(2, 5))
                     }
@@ -1224,7 +1236,7 @@
                     },
                     Constraints = new JointConstraints
                     {
-                        MaxTorque = random.NextDouble() * 100000,
+                        MaxTorque = 1000 + random.NextDouble() * 79000,
                         MinAngle = -(Math.PI / random.Next(2, 5)),
                         MaxAngle = (Math.PI / random.Next(2, 5))
                     }
@@ -1247,15 +1259,15 @@
                     },
                     Constraints = new JointConstraints
                     {
-                        MaxTorque = random.NextDouble() * 100000,
+                        MaxTorque = 1000 + random.NextDouble() * 79000,
                         MinAngle = -(Math.PI / random.Next(2, 5)),
                         MaxAngle = (Math.PI / random.Next(2, 5))
                     }
                 };
 
 
-            arm.SubArms.Add(subArm); // testing manually adding more limbs
-            subArm.SubArms.Add(subArm2);
+            // arm.SubArms.Add(subArm); // testing manually adding more limbs
+            // subArm.SubArms.Add(subArm2);
             mainBody.Arms.Add(arm);
         }
 
