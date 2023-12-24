@@ -104,8 +104,8 @@
 @*        <div class="setting">
             <label for="numLimbs" title="Number of limbs per agent.">Number of Limbs per Agent</label>
             <div class="slider-container">
-                <input type="range" id="numLimbs" @bind="agentProperties.numLimbs" min="1" max="20" step="1">
-                <input type="number" @bind="agentProperties.numLimbs" min="1" max="20" step="1">
+                <input type="range" id="numLimbs" @bind="stageProperties.numLimbs" min="1" max="20" step="1">
+                <input type="number" @bind="stageProperties.numLimbs" min="1" max="20" step="1">
             </div>
         </div>*@
 
@@ -113,8 +113,8 @@
         <div class="setting">
             <label for="maxJointSpeed" title="Maximum joint speed.">Max Joint Speed</label>
             <div class="slider-container">
-                <input type="range" id="maxJointSpeed" @bind="agentProperties.maxJointSpeed" min="0.5" max="5" step="0.5">
-                <input type="number" @bind="agentProperties.maxJointSpeed" min="0.5" max="5" step="0.5">
+                <input type="range" id="maxJointSpeed" @bind="stageProperties.maxJointSpeed" min="0.5" max="5" step="0.5">
+                <input type="number" @bind="stageProperties.maxJointSpeed" min="0.5" max="5" step="0.5">
             </div>
         </div>
 
@@ -122,8 +122,8 @@
 @*        <div class="setting">
             <label for="musculeTorque" title="Number of limbs per agent.">Max Torque Per Joint</label>
             <div class="slider-container">
-                <input type="range" id="musculeTorque" @bind="agentProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
-                <input type="number" @bind="agentProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
+                <input type="range" id="musculeTorque" @bind="stageProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
+                <input type="number" @bind="stageProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
             </div>
         </div>*@
 
@@ -131,8 +131,8 @@
         <div class="setting">
             <label for="offspringMutationRate" title="The mutation rate for weights and biases within the network">Mutation rate for weights and biases</label>
             <div class="slider-container">
-                <input type="range" id="offspringMutationRate" @bind="agentProperties.offspringMutationRate" min="0" max="10" step="0.001">
-                <input type="number" @bind="agentProperties.offspringMutationRate" min="0" max="10" step="0.001">
+                <input type="range" id="offspringMutationRate" @bind="stageProperties.offspringMutationRate" min="0" max="10" step="0.001">
+                <input type="number" @bind="stageProperties.offspringMutationRate" min="0" max="10" step="0.001">
             </div>
         </div>
 
@@ -140,8 +140,8 @@
         <div class="setting">
             <label for="offspringNodeMutationRate" title="The Mutation rate for gaining or loosing a node in a random layer">Mutation rate for gaining or loosing a node</label>
             <div class="slider-container">
-                <input type="range" id="offspringNodeMutationRate" @bind="agentProperties.offspringNodeMutationRate" min="0" max="10" step="0.001">
-                <input type="number" @bind="agentProperties.offspringNodeMutationRate" min="0" max="10" step="0.001">
+                <input type="range" id="offspringNodeMutationRate" @bind="stageProperties.offspringNodeMutationRate" min="0" max="10" step="0.001">
+                <input type="number" @bind="stageProperties.offspringNodeMutationRate" min="0" max="10" step="0.001">
             </div>
         </div>
 
@@ -149,8 +149,8 @@
         <div class="setting">
             <label for="offspringLayerMutationRate" title="The Mutation rate for gaining or loosing a network layer at a random position">Mutation rate for gaining or loosing a network layer</label>
             <div class="slider-container">
-                <input type="range" id="offspringLayerMutationRate" @bind="agentProperties.offspringLayerMutationRate" min="0" max="10" step="0.001">
-                <input type="number" @bind="agentProperties.offspringLayerMutationRate" min="0" max="10" step="0.001">
+                <input type="range" id="offspringLayerMutationRate" @bind="stageProperties.offspringLayerMutationRate" min="0" max="10" step="0.001">
+                <input type="number" @bind="stageProperties.offspringLayerMutationRate" min="0" max="10" step="0.001">
             </div>
         </div>
 
@@ -158,8 +158,8 @@
         <div class="setting">
             <label for="offspringLimbMutationRate" title="The Mutation rate for the body plan, gaining or loosing limbs is half this amount">Mutation rate for the body plan, gaining or loosing limbs is half this amount</label>
             <div class="slider-container">
-                <input type="range" id="offspringLimbMutationRate" @bind="agentProperties.offspringLimbMutationRate" min="0" max="10" step="0.001">
-                <input type="number" @bind="agentProperties.offspringLimbMutationRate" min="0" max="10" step="0.001">
+                <input type="range" id="offspringLimbMutationRate" @bind="stageProperties.offspringLimbMutationRate" min="0" max="10" step="0.001">
+                <input type="number" @bind="stageProperties.offspringLimbMutationRate" min="0" max="10" step="0.001">
             </div>
         </div>
 
@@ -167,8 +167,8 @@
 @*        <div class="setting">
             <label for="maxJointMoveDivider" title="Number of limbs per agent.">Joint Movement Restriction (0 means no restriction, 2 means half their possible movement)</label>
             <div class="slider-container">
-                <input type="range" id="maxJointMoveDivider" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
-                <input type="number" @bind="agentProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
+                <input type="range" id="maxJointMoveDivider" @bind="stageProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
+                <input type="number" @bind="stageProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
             </div>
         </div>*@
 
@@ -185,8 +185,8 @@
         <div class="setting">
             <label for="swimStrength" title="Multiplier on the force applied to each limb for agent swimming">Swim Strength</label>
             <div class="slider-container">
-                <input type="range" id="swimStrength" @bind="agentProperties.swimStrength" min="100000" max="50000000" step="10000">
-                <input type="number" @bind="agentProperties.swimStrength" min="100000" max="50000000" step="10000">
+                <input type="range" id="swimStrength" @bind="stageProperties.swimStrength" min="100000" max="50000000" step="10000">
+                <input type="number" @bind="stageProperties.swimStrength" min="100000" max="50000000" step="10000">
             </div>
         </div>
 
@@ -194,8 +194,8 @@
         <div class="setting">
             <label for="swimBias" title="Adds a slight bias in the force applied, so 'limb strokes' apply more force than retuning to starting position, based on left right split of limbs on body">Swim Bias</label>
             <div class="slider-container">
-                <input type="range" id="swimBias" @bind="agentProperties.swimBias" min="1" max="2" step="0.01">
-                <input type="number" @bind="agentProperties.swimBias" min="1" max="2" step="0.01">
+                <input type="range" id="swimBias" @bind="stageProperties.swimBias" min="1" max="2" step="0.01">
+                <input type="number" @bind="stageProperties.swimBias" min="1" max="2" step="0.01">
             </div>
         </div>
 
@@ -205,28 +205,28 @@
             <p title="Select the inputs available to the agents">Agent Input Selection</p>
 
             <label for="inputJointAngle" title="The current angle of each joint relative to the main body">Joint Angle</label>
-            <input type="checkbox" id="inputJointAngle" @bind="agentProperties.inputJointAngle" />
+            <input type="checkbox" id="inputJointAngle" @bind="stageProperties.inputJointAngle" />
 
             <label for="inputJointSpeed" title="The current speed of the joint/limb">Joint/Limb Speed</label>
-            <input type="checkbox" id="inputJointSpeed" @bind="agentProperties.inputJointSpeed" />
+            <input type="checkbox" id="inputJointSpeed" @bind="stageProperties.inputJointSpeed" />
 
             <label for="inputAgentPos" title="The agents position in the world">Agents Position</label>
-            <input type="checkbox" id="inputAgentPos" @bind="agentProperties.inputAgentPos" />
+            <input type="checkbox" id="inputAgentPos" @bind="stageProperties.inputAgentPos" />
 
             <label for="inputAgentV" title="The current velocity of the agent">Agent Velocity</label>
-            <input type="checkbox" id="inputAgentV" @bind="agentProperties.inputAgentV" />
+            <input type="checkbox" id="inputAgentV" @bind="stageProperties.inputAgentV" />
 
             <label for="inputScore" title="The agents current score">Current score</label>
-            <input type="checkbox" id="inputScore" @bind="agentProperties.inputScore" />
+            <input type="checkbox" id="inputScore" @bind="stageProperties.inputScore" />
 
             <label for="inputOrientation" title="Agents current orientation in the world">Agents MainBody Orientation</label>
-            <input type="checkbox" id="inputOrientation" @bind="agentProperties.inputOrientation" />
+            <input type="checkbox" id="inputOrientation" @bind="stageProperties.inputOrientation" />
 
             <label for="inputTimeRemaining" title="The time left in this round">Time Remaining</label>
-            <input type="checkbox" id="inputTimeRemaining" @bind="agentProperties.inputTimeRemaining" />
+            <input type="checkbox" id="inputTimeRemaining" @bind="stageProperties.inputTimeRemaining" />
 
             <label for="inputDistanceSensors" title="Sensors for distance from agent to closest object in 8 directions">Distance to object Sensors</label>
-            <input type="checkbox" id="inputDistanceSensors" @bind="agentProperties.inputDistanceSensors" />
+            <input type="checkbox" id="inputDistanceSensors" @bind="stageProperties.inputDistanceSensors" />
 
         </div>
 
@@ -235,13 +235,13 @@
             <p title="Select the outputs available to the agents">Agent Output Selection</p>
 
             <label for="outputsJointSpeed" title="The speed the angle is moving at">Joint Speed</label>
-            <input type="checkbox" id="outputsJointSpeed" @bind="agentProperties.outputsJointSpeed" />
+            <input type="checkbox" id="outputsJointSpeed" @bind="stageProperties.outputsJointSpeed" />
 
             <label for="outputsJointTorque" title="Torque of the joint">Joint Torque</label>
-            <input type="checkbox" id="outputsJointTorque" @bind="agentProperties.outputsJointTorque" />
+            <input type="checkbox" id="outputsJointTorque" @bind="stageProperties.outputsJointTorque" />
 
             <label for="outputsBias" title="The amount of bias towards direction agent is facing">Limb Directional Bias</label>
-            <input type="checkbox" id="outputsBias" @bind="agentProperties.outputsBias" />
+            <input type="checkbox" id="outputsBias" @bind="stageProperties.outputsBias" />
         </div>
 
     </div>
@@ -252,8 +252,8 @@
         <div class="setting">
             <label for="xScoreMultiplier" title="Multiplier for score gained for moving in the x direction">X Score Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="xScoreMultiplier" @bind="agentProperties.xScoreMultiplier" min="0" max="10" step="0.5">
-                <input type="number" @bind="agentProperties.xScoreMultiplier" min="0" max="10" step="0.5">
+                <input type="range" id="xScoreMultiplier" @bind="stageProperties.xScoreMultiplier" min="0" max="10" step="0.5">
+                <input type="number" @bind="stageProperties.xScoreMultiplier" min="0" max="10" step="0.5">
             </div>
         </div>
 
@@ -261,8 +261,8 @@
         <div class="setting">
             <label for="yScoreMultiplier" title="Multiplier for score gained for moving in the y direction">Y Score Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="yScoreMultiplier" @bind="agentProperties.yScoreMultiplier" min="0" max="10" step="0.5">
-                <input type="number" @bind="agentProperties.yScoreMultiplier" min="0" max="10" step="0.5">
+                <input type="range" id="yScoreMultiplier" @bind="stageProperties.yScoreMultiplier" min="0" max="10" step="0.5">
+                <input type="number" @bind="stageProperties.yScoreMultiplier" min="0" max="10" step="0.5">
             </div>
         </div>
 
@@ -270,8 +270,8 @@
         <div class="setting">
             <label for="movementScoreMultiplier" title="Multiplier for score gained for moving limbs about.  This decays for progressive movement.  Designed to create active agents early on">Limb Movement Score Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="movementScoreMultiplier" @bind="agentProperties.movementScoreMultiplier" min="0" max="10" step="0.5">
-                <input type="number" @bind="agentProperties.movementScoreMultiplier" min="0" max="10" step="0.5">
+                <input type="range" id="movementScoreMultiplier" @bind="stageProperties.movementScoreMultiplier" min="0" max="10" step="0.5">
+                <input type="number" @bind="stageProperties.movementScoreMultiplier" min="0" max="10" step="0.5">
             </div>
         </div>
 
@@ -279,8 +279,8 @@
         <div class="setting">
             <label for="explorationScoreMultiplier" title="Multiplier for score gained for exploring more of the map.  Each 50x50 pixels explored is worth this much score. Max of 500x500 squares to explore.  No points are given for moving below or left of the starting position">Exploration Score Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="explorationScoreMultiplier" @bind="agentProperties.explorationScoreMultiplier" min="0" max="100" step="1">
-                <input type="number" @bind="agentProperties.explorationScoreMultiplier" min="0" max="100" step="1">
+                <input type="range" id="explorationScoreMultiplier" @bind="stageProperties.explorationScoreMultiplier" min="0" max="100" step="1">
+                <input type="number" @bind="stageProperties.explorationScoreMultiplier" min="0" max="100" step="1">
             </div>
         </div>
 
@@ -288,8 +288,8 @@
         <div class="setting">
             <label for="sizeScoreMultiplier" title="Small bonus given to score for being larger.  This is to combat agents all becoming tiny to move faster early in training, before the energy system has much effect">Size Score Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="sizeScoreMultiplier" @bind="agentProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
-                <input type="number" @bind="agentProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
+                <input type="range" id="sizeScoreMultiplier" @bind="stageProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
+                <input type="number" @bind="stageProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
             </div>
         </div>
 
@@ -297,8 +297,8 @@
         <div class="setting">
             <label for="startingEnergyBase" title="Base energy for agents">Base Starting Energy</label>
             <div class="slider-container">
-                <input type="range" id="startingEnergyBase" @bind="agentProperties.startingEnergyBase" min="0" max="1000" step="1">
-                <input type="number" @bind="agentProperties.startingEnergyBase" min="0" max="1000" step="1">
+                <input type="range" id="startingEnergyBase" @bind="stageProperties.startingEnergyBase" min="0" max="1000" step="1">
+                <input type="number" @bind="stageProperties.startingEnergyBase" min="0" max="1000" step="1">
             </div>
         </div>
 
@@ -306,8 +306,8 @@
         <div class="setting">
             <label for="startingEnergyMassPower" title="Power used for giving more energy based on mass">Starting Energy Mass Exponent</label>
             <div class="slider-container">
-                <input type="range" id="startingEnergyMassPower" @bind="agentProperties.startingEnergyMassPower" min="1" max="5" step="1">
-                <input type="number" @bind="agentProperties.startingEnergyMassPower" min="1" max="5" step="1">
+                <input type="range" id="startingEnergyMassPower" @bind="stageProperties.startingEnergyMassPower" min="1" max="5" step="1">
+                <input type="number" @bind="stageProperties.startingEnergyMassPower" min="1" max="5" step="1">
             </div>
         </div>
 
@@ -315,8 +315,8 @@
         <div class="setting">
             <label for="startingEnergyBodyMassMult" title="Flat multiplier giving energy for main body mass">Starting Energy Body Mass Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="startingEnergyBodyMassMult" @bind="agentProperties.startingEnergyBodyMassMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="agentProperties.startingEnergyBodyMassMult" min="0" max="5" step="0.1">
+                <input type="range" id="startingEnergyBodyMassMult" @bind="stageProperties.startingEnergyBodyMassMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="stageProperties.startingEnergyBodyMassMult" min="0" max="5" step="0.1">
             </div>
         </div>
 
@@ -324,8 +324,8 @@
         <div class="setting">
             <label for="startingEnergyLimbMassMult" title="Flat multiplier giving energy for limbs masses">Starting Energy Limb Mass Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="startingEnergyLimbMassMult" @bind="agentProperties.startingEnergyLimbMassMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="agentProperties.startingEnergyLimbMassMult" min="0" max="5" step="0.1">
+                <input type="range" id="startingEnergyLimbMassMult" @bind="stageProperties.startingEnergyLimbMassMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="stageProperties.startingEnergyLimbMassMult" min="0" max="5" step="0.1">
             </div>
         </div>
 
@@ -333,8 +333,8 @@
         <div class="setting">
             <label for="energyUseLimbSizeMult" title="Flat multiplier for how much energy is used based on limb mass">Energy Use From Limb Mass Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="energyUseLimbSizeMult" @bind="agentProperties.energyUseLimbSizeMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="agentProperties.energyUseLimbSizeMult" min="0" max="5" step="0.1">
+                <input type="range" id="energyUseLimbSizeMult" @bind="stageProperties.energyUseLimbSizeMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="stageProperties.energyUseLimbSizeMult" min="0" max="5" step="0.1">
             </div>
         </div>
 
@@ -342,8 +342,8 @@
         <div class="setting">
             <label for="energyUseBrainSizeMult" title="Flat multiplier for how much energy is used based on size/complexity of the brain">Energy Use From Brain Size Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="energyUseBrainSizeMult" @bind="agentProperties.energyUseBrainSizeMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="agentProperties.energyUseBrainSizeMult" min="0" max="5" step="0.1">
+                <input type="range" id="energyUseBrainSizeMult" @bind="stageProperties.energyUseBrainSizeMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="stageProperties.energyUseBrainSizeMult" min="0" max="5" step="0.1">
             </div>
         </div>
 
@@ -351,8 +351,8 @@
         <div class="setting">
             <label for="energyUseForceSizeMult" title="Flat multiplier for how much energy is used based on limb movements">Energy Use From Limb Movements Multiplier</label>
             <div class="slider-container">
-                <input type="range" id="energyUseForceSizeMult" @bind="agentProperties.energyUseForceSizeMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="agentProperties.energyUseForceSizeMult" min="0" max="5" step="0.1">
+                <input type="range" id="energyUseForceSizeMult" @bind="stageProperties.energyUseForceSizeMult" min="0" max="5" step="0.1">
+                <input type="number" @bind="stageProperties.energyUseForceSizeMult" min="0" max="5" step="0.1">
             </div>
         </div>
 
@@ -442,7 +442,7 @@
         <!-- Brain Decay -->
         <div class="setting">
             <label for="brainDecayOverTime" title="Decay all weights in agents brain by a small amount each round">Brain Decay Over Time</label>
-            <input type="checkbox" id="brainDecayOverTime" @bind="agentProperties.brainDecayOverTime" />
+            <input type="checkbox" id="brainDecayOverTime" @bind="stageProperties.brainDecayOverTime" />
         </div>
 
     </div>
@@ -621,7 +621,7 @@
     <button class="floating-button start-button rightColumn" title="Start simulation with full configured settings" @onclick="ResetSimulation">Start/Reset</button>
     <button class="floating-button simpleStart-button leftColumn" title="Start simulation with no energy or extra score bonuses.  Faster, but less interesting evolution" @onclick="ResetSimulationSimple">Simplified Start</button>
     <button class="floating-button superSimpleStart-button rightColumn" title="Start simulation with no energy, extra score bonuses and a fixed body plan.  Much faster, but less interesting evolution" @onclick="ResetSimulationSuperSimple">Super Simplified Start</button>
-    <button class="floating-button update-button leftColumn" title="You can update the round length, number of rendered agents, physics speed, spawn delay and batch size, parent tournament size, migration rate, max and min population group size and the agent to fix the camera on" @onclick="UpdateSimulation">Update</button>
+    <button class="floating-button update-button leftColumn" title="You can update any settings mid simulation, but some changes will break things" @onclick="UpdateSimulation">Update</button>
     <button class="floating-button toggleNN-button rightColumn" title="Toggle rendering of Neural Network.  Can cause some lag" @onclick="toggleNN">Toggle Neural Network</button>
     <button class="floating-button toggleLeader-button leftColumn" title="Toggle between following the leading vs trailing agents.  Switches rendered Neural Network as well" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
     <button class="floating-button toggleRays-button rightColumn" title="Toggle rendering for agents vision lines" @onclick="toggleRayCasts">Toggle Ray-casts</button>
@@ -636,7 +636,6 @@
 
 @code {
     private StageProperties stageProperties = new StageProperties();
-    private AgentProperties agentProperties = new AgentProperties();
     public bool box2dPhysics { get; set; } = true;
     private bool showAdvancedSettings = true;
     public List<Genome> population = new List<Genome>();
@@ -649,7 +648,7 @@
         public float Width { get; set; } = 1600;  // Canvas width
         public float Height { get; set; } = 800;  // Canvas height
         public float GroundY { get; set; } = 700;  // Y position of the ground in the canvas
-        // Should add agent position as a variable
+                                                   // Should add agent position as a variable
         public float Gravity { get; set; } = 1;
         public double Friction { get; set; } = 0.4;
         public int SimulationLength { get; set; } = 2000;
@@ -674,26 +673,18 @@
         public int velocityIteration { get; set; } = 4;
         public int positionIteration { get; set; } = 2;
         public double physicsGranularityMultipliers { get; set; } = 1;
-        public double liquidViscosity { get; set; } = 0.99;
+        public double liquidViscosity { get; set; } = 0.98;
         public bool timeIncrease { get; set; } = true;
         public int map { get; set; } = 1;
         public bool randomMap { get; set; } = true;
         public int simulationLengthIncrease { get; set; } = 25;
         public int maxSimulationLength { get; set; } = 50000;
         public bool agentsRequireStablising { get; set; } = true;
-
-    }
-
-    public class AgentProperties
-    {
-        // public int numLimbs { get; set; } = 3;
-        // public double musculeTorque { get; set; } = 1000000.0;
         public double maxJointSpeed { get; set; } = 1;
         public double offspringMutationRate { get; set; } = 0.02;
         public double offspringNodeMutationRate { get; set; } = 0.001;
         public double offspringLayerMutationRate { get; set; } = 0.0005;
         public double offspringLimbMutationRate { get; set; } = 0.005;
-        // public double maxJointMoveDivider { get; set; } = 3;
         public bool brainDecayOverTime { get; set; } = false;
         public bool inputJointAngle { get; set; } = true;
         public bool inputJointSpeed { get; set; } = false;
@@ -720,6 +711,78 @@
         public double energyUseForceSizeMult { get; set; } = 1;
         public double energyUseLimbSizeMult { get; set; } = 1;
         public double energyUseBrainSizeMult { get; set; } = 1;
+
+        // New, need to copy to other start functions and make UI selectors
+        // Performance
+        public int updatesPerAgentStart { get; set; } = 1;
+        public int framesPerUpdateStart { get; set; } = 10;
+        public bool showGroupLeaders { get; set; } = true;
+        public bool showGroupTrailers { get; set; } = true;
+        public int agentStartSpawnGap { get; set; } = 5000;
+
+        // Agent
+        public int minLimbs { get; set; } = 2;
+        public int maxLimbs { get; set; } = 5;
+        public int minNNLayers { get; set; } = 1;
+        public int maxNNLayers { get; set; } = 5;
+        public int startingLimbChainLength { get; set; } = 1;
+        public int maxTorqueMultiplier { get; set; } = 300000;
+        public int limbMassForceDivider { get; set; } = 50;
+        public int limbLengthForceDivider { get; set; } = 30;
+        public int agentStartX { get; set; } = 200;
+        public int agentStartY { get; set; } = 600;
+
+        // Score and Energy
+        public int limbMassEnergyReductionDivider { get; set; } = 15;
+        public int brainSizeEnergyReductionDivider { get; set; } = 100;
+        public int forceMagnitudeEnergyReductionDivider { get; set; } = 1000000;
+        public int bodyStartingMassEnergyReductionDivider { get; set; } = 400;
+        public int limbStartingMassEnergyReductionDivider { get; set; } = 15;
+        public int jointMovementRewardLimbMassDivider { get; set; } = 100;
+        public int internalMapSize { get; set; } = 500;
+        public int internalMapCellSize { get; set; } = 50;
+        public bool massBonusIsDynamic { get; set; } = true;
+        public int dynamicMassBonusDivider { get; set; } = 500;
+
+        // Training
+        public double chanceToIncludeTopPerformerInMutation { get; set; } = 0.25;
+        public double chanceToIncludeOffspringInMutation { get; set; } = 0.5;
+        public double neuronMutationStandardDeviation { get; set; } = 0.1;
+        public double bodyPlanMutationStandardDeviation { get; set; } = 0.1;
+
+        // World
+        public int backgroundRed { get; set; } = 0;
+        public int backgroundGreen { get; set; } = 0;
+        public int backgroundBlue { get; set; } = 128;
+        public int backgroundParticles { get; set; } = 100;
+        public double minDragCoefficient { get; set; } = 0.9799;
+        public double maxDragCoefficient { get; set; } = 0.9899;
+        public int averageLimbMass { get; set; } = 50;
+        public int averageLimbLength { get; set; } = 30;
+        public double massScaleForDrag { get; set; } = 0.00005;
+        public double lengthScaleForDrag { get; set; } = 0.0001;
+        public int bodyAngularDragPower { get; set; } = 1;
+        public int bodyLinearDragPower { get; set; } = 2;
+        public int limbAngularDragPower { get; set; } = 5;
+        public int limbLinearDragPower { get; set; } = 5;
+
+        // Advanced
+        public double linearStabilityThresholdBody { get; set; } = 0.01;
+        public double angularStabilityThresholdBody { get; set; } = 0.15;
+        public double angularStabilityThresholdLimb { get; set; } = 0.1;
+        public int stabilityFrames { get; set; } = 10;
+        public int swimForceOverNFrames { get; set; } = 5;
+        public int maxTorqueForDamping { get; set; } = 10000;
+        public double threasholdAngleForDamping { get; set; } = 0.1;
+        public int renderedNNLayerGap { get; set; } = 100;
+        public int renderedNNNodeGap { get; set; } = 30;
+        public int maxPosForNormalisation { get; set; } = 5000;
+        public int maxVelForNormalisation { get; set; } = 500;
+
+        // Behind the scenes
+        public double topScoreEver { get; set; } = 0;
+        public int genCount { get; set; } = 1;
+
     }
 
     private async Task setMobilePresets()
@@ -813,38 +876,93 @@
         stageProperties.simulationLengthIncrease = 25;
         stageProperties.maxSimulationLength = 50000;
         stageProperties.agentsRequireStablising = true;
-
-        agentProperties.maxJointSpeed = 1.5;
-        agentProperties.offspringMutationRate = 0.02;
-        agentProperties.offspringNodeMutationRate = 0.001;
-        agentProperties.offspringLayerMutationRate = 0.0005;
-        agentProperties.offspringLimbMutationRate = 0.005;
-        agentProperties.brainDecayOverTime = false;
-        agentProperties.inputJointAngle = true;
-        agentProperties.inputJointSpeed = false;
-        agentProperties.inputAgentPos = true;
-        agentProperties.inputAgentV = true;
-        agentProperties.inputScore = false;
-        agentProperties.inputOrientation = true;
-        agentProperties.inputTimeRemaining = true;
-        agentProperties.inputDistanceSensors = true;
-        agentProperties.outputsJointSpeed = true;
-        agentProperties.outputsJointTorque = false;
-        agentProperties.outputsBias = false;
-        agentProperties.swimStrength = 600000;
-        agentProperties.swimBias = 1.5;
-        agentProperties.xScoreMultiplier = 3;
-        agentProperties.yScoreMultiplier = 3;
-        agentProperties.movementScoreMultiplier = 3;
-        agentProperties.explorationScoreMultiplier = 5;
-        agentProperties.sizeScoreMultiplier = 0.2;
-        agentProperties.startingEnergyBase = 100;
-        agentProperties.startingEnergyMassPower = 3;
-        agentProperties.startingEnergyBodyMassMult = 1;
-        agentProperties.startingEnergyLimbMassMult = 1;
-        agentProperties.energyUseForceSizeMult = 1;
-        agentProperties.energyUseLimbSizeMult = 1;
-        agentProperties.energyUseBrainSizeMult = 1;
+        stageProperties.maxJointSpeed = 1.5;
+        stageProperties.offspringMutationRate = 0.02;
+        stageProperties.offspringNodeMutationRate = 0.001;
+        stageProperties.offspringLayerMutationRate = 0.0005;
+        stageProperties.offspringLimbMutationRate = 0.005;
+        stageProperties.brainDecayOverTime = false;
+        stageProperties.inputJointAngle = true;
+        stageProperties.inputJointSpeed = false;
+        stageProperties.inputAgentPos = true;
+        stageProperties.inputAgentV = true;
+        stageProperties.inputScore = false;
+        stageProperties.inputOrientation = true;
+        stageProperties.inputTimeRemaining = true;
+        stageProperties.inputDistanceSensors = true;
+        stageProperties.outputsJointSpeed = true;
+        stageProperties.outputsJointTorque = false;
+        stageProperties.outputsBias = false;
+        stageProperties.swimStrength = 600000;
+        stageProperties.swimBias = 1.5;
+        stageProperties.xScoreMultiplier = 3;
+        stageProperties.yScoreMultiplier = 3;
+        stageProperties.movementScoreMultiplier = 3;
+        stageProperties.explorationScoreMultiplier = 5;
+        stageProperties.sizeScoreMultiplier = 0.2;
+        stageProperties.startingEnergyBase = 100;
+        stageProperties.startingEnergyMassPower = 3;
+        stageProperties.startingEnergyBodyMassMult = 1;
+        stageProperties.startingEnergyLimbMassMult = 1;
+        stageProperties.energyUseForceSizeMult = 1;
+        stageProperties.energyUseLimbSizeMult = 1;
+        stageProperties.energyUseBrainSizeMult = 1;
+        stageProperties.maxTorqueMultiplier = 300000;
+        stageProperties.updatesPerAgentStart = 1;
+        stageProperties.framesPerUpdateStart = 10;
+        stageProperties.topScoreEver = 0;
+        stageProperties.genCount = 1;
+        stageProperties.backgroundRed = 0;
+        stageProperties.backgroundGreen = 0;
+        stageProperties.backgroundBlue = 128;
+        stageProperties.backgroundParticles = 100;
+        stageProperties.linearStabilityThresholdBody = 0.01;
+        stageProperties.angularStabilityThresholdBody = 0.15;
+        stageProperties.angularStabilityThresholdLimb = 0.1;
+        stageProperties.stabilityFrames = 10;
+        stageProperties.swimForceOverNFrames = 5;
+        stageProperties.limbMassForceDivider = 50;
+        stageProperties.limbLengthForceDivider = 30;
+        stageProperties.limbMassEnergyReductionDivider = 15;
+        stageProperties.brainSizeEnergyReductionDivider = 100;
+        stageProperties.forceMagnitudeEnergyReductionDivider = 1000000;
+        stageProperties.minDragCoefficient = 0.9799;
+        stageProperties.maxDragCoefficient = 0.9899;
+        stageProperties.averageLimbMass = 50;
+        stageProperties.averageLimbLength = 30;
+        stageProperties.massScaleForDrag = 0.00005;
+        stageProperties.lengthScaleForDrag = 0.0001;
+        stageProperties.bodyAngularDragPower = 1;
+        stageProperties.bodyLinearDragPower = 2;
+        stageProperties.limbAngularDragPower = 5;
+        stageProperties.limbLinearDragPower = 5;
+        stageProperties.maxTorqueForDamping = 10000;
+        stageProperties.threasholdAngleForDamping = 0.1;
+        stageProperties.bodyStartingMassEnergyReductionDivider = 400;
+        stageProperties.limbStartingMassEnergyReductionDivider = 15;
+        stageProperties.jointMovementRewardLimbMassDivider = 100;
+        stageProperties.internalMapSize = 500;
+        stageProperties.internalMapCellSize = 50;
+        stageProperties.massBonusIsDynamic = true;
+        stageProperties.dynamicMassBonusDivider = 500;
+        stageProperties.showGroupLeaders = true;
+        stageProperties.showGroupTrailers = true;
+        stageProperties.agentStartX = 200;
+        stageProperties.agentStartY = 600;
+        stageProperties.agentStartSpawnGap = 5000;
+        stageProperties.chanceToIncludeTopPerformerInMutation = 0.25;
+        stageProperties.chanceToIncludeOffspringInMutation = 0.5;
+        stageProperties.neuronMutationStandardDeviation = 0.1;
+        stageProperties.bodyPlanMutationStandardDeviation = 0.1;
+        stageProperties.renderedNNLayerGap = 100;
+        stageProperties.renderedNNNodeGap = 30;
+        stageProperties.maxPosForNormalisation = 5000;
+        stageProperties.maxVelForNormalisation = 500;
+        stageProperties.minLimbs = 2;
+        stageProperties.maxLimbs = 5;
+        stageProperties.minNNLayers = 1;
+        stageProperties.maxNNLayers = 5;
+        stageProperties.startingLimbChainLength = 1;
 
     }
 
@@ -852,51 +970,51 @@
     {
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
     }
 
     private async Task ResetSimulationSimple()
     {
-        agentProperties.energyUseForceSizeMult = 0;
-        agentProperties.energyUseLimbSizeMult = 0;
-        agentProperties.energyUseBrainSizeMult = 0;
-        agentProperties.startingEnergyMassPower = 0;
-        agentProperties.startingEnergyBase = 1;
-        agentProperties.startingEnergyBodyMassMult = 0;
-        agentProperties.startingEnergyLimbMassMult = 0;
-        agentProperties.movementScoreMultiplier = 1;
-        agentProperties.explorationScoreMultiplier = 0;
-        agentProperties.sizeScoreMultiplier = 0;
-        agentProperties.offspringLayerMutationRate = 0;
-        agentProperties.offspringLimbMutationRate = 0.005;
+        stageProperties.energyUseForceSizeMult = 0;
+        stageProperties.energyUseLimbSizeMult = 0;
+        stageProperties.energyUseBrainSizeMult = 0;
+        stageProperties.startingEnergyMassPower = 0;
+        stageProperties.startingEnergyBase = 1;
+        stageProperties.startingEnergyBodyMassMult = 0;
+        stageProperties.startingEnergyLimbMassMult = 0;
+        stageProperties.movementScoreMultiplier = 1;
+        stageProperties.explorationScoreMultiplier = 0;
+        stageProperties.sizeScoreMultiplier = 0;
+        stageProperties.offspringLayerMutationRate = 0;
+        stageProperties.offspringLimbMutationRate = 0.005;
         stageProperties.agentsRequireStablising = false;
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
     }
 
     private async Task ResetSimulationSuperSimple()
     {
-        agentProperties.energyUseForceSizeMult = 0;
-        agentProperties.energyUseLimbSizeMult = 0;
-        agentProperties.energyUseBrainSizeMult = 0;
-        agentProperties.startingEnergyMassPower = 0;
-        agentProperties.startingEnergyBase = 1;
-        agentProperties.startingEnergyBodyMassMult = 0;
-        agentProperties.startingEnergyLimbMassMult = 0;
-        agentProperties.movementScoreMultiplier = 1;
-        agentProperties.explorationScoreMultiplier = 0;
-        agentProperties.sizeScoreMultiplier = 0;
-        agentProperties.offspringNodeMutationRate = 0;
-        agentProperties.offspringLayerMutationRate = 0;
-        agentProperties.offspringLimbMutationRate = 0.005;
-        agentProperties.swimStrength = 1000000;
+        stageProperties.energyUseForceSizeMult = 0;
+        stageProperties.energyUseLimbSizeMult = 0;
+        stageProperties.energyUseBrainSizeMult = 0;
+        stageProperties.startingEnergyMassPower = 0;
+        stageProperties.startingEnergyBase = 1;
+        stageProperties.startingEnergyBodyMassMult = 0;
+        stageProperties.startingEnergyLimbMassMult = 0;
+        stageProperties.movementScoreMultiplier = 1;
+        stageProperties.explorationScoreMultiplier = 0;
+        stageProperties.sizeScoreMultiplier = 0;
+        stageProperties.offspringNodeMutationRate = 0;
+        stageProperties.offspringLayerMutationRate = 0;
+        stageProperties.offspringLimbMutationRate = 0.005;
+        stageProperties.swimStrength = 1000000;
         stageProperties.randomMap = false;
         stageProperties.map = 1;
         stageProperties.agentsRequireStablising = false;
         await InitializePopulationSimple(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", agentProperties, population);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
     }
 
     private async Task toggleNN()
@@ -908,7 +1026,7 @@
     private async Task toggleRayCasts()
     {
         stageProperties.showRays = !stageProperties.showRays;
-        await JSRuntime.InvokeVoidAsync("toggleRayCastRender", stageProperties.showRays);
+        await UpdateSimulation();
     }
 
     private void ToggleAdvancedSettings()
@@ -1029,12 +1147,12 @@
             Genome genome = new Genome();
             genome.Metadata.AgentIndex = i;
 
-            int numLimbs = random.Next(2, 5);
+            int numLimbs = random.Next(stageProperties.minLimbs, stageProperties.maxLimbs);
 
             // Initialize genes, examples used for now, will be randomized once the constructor is complete
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * 1));
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
 
-            int numLayers = random.Next(1, 5);
+            int numLayers = random.Next(stageProperties.minNNLayers, stageProperties.maxNNLayers);
 
             // assuming you want to add 3 layers, and the layer numbers are between 1 and 3, and sizes between 10 and 20
             for (int j = 0; j < numLayers; j++)
@@ -1043,7 +1161,7 @@
                 genome.LayerGenes.Add(InitializeLayer(j, randomSize));
             }
 
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * 1));
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * stageProperties.startingLimbChainLength));
             genome.MainBody = InitializeBodyPlan(numLimbs);
             // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
             var randomName = new Random();
@@ -1053,10 +1171,10 @@
             genome.Metadata.AgentName = agentName;
             genome.Metadata.RunGroup = runGroups[i];
             genome.Metadata.AgentGroup = i % numGroups;
-            genome.Hyperparameters.MutationRate = agentProperties.offspringMutationRate;
-            genome.Hyperparameters.NodeMutationRate = agentProperties.offspringNodeMutationRate;
-            genome.Hyperparameters.LayerMutationRate = agentProperties.offspringLayerMutationRate;
-            genome.Hyperparameters.LimbMutationRate = agentProperties.offspringLimbMutationRate;
+            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate;
+            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate;
+            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate;
+            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate;
 
             // add ids to usedLayerIDs, 1 to numLayers
             genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
@@ -1112,10 +1230,10 @@
             genome.Metadata.AgentName = agentName;
             genome.Metadata.RunGroup = runGroups[i];
             genome.Metadata.AgentGroup = i % numGroups;
-            genome.Hyperparameters.MutationRate = agentProperties.offspringMutationRate;
-            genome.Hyperparameters.NodeMutationRate = agentProperties.offspringNodeMutationRate;
-            genome.Hyperparameters.LayerMutationRate = agentProperties.offspringLayerMutationRate;
-            genome.Hyperparameters.LimbMutationRate = agentProperties.offspringLimbMutationRate;
+            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate;
+            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate;
+            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate;
+            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate;
 
             // add ids to usedLayerIDs, 1 to numLayers
             genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
@@ -1218,7 +1336,6 @@
                     }
                 };
 
-            // Add sub arm (elbow) initiation here
             Arm subArm = new Arm
                 {
                     PartID = id + numLimbs,
@@ -1265,9 +1382,15 @@
                     }
                 };
 
+            if (stageProperties.startingLimbChainLength > 1)
+            {
+                arm.SubArms.Add(subArm);
+                if (stageProperties.startingLimbChainLength > 2)
+                {
+                    subArm.SubArms.Add(subArm2);
+                }
+            }
 
-            // arm.SubArms.Add(subArm); // testing manually adding more limbs
-            // subArm.SubArms.Add(subArm2);
             mainBody.Arms.Add(arm);
         }
 
@@ -1317,16 +1440,21 @@
                     }
                 };
 
-            // Add sub arm (elbow) initiation here
             Arm subArm = new Arm
                 {
                     PartID = id + numLimbs,
                     ParentPartID = id,
-                    Type = "SubArm",
+                    NumberInChain = 2,
+                    Type = "Arm",
                     Shape = "Rectangle",
-                    Length = 30,
+                    Length = 40,
                     Width = 10,
-                    StartingAngle = angle, // Adjust as needed
+                    StartingAngle = angle,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
                     Constraints = new JointConstraints
                     {
                         MaxTorque = 80000,
@@ -1335,13 +1463,37 @@
                     }
                 };
 
-            subArm.Attachment = new AttachmentPoint
+            Arm subArm2 = new Arm
                 {
-                    X = 0,
-                    Y = 0
+                    PartID = id + numLimbs * 2,
+                    ParentPartID = subArm.PartID,
+                    NumberInChain = 3,
+                    Type = "Arm",
+                    Shape = "Rectangle",
+                    Length = 40,
+                    Width = 10,
+                    StartingAngle = angle,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 80000,
+                        MinAngle = -(Math.PI / 3),
+                        MaxAngle = (Math.PI / 3)
+                    }
                 };
 
-            // arm.SubArms.Add(subArm); // Attach the sub arm to the main arm
+            if (stageProperties.startingLimbChainLength > 1)
+            {
+                arm.SubArms.Add(subArm);
+                if (stageProperties.startingLimbChainLength > 2)
+                {
+                    subArm.SubArms.Add(subArm2);
+                }
+            }
 
             mainBody.Arms.Add(arm);
         }

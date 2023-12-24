@@ -1,16 +1,10 @@
 // Variables specific to NEAT version
 
-let liquidViscosityDecay, mapNo;
-let MAX_ADJUSTMENT_TORQUE = 300000;
 let offsetY = 0;
 let simulationLengthModified = 0;
-let showRayCasts = false;
 let render = true;
-let dragCoefficient; 
 let singleUpdateCompleted = false;
 let stabilised = false;
-let updatesPerAgentStart = 1;
-let framesPerUpdateStart = 5;
 let updateCountStart = {};
 let frameCountStart = {};
 let agentIndexStart = 0;
@@ -21,21 +15,11 @@ let randMap = 0;
 let runCount = 0;
 let fixedTimeStep = 1.0 / 60.0 * 1000;
 let cachedLeadingAgent = null;
-let agentProperties;
+let wallBodies = [];
+let duplicateWalls = [];
+let fps = 0;
+
 let stageProperties;
-//let xScoreMult;
-//let yScoreMult;
-//let movementScoreMult;
-//let explorationScoreMult;
-//let sizeScoreMult;
-//let startingEnergyBaseJS;
-//let startingEnergyMassPowerJS;
-//let startingEnergyBodyMassMultJS;
-//let startingEnergyLimbMassMultJS;
-//let energyUseForceSizeMultJS;
-//let energyUseLimbSizeMultJS;
-//let energyUseBrainSizeMultJS;
-// let brainDecay, inputsJointAngle, inputsJointSpeed, inputsAgentPos, inputsAgentV, inputsScore, inputsOrientation, inputsTimeRemaining, inputsGroundSensors, inputsDistanceSensors, outputJointSpeed, outputJointTorque, outputBias, swimStrengthMultiplier, swimBiasMultiplier;
 
 const GROUP_COLORS_NAMES = [
     'Traffic purple', 'Grass green', 'Yellow orange', 'Maize yellow', 'Quartz grey', 'Salmon range', 'Pearl black berry', 'Golden yellow', 'Pearl light grey', 'Red lilac',
@@ -44,8 +28,6 @@ const GROUP_COLORS_NAMES = [
     'Teal Green', 'Strong Blue', 'Bright Magenta', 'Yellow', 'Brown', 'Gray', 'Dark Red', 'Cool Gray', 'Golden', 'Deep Red'
 ];
 
-let wallBodies = [];
-let duplicateWalls = [];
 
 /* 
 Ideas:      
@@ -64,7 +46,7 @@ let sketchNEAT = function (p) {
 
     // Variables for rendering.
     nextBatchFrame = 0;
-    fixedTimeStep = (1.0 / simulationSpeed) * 1000; // 'simulationSpeed' updates per second for physics
+    fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000; // 'simulationSpeed' updates per second for physics
     let accumulator = 0;
     let lastTime = 0;
     let leadingAgent;
@@ -85,18 +67,18 @@ let sketchNEAT = function (p) {
         setupPlanckWorldNEAT();
         lastTime = p.millis();
 
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < stageProperties.backgroundParticles; i++) {
             particles.push({
                 x: Math.random() * p.width,
                 y: Math.random() * p.height,
-                phase: Math.random() * Math.PI * 2 // phase for sine wave
+                phase: Math.random() * Math.PI * 2 // phase for sin wave
             });
         }
 
     };
 
     p.draw = function () {
-        p.background(0, 0, 128);
+        p.background(stageProperties.backgroundRed, stageProperties.backgroundGreen, stageProperties.backgroundBlue);
 
         let currentTime = p.millis();
         let delta = currentTime - lastTime;
@@ -139,7 +121,7 @@ let sketchNEAT = function (p) {
                 // If not all agents have been updated x times, update one agent per frame
                 if (!stabilised) {
 
-                    if (!singleUpdateCompleted && requireStablising) {
+                    if (!singleUpdateCompleted && stageProperties.agentsRequireStablising) {
                         // Update the agent
                         agents[agentIndexStart].updateMusclesNEAT();
 
@@ -147,7 +129,7 @@ let sketchNEAT = function (p) {
                         frameCountStart[agentIndexStart] = (frameCountStart[agentIndexStart] || 0) + 1;
 
                         // If frameCount for the agent reaches framesPerUpdate, reset it and increment updateCount
-                        if (frameCountStart[agentIndexStart] >= framesPerUpdateStart) {
+                        if (frameCountStart[agentIndexStart] >= stageProperties.framesPerUpdateStart) {
                             frameCountStart[agentIndexStart] = 0;
                             updateCountStart[agentIndexStart] = (updateCountStart[agentIndexStart] || 0) + 1;
                         }
@@ -157,10 +139,10 @@ let sketchNEAT = function (p) {
                     }
 
                     // Check if we've updated each agent x times
-                    if (Object.values(updateCountStart).every(countStart => countStart >= updatesPerAgentStart) || !requireStablising) {
+                    if (Object.values(updateCountStart).every(countStart => countStart >= stageProperties.updatesPerAgentStart) || !stageProperties.agentsRequireStablising) {
                         singleUpdateCompleted = true;
                         // All agents have been updated the required number of times, now check for stability
-                        if (areAllAgentsStableNEAT() || !requireStablising) {
+                        if (areAllAgentsStableNEAT() || !stageProperties.agentsRequireStablising) {
                             stabilised = true;
                             console.log("Agents Settled");
                             startingTickCounter = 0;
@@ -172,7 +154,7 @@ let sketchNEAT = function (p) {
                     // Check if it's time to update the next batch
                     if (startingTickCounter >= nextBatchFrame) {
                         // Update muscles only for the current batch of agents
-                        for (let i = currentPhysicsBatch * MUSCLE_BATCH_SIZE; i < Math.min((currentPhysicsBatch + 1) * MUSCLE_BATCH_SIZE, agents.length); i++) {
+                        for (let i = currentPhysicsBatch * stageProperties.muscleBatch; i < Math.min((currentPhysicsBatch + 1) * stageProperties.muscleBatch, agents.length); i++) {
                             agents[i].mainBody.setType('dynamic');
                             agents[i].updateMusclesNEAT();
 
@@ -185,13 +167,13 @@ let sketchNEAT = function (p) {
                         currentPhysicsBatch++;
 
                         // Reset to the start if all batches are processed
-                        if (currentPhysicsBatch * MUSCLE_BATCH_SIZE >= agents.length) {
+                        if (currentPhysicsBatch * stageProperties.muscleBatch >= agents.length) {
                             currentPhysicsBatch = 0;
                             // Wait for muscleUpdateFrames before updating muscles again
-                            nextBatchFrame = startingTickCounter + muscleUpdateFrames;
+                            nextBatchFrame = startingTickCounter + stageProperties.totalMuscleUpdateTime;
                         } else {
                             // Wait for batchDelay frames before moving to the next batch
-                            nextBatchFrame = startingTickCounter + SOME_DELAY_FRAME_COUNT;
+                            nextBatchFrame = startingTickCounter + stageProperties.muscleDelay;
                         }
                     }
                 }
@@ -217,7 +199,7 @@ let sketchNEAT = function (p) {
 
             // Step the Planck world
             try {
-                world.step(1 / 60 * physicsGranularityMultiplier, velocityIterations, positionIterations);
+                world.step(1 / 60 * stageProperties.physicsGranularityMultipliers, stageProperties.velocityIteration, stageProperties.positionIteration);
             } catch (error) {
                 console.error("An error occurred stepping physics simulation: ", error);
             }
@@ -262,15 +244,15 @@ let sketchNEAT = function (p) {
             p.pop();  // Restore the drawing settings and transformations
         }
 
-        calculateFPS(p);
+        // calculateFPSNEAT(p);
         // Render the FPS, Gen No, and Time Left
         p.fill(255);  // Black color for the text
         p.textSize(18);  // Font size
-        p.text(`FPS: ${displayedFPS}`, 10, 20);
-        p.text(`Batch Within Generation: ${runCount} of ${numAgentsMultiplier}`, 10, 50);
-        p.text(`Generation: ${genCount}`, 10, 80);
+        p.text(`FPS: ${fps}`, 10, 20);
+        p.text(`Batch Within Generation: ${runCount} of ${stageProperties.totalNumAgentsMultiplier}`, 10, 50);
+        p.text(`Generation: ${stageProperties.genCount}`, 10, 80);
         p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 110);
-        p.text(`Top Score: ${topScoreEver.toFixed(2)}`, 10, 140);
+        p.text(`Top Score: ${stageProperties.topScoreEver.toFixed(2)}`, 10, 140);
 
         if (averageScore > - 10) {
             p.text(`Average Score: ${averageScore.toFixed(2)}`, 10, 170);
@@ -333,23 +315,23 @@ let sketchNEAT = function (p) {
 
         if (leadingAgent) {
 
-            if (agentToFix == "leader") {
+            if (stageProperties.agentInCentre == "leader") {
                 offsetX = p.width / 6 - leadingAgent.position.x + leadingAgent.startingX;  // Center the leading agent on the canvas, just to the left
                 offsetY = p.height * 4 / 6 - leadingAgent.position.y + leadingAgent.startingY;
-                if (showRayCasts) {
+                if (stageProperties.showRays) {
                     let agentOffsetX = offsetX - leadingAgent.startingX;
                     let agentOffsetY = offsetY - leadingAgent.startingY;
                     leadingAgent.renderRayCasts(p, agentOffsetX, agentOffsetY);
                 }
-            } else if (agentToFix == "trailer") {
+            } else if (stageProperties.agentInCentre == "trailer") {
                 offsetX = p.width / 6 - trailingAgent.position.x + trailingAgent.startingX;
                 offsetY = p.width * 4 / 6 - trailingAgent.position.y + trailingAgent.startingY - 500;
-                if (showRayCasts) {
+                if (stageProperties.showRays) {
                     let agentOffsetX = offsetX - trailingAgent.startingX;
                     let agentOffsetY = offsetY - trailingAgent.startingY;
                     trailingAgent.renderRayCasts(p, agentOffsetX, agentOffsetY);
                 }
-            } else if (agentToFix == "average") {
+            } else if (stageProperties.agentInCentre == "average") {
 
                 let totalXScore = 0;
 
@@ -374,12 +356,18 @@ let sketchNEAT = function (p) {
                 agentsToRender.delete(leadingAgent);
             }
 
-            agentsToRender.add(trailingAgent);
-            agentsToRender.add(leadingAgent);
+            if (stageProperties.showGroupTrailers == true) {
+                agentsToRender.add(trailingAgent);
+            }
+            if (stageProperties.showGroupLeaders == true) {
+                agentsToRender.add(leadingAgent);
+            }
 
             let currentTime = p.millis();
 
-            if (currentTime - lastUIUpdateTime > UIUpdateInterval && simulationStarted) {
+            if (currentTime - lastUIUpdateTime > stageProperties.uiRefreshRate && simulationStarted) {
+
+                fps = p.frameRate().toFixed(0);
 
                 topScoreAgent = getHighestScoreNEAT();
 
@@ -421,7 +409,7 @@ let sketchNEAT = function (p) {
 
                 averageScore = totalScore / agents.length;
 
-                displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / simulationSpeed);
+                displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / stageProperties.simSpeed);
 
                 // Reset the last update time
                 lastUIUpdateTime = currentTime;
@@ -440,19 +428,19 @@ let sketchNEAT = function (p) {
                 p.push();
                 p.textSize(16);
                 p.fill(GROUP_COLORS[topScoreAgent.genome.metadata.agentGroup]);
-                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Bonus: ${topScoreAgentMovementScore} + Exploration Bonus: ${topScoreAgentExplorationReward} + Size Bonus: ${topScoreAgentSizeReward})  Remaining Energy: ${topScoreAgentEnergy}`, 10, groundY + 30);  // Displaying the score just below the ground
+                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Bonus: ${topScoreAgentMovementScore} + Exploration Bonus: ${topScoreAgentExplorationReward} + Size Bonus: ${topScoreAgentSizeReward})  Remaining Energy: ${topScoreAgentEnergy}`, 10, stageProperties.groundY + 30);  // Displaying the score just below the ground
 
                 p.fill(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]);
-                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Bonus: ${leadingAgentMovementScore} + Exploration Bonus: ${leadingAgentExplorationReward} + Size Bonus: ${leadingAgentSizeReward}) Remaining Energy: ${leadingAgentEnergy}`, 10, groundY + 50);
+                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Bonus: ${leadingAgentMovementScore} + Exploration Bonus: ${leadingAgentExplorationReward} + Size Bonus: ${leadingAgentSizeReward}) Remaining Energy: ${leadingAgentEnergy}`, 10, stageProperties.groundY + 50);
 
                 p.fill(GROUP_COLORS[trailingAgent.genome.metadata.agentGroup]);
-                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Bonus: ${trailingAgentMovementScore} + Exploration Bonus: ${trailingAgentExplorationReward} + Size Bonus: ${trailingAgentSizeReward}) Remaining Energy: ${trailingAgentEnergy}`, 10, groundY + 70);
+                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Bonus: ${trailingAgentMovementScore} + Exploration Bonus: ${trailingAgentExplorationReward} + Size Bonus: ${trailingAgentSizeReward}) Remaining Energy: ${trailingAgentEnergy}`, 10, stageProperties.groundY + 70);
                 p.pop();
             }
 
-            if (showNeuralNetwork == true && simulationStarted) {
+            if (stageProperties.showNN == true && simulationStarted) {
                 p.push();
-                if (agentToFix == "trailer") {
+                if (stageProperties.agentInCentre == "trailer") {
                     p.text(`Showing Trailing Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[trailingAgent.genome.metadata.agentGroup]);
@@ -494,7 +482,7 @@ let sketchNEAT = function (p) {
     };
 
     function renderSkip(p) {
-        p.text(`Fast-Forwarding Generation: ${genCount}`, 10, 20);
+        p.text(`Fast-Forwarding Generation: ${stageProperties.genCount}`, 10, 20);
     };
 };
 
@@ -505,12 +493,11 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
         agentsToCheck = [agentsToCheck];
     }
 
-
     // Define small thresholds for stability
-    const linearStabilityThresholdBody = 0.01; 
-    const angularStabilityThresholdBody = 0.15;
-    const angularStabilityThresholdLimb = 0.1;
-    const stabilityFrames = 10; // 50  // Number of frames to wait before confirming stability
+    const linearStabilityThresholdBody = stageProperties.linearStabilityThresholdBody; 
+    const angularStabilityThresholdBody = stageProperties.angularStabilityThresholdBody;
+    const angularStabilityThresholdLimb = stageProperties.angularStabilityThresholdLimb;
+    const stabilityFrames = stageProperties.stabilityFrames; // 50  // Number of frames to wait before confirming stability
 
     let allAgentsStable = true;
 
@@ -562,12 +549,14 @@ function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
 }
 
 function applySwimmingForce(agent) {
+
+    const N = stageProperties.swimForceOverNFrames;
+    const forceScalingFactor = stageProperties.swimStrength;
+
     for (let i = 0; i < agent.bodyParts.length; i++) {
         let angle = agent.bodyParts[i].startingAngle;
         let joint = agent.joints[i];
         let currentAngle = joint.getJointAngle();
-        let N = 5;
-        let forceScalingFactor = swimStrengthMultiplier;
         let agentFacingDirection = agent.mainBody.getAngle();
         // Add the new angle to the buffer
         agent.limbBuffer[i].push(currentAngle);
@@ -585,17 +574,17 @@ function applySwimmingForce(agent) {
             let forceDirection = (currentAngle - angle) + Math.PI / 2;
 
             let defaultBias = (!outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
-                ? swimBiasMultiplier
+                ? stageProperties.swimBias
                 : agent.biases[i];
 
             let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
 
             let forceMagnitude;
 
-            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbMass[i] / 50) * (agent.bodyParts[i].length / 30) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
+            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbMass[i] / stageProperties.limbMassForceDivider) * (agent.bodyParts[i].length / stageProperties.limbLengthForceDivider) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
 
             if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
-                agent.agentEnergy -= (Math.abs(forceMagnitude / 1000000) * energyUseForceSizeMultJS) * ((agent.limbMass[i] / 15) * energyUseLimbSizeMultJS) * ((agent.brainSize / 100) * energyUseBrainSizeMultJS);
+                agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * stageProperties.energyUseForceSizeMult) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * stageProperties.energyUseLimbSizeMult) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * stageProperties.energyUseBrainSizeMult);
             }
 
 
@@ -622,19 +611,19 @@ function applySwimmingForce(agent) {
 }
 
 function applyDrag(agent) {
-    const baseDragCoefficient = 0.98; // Fixed drag for main body
-    const minDragCoefficient = 0.9799;
-    const maxDragCoefficient = 0.9899;
-    const averageLimbMass = 50; // Average limb mass
-    const averageLimbLength = 30; // Average limb length
-    const massScaleFactor = 0.00005; // Adjust these factors to fine-tune the impact
-    const lengthScaleFactor = 0.0001;
+    const baseDragCoefficient = stageProperties.liquidViscosity; // Fixed drag for main body
+    const minDragCoefficient = stageProperties.minDragCoefficient;
+    const maxDragCoefficient = stageProperties.maxDragCoefficient;
+    const averageLimbMass = stageProperties.averageLimbMass; // Average limb mass
+    const averageLimbLength = stageProperties.averageLimbLength; // Average limb length
+    const massScaleFactor = stageProperties.massScaleForDrag; 
+    const lengthScaleFactor = stageProperties.lengthScaleForDrag;
 
     // Apply fixed drag to the main body's linear and angular velocities
     let bodyVelocity = agent.mainBody.getLinearVelocity();
-    agent.mainBody.setLinearVelocity(bodyVelocity.mul(baseDragCoefficient ** 2));
+    agent.mainBody.setLinearVelocity(bodyVelocity.mul(baseDragCoefficient ** stageProperties.bodyLinearDragPower));
     let bodyAngularVelocity = agent.mainBody.getAngularVelocity();
-    agent.mainBody.setAngularVelocity(bodyAngularVelocity * baseDragCoefficient);
+    agent.mainBody.setAngularVelocity(bodyAngularVelocity * baseDragCoefficient ** stageProperties.bodyAngularDragPower);
 
     // Apply varying drag to each limb based on its mass and length
     for (let i = 0; i < agent.bodyParts.length; i++) {
@@ -652,18 +641,19 @@ function applyDrag(agent) {
 
         // Apply linear velocity drag
         let limbVelocity = agent.limbs[i].getLinearVelocity();
-        agent.limbs[i].setLinearVelocity(limbVelocity.mul(dragCoefficient ** 5));
+        agent.limbs[i].setLinearVelocity(limbVelocity.mul(dragCoefficient ** stageProperties.limbLinearDragPower));
 
         // Apply angular velocity drag
         let limbAngularVelocity = agent.limbs[i].getAngularVelocity();
-        agent.limbs[i].setAngularVelocity(limbAngularVelocity * dragCoefficient ** 5);
+        agent.limbs[i].setAngularVelocity(limbAngularVelocity * dragCoefficient ** stageProperties.limbAngularDragPower);
     }
 }
 
 
 
 function applyJointDamping(agent) {
-    let maxTorqueForDamping = 10000;
+    const maxTorqueForDamping = stageProperties.maxTorqueForDamping;
+    const threshold = stageProperties.threasholdAngleForDamping;
 
     // Damping on approaching joint limits
     for (let i = 0; i < agent.bodyParts.length; i++) {
@@ -671,7 +661,6 @@ function applyJointDamping(agent) {
         let angleDifferenceFromUpperLimit = agent.bodyParts[i].constraints.maxAngle - currentAngle;
         let angleDifferenceFromLowerLimit = currentAngle - agent.bodyParts[i].constraints.minAngle;
 
-        let threshold = 0.1; // This is just an initial value, you might need to adjust it.
 
         if (angleDifferenceFromUpperLimit < threshold) {
             let normalizedDifferenceUpper = angleDifferenceFromUpperLimit / threshold;
@@ -692,50 +681,52 @@ function initializeSketchBox2DNEAT(StageProperties) {
 
     // canvasWidth = stageProperties.width;
     // canvasHeight = stageProperties.height;
-    groundY = stageProperties.groundY;
-    popSize = stageProperties.numAgents;
-    numAgentsMultiplier = stageProperties.totalNumAgentsMultiplier;
-    GravityStrength = stageProperties.gravity;
-    FrictionStrength = stageProperties.fiction;
-    simulationLength = stageProperties.simulationLength;
-    renderedAgents = stageProperties.renderedAgents;
-    simulationSpeed = stageProperties.simSpeed;
+    // groundY = stageProperties.groundY;
+    // popSize = stageProperties.numAgents;
+    // numAgentsMultiplier = stageProperties.totalNumAgentsMultiplier;
+    // GravityStrength = stageProperties.gravity;
+    // FrictionStrength = stageProperties.fiction;
+    // simulationLength = stageProperties.simulationLength;
+    // renderedAgents = stageProperties.renderedAgents;
+    // simulationSpeed = stageProperties.simSpeed;
     topPerformerNo = stageProperties.topPerformerNumber / 100;
-    delay = stageProperties.delay;
-    BATCH_SIZE = stageProperties.batchSize;
-    showNeuralNetwork = stageProperties.showNN;
-    agentToFix = stageProperties.agentInCentre;
-    TOURNAMENT_SIZE = stageProperties.tournamentSize;
-    CROSS_GROUP_PROBABILITY = stageProperties.migrationRate;
-    MIN_GROUP_SIZE = stageProperties.minPopGroupSize;
-    MAX_GROUP_SIZE = stageProperties.maxPopGroupSize;
-    UIUpdateInterval = stageProperties.uiRefreshRate;
-    SOME_DELAY_FRAME_COUNT = stageProperties.muscleDelay;
-    MUSCLE_BATCH_SIZE = stageProperties.muscleBatch;
-    muscleUpdateFrames = stageProperties.totalMuscleUpdateTime;
-    velocityIterations = stageProperties.velocityIteration;
-    positionIterations = stageProperties.positionIteration;
-    physicsGranularityMultiplier = stageProperties.physicsGranularityMultipliers;
-    liquidViscosityDecay = stageProperties.liquidViscosity;
-    increaseTimePerGen = stageProperties.timeIncrease;
-    mapNo = stageProperties.map;
-    randomMapSelector = stageProperties.randomMap;
-    maxSimulationLengthCount = stageProperties.maxSimulationLength;
-    simulationLengthIncreaseCount = stageProperties.simulationLengthIncrease;
-    requireStablising = stageProperties.agentsRequireStablising;
+    // delay = stageProperties.delay;
+    // BATCH_SIZE = stageProperties.batchSize;
+    // showNeuralNetwork = stageProperties.showNN;
+    // agentToFix = stageProperties.agentInCentre;
+    // TOURNAMENT_SIZE = stageProperties.tournamentSize;
+    // CROSS_GROUP_PROBABILITY = stageProperties.migrationRate;
+    // MIN_GROUP_SIZE = stageProperties.minPopGroupSize;
+    // MAX_GROUP_SIZE = stageProperties.maxPopGroupSize;
+    // UIUpdateInterval = stageProperties.uiRefreshRate;
+    // SOME_DELAY_FRAME_COUNT = stageProperties.muscleDelay;
+    // MUSCLE_BATCH_SIZE = stageProperties.muscleBatch;
+    // muscleUpdateFrames = stageProperties.totalMuscleUpdateTime;
+    // velocityIterations = stageProperties.velocityIteration;
+    // positionIterations = stageProperties.positionIteration;
+    // physicsGranularityMultiplier = stageProperties.physicsGranularityMultipliers;
+    // liquidViscosityDecay = stageProperties.liquidViscosity;
+    // increaseTimePerGen = stageProperties.timeIncrease;
+    // mapNo = stageProperties.map;
+    // randomMapSelector = stageProperties.randomMap;
+    // maxSimulationLengthCount = stageProperties.maxSimulationLength;
+    // simulationLengthIncreaseCount = stageProperties.simulationLengthIncrease;
+    // requireStablising = stageProperties.agentsRequireStablising;
+    // MAX_ADJUSTMENT_TORQUE = stageProperties.maxTorqueMultiplier;
+    // showRayCasts = stageProperties.showRayCasts;
+    // updatesPerAgentStart = stageProperties.updatesPerAgentStart;
+    // framesPerUpdateStart = stageProperties.framesPerUpdateStart;
+    // topScoreEver = stageProperties.topScoreEver;
+
+    simulationLengthModified = stageProperties.simulationLength;
 
 
-    simulationLengthModified = simulationLength;
     frameCountSinceLastFPS = 0;
     lastFPSCalculationTime = 0;
     tickCount = 0;
     displayedTimeLeft = 0;
-    MAX_ADJUSTMENT_TORQUE = 300000;
     offsetY = 0;
-    showRayCasts = true;
     singleUpdateCompleted = false;
-    updatesPerAgentStart = 1;
-    framesPerUpdateStart = 10;
     updateCountStart = {};
     frameCountStart = {};
     agentIndexStart = 0;
@@ -745,7 +736,6 @@ function initializeSketchBox2DNEAT(StageProperties) {
     offsetX = 0;
     displayedFPS = 0;
     lastUIUpdateTime = 0;
-    topScoreEver = 0;
     stabilityCounter = 0;
     selectedColor = null;
 
@@ -782,11 +772,6 @@ function initializeSketchBox2DNEAT(StageProperties) {
     p5Instance = new p5(sketchNEAT, 'canvas-container-NEAT');
 }
 
-function toggleRayCastRender(showRays) {
-    showRayCasts = showRays;
-    console.log("toggling RayCasts render");
-}
-
 function logGenomes() {
     // Function to log the genomes of all agents
     let agentsToLog = agents;
@@ -807,9 +792,9 @@ function logGenomes() {
 }
 
 function retrieveGenomes() {
+    stageProperties.simulationLength = simulationLengthModified;
     const data = {
         genomes: agentGenomePool,
-        agentProperties: agentProperties,
         stageProperties: stageProperties
     };
     const jsonString = JSON.stringify(data);
@@ -842,16 +827,13 @@ function uploadGenomes() {
         reader.onload = (event) => {
             try {
                 const data = JSON.parse(event.target.result);
-                // Assuming agentGenomePool, agentProperties, and stageProperties are the variables where you want to store the uploaded data
                 let uploadedAgentGenomePool = data.genomes;
-                let uploadedAgentProperties = data.agentProperties;
                 let uploadedstageProperties = data.stageProperties;
-                agentProperties = uploadedAgentProperties;
                 stageProperties = uploadedstageProperties;
 
                 // Initialize or update your simulation with the new data
                 initializeSketchBox2DNEAT(uploadedstageProperties);
-                initializeAgentsBox2DNEAT(uploadedAgentProperties, uploadedAgentGenomePool);
+                initializeAgentsBox2DNEAT(uploadedAgentGenomePool);
             } catch (err) {
                 console.error('Error parsing uploaded file:', err);
             }
@@ -866,16 +848,16 @@ function uploadGenomes() {
 function skipGen(skipNo) {
     // Function to skip a number of generations by disabling the rendering flag and speeding up physics ticks.  Make use of the 'render' flag, the genCount, which increments automatically every generation, and the simulationSpeed which can be set to 480.  Make use of recursive function to check if genCount has increased by skipNo since the function was called.  We do not need to increment genCount, it already counts generations as they pass
     if (skipNo > 0) {
-        simulationSpeed = 480;
-        fixedTimeStep = (1.0 / simulationSpeed) * 1000;
+        stageProperties.simSpeed = 480;
+        fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
         render = false;
-        let currentGen = genCount;
+        let currentGen = stageProperties.genCount;
         let skipGenRecursive = function () {
-            if (genCount < currentGen + skipNo) {
+            if (stageProperties.genCount < currentGen + skipNo) {
                 setTimeout(skipGenRecursive, 100);
             } else {
-                simulationSpeed = 60;
-                fixedTimeStep = (1.0 / simulationSpeed) * 1000;
+                stageProperties.simSpeed = 60;
+                fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
                 render = true;
             }
         };
@@ -908,44 +890,43 @@ function updateSimulationNEAT(StageProperties) {
     stageProperties = StageProperties;
 }
 
-function initializeAgentsBox2DNEAT(AgentProperties, totalPopulationGenomes) {
-    agentProperties = AgentProperties;
+function initializeAgentsBox2DNEAT(totalPopulationGenomes) {
 
-    // limbsPerAgent = agentProperties.numLimbs; // To be replaced
-    // torque = agentProperties.musculeTorque; // To be replaced
-    MAX_ADJUSTMENT = agentProperties.maxJointSpeed;  // To be replaced
-    // jointMaxMove = agentProperties.maxJointMoveDivider;  // To be replaced
-    brainDecay = agentProperties.brainDecayOverTime;
-    inputsJointAngle = agentProperties.inputJointAngle;  // To be replaced
-    inputsJointSpeed = agentProperties.inputJointSpeed;  // To be replaced
-    inputsAgentPos = agentProperties.inputAgentPos;  // To be replaced
-    inputsAgentV = agentProperties.inputAgentV;  // To be replaced
-    inputsScore = agentProperties.inputScore;  // To be replaced
-    inputsOrientation = agentProperties.inputOrientation;  // To be replaced
-    inputsTimeRemaining = agentProperties.inputTimeRemaining;  // To be replaced
-    inputsGroundSensors = agentProperties.inputGroundSensors;  // To be replaced
-    inputsDistanceSensors = agentProperties.inputDistanceSensors;  // To be replaced
-    // agentMutationRate = agentProperties.offspringMutationRate; 
-    outputJointSpeed = agentProperties.outputsJointSpeed;
-    outputJointTorque = agentProperties.outputsJointTorque;
-    outputBias = agentProperties.outputsBias;
-    swimStrengthMultiplier = agentProperties.swimStrength;
-    swimBiasMultiplier = agentProperties.swimBias; 
-    xScoreMult = agentProperties.xScoreMultiplier;
-    yScoreMult = agentProperties.yScoreMultiplier;
-    movementScoreMult = agentProperties.movementScoreMultiplier;
-    explorationScoreMult = agentProperties.explorationScoreMultiplier;
-    sizeScoreMult = agentProperties.sizeScoreMultiplier;
-    startingEnergyBaseJS = agentProperties.startingEnergyBase;
-    startingEnergyMassPowerJS = agentProperties.startingEnergyMassPower;
-    startingEnergyBodyMassMultJS = agentProperties.startingEnergyBodyMassMult;
-    startingEnergyLimbMassMultJS = agentProperties.startingEnergyLimbMassMult;
-    energyUseForceSizeMultJS = agentProperties.energyUseForceSizeMult;
-    energyUseLimbSizeMultJS = agentProperties.energyUseLimbSizeMult;
-    energyUseBrainSizeMultJS = agentProperties.energyUseBrainSizeMult;
+    // limbsPerAgent = stageProperties.numLimbs; // To be replaced
+    // torque = stageProperties.musculeTorque; // To be replaced
+    // MAX_ADJUSTMENT = stageProperties.maxJointSpeed;  // To be replaced
+    // jointMaxMove = stageProperties.maxJointMoveDivider;  // To be replaced
+    // brainDecay = stageProperties.brainDecayOverTime;
+    // inputsJointAngle = stageProperties.inputJointAngle;  // To be replaced
+    // inputsJointSpeed = stageProperties.inputJointSpeed;  // To be replaced
+    // inputsAgentPos = stageProperties.inputAgentPos;  // To be replaced
+    // inputsAgentV = stageProperties.inputAgentV;  // To be replaced
+    // inputsScore = stageProperties.inputScore;  // To be replaced
+    // inputsOrientation = stageProperties.inputOrientation;  // To be replaced
+    // inputsTimeRemaining = stageProperties.inputTimeRemaining;  // To be replaced
+    // inputsGroundSensors = stageProperties.inputGroundSensors;  // To be replaced
+    // inputsDistanceSensors = stageProperties.inputDistanceSensors;  // To be replaced
+    // agentMutationRate = stageProperties.offspringMutationRate; 
+    // outputJointSpeed = stageProperties.outputsJointSpeed;
+    // outputJointTorque = stageProperties.outputsJointTorque;
+    // outputBias = stageProperties.outputsBias;
+    // swimStrengthMultiplier = stageProperties.swimStrength;
+    // swimBiasMultiplier = stageProperties.swimBias; 
+    // xScoreMult = stageProperties.xScoreMultiplier;
+    // yScoreMult = stageProperties.yScoreMultiplier;
+    // movementScoreMult = stageProperties.movementScoreMultiplier;
+    // explorationScoreMult = stageProperties.explorationScoreMultiplier;
+    // sizeScoreMult = stageProperties.sizeScoreMultiplier;
+    // startingEnergyBaseJS = stageProperties.startingEnergyBase;
+    // startingEnergyMassPowerJS = stageProperties.startingEnergyMassPower;
+    // startingEnergyBodyMassMultJS = stageProperties.startingEnergyBodyMassMult;
+    // startingEnergyLimbMassMultJS = stageProperties.startingEnergyLimbMassMult;
+    // energyUseForceSizeMultJS = stageProperties.energyUseForceSizeMult;
+    // energyUseLimbSizeMultJS = stageProperties.energyUseLimbSizeMult;
+    // energyUseBrainSizeMultJS = stageProperties.energyUseBrainSizeMult;
+    // genCount = stageProperties.genCount;
 
 
-    genCount = 1;
     simulationStarted = false;
     isInitializationComplete = false;
 
@@ -987,9 +968,9 @@ function initializeAgentsBox2DNEAT(AgentProperties, totalPopulationGenomes) {
     let populationGenomes = totalPopulationGenomes.filter(genome => genome.metadata.runGroup === 0);
 
     // Initialize agents in batches
-    if (Array.isArray(populationGenomes) && populationGenomes.length === popSize) {
-        for (let i = 0; i < popSize; i += BATCH_SIZE) {
-            initializeAgentBatchNEAT(i, Math.min(i + BATCH_SIZE, popSize), populationGenomes);
+    if (Array.isArray(populationGenomes) && populationGenomes.length === stageProperties.numAgents) {
+        for (let i = 0; i < stageProperties.numAgents; i += stageProperties.batchSize) {
+            initializeAgentBatchNEAT(i, Math.min(i + stageProperties.batchSize, stageProperties.numAgents), populationGenomes);
         }
     } else {
         console.log("Issue with population genomes");
@@ -997,7 +978,7 @@ function initializeAgentsBox2DNEAT(AgentProperties, totalPopulationGenomes) {
 
     waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopulationGenomes);
 
-    displayedTimeLeft = (simulationLength - tickCount) * (1 / simulationSpeed);
+    displayedTimeLeft = (stageProperties.simulationLength - tickCount) * (1 / stageProperties.simSpeed);
 }
 
 // Function to initialize a batch of agents
@@ -1018,10 +999,10 @@ function initializeAgentNEAT(i, genome) {
         agent.genome.metadata.groupName = GROUP_COLORS_NAMES[agent.genome.metadata.agentGroup];
         agents.push(agent);
 
-        if (agents.length >= popSize ) {
+        if (agents.length >= stageProperties.numAgents ) {
             isInitializationComplete = true;
         }
-    }, i * delay);
+    }, i * stageProperties.delay);
 }
 
 function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopulationGenomes) {
@@ -1039,7 +1020,7 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopula
             let groupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
 
             // Select few random agents
-            for (let i = 0; i < renderedAgents; i++) {
+            for (let i = 0; i < stageProperties.renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgents.length);
                 randomlySelectedAgents.push(groupAgents[randomIndex]);
             }
@@ -1104,8 +1085,8 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.index = this.genome.metadata.agentIndex;
     let mainBodyRadius = this.genome.mainBody.size;
     // const locationBatchSize = 10;
-    this.startingX = 200 + (Math.floor(this.genome.metadata.runGroup) * 5000);
-    this.startingY = 600;
+    this.startingX = stageProperties.agentStartX + (Math.floor(this.genome.metadata.runGroup) * stageProperties.agentStartSpawnGap);
+    this.startingY = stageProperties.agentStartY;
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
     let mainBodyDensity = this.genome.mainBody.density;
     this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, mainBodyDensity);
@@ -1115,11 +1096,12 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.Score = 0;
     this.internalMap = [];
     this.coveredCellCount = 0;
-
-    if (explorationScoreMult > 0) {
-        for (let i = 0; i < 500; i++) {
+    const internalMapSize = stageProperties.internalMapSize;
+    const internalMapCellSize = stageProperties.internalMapCellSize;
+    if (stageProperties.explorationScoreMultiplier > 0) {
+        for (let i = 0; i < internalMapSize; i++) {
             let row = [];
-            for (let n = 0; n < 500; n++) {
+            for (let n = 0; n < internalMapSize; n++) {
                 row.push(false);
             }
             this.internalMap.push(row);
@@ -1239,8 +1221,8 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
     }
 
-    if (startingEnergyBodyMassMultJS > 0) {
-        this.startingEnergy = startingEnergyBaseJS + (((this.mainBody.getMass() / 400 * startingEnergyBodyMassMultJS) + (this.limbMassTot / 30 * startingEnergyLimbMassMultJS)) * (simulationLength / 1000)) ** startingEnergyMassPowerJS; // + body segments mass and maybe limbs later
+    if (stageProperties.startingEnergyBodyMassMult > 0) {
+        this.startingEnergy = stageProperties.startingEnergyBase + (((this.mainBody.getMass() / stageProperties.bodyStartingMassEnergyReductionDivider * stageProperties.startingEnergyBodyMassMult) + (this.limbMassTot / stageProperties.limbStartingMassEnergyReductionDivider * stageProperties.startingEnergyLimbMassMult)) * (stageProperties.simulationLength / 2000)) ** stageProperties.startingEnergyMassPower; // + body segments mass and maybe limbs later
         this.agentEnergy = this.startingEnergy;
     } else {
         this.startingEnergy = 1;
@@ -1275,7 +1257,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
             // Now that I randomly change the agent's starting angles, we need to only increment score after round starts
             if (stabilised) {
-                let change = Math.abs(currentAngle - this.previousJointAngles[i]) * (this.limbs[i].getMass() / 100);
+                let change = Math.abs(currentAngle - this.previousJointAngles[i]) * (this.limbs[i].getMass() / stageProperties.jointMovementRewardLimbMassDivider);
                 totalChange += change;
             }
 
@@ -1304,10 +1286,10 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.getExplorationReward = function () {
 
         // Calculate the position relative to the map's origin (considering the granularity)
-        let gridX = Math.floor((this.position.x - this.startingX) + 10 / 50) + 5;  // Start in cell 5,5 slightly offset from the origin so they can explore backwards.  The +10 is to account for the agent spawning on the boundary of a grid, so getting 4 cells explored instantly
-        let gridY = Math.floor((this.startingY - this.position.y) + 10 / 50) + 5;  // Subtracting due to flipped Y-axis
+        let gridX = Math.floor(((this.position.x - this.startingX) + 10) / internalMapCellSize) + 5;  // Start in cell 5,5 slightly offset from the origin so they can explore backwards.  The +10 is to account for the agent spawning on the boundary of a grid, so getting 4 cells explored instantly
+        let gridY = Math.floor(((this.startingY - this.position.y) + 10) / internalMapCellSize) + 5;  // Subtracting due to flipped Y-axis
 
-        if (gridX >= 0 && gridX < 500 && gridY >= 0 && gridY < 500) {
+        if (gridX >= 0 && gridX < internalMapSize && gridY >= 0 && gridY < internalMapSize) {
             if (!this.internalMap[gridY][gridX]) { // If the cell hasn't been visited yet
                 this.internalMap[gridY][gridX] = true;  // Mark the cell as visited
                 this.coveredCellCount++;  // Increment the covered cell count
@@ -1330,18 +1312,18 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
 
         // If the agent has made new progress in the x or y direction, update the furthest position.
-        let XPosScore = Math.floor(this.furthestXPos - this.startingX) * xScoreMult;
-        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * yScoreMult;
+        let XPosScore = Math.floor(this.furthestXPos - this.startingX) * stageProperties.xScoreMultiplier;
+        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * stageProperties.yScoreMultiplier;
 
         let jointMovementReward = 0;
-        if (movementScoreMult > 0) {
-            jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * movementScoreMult; // Adjust multiplier if needed
+        if (stageProperties.movementScoreMultiplier > 0) {
+            jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * stageProperties.movementScoreMultiplier; // Adjust multiplier if needed
         }
 
         let explorationReward = 0;
 
-        if (explorationScoreMult > 0) {
-            explorationReward = this.getExplorationReward() * explorationScoreMult;
+        if (stageProperties.explorationScoreMultiplier > 0) {
+            explorationReward = this.getExplorationReward() * stageProperties.explorationScoreMultiplier;
         }
 
         let weightPenalty;
@@ -1351,21 +1333,23 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             weightPenalty = 0;
         //}
 
-        if (!roundOver && this.massBonus < 10 && sizeScoreMult > 0) {
+        if (!roundOver && this.massBonus < 10 && stageProperties.sizeScoreMultiplier > 0) {
             try {
-                this.massBonus = this.mainBody.getMass() * sizeScoreMult;
+                this.massBonus = this.mainBody.getMass() * stageProperties.sizeScoreMultiplier;
                 // loop through limbs and add their mass to the massBonus
                 for (let i = 0; i < this.limbs.length; i++) {
-                    this.massBonus += this.limbs[i].getMass() * (sizeScoreMult / 3);
+                    this.massBonus += this.limbs[i].getMass() * (stageProperties.sizeScoreMultiplier);
                 }
             } catch (e) {
                 this.massBonus = 0;
             }
         }
 
-        // Should make this a config option to turn on or off
-        this.massBonusMultiplier = (this.massBonus / 500) * (XPosScore + YPosScore); // This makes the mass bonus scale with the distance traveled, so static, large agents don't get a huge advantage
-        // this.massBonusMultiplier = this.massBonus; // This makes the mass bonus static, so large agents get a huge advantage
+        if (stageProperties.massBonusIsDynamic === true) {
+            this.massBonusMultiplier = (this.massBonus / stageProperties.dynamicMassBonusDivider) * (XPosScore + YPosScore); // This makes the mass bonus scale with the distance traveled, so static, large agents don't get a huge advantage
+        } else {
+            this.massBonusMultiplier = this.massBonus; // This makes the mass bonus static, so large agents get a huge advantage
+        }
 
         this.Score = XPosScore + YPosScore + jointMovementReward + explorationReward - weightPenalty + this.massBonusMultiplier;
 
@@ -1373,8 +1357,8 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             this.Score = 1;
         }
 
-        if (this.Score > topScoreEver) {
-            topScoreEver = this.Score;
+        if (this.Score > stageProperties.topScoreEver) {
+            stageProperties.topScoreEver = this.Score;
         }
 
         // I will also give score bonus for how unique an agent is, both brain and body.
@@ -1460,20 +1444,16 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
 
         // Render second set of joint anchors for testing
-        for (let i = 0; i < this.limbs.length; i++) {
-            if (this.joints[i]) {
-                p.push();
-                let jointPos = this.joints[i].getAnchorB();
-                // Check if the current joint's index is within the jointColors array length
-                if (i < GROUP_COLORS.length) {
-                    p.fill(0, 255, 0);  // Set the fill color to the corresponding color from the jointColors array
-                } else {
-                    p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
-                }
-                p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
-                p.pop();
-            }
-        }
+        //for (let i = 0; i < this.limbs.length; i++) {
+        //    if (this.joints[i]) {
+        //        p.push();
+        //        let jointPos = this.joints[i].getAnchorB();
+        //        // Check if the current joint's index is within the jointColors array length
+        //        p.fill(0, 255, 0); 
+        //        p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
+        //        p.pop();
+        //    }
+        //}
         // Draw a small circle at the center of the agent (200, 600)
         //p.push();
         //p.fill(0);
@@ -1536,7 +1516,7 @@ function createLimbNEAT(world, x, y, length, width, angle, limbNo) {
 
     let fixtureDef = {
         shape: shape,
-        density: 0.1,
+        density: 0.1, // Should make this a genome property
         filterCategoryBits: CATEGORY_AGENT_LIMB,
         filterMaskBits: CATEGORY_GROUND,  // Only allow collision with the ground
     };
@@ -1571,7 +1551,7 @@ function getLeadingAgentNEAT(frameCounter) {
 
     if (frameCounter % 30 === 0) {
         // Truncate randomlySelectedAgents to keep initialized picks
-        randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * renderedAgents);
+        randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * stageProperties.renderedAgents);
 
         // Create an array of the leading agents from each group
         let leadingAgents = [];
@@ -1662,11 +1642,11 @@ function endSimulationNEAT(p) {
     for (let i = 0; i < agents.length; i++) {
         let thisScore = agents[i].getScore(false)[0];
 
-        agents[i].genome.agentHistory.lastScore = { score: thisScore, map: randMap, generation: genCount };
+        agents[i].genome.agentHistory.lastScore = { score: thisScore, map: randMap, generation: stageProperties.genCount };
 
         // Store the score only if the generation is a multiple of STORE_EVERY_N_GENERATIONS
-        if (genCount % 5 === 0) {
-            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap, generation: genCount });
+        if (stageProperties.genCount % 5 === 0) {
+            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap, generation: stageProperties.genCount });
         }
 
         agents[i].genome.agentHistory.rankInPop = (i + 1);
@@ -1680,7 +1660,7 @@ function endSimulationNEAT(p) {
     agents.forEach(agent => tempAgentPool.push(_.cloneDeep(agent)));
 
     // Continue to the next generation once the tempAgentPool is full
-    if (tempAgentPool.length >= popSize * numAgentsMultiplier) {
+    if (tempAgentPool.length >= stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
         nextGenerationNEAT(p);
     } else {
         nextAgentgroupNEAT(p);
@@ -1691,7 +1671,7 @@ function endSimulationNEAT(p) {
 function setupPlanckWorldNEAT() {
     // Create the Planck.js world
     // Could use the gravity property to add a 'current' to the world, rather than creating it with forces manually.  I assume this property is fixed once the world is created though
-    const gravity = planck.Vec2(0.0, GravityStrength * 9.8);
+    const gravity = planck.Vec2(0.0, stageProperties.gravity * 9.8);
     world = planck.World(planck.Vec2(0.0, 0.0));
 
     // Adds event listener for collisions, console logged. Will need to uncomment UserData setting for each body to use
@@ -1704,7 +1684,7 @@ function setupPlanckWorldNEAT() {
     //    console.log("Collision between:", bodyA.getUserData(), "and", bodyB.getUserData());
     //});
 
-    createMaps(mapNo);
+    createMaps(stageProperties.map);
 }
 
 function createMaps(mapNumber) {
@@ -1848,8 +1828,8 @@ function createMaps(mapNumber) {
 
 function createWall(x, y, width, height, angle = 0) {
 
-    for (let i = 0; i < Math.ceil(numAgentsMultiplier); i++) {
-        const offset = i * 5000; // Define an appropriate spacing value to separate the sets of walls
+    for (let i = 0; i < Math.ceil(stageProperties.totalNumAgentsMultiplier); i++) {
+        const offset = i * stageProperties.agentStartSpawnGap; // Define an appropriate spacing value to separate the sets of walls
         const wallDef = {
             type: 'static',
             position: planck.Vec2(x + offset, y),
@@ -2084,8 +2064,8 @@ function activationTypeToString(type) {
 
 function nextAgentgroupNEAT(p) {
 
-    //if (framesPerUpdateStart > 1) {
-    //    framesPerUpdateStart--;
+    //if (stageProperties.framesPerUpdateStart > 1) {
+    //    stageProperties.framesPerUpdateStart--;
     //}
 
     currentProcess = "Filtering batch from total pool";
@@ -2123,9 +2103,9 @@ function nextAgentgroupNEAT(p) {
     let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
 
     // Initialize agents in batches
-    if (Array.isArray(populationGenomes) && populationGenomes.length === popSize) {
-        for (let i = 0; i < popSize; i += BATCH_SIZE) {
-            initializeAgentBatchNEAT(i, Math.min(i + BATCH_SIZE, popSize), populationGenomes);
+    if (Array.isArray(populationGenomes) && populationGenomes.length === stageProperties.numAgents) {
+        for (let i = 0; i < stageProperties.numAgents; i += stageProperties.batchSize) {
+            initializeAgentBatchNEAT(i, Math.min(i + stageProperties.batchSize, stageProperties.numAgents), populationGenomes);
         }
     } else {
         console.log("Issue with population genomes");
@@ -2137,7 +2117,7 @@ function nextAgentgroupNEAT(p) {
 
     // Reset simulation
     // await new Promise(resolve => setTimeout(resolve, 1000));
-    displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / simulationSpeed);
+    displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / stageProperties.simSpeed);
     stabilityCounter = 0;
     tickCount = 0;
     nextBatchFrame = 1;
@@ -2147,7 +2127,7 @@ function nextAgentgroupNEAT(p) {
 
 function waitForInitializationCompletionBatchNEAT(populationGenomes) {
     // Check if the condition is met
-    if (agents.length >= popSize) {
+    if (agents.length >= stageProperties.numAgents) {
         runCount++;
         currentProcess = "Starting next round";
 
@@ -2157,7 +2137,7 @@ function waitForInitializationCompletionBatchNEAT(populationGenomes) {
             let groupAgentsForRender = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
 
             // Select few random agents
-            for (let i = 0; i < renderedAgents; i++) {
+            for (let i = 0; i < stageProperties.renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgentsForRender.length);
                 randomlySelectedAgents.push(groupAgentsForRender[randomIndex]);
             }
@@ -2179,13 +2159,13 @@ function waitForInitializationCompletionBatchNEAT(populationGenomes) {
 function nextGenerationNEAT(p) {
 
     usedIndices = new Set();
-    if (framesPerUpdateStart > 1) {
-        framesPerUpdateStart--;
+    if (stageProperties.framesPerUpdateStart > 1) {
+        stageProperties.framesPerUpdateStart--;
     }
     runCount = 0;
     currentProcess = "Performing Crossover, Mutation, and Selection on total population to create offspring";
 
-    if (randomMapSelector) {
+    if (stageProperties.randomMap) {
         randMap = Math.floor(Math.random() * 5);
         createMaps(randMap);
     }
@@ -2199,8 +2179,8 @@ function nextGenerationNEAT(p) {
         let thisScore = agents[i].getScore(false)[0];
 
         // Store the score only if the generation is a multiple of STORE_EVERY_N_GENERATIONS
-        if (genCount % 5 === 0) {
-            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap, generation: genCount });
+        if (stageProperties.genCount % 5 === 0) {
+            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap, generation: stageProperties.genCount });
         }
 
         agents[i].genome.agentHistory.rankInPop = (i + 1);
@@ -2257,7 +2237,7 @@ function nextGenerationNEAT(p) {
     });
 
     //console.log("Top Agents this round!");
-    //for (let i = 0; i < Math.round(topPerformerNo * popSize); i++) {
+    //for (let i = 0; i < Math.round(topPerformerNo * stageProperties.numAgents); i++) {
     //    console.log(agents[i].index);
     //}
 
@@ -2283,7 +2263,7 @@ function nextGenerationNEAT(p) {
         for (let i = 0; i < groupAgents.length; i++) {
             groupAgents[i].genome.agentHistory.rankInGroup = i + 1;
         }
-        let agentsNeeded = Math.floor((numAgentsMultiplier * popSize) / numGroups);
+        let agentsNeeded = Math.floor((stageProperties.totalNumAgentsMultiplier * stageProperties.numAgents) / numGroups);
 
         // Not a good way to do this, but this line checks if our rounding is going to produce an off by 1 error
         // Could switch back to using the number of agents already present in the group to determine how many agents are needed, but this was causing inconsistencies for a while.
@@ -2320,26 +2300,26 @@ function nextGenerationNEAT(p) {
     console.log('Restarting simulation with evolved agents!');
 
     // Increase the time per generation up to about 15 mins
-    if (increaseTimePerGen && simulationLengthModified < maxSimulationLengthCount) {
+    if (stageProperties.timeIncrease && simulationLengthModified < stageProperties.maxSimulationLength) {
         // simulationLengthModified += simulationLengthModified * 0.005;
-        simulationLengthModified += simulationLengthIncreaseCount;
+        simulationLengthModified += stageProperties.simulationLengthIncrease;
     }
 
     // Reset simulation
     // await new Promise(resolve => setTimeout(resolve, 1000));
-    displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / simulationSpeed);
+    displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / stageProperties.simSpeed);
     stabilityCounter = 0;
     tickCount = 0;
     nextBatchFrame = 1;
     currentPhysicsBatch = 0;
-    genCount++;
+    stageProperties.genCount++;
     // p.loop();
 }
 
 // Recursive function checking if agents have finished loading into world
 function waitForInitializationCompletionNEAT() {
     // Check if the condition is met
-    if (tempAgentGenomePool.length >= popSize * numAgentsMultiplier) {
+    if (tempAgentGenomePool.length >= stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
 
         agentGenomePool = [];
 
@@ -2381,16 +2361,16 @@ function waitForInitializationCompletionNEAT() {
 
         // Assign all agents a runGroup from 0 to numAgentsMultiplier, making sure each group has the same number of agents
         for (let i = 0; i < agentGenomePool.length; i++) {
-            agentGenomePool[i].metadata.runGroup = i % numAgentsMultiplier;
+            agentGenomePool[i].metadata.runGroup = i % stageProperties.totalNumAgentsMultiplier;
         }
 
         // let populationGenomes equal a selection of totalPopulationGenomes based on the agentGenomePool[i].metadata.runGroup. Can use the inter generation run counter runCount for the search
         let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
 
         // Initialize agents in batches
-        if (Array.isArray(populationGenomes) && populationGenomes.length === popSize) {
-            for (let i = 0; i < popSize; i += BATCH_SIZE) {
-                initializeAgentBatchNEAT(i, Math.min(i + BATCH_SIZE, popSize), populationGenomes);
+        if (Array.isArray(populationGenomes) && populationGenomes.length === stageProperties.numAgents) {
+            for (let i = 0; i < stageProperties.numAgents; i += stageProperties.batchSize) {
+                initializeAgentBatchNEAT(i, Math.min(i + stageProperties.batchSize, stageProperties.numAgents), populationGenomes);
             }
         } else {
             console.log("Issue with population genomes");
@@ -2400,13 +2380,13 @@ function waitForInitializationCompletionNEAT() {
 
     } else {
         // If the condition is not met, wait for some time and check again
-        setTimeout(() => waitForInitializationCompletionNEAT(), 100); // Checking every 100ms for example
+        setTimeout(() => waitForInitializationCompletionNEAT(), 100);
     }
 }
 
 function waitForFinalInitializationCompletionNEAT() {
     // Check if the condition is met
-    if (agents.length >= popSize) {
+    if (agents.length >= stageProperties.numAgents) {
 
         currentProcess = "Starting next generation";
 
@@ -2448,7 +2428,7 @@ function waitForFinalInitializationCompletionNEAT() {
             let newGroupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
 
             // Select few random agents
-            for (let i = 0; i < renderedAgents; i++) {
+            for (let i = 0; i < stageProperties.renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * newGroupAgents.length);
                 randomlySelectedAgents.push(newGroupAgents[randomIndex]);
             }
@@ -2462,7 +2442,7 @@ function waitForFinalInitializationCompletionNEAT() {
 
     } else {
         // If the condition is not met, wait for some time and check again
-        setTimeout(() => waitForFinalInitializationCompletionNEAT(), 100); // Checking every 100ms for example
+        setTimeout(() => waitForFinalInitializationCompletionNEAT(), 100);
     }
 }
 
@@ -2479,12 +2459,12 @@ function createTopPerformersNEAT(groupAgents, topPerformersCount) {
         newAgentGenome.metadata.agentGroup = oldAgent.genome.metadata.agentGroup;
         newAgentGenome.agentHistory.roundsAsTopPerformer++;
 
-        // %50 chance to mutate the genome or body plan of top performers
-        if (Math.random() < 0.5) {
+        // Chance to mutate the genome or body plan of top performers
+        if (Math.random() > stageProperties.chanceToIncludeTopPerformerInMutation) {
             newAgentGenome = mutateGenome(newAgentGenome, newAgentGenome.hyperparameters.mutationRate, newAgentGenome.hyperparameters.nodeMutationRate, newAgentGenome.hyperparameters.layerMutationRate);
         }
 
-        if (Math.random() < 0.5) {
+        if (Math.random() < stageProperties.chanceToIncludeTopPerformerInMutation) {
             newAgentGenome = mutateBodyPlan(newAgentGenome, newAgentGenome.hyperparameters.limbMutationRate);
         }
 
@@ -2531,15 +2511,16 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
 
     // Code to update mutation rate commented for now as highly inefficient. It was adding 10 seconds + to the start of each round.
     // childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
-    if (Math.random() < 0.5) {
+
+    if (Math.random() < stageProperties.chanceToIncludeOffspringInMutation) {
         childGenome = mutateGenome(childGenome, childGenome.hyperparameters.mutationRate, childGenome.hyperparameters.nodeMutationRate, childGenome.hyperparameters.layerMutationRate);
     }
-    if (Math.random() < 0.5) {
+    if (Math.random() < stageProperties.chanceToIncludeOffspringInMutation) {
         childGenome = mutateBodyPlan(childGenome, childGenome.hyperparameters.limbMutationRate);
     }
 
     // Decay all weights in the brain by a small amount
-    if (brainDecay) {
+    if (stageProperties.brainDecayOverTime) {
         childGenome = decayWeights(childGenome);
     }
 
@@ -2572,14 +2553,14 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
 
 function selectAgentNEAT(groupAgents, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
-    if (Math.random() < CROSS_GROUP_PROBABILITY) {
+    if (Math.random() < stageProperties.migrationRate) {
         groupAgents = allAgents;
     }
 
     // Tournament Selection
     let tournamentContestants = [];
 
-    for (let i = 0; i < TOURNAMENT_SIZE; i++) {
+    for (let i = 0; i < stageProperties.tournamentSize; i++) {
         let randomAgent;
         do {
             randomAgent = groupAgents[Math.floor(Math.random() * groupAgents.length)];
@@ -2593,7 +2574,7 @@ function selectAgentNEAT(groupAgents, allAgents, excludedAgent = null) {
 
 function selectAgentWeightedNEAT(agentsLocal, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
-    if (Math.random() < CROSS_GROUP_PROBABILITY) {
+    if (Math.random() < stageProperties.migrationRate) {
         agentsLocal = allAgents;
     }
 
@@ -2881,7 +2862,7 @@ function generateUniqueId(usedIds) {
 }
 
 function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate) {
-    let stdDeviation = 0.1;
+    const stdDeviation = stageProperties.neuronMutationStandardDeviation;
 
     function mutateValues(values) {
         if (Array.isArray(values[0])) {
@@ -3426,7 +3407,7 @@ function updateLimbIDs(genome) {
 
 function mutateWithinBounds(original, min, max) {
 
-    let stdDeviation = 0.2;
+    const stdDeviation = stageProperties.bodyPlanMutationStandardDeviation;
     let adjustment = randomGaussian(0, stdDeviation);
 
     function randomGaussian(mean, sd) {
@@ -3444,8 +3425,8 @@ function mutateWithinBounds(original, min, max) {
 
 
 function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
-    let layerGap = 100; // horizontal space between layers
-    let nodeGap = 30;   // vertical space between nodes
+    const layerGap = stageProperties.renderedNNLayerGap; // horizontal space between layers
+    const nodeGap = stageProperties.renderedNNNodeGap;   // vertical space between nodes
     let outputLabels = [];
     let allWeightTensors;
     let allWeights;
@@ -3456,53 +3437,53 @@ function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
 
     let inputLabels = [];
 
-    if (inputsJointAngle) {
+    if (stageProperties.inputJointAngle) {
         inputLabels = inputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`));
     }
 
-    if (inputsJointSpeed) {
+    if (stageProperties.inputJointSpeed) {
         inputLabels = inputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`));
     }
 
-    if (inputsAgentPos) {
+    if (stageProperties.inputAgentPos) {
         inputLabels.push("Agent's X", "Agent's Y");
     }
 
-    if (inputsAgentV) {
+    if (stageProperties.inputAgentV) {
         inputLabels.push("Velocity X", "Velocity Y");
     }
 
-    if (inputsScore) {
+    if (stageProperties.inputScore) {
         inputLabels.push("Score");
     }
 
-    if (inputsOrientation) {
+    if (stageProperties.inputOrientation) {
         inputLabels.push("Orientation");
     }
 
-    if (inputsTimeRemaining) {
+    if (stageProperties.inputTimeRemaining) {
         inputLabels.push("Time Left");
     }
 
-    if (inputsGroundSensors) {
+    if (stageProperties.inputGroundSensors) {
         inputLabels = inputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Ground Sensor ${idx + 1}`));
     }
 
-    if (inputsDistanceSensors) {
+    if (stageProperties.inputDistanceSensors) {
         for (let i = 0; i < 8; i++) {
             inputLabels.push(`Sensor ${['E', 'NE', 'W', 'SE'][i]}`);
         }
     }
 
-    if (outputJointSpeed) {
+    if (stageProperties.outputsJointSpeed) {
         outputLabels = outputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Joint ${idx + 1}`));
     }
 
-    if (outputJointTorque) {
+    if (stageProperties.outputsJointTorque) {
         outputLabels = outputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Joint ${idx + 1}`));
     }
 
-    if (outputBias) {
+    if (stageProperties.outputsBias) {
         outputLabels = outputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Limb ${idx + 1}`));
     }
 
@@ -3598,20 +3579,20 @@ function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
                     p.text(labels[j], x - 90, y + 4);
                 } else if (i === hiddenLayers + 1) {
                     p.text(labels[j], x + 15, y + 4);
-                    if (outputJointSpeed && agent.joints[j]) {
+                    if (stageProperties.outputsJointSpeed && agent.joints[j]) {
                         p.fill(GROUP_COLORS[j]);
                         let currentSpeed = agent.joints[j].getMotorSpeed();
                         p.text(`Speed: ${currentSpeed.toFixed(4)}`, x + 60, y + 4);
                         outputIndex++;
                     }
 
-                    if (outputJointTorque && agent.joints[j - outputIndex]) {
+                    if (stageProperties.outputsJointTorque && agent.joints[j - outputIndex]) {
                         p.fill(GROUP_COLORS[j - outputIndex]);
                         p.text(`Max Torque Cant Be Polled :(`, x + 60, y + 4);
                         outputIndex++;
                     }
 
-                    if (outputBias && agent.biases[j - outputIndex]) {
+                    if (stageProperties.outputsBias && agent.biases[j - outputIndex]) {
                         p.fill(GROUP_COLORS[j - outputIndex]);
                         let biasI = agent.biases[j - outputIndex];
                         p.text(`Bias: ${biasI}`, x + 60, y + 4);
@@ -3632,19 +3613,19 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
 
         for (let i = 0; i < this.joints.length; i++) {
 
-            if (outputJointSpeed) {
-                let adjustment = output[outputIndex] * MAX_ADJUSTMENT * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
+            if (stageProperties.outputsJointSpeed) {
+                let adjustment = output[outputIndex] * stageProperties.maxJointSpeed * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
                 this.joints[i].setMotorSpeed(adjustment);
                 outputIndex++;
             }
 
-            if (outputJointTorque) {
-                let adjustment = output[outputIndex] * MAX_ADJUSTMENT_TORQUE + 500000;
+            if (stageProperties.outputsJointTorque) {
+                let adjustment = output[outputIndex] * stageProperties.maxTorqueMultiplier + 500000;
                 this.joints[i].setMaxMotorTorque(adjustment);
                 outputIndex++;
             }
 
-            if (outputBias) {
+            if (stageProperties.outputsBias) {
                 // Adjusting the bias calculation to map [-1, 1] to [1.001, 1.999]
                 let adjustment = ((output[outputIndex] + 1) * 0.499) + 1.001;
                 this.biases[i] = adjustment;
@@ -3658,15 +3639,15 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
     let inputs = [];
 
     // Constants for normalization
-    const MAX_X = 500; //Approx based on observation
-    const MAX_Y = 250;
-    const MAX_VX = 500; //Approx based on observation
-    const MAX_VY = 500;
-    const MAX_SPEED = MAX_ADJUSTMENT;  // Assuming this is the maximum joint speed
-    const MAX_SCORE = topScoreEver;  // Max Score equaling the top score makes sense, but means the range of this input will change over the simulation.
-    const MAX_TIME = simulationLength / simulationSpeed;  // Maximum time in seconds
+    const MAX_X = stageProperties.maxPosForNormalisation;
+    const MAX_Y = stageProperties.maxPosForNormalisation;
+    const MAX_VX = stageProperties.maxVelForNormalisation;
+    const MAX_VY = stageProperties.maxVelForNormalisation;
+    const MAX_SPEED = stageProperties.maxJointSpeed; 
+    const MAX_SCORE = stageProperties.topScoreEver;  // Max Score equaling the top score makes sense, but means the range of this input will change over the simulation.
+    const MAX_TIME = stageProperties.simulationLength / stageProperties.simSpeed;  // Maximum time in seconds
 
-    if (inputsJointAngle) {
+    if (stageProperties.inputJointAngle) {
         // 1. Joint angles normalized to [-1, 1]
         for (let joint of this.joints) {
             let jointAngle = joint.getJointAngle() / Math.PI;
@@ -3674,8 +3655,8 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
         }
     }
 
-    if (inputsJointSpeed) {
-        // 2. Joint speeds normalized based on MAX_ADJUSTMENT.  Temporally removed for simplicity
+    if (stageProperties.inputJointSpeed) {
+        // 2. Joint speeds normalized based on stageProperties.maxJointSpeed.  Temporally removed for simplicity
         for (let joint of this.joints) {
             let jointSpeed = joint.getJointSpeed() / MAX_SPEED;
             inputs.push(jointSpeed);
@@ -3683,37 +3664,37 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
     }
 
     let position = this.position;
-    if (inputsAgentPos) {
+    if (stageProperties.inputAgentPos) {
         // 3. Agent's position (x,y) normalized based on assumed max values
         inputs.push((position.x - this.startingX) / MAX_X);
         inputs.push((position.y - this.startingY) / MAX_Y);
     }
 
     let velocity = this.mainBody.getLinearVelocity();
-    if (inputsAgentV) {
+    if (stageProperties.inputAgentV) {
         // 4. Agent's velocity (x,y) normalized based on assumed max values for now
         inputs.push(velocity.x / MAX_VX);  // You may want to use a different max speed value here
         inputs.push(velocity.y / MAX_VY);  // You may want to use a different max speed value here
     }
 
-    if (inputsScore) {
+    if (stageProperties.inputScore) {
         // 5. Score normalized based on MAX_SCORE
         let score = this.getScore(false);
         let TScore = parseFloat(score[0]);
         inputs.push(TScore / MAX_SCORE); // I don't think this is actually useful to the agent
     }
 
-    if (inputsOrientation) {
+    if (stageProperties.inputOrientation) {
         // 6. Agent's orientation normalized to [-1, 1]
         inputs.push(this.mainBody.getAngle() / Math.PI);
     }
 
-    if (inputsTimeRemaining) {
+    if (stageProperties.inputTimeRemaining) {
         // 7. Time remaining normalized to [0, 1]
         inputs.push(displayedTimeLeft / MAX_TIME);
     }
 
-    if (inputsDistanceSensors) {
+    if (stageProperties.inputDistanceSensors) {
         // 8. Ray-cast distances to the closest obstacle in a few directions from the agent's body
         const baseDirections = [
             planck.Vec2(1, 0),       // E
