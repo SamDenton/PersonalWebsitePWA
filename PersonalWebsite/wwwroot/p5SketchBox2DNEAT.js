@@ -801,6 +801,13 @@ function retrieveGenomes() {
     saveToFile(jsonString, 'evolvedPopulation.json');
 }
 
+function saveSettings(settingsToSave) {
+    const data = {
+        settings: settingsToSave
+    };
+    const jsonString = JSON.stringify(data);
+    saveToFile(jsonString, 'settings.json');
+}
 
 function saveToFile(data, filename) {
     const blob = new Blob([data], { type: 'application/json' });
@@ -812,38 +819,74 @@ function saveToFile(data, filename) {
     window.URL.revokeObjectURL(url);
 }
 
-function uploadGenomes() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json'; // Accept only JSON files
+function uploadSettings() { // Function to upload settings from a JSON file
+    return new Promise((resolve, reject) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json'; // Accept only JSON files
 
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) {
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const data = JSON.parse(event.target.result);
-                let uploadedAgentGenomePool = data.genomes;
-                let uploadedstageProperties = data.stageProperties;
-                stageProperties = uploadedstageProperties;
-
-                // Initialize or update your simulation with the new data
-                initializeSketchBox2DNEAT(uploadedstageProperties);
-                initializeAgentsBox2DNEAT(uploadedAgentGenomePool);
-            } catch (err) {
-                console.error('Error parsing uploaded file:', err);
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                reject('No file selected');
+                return;
             }
-        };
-        reader.readAsText(file);
-    };
 
-    input.click(); // Open the file dialog
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    let uploadedSettings = data.settings;
+
+                    resolve(uploadedSettings); // Resolve the Promise with the uploaded stage properties
+                } catch (err) {
+                    console.error('Error parsing uploaded file:', err);
+                    reject(err);
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        input.click(); // Open the file dialog
+    });
 }
 
+function uploadGenomes() {
+    return new Promise((resolve, reject) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json'; // Accept only JSON files
+
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                reject('No file selected');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    let uploadedAgentGenomePool = data.genomes;
+                    let uploadedstageProperties = data.stageProperties;
+
+                    // Initialize or update your simulation with the new data
+                    initializeSketchBox2DNEAT(uploadedstageProperties);
+                    initializeAgentsBox2DNEAT(uploadedAgentGenomePool);
+
+                    resolve(uploadedstageProperties); // Resolve the Promise with the uploaded stage properties
+                } catch (err) {
+                    console.error('Error parsing uploaded file:', err);
+                    reject(err);
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        input.click(); // Open the file dialog
+    });
+}
 
 function skipGen(skipNo) {
     // Function to skip a number of generations by disabling the rendering flag and speeding up physics ticks.  Make use of the 'render' flag, the genCount, which increments automatically every generation, and the simulationSpeed which can be set to 480.  Make use of recursive function to check if genCount has increased by skipNo since the function was called.  We do not need to increment genCount, it already counts generations as they pass

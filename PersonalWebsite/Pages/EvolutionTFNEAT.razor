@@ -17,6 +17,8 @@
     <button class="preset-button high-button" title="Set high powered presets" @onclick="setHighPresets">High Power Settings Preset</button>
     <button class="preset-button vHigh-button" title="Set very high powered presets" @onclick="setVHighPresets">Very High Power Settings Preset</button>
     <button class="preset-button reset-button" title="Resets settings to default everything" @onclick="resetSettings">Reset All Settings</button>
+    <button class="preset-button save-button" title="Saves current settings to a JSON file" @onclick="saveSettings">Save Settings To File</button>
+    <button class="preset-button upload-button" title="Uploaded saved settings JSON" @onclick="uploadSettings">Upload Settings File</button>
 </div>
 
 <div class="settings-container">
@@ -966,6 +968,16 @@
 
     }
 
+    private async Task saveSettings()
+    {
+        await JSRuntime.InvokeVoidAsync("saveSettings", stageProperties);
+    }
+
+    private async Task uploadSettings()
+    {
+        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadSettings");
+    }
+
     private async Task ResetSimulation()
     {
         await InitializePopulation(stageProperties.numAgents);
@@ -1093,7 +1105,7 @@
 
     private async Task UploadGenomes()
     {
-        await JSRuntime.InvokeAsync<string>("uploadGenomes");
+        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadGenomes");
     }
 
     public async Task Skip10Gen()
