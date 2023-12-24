@@ -791,7 +791,7 @@ function logGenomes() {
     console.log("agentGenomePool: ", genomes);
 }
 
-function retrieveGenomes() {
+function saveGenomes() {
     stageProperties.simulationLength = simulationLengthModified;
     const data = {
         genomes: agentGenomePool,

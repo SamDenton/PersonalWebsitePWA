@@ -629,7 +629,7 @@
     <button class="floating-button toggleRays-button rightColumn" title="Toggle rendering for agents vision lines" @onclick="toggleRayCasts">Toggle Ray-casts</button>
     <button class="floating-button logGenomes-button leftColumn" title="Post all agent genomes to console" @onclick="LogGenomes">Log Genomes</button>
     <button class="floating-button retrieveGenomes-button rightColumn" title="Save current agent genome pool to continue training later" @onclick="RetrieveGenomes">Save Genomes</button>
-    <button class="floating-button uploadGenomes-button leftColumn" title="Upload agent genome pool to continue training later" @onclick="UploadGenomes">Upload Genomes / Start</button>
+    <button class="floating-button uploadGenomes-button leftColumn" title="Upload agent genome pool to continue training" @onclick="UploadGenomes">Upload Genomes / Start</button>
     <button class="floating-button skip10Gen-button rightColumn" title="Skips 10 generations by disabling rendering and increasing physics speed.  This will still take a few minutes" @onclick="Skip10Gen">Skip 10 Generations</button>
     <button class="floating-button skip100Gen-button leftColumn" title="Skips 1 generation by disabling rendering and increasing physics speed. This will still take a few minutes" @onclick="Skip100Gen">Skip 1 Generations</button>
     <!--add a reset settings button-->
@@ -1075,32 +1075,9 @@
         return JsonSerializer.Serialize(this);
     }
 
-    // private async Task RetrieveGenomes()
-    // {
-    //     var genomeJson = await JSRuntime.InvokeAsync<string>("retrieveGenomes");
-    //     Console.WriteLine(genomeJson);
-    //     var jsonOptions = new JsonSerializerOptions
-    //     {
-    //         WriteIndented = true, // To make it pretty-printed and more readable
-    //         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-    //         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    //     };
-
-    //     try
-    //     {
-    //         List<Genome> evolvedPopulation = JsonSerializer.Deserialize<List<Genome>>(genomeJson, jsonOptions);
-    //         Console.WriteLine(evolvedPopulation[0].Metadata.AgentName);
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         Console.WriteLine($"Error serializing the genome: {ex.Message}");
-    //     }
-
-    // }
-
     private async Task RetrieveGenomes()
     {
-        await JSRuntime.InvokeAsync<string>("retrieveGenomes");
+        await JSRuntime.InvokeAsync<string>("saveGenomes");
     }
 
     private async Task UploadGenomes()
