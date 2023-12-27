@@ -18,6 +18,7 @@ let cachedLeadingAgent = null;
 let wallBodies = [];
 let duplicateWalls = [];
 let fps = 0;
+let startingTickCounter = 0;
 
 let stageProperties;
 
@@ -51,7 +52,6 @@ let sketchNEAT = function (p) {
     let lastTime = 0;
     let leadingAgent;
     let currentPhysicsBatch = 0;
-    let startingTickCounter = 0;
     let particles = [];
 
     let trailingAgent = agents[agents.length - 1];
@@ -88,7 +88,7 @@ let sketchNEAT = function (p) {
         accumulator += delta;
 
         while (accumulator >= fixedTimeStep) {
-            updatePhysics();
+            updatePhysics(p);
             accumulator -= fixedTimeStep;
         }
         if (render) {
@@ -98,23 +98,21 @@ let sketchNEAT = function (p) {
         }
     };
 
-    function updatePhysics() {
+    function updatePhysics(p) {
         if (leadingAgent) {
 
             // If initialization is complete, update muscles 1 agent per frame for 1 update
             if (isInitializationComplete && !simulationStarted) {
                 currentProcess = "Letting Agents Settle";
                 console.log("Letting Agents Settle");
-                if (areAllAgentsStableNEAT()) {
-                    // Initialize updateCountStart and frameCountStart for all agents
-                    for (let i = 0; i < agents.length; i++) {
-                        updateCountStart[i] = 0;
-                        frameCountStart[i] = 0;
-                    }
-                    singleUpdateCompleted = false;
-                    agentIndexStart = 0;
-                    simulationStarted = true;
+                // Initialize updateCountStart and frameCountStart for all agents
+                for (let i = 0; i < agents.length; i++) {
+                    updateCountStart[i] = 0;
+                    frameCountStart[i] = 0;
                 }
+                singleUpdateCompleted = false;
+                agentIndexStart = 0;
+                simulationStarted = true;
             }
 
             if (simulationStarted) {
@@ -122,14 +120,21 @@ let sketchNEAT = function (p) {
                 if (!stabilised) {
 
                     if (!singleUpdateCompleted && stageProperties.agentsRequireStablising) {
-                        // Update the agent
-                        agents[agentIndexStart].updateMusclesNEAT();
 
                         // Initialize or increment the update count for this agent
                         frameCountStart[agentIndexStart] = (frameCountStart[agentIndexStart] || 0) + 1;
 
                         // If frameCount for the agent reaches framesPerUpdate, reset it and increment updateCount
                         if (frameCountStart[agentIndexStart] >= stageProperties.framesPerUpdateStart) {
+
+                            // Check if the agent has been updated the required number of times
+                            if (updateCountStart[agentIndexStart] < stageProperties.updatesPerAgentStart) {
+
+                                // Update the agent
+                                agents[agentIndexStart].mainBody.setType('dynamic');
+                                agents[agentIndexStart].updateMusclesNEAT();
+                            }
+
                             frameCountStart[agentIndexStart] = 0;
                             updateCountStart[agentIndexStart] = (updateCountStart[agentIndexStart] || 0) + 1;
                         }
@@ -149,7 +154,6 @@ let sketchNEAT = function (p) {
                         }
                     }
                 }
-                // Check if all agents are stable before proceeding with batch updates
                 else {
                     // Check if it's time to update the next batch
                     if (startingTickCounter >= nextBatchFrame) {
@@ -186,13 +190,13 @@ let sketchNEAT = function (p) {
                 if (simulationStarted) {
 
                     // Apply swimming force to agents to simulate a liquid environment
-                    applySwimmingForce(agent);
+                    applySwimmingForce(p, agent);
 
                     // Apply drag to agents to simulate a liquid environment
                     applyDrag(agent);
 
                     // Apply joint damping to agents to prevent limbs from moving too fast or slamming into boundaries
-                    applyJointDamping(agent);
+                    // applyJointDamping(agent);
 
                 }
             }
@@ -518,9 +522,9 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
         }
     }
 
-    if (allAgentsStable) {
+    if (allAgentsStable || startingTickCounter == stageProperties.stabilityCheckOverwriteFrames) { // after 20 seconds, if still not stable, move on
         stabilityCounter++;
-        if (stabilityCounter >= stabilityFrames) {
+        if (stabilityCounter >= stabilityFrames || startingTickCounter == stageProperties.stabilityCheckOverwriteFrames) {
             stabilityCounter = 0;  // Reset counter
             return true;
         }
@@ -548,107 +552,152 @@ function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
     }
 }
 
-function applySwimmingForce(agent) {
+//function applySwimmingForce(p, agent) {
 
-    const N = stageProperties.swimForceOverNFrames;
-    const forceScalingFactor = stageProperties.swimStrength;
+//    const N = stageProperties.swimForceOverNFrames;
+//    const forceScalingFactor = stageProperties.swimStrength;
 
-    for (let i = 0; i < agent.bodyParts.length; i++) {
-        let angle = agent.bodyParts[i].startingAngle;
-        let joint = agent.joints[i];
-        let currentAngle = joint.getJointAngle();
-        let agentFacingDirection = agent.mainBody.getAngle();
-        // Add the new angle to the buffer
-        agent.limbBuffer[i].push(currentAngle);
+//    for (let i = 0; i < agent.bodyParts.length; i++) {
+//        let angle = agent.bodyParts[i].startingAngle;
+//        let joint = agent.joints[i];
+//        let currentAngle = joint.getJointAngle();
+//        let agentFacingDirection = agent.mainBody.getAngle();
+//        // Add the new angle to the buffer
+//        agent.limbBuffer[i].push(currentAngle);
 
-        // Check if buffer has reached N length
-        if (agent.limbBuffer[i].length >= N) {
+//        // Check if buffer has reached N length
+//        if (agent.limbBuffer[i].length >= N) {
 
-            // Calculate the average delta angle over the last N frames
-            let deltaTheta = (currentAngle - agent.limbBuffer[i][0]) / N;
+//            // Calculate the average delta angle over the last N frames
+//            let deltaTheta = (currentAngle - agent.limbBuffer[i][0]) / N;
 
-            // Remove the oldest angle from the buffer to maintain its size
-            agent.limbBuffer[i].shift();
+//            // Remove the oldest angle from the buffer to maintain its size
+//            agent.limbBuffer[i].shift();
 
-            // Determine the direction of the force
-            let forceDirection = (currentAngle - angle) + Math.PI / 2;
+//            // Determine the direction of the force
+//            let forceDirection = (currentAngle - angle) + Math.PI / 2;
 
-            let defaultBias = (!outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
-                ? stageProperties.swimBias
-                : agent.biases[i];
+//            let defaultBias = (!outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
+//                ? stageProperties.swimBias
+//                : agent.biases[i];
 
-            let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
+//            let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
 
-            let forceMagnitude;
+//            let forceMagnitude;
 
-            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbMass[i] / stageProperties.limbMassForceDivider) * (agent.bodyParts[i].length / stageProperties.limbLengthForceDivider) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
+//            // Force magnitude is calculated based on; deltaTheta which is the change in angle over the last N frames, bias which is a value between 0 and 2 giving more control in the forward direction, the scaling factor which is a constant, then adjusted based on the limb's mass and length, length reduces the force, mass increases it.  Then modified by the agents remaining energy.
+//            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbMass[i] / stageProperties.limbMassForceDivider) * (agent.bodyParts[i].length / stageProperties.limbLengthForceDivider) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
 
-            if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
-                agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * stageProperties.energyUseForceSizeMult) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * stageProperties.energyUseLimbSizeMult) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * stageProperties.energyUseBrainSizeMult);
-            }
+//            if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
+//                agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * stageProperties.energyUseForceSizeMult) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * stageProperties.energyUseLimbSizeMult) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * stageProperties.energyUseBrainSizeMult);
+//            }
 
+//            // Calculate the force vector
+//            let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
 
-            // Calculate the force vector
-            let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
+//            // Calculate the point on the limb to apply the force
+//            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(currentAngle) * (agent.bodyParts[i].length / 1);
+//            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(currentAngle) * (agent.bodyParts[i].length / 1);
 
-            // Calculate the point on the limb to apply the force
-            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(angle) * (agent.bodyParts[i].length / 1);
-            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.bodyParts[i].length / 1);
+//            let forceApplyPoint = planck.Vec2(forceApplyPointX, forceApplyPointY);
 
-            let forceApplyPoint = planck.Vec2(forceApplyPointX, forceApplyPointY);
+//            agent.drawForceVectors(p, forceApplyPointX, forceApplyPointY, force);
 
-            agent.limbs[i].applyForce(force, forceApplyPoint, true);
-            //// visualize this force
-            //let forceStartX = forceApplyPoint.x - 200;
-            //let forceStartY = forceApplyPoint.y;
-            //// Scale the force for visualization. This value can be adjusted to ensure arrows are neither too long nor too short.
-            //let visualizationScale = 2;
-            //let forceEndX = (forceStartX - 200) + force.x * visualizationScale;
-            //let forceEndY = forceStartY + force.y * visualizationScale;
-            //drawArrow(p, forceStartX, forceStartY, forceEndX, forceEndY);
-        }
-    }
-}
+//            agent.limbs[i].applyForce(force, forceApplyPoint, true);
+//        }
+//    }
+//}
 
 function applyDrag(agent) {
-    const baseDragCoefficient = stageProperties.liquidViscosity; // Fixed drag for main body
-    const minDragCoefficient = stageProperties.minDragCoefficient;
-    const maxDragCoefficient = stageProperties.maxDragCoefficient;
-    const averageLimbMass = stageProperties.averageLimbMass; // Average limb mass
-    const averageLimbLength = stageProperties.averageLimbLength; // Average limb length
-    const massScaleFactor = stageProperties.massScaleForDrag; 
-    const lengthScaleFactor = stageProperties.lengthScaleForDrag;
+    const dragFactor = stageProperties.liquidViscosity; //(0.0009)
+    const speedNormalization = stageProperties.speedNormalizationForDrag; //(2500)
 
-    // Apply fixed drag to the main body's linear and angular velocities
-    let bodyVelocity = agent.mainBody.getLinearVelocity();
-    agent.mainBody.setLinearVelocity(bodyVelocity.mul(baseDragCoefficient ** stageProperties.bodyLinearDragPower));
-    let bodyAngularVelocity = agent.mainBody.getAngularVelocity();
-    agent.mainBody.setAngularVelocity(bodyAngularVelocity * baseDragCoefficient ** stageProperties.bodyAngularDragPower);
-
-    // Apply varying drag to each limb based on its mass and length
-    for (let i = 0; i < agent.bodyParts.length; i++) {
-        let limbMass = agent.limbMass[i];
-        let limbLength = agent.bodyParts[i].length;
-
-        // Calculate drag coefficient modifiers based on mass and length
-        let massModifier = 1 + (limbMass - averageLimbMass) * massScaleFactor;
-        let lengthModifier = 1 + (averageLimbLength - limbLength) * lengthScaleFactor;
-        let dragCoefficient = baseDragCoefficient * massModifier * lengthModifier;
-        // let dragCoefficient = baseDragCoefficient ** (1 / (massModifier + lengthModifier));
-
-        // Clamp the drag coefficient within the specified range
-        dragCoefficient = Math.min(Math.max(dragCoefficient, minDragCoefficient), maxDragCoefficient);
-
-        // Apply linear velocity drag
-        let limbVelocity = agent.limbs[i].getLinearVelocity();
-        agent.limbs[i].setLinearVelocity(limbVelocity.mul(dragCoefficient ** stageProperties.limbLinearDragPower));
-
-        // Apply angular velocity drag
-        let limbAngularVelocity = agent.limbs[i].getAngularVelocity();
-        agent.limbs[i].setAngularVelocity(limbAngularVelocity * dragCoefficient ** stageProperties.limbAngularDragPower);
+    // Function to calculate dynamic drag based on velocity
+    function calculateDynamicDrag(velocity) {
+        let speed = velocity.length();
+        // The drag decreases nonlinearly with increasing speed
+        return 1 - Math.pow(dragFactor, 1 - (Math.pow(speed, 2) / speedNormalization));
     }
+
+    // Apply dynamic drag to the main body's linear and angular velocities
+    let bodyVelocity = agent.mainBody.getLinearVelocity();
+    let bodyDynamicDrag = calculateDynamicDrag(bodyVelocity);
+    agent.mainBody.setLinearVelocity(bodyVelocity.mul(bodyDynamicDrag));
+
+    let bodyAngularVelocity = agent.mainBody.getAngularVelocity();
+    agent.mainBody.setAngularVelocity(bodyAngularVelocity * bodyDynamicDrag);
+
+    // Apply dynamic drag to each limb
+    agent.bodyParts.forEach((limb, index) => {
+        let limbBody = agent.limbs[index];
+        let limbVelocity = limbBody.getLinearVelocity();
+        let limbDynamicDrag = calculateDynamicDrag(limbVelocity);
+        limbBody.setLinearVelocity(limbVelocity.mul(limbDynamicDrag));
+    });
 }
 
+
+
+function applySwimmingForce(p, agent) {
+    const N = stageProperties.swimForceOverNFrames; // Number of frames to average over and apply force (5)
+    const propulsionCoefficient = stageProperties.swimStrength; // Adjust as needed (17)
+    agent.frameCounter = (agent.frameCounter || 0) + 1; // Frame counter for each agent
+
+    // Function to calculate propulsive force based on limb movement
+    function calculatePropulsiveForce(deltaVelocity, area) {
+        let speed = deltaVelocity.length();
+        return deltaVelocity.mul(propulsionCoefficient * speed / stageProperties.speedForceNormilizer * area);
+    }
+
+    // Function to update buffer and calculate change in velocity
+    function updateBufferAndGetDeltaVelocity(buffer, newVelocity) {
+        if (buffer.length >= N) {
+            let oldVelocity = buffer.shift();
+            return newVelocity.clone().sub(oldVelocity).mul(1 / N);
+        } else {
+            buffer.push(newVelocity.clone());
+            return planck.Vec2(0, 0); // No force applied if buffer is not full
+        }
+    }
+
+    // Check if it's time to apply force
+    if (agent.frameCounter % N === 0) {
+        // Apply forces to each limb
+        agent.bodyParts.forEach((limb, index) => {
+            let limbBody = agent.limbs[index];
+            let limbVelocity = limbBody.getLinearVelocity();
+            let deltaLimbVelocity = updateBufferAndGetDeltaVelocity(agent.limbVelocityBuffers[index], limbVelocity);
+            let limbArea = limb.width * limb.length;
+            let limbPropulsiveForce = calculatePropulsiveForce(deltaLimbVelocity, limbArea);
+
+            let defaultBias = (!outputsBias || !simulationStarted || !agent.biases || index >= agent.biases.length || agent.biases[index] == null)
+                ? stageProperties.swimBias
+                : agent.biases[index];
+
+            // Calculate the force direction for bias calculation
+            let forceDirection = Math.atan2(limbPropulsiveForce.y, limbPropulsiveForce.x);
+            let bias = calculateBias(agent.mainBody.getAngle(), forceDirection, defaultBias);
+
+            // Apply bias to the propulsive force
+            let biasedForce = limbPropulsiveForce.mul(bias);
+
+            // Adjust force based on limb orientation and agent's facing direction
+            let orientationAdjustment = Math.cos(agent.mainBody.getAngle() - limbBody.getAngle());
+            let adjustedForce = biasedForce.mul(orientationAdjustment);
+
+            limbBody.applyForceToCenter(adjustedForce);
+
+            // Set 'forceAngle' property for visualization
+            let forceAngle = Math.atan2(adjustedForce.y, adjustedForce.x);
+
+            // Visualize limb force
+            let limbCenterPos = limbBody.getPosition();
+            if (agent.currentlyLeading == true) {
+                agent.drawForceVectors(p, limbCenterPos.x, limbCenterPos.y, adjustedForce, forceAngle);
+            }
+        });
+    }
+}
 
 
 function applyJointDamping(agent) {
@@ -1130,12 +1179,12 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     // const locationBatchSize = 10;
     this.startingX = stageProperties.agentStartX + (Math.floor(this.genome.metadata.runGroup) * stageProperties.agentStartSpawnGap);
     this.startingY = stageProperties.agentStartY;
-    this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
+    this.limbVelocityBuffers = Array(this.numLimbs).fill().map(() => []);
     let mainBodyDensity = this.genome.mainBody.density;
     this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, mainBodyDensity);
     this.position = this.mainBody.getPosition();
     this.rayCastPoints = [];
-
+    this.currentlyLeading = false;
     this.Score = 0;
     this.internalMap = [];
     this.coveredCellCount = 0;
@@ -1420,7 +1469,12 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
     };
 
+    this.offsetX;
+    this.offsetY;
+
     this.render = function (p, offsetX, offsetY) {
+        this.offsetX = offsetX;
+        this.offsetY = offsetY;
         // Set the fill color based on group
         p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
         p.stroke(0);
@@ -1503,6 +1557,37 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         //p.ellipse(this.startingX + offsetX, this.startingY + offsetY, 10, 10);
         //p.pop();
     };
+
+    // If this agent is part of agentsToRender, render the force vectors
+    this.drawForceVectors = function (p, forceApplyPointX, forceApplyPointY, force, forceAngle) {
+        if (this.currentlyLeading == true && stageProperties.showForceVectors == true) { // randomlySelectedAgents.includes(this) || leadingAgents.includes(this) && 
+
+            const forceScale = stageProperties.visualForceScale; // Scale factor for force vector
+            const maxForceLength = stageProperties.visualMaxForceLength; // Maximum length for visualized force vector
+
+            // Scale the force for visualization
+            let scaledForce = p.createVector(force.x, force.y).mult(forceScale);
+
+            // Cap the length of the scaled force
+            if (scaledForce.mag() > maxForceLength) {
+                scaledForce.setMag(maxForceLength);
+            }
+
+            p.push();
+            p.stroke(255);
+            p.strokeWeight(2);
+            p.line(forceApplyPointX + this.offsetX, forceApplyPointY + this.offsetY, forceApplyPointX + scaledForce.x + this.offsetX, forceApplyPointY + scaledForce.y + this.offsetY);
+            p.pop();
+
+            // Draw an arrow at the end of the line
+            p.push();
+            p.fill(255);
+            p.translate(forceApplyPointX + scaledForce.x + this.offsetX, forceApplyPointY + scaledForce.y + this.offsetY);
+            p.rotate(forceAngle);
+            p.triangle(-10, -10, 0, 0, -10, 10);
+            p.pop();
+        }
+    }
 
     this.renderRayCasts = function (p, offsetX, offsetY) {
         p.push()
@@ -1587,7 +1672,6 @@ function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB
     return world.createJoint(planck.RevoluteJoint(jointDef, bodyA, bodyB));
 }
 
-
 function getLeadingAgentNEAT(frameCounter) {
 
     if (agents.length === 0) return null;
@@ -1610,10 +1694,17 @@ function getLeadingAgentNEAT(frameCounter) {
         randomlySelectedAgents.push(...leadingAgents);
 
         // Update the cached leading agent
-        cachedLeadingAgent = agents.reduce((leading, agent) =>
+        let newCachedLeadingAgent = agents.reduce((leading, agent) =>
             (((agent.position.x - agent.startingX) + (1 - agent.position.y - agent.startingY)) > ((leading.position.x - leading.startingX) + (1 - leading.position.y - leading.startingY)) ? agent : leading),
             agents[0]
         );
+
+        // Update currentlyLeading property for the overall leader
+        if (cachedLeadingAgent !== newCachedLeadingAgent) {
+            if (cachedLeadingAgent) cachedLeadingAgent.currentlyLeading = false;
+            newCachedLeadingAgent.currentlyLeading = true;
+            cachedLeadingAgent = newCachedLeadingAgent;
+        }
     }
 
     return cachedLeadingAgent;
