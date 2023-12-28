@@ -203,7 +203,7 @@ let sketchNEAT = function (p) {
 
             // Step the Planck world
             try {
-                world.step(1 / 60 * stageProperties.physicsGranularityMultipliers, stageProperties.velocityIteration, stageProperties.positionIteration);
+                world.step(1 / 60 * (stageProperties.physicsGranularityMultipliers / 10), stageProperties.velocityIteration, stageProperties.positionIteration);
             } catch (error) {
                 console.error("An error occurred stepping physics simulation: ", error);
             }
@@ -498,9 +498,9 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
     }
 
     // Define small thresholds for stability
-    const linearStabilityThresholdBody = stageProperties.linearStabilityThresholdBody; 
-    const angularStabilityThresholdBody = stageProperties.angularStabilityThresholdBody;
-    const angularStabilityThresholdLimb = stageProperties.angularStabilityThresholdLimb;
+    const linearStabilityThresholdBody = stageProperties.linearStabilityThresholdBody / 100; 
+    const angularStabilityThresholdBody = stageProperties.angularStabilityThresholdBody / 100;
+    const angularStabilityThresholdLimb = stageProperties.angularStabilityThresholdLimb / 100;
     const stabilityFrames = stageProperties.stabilityFrames; // 50  // Number of frames to wait before confirming stability
 
     let allAgentsStable = true;
@@ -589,7 +589,7 @@ function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
 //            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbMass[i] / stageProperties.limbMassForceDivider) * (agent.bodyParts[i].length / stageProperties.limbLengthForceDivider) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
 
 //            if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
-//                agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * stageProperties.energyUseForceSizeMult) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * stageProperties.energyUseLimbSizeMult) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * stageProperties.energyUseBrainSizeMult);
+//                agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
 //            }
 
 //            // Calculate the force vector
@@ -609,7 +609,7 @@ function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
 //}
 
 function applyDrag(agent) {
-    const dragFactor = stageProperties.liquidViscosity; //(0.0009)
+    const dragFactor = (stageProperties.liquidViscosity / 1000); //(0.0009)
     const speedNormalization = stageProperties.speedNormalizationForDrag; //(2500)
 
     // Function to calculate dynamic drag based on velocity
@@ -669,9 +669,16 @@ function applySwimmingForce(p, agent) {
             let deltaLimbVelocity = updateBufferAndGetDeltaVelocity(agent.limbVelocityBuffers[index], limbVelocity);
             let limbArea = limb.width * limb.length;
             let limbPropulsiveForce = calculatePropulsiveForce(deltaLimbVelocity, limbArea);
+            // Need to re-implement energy use
+//            // Force magnitude is calculated based on; deltaTheta which is the change in angle over the last N frames, bias which is a value between 0 and 2 giving more control in the forward direction, the scaling factor which is a constant, then adjusted based on the limb's mass and length, length reduces the force, mass increases it.  Then modified by the agents remaining energy.
+//            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbMass[i] / stageProperties.limbMassForceDivider) * (agent.bodyParts[i].length / stageProperties.limbLengthForceDivider) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
 
-            let defaultBias = (!outputsBias || !simulationStarted || !agent.biases || index >= agent.biases.length || agent.biases[index] == null)
-                ? stageProperties.swimBias
+//            if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
+//                agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
+//            }
+
+            let defaultBias = (!stageProperties.outputsBias || !simulationStarted || !agent.biases || index >= agent.biases.length || agent.biases[index] == null)
+                ? (stageProperties.swimBias / 10)
                 : agent.biases[index];
 
             // Calculate the force direction for bias calculation
@@ -702,7 +709,7 @@ function applySwimmingForce(p, agent) {
 
 function applyJointDamping(agent) {
     const maxTorqueForDamping = stageProperties.maxTorqueForDamping;
-    const threshold = stageProperties.threasholdAngleForDamping;
+    const threshold = (stageProperties.threasholdAngleForDamping / 100);
 
     // Damping on approaching joint limits
     for (let i = 0; i < agent.bodyParts.length; i++) {
@@ -998,7 +1005,7 @@ function initializeAgentsBox2DNEAT(totalPopulationGenomes) {
     // inputsTimeRemaining = stageProperties.inputTimeRemaining;  // To be replaced
     // inputsGroundSensors = stageProperties.inputGroundSensors;  // To be replaced
     // inputsDistanceSensors = stageProperties.inputDistanceSensors;  // To be replaced
-    // agentMutationRate = stageProperties.offspringMutationRate; 
+    // agentMutationRate = stageProperties.offspringMutationRate / 1000; 
     // outputJointSpeed = stageProperties.outputsJointSpeed;
     // outputJointTorque = stageProperties.outputsJointTorque;
     // outputBias = stageProperties.outputsBias;
@@ -1190,7 +1197,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.coveredCellCount = 0;
     const internalMapSize = stageProperties.internalMapSize;
     const internalMapCellSize = stageProperties.internalMapCellSize;
-    if (stageProperties.explorationScoreMultiplier > 0) {
+    if ((stageProperties.explorationScoreMultiplier / 10) > 0) {
         for (let i = 0; i < internalMapSize; i++) {
             let row = [];
             for (let n = 0; n < internalMapSize; n++) {
@@ -1313,8 +1320,8 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
     }
 
-    if (stageProperties.startingEnergyBodyMassMult > 0) {
-        this.startingEnergy = stageProperties.startingEnergyBase + (((this.mainBody.getMass() / stageProperties.bodyStartingMassEnergyReductionDivider * stageProperties.startingEnergyBodyMassMult) + (this.limbMassTot / stageProperties.limbStartingMassEnergyReductionDivider * stageProperties.startingEnergyLimbMassMult)) * (stageProperties.simulationLength / 2000)) ** stageProperties.startingEnergyMassPower; // + body segments mass and maybe limbs later
+    if ((stageProperties.startingEnergyBodyMassMult / 10) > 0) {
+        this.startingEnergy = stageProperties.startingEnergyBase + (((this.mainBody.getMass() / stageProperties.bodyStartingMassEnergyReductionDivider * (stageProperties.startingEnergyBodyMassMult / 10)) + (this.limbMassTot / stageProperties.limbStartingMassEnergyReductionDivider * stageProperties.startingEnergyLimbMassMult)) * (stageProperties.simulationLength / 2000)) ** stageProperties.startingEnergyMassPower; // + body segments mass and maybe limbs later
         this.agentEnergy = this.startingEnergy;
     } else {
         this.startingEnergy = 1;
@@ -1404,18 +1411,18 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
 
         // If the agent has made new progress in the x or y direction, update the furthest position.
-        let XPosScore = Math.floor(this.furthestXPos - this.startingX) * stageProperties.xScoreMultiplier;
-        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * stageProperties.yScoreMultiplier;
+        let XPosScore = Math.floor(this.furthestXPos - this.startingX) * (stageProperties.xScoreMultiplier / 10);
+        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * (stageProperties.yScoreMultiplier / 10);
 
         let jointMovementReward = 0;
-        if (stageProperties.movementScoreMultiplier > 0) {
-            jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * stageProperties.movementScoreMultiplier; // Adjust multiplier if needed
+        if ((stageProperties.movementScoreMultiplier / 10) > 0) {
+            jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * (stageProperties.movementScoreMultiplier / 10); // Adjust multiplier if needed
         }
 
         let explorationReward = 0;
 
-        if (stageProperties.explorationScoreMultiplier > 0) {
-            explorationReward = this.getExplorationReward() * stageProperties.explorationScoreMultiplier;
+        if ((stageProperties.explorationScoreMultiplier / 10) > 0) {
+            explorationReward = this.getExplorationReward() * (stageProperties.explorationScoreMultiplier / 10);
         }
 
         let weightPenalty;
@@ -1425,12 +1432,12 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             weightPenalty = 0;
         //}
 
-        if (!roundOver && this.massBonus < 10 && stageProperties.sizeScoreMultiplier > 0) {
+        if (!roundOver && this.massBonus < 10 && (stageProperties.sizeScoreMultiplier / 100) > 0) {
             try {
-                this.massBonus = this.mainBody.getMass() * stageProperties.sizeScoreMultiplier;
+                this.massBonus = this.mainBody.getMass() * (stageProperties.sizeScoreMultiplier / 100);
                 // loop through limbs and add their mass to the massBonus
                 for (let i = 0; i < this.limbs.length; i++) {
-                    this.massBonus += this.limbs[i].getMass() * (stageProperties.sizeScoreMultiplier);
+                    this.massBonus += this.limbs[i].getMass() * (stageProperties.sizeScoreMultiplier / 100);
                 }
             } catch (e) {
                 this.massBonus = 0;
@@ -2594,11 +2601,11 @@ function createTopPerformersNEAT(groupAgents, topPerformersCount) {
         newAgentGenome.agentHistory.roundsAsTopPerformer++;
 
         // Chance to mutate the genome or body plan of top performers
-        if (Math.random() > stageProperties.chanceToIncludeTopPerformerInMutation) {
+        if (Math.random() > (stageProperties.chanceToIncludeTopPerformerInMutation / 100)) {
             newAgentGenome = mutateGenome(newAgentGenome, newAgentGenome.hyperparameters.mutationRate, newAgentGenome.hyperparameters.nodeMutationRate, newAgentGenome.hyperparameters.layerMutationRate);
         }
 
-        if (Math.random() < stageProperties.chanceToIncludeTopPerformerInMutation) {
+        if (Math.random() < (stageProperties.chanceToIncludeTopPerformerInMutation / 100)) {
             newAgentGenome = mutateBodyPlan(newAgentGenome, newAgentGenome.hyperparameters.limbMutationRate);
         }
 
@@ -2646,10 +2653,10 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
     // Code to update mutation rate commented for now as highly inefficient. It was adding 10 seconds + to the start of each round.
     // childBrain.mutationRate = updateMutationRate(childBrain.mutationRate, averageBrain)
 
-    if (Math.random() < stageProperties.chanceToIncludeOffspringInMutation) {
+    if (Math.random() < (stageProperties.chanceToIncludeOffspringInMutation / 100)) {
         childGenome = mutateGenome(childGenome, childGenome.hyperparameters.mutationRate, childGenome.hyperparameters.nodeMutationRate, childGenome.hyperparameters.layerMutationRate);
     }
-    if (Math.random() < stageProperties.chanceToIncludeOffspringInMutation) {
+    if (Math.random() < (stageProperties.chanceToIncludeOffspringInMutation / 100)) {
         childGenome = mutateBodyPlan(childGenome, childGenome.hyperparameters.limbMutationRate);
     }
 
@@ -2687,7 +2694,7 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
 
 function selectAgentNEAT(groupAgents, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
-    if (Math.random() < stageProperties.migrationRate) {
+    if (Math.random() < (stageProperties.migrationRate / 100)) {
         groupAgents = allAgents;
     }
 
@@ -2708,7 +2715,7 @@ function selectAgentNEAT(groupAgents, allAgents, excludedAgent = null) {
 
 function selectAgentWeightedNEAT(agentsLocal, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
-    if (Math.random() < stageProperties.migrationRate) {
+    if (Math.random() < (stageProperties.migrationRate / 100)) {
         agentsLocal = allAgents;
     }
 
@@ -2996,7 +3003,7 @@ function generateUniqueId(usedIds) {
 }
 
 function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate) {
-    const stdDeviation = stageProperties.neuronMutationStandardDeviation;
+    const stdDeviation = (stageProperties.neuronMutationStandardDeviation / 100);
 
     function mutateValues(values) {
         if (Array.isArray(values[0])) {
@@ -3541,7 +3548,7 @@ function updateLimbIDs(genome) {
 
 function mutateWithinBounds(original, min, max) {
 
-    const stdDeviation = stageProperties.bodyPlanMutationStandardDeviation;
+    const stdDeviation = (stageProperties.bodyPlanMutationStandardDeviation / 100);
     let adjustment = randomGaussian(0, stdDeviation);
 
     function randomGaussian(mean, sd) {
@@ -3748,7 +3755,7 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
         for (let i = 0; i < this.joints.length; i++) {
 
             if (stageProperties.outputsJointSpeed) {
-                let adjustment = output[outputIndex] * stageProperties.maxJointSpeed * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
+                let adjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
                 this.joints[i].setMotorSpeed(adjustment);
                 outputIndex++;
             }
@@ -3777,7 +3784,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
     const MAX_Y = stageProperties.maxPosForNormalisation;
     const MAX_VX = stageProperties.maxVelForNormalisation;
     const MAX_VY = stageProperties.maxVelForNormalisation;
-    const MAX_SPEED = stageProperties.maxJointSpeed; 
+    const MAX_SPEED = stageProperties.maxJointSpeed / 10; 
     const MAX_SCORE = stageProperties.topScoreEver;  // Max Score equaling the top score makes sense, but means the range of this input will change over the simulation.
     const MAX_TIME = stageProperties.simulationLength / stageProperties.simSpeed;  // Maximum time in seconds
 

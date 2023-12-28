@@ -1,16 +1,16 @@
 ﻿@page "/EvolutionTFNEAT"
 @inject IJSRuntime JSRuntime
 
-<h2>Semi-NEAT Genetic Evolution Simulation</h2>
+<h2 class="pageTitle">Semi-NEAT Genetic Evolution Simulation</h2>
 
-<p>My Implementation of the NEAT algorithm, adapted for TesnorFlow.JS</p>
+@* <p>My Implementation of the NEAT algorithm, adapted for TesnorFlow.JS</p>
 <p>Like most of the site, this will work on mobile, but its not designed for it</p>
 <p>The documentation below, and on the <a style="text-decoration: none" href="/Projects/all/all">Projects Page of the Wiki</a> will give an explanation of whats going on and how to get started</p>
-
+ *@
 <div id="canvas-container-NEAT"></div>
 
 <div class="settings-preset-Buttons">
-    <h2>Performance Settings presets</h2>
+    @* <h4 class="presetsTitle">Presets</h4> *@
     <button class="preset-button mobile-button" title="Set mobile powered presets" @onclick="setMobilePresets">Mobile Power Settings Preset</button>
     <button class="preset-button low-button" title="Set low powered presets" @onclick="setLowPresets">Low Power Settings Preset</button>
     <button class="preset-button mid-button" title="Set medium powered presets" @onclick="setMidPresets">Medium Power Settings Preset</button>
@@ -21,603 +21,234 @@
     <button class="preset-button upload-button" title="Uploaded saved settings JSON" @onclick="uploadSettings">Upload Settings File</button>
 </div>
 
-<div class="settings-container">
-    <div class="settings-section">
-        <h2>Performance Settings</h2>
+<div class="tabs">
+    @foreach (var tab in tabs)
+    {
+        <button class="@(tab == activeTab ? "tab-button active" : "tab-button")" @onclick="() => SetActiveTab(tab)">
+            @tab.Title
+        </button>
+    }
+</div>
 
-        <!-- Number of Agents -->
-        <div class="setting">
-            <label for="numAgents" title="Total number of agents run at once">Number of Agents to Run at Once</label>
-            <div class="slider-container">
-                <input type="range" id="numAgents" @bind="stageProperties.numAgents" min="10" max="1000" step="1">
-                <input type="number" @bind="stageProperties.numAgents" min="2" max="1000" step="1">
+<div class="tab-content">
+    @if (activeTab != null)
+    {
+        @if (activeTab.Title == "Home")
+        {
+            <div class="simDescription">
+                <h4>Welcome to My Genetic Evolution Simulator!</h4>
+                <p class="tagline">Read on to get started!</p>
+                <h5>Quick Start Guide:</h5>
+                <p>Please select a pre-configuration from the top to get a good starting point.</p>
+                <p>You can then use the settings tabs to alter specific settings.</p>
+                <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
+                <p>Start/Reset will respect all configurations, while Simplified Start will remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
+                <p>Simplified Start should see much faster learning, with agents completing the maps with 50 generations or so, using full configurations will result in much more interesting behavior, but will take 100+ generations to see much progress</p>
+                <p>Super Simplified Start will also give agents a small, fixed brain and preset body plan, and will see agents complete the maps in 20-30 generations</p>
+                <p>Use the button bank in the top right to toggle rendering of the leading agents brain/neural network, their vision lines/ray casts, switch between the leading agent and training agent or fast-forward generations (only about twice as fast as normal currently)</p>
+                <p>Logging the genomes writes the current population to the console, and retrieving genomes is the first step towards implementing an agent database online where pre-trained agents cam be stored and retrieved.</p>
+                <p>The skip x generation buttons will disable the rendering and increase the physics update rate by 4x.  If you are already running at the limit of what your computer can handle, IE. your fps is below 30-40 at normal speed, this is not going to actually speed up much.  The rendering only adds about 10% to the processing time per frame.</p>
+                <h5>Some Explanation:</h5>
+                <p>This is my take on a NEAT genetic evolution simulation.</p>
+                <p>I would describe this as a 'Semi-NEAT' algorithm since I have restriction on what network shapes can evolve.  This is due to TensorFlow.JS's restriction to static models, where a full NEAT implementation requires dynamic models, and more control over connections</p>
+                <p>Resetting/updating is a little buggy, its currently best to refresh the page if you want to try new settings</p>
+                <p>Showing the Neural Network on screen adds a fair amount of lag so its hidden by default</p>
+                <p>I am making use of P5.JS for my rendering, Planck.JS; a port of Box2D, for my physics and TensorFlow.JS for my neural network processing</p>
+                <h5>So whats going on?</h5>
+                <p>If you start the simulation with default settings, you will see about 15 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest right, and the furthest left agent</p>
+                <p>Default settings will produce 200 agents in the population, split into batches of 25, as well as species groups.  25 agents from the run group are evaluated at a time, with a random selection of species</p>
+                <p>On my PC, using a Ryzen 7 3700X CPU about 3.5Ghz per core, I can target about 150 agents at a time, with 10 Agents Per Batch of Joint Updates.  The Number of Inter-gen Batches will not effect performance, but will increase training time, as only 1 batch can be evaluated at a time</p>
+                <p>Since i'm making use of JS, the bottleneck for most systems is going to be the speed of a single CPU core.  Some configurations may reach a browser memory limit before a CPU limit, if you have a high number of inter-gen batches.  Browsers I have tested seem ok up to about 1000 agents total</p>
+                <p>The GPU is also utilized for any Neural Network functions, the most intense of which happen between rounds, so it doesn't really matter how long they take, but during the simulation, the actual decision making also utilities the GPU using WebGL.  I have not found a configuration where this is the bottleneck, but its possible</p>
+                <p>Each round, the agents have 2000 ticks, about 34 seconds at 60 fps with default physics speed of 60, to move as far North East as possible.</p>
+                <p>The agents are all given a randomly initialized neural network, with a random shape for a brain, the leaders brain is rendered.  They are given a random body plan.  Both the brain and the body plan will evolve over time based on a number of crossover and mutation functions</p>
+                <p>Between rounds, the agents are sorted by score, where the top x% from each species are selected to remain unchanged, and the other 90% of the population is built using crossover and mutation.</p>
+                <p>This is performed between generations, on the whole population</p>
+                <p>Crossover is the function of picking 2 parent agents and combining the weights and biases in their brains, keeping some features from one, and some from the other.  There are a range of methods for this, I am currently using biased Arithmetic Crossover, where there is a weighted bias given by the relative scores of the parents.</p>
+                <p>Mutation adds a small chance that each weight, bias, limb or body will be altered by a small, random amount.  Again, there are many methods, currently i am using the Box-Muller transform to get a Gaussian random number for my mutation amount.  I have a function that changes the mutation rate if agents brains get too close to the average</p>
+                <p>I am currently also mutating the number of limbs and layers in the brain.  These are more complex to mutate than others, as they tend to produce 'dead' agents that need retaining from scratch, which naturaly cant compete with already trained agents.  I am playing with a number of methods to counter this.</p>
+                <p>Now, when a new limb is mutated, it finds an existing limb with a similar starting angle, and copies the weights from that limb.  When a new layer is mutated, it should create a matching layer, where biases are copied from the previous layer, and weights are connected so the old node connects to its new copy with a weight of 1, and all other weights are 0 in the new layer, hopefully copying the previous layers function until new values are evolved.</p>
+                <p>The parents for crossover can be selected in many ways, I am actually using 1 method for 1 parent, and another for the other.  The first is picked via tournament selection, where 10 random agents are selected from the group, and the best of those if picked.  The second is picked via a weighted random selection, where ever agent is entered into a lottery with more entries for a higher score, and a random agent is picked from the pool.</p>
+                <p>I am also using 'Island Populations' or 'Island Speciation', where parents are always picked from the same distinct group.  This means, with default settings, 3 distinct populations should evolve with different strategies.  There is a small chance that parents are picked from a different group, allowing some sharing of strategies</p>
+                <p>You should see some 'evolution' within  50 or so generations, and they can continue to improve indefinitely, however, they can get stuck in whats known as a 'local maxima' where the agents converge on 1 or a few ok strategies, and never seem to improve.  Through mutation, they might eventually, but in those situations, its best to restart.  A greater number of agents or distinct population groups can help with this</p>
+                <p>If enabled, I am experimenting with a form of normalization which slowly decays all weights in the network over time.  It's meant to prevent any noise in the network over time, based on a 'use it or loose it' principal.  Useful connections should be maintained by re-selection and unused connections will drop away</p>
+                <h5>Current Selective Pressures:</h5>
+                <ol>
+                    <li>Score for movement North East</li>
+                    <li>Bonus for joint movement that diminishes over time</li>
+                    <li>Exploration bonus</li>
+                    <li>Size bonus</li>
+                    <li>Larger limbs give more swimming force</li>
+                </ol>
+                <h6>Energy System:</h6>
+                <ol>
+                    <li>Starting energy based on body size, larger bodies can store more energy</li>
+                    <li>More energy is used to move larger limbs</li>
+                    <li>Agents limb movement speed is based on their remaining energy %, with no energy, they cant move at all</li>
+                </ol>
+                <h5>Future Plans</h5>
+                <p>There is a lot of clean up work to do on the code, the genome and the agent objects.  I have lots of duplicated values and old structures.  I am not making use of 'const' enough, and I am duplicating functions in places</p>
+                <p>I need to work on the maps.  They are too simple and not varied enough.  I want to implement some goals, like food, tied to the energy system.  A puzzle to open a door or similar could also be interesting</p>
+                <p>I want to make all variables customizable, which is a huge number.  I need to find a nice way to arrange them</p>
+                <p>I plan on adding further ways the agents can evolve. I want to allow more complex body plans with different types of limb and body segments, such as wings, thrusters, suckers, energy storage limbs etc</p>
+                <p>I want to add a greater range of crossover, mutation and selection methods to increase diversity, and have them toggle in settings to play with different combinations</p>
+                <p>I want to add a way to save and load agents, and a way to download and upload agents to a database</p>
+                <p>I want to add the ability to see genomes on screen somehow</p>
+                <p>I want to play around with a predator and prey scenario, where some agents learn to catch others</p>
+                <p>There are many different ways to adjust the energy system to see more interesting evolution, such as food, recovering energy by resting, reducing update speed based on energy, adding limbs just for energy storage etc</p>
+                <p>I have created a few different versions of my mutate and crossover functions, I would like to let the user pick which is used.  I need to get the old ones working first</p>
+                <p>Could look at creating 4 routs for re-populating instead of 2; some top performers unchanged, some top performers mutated, some offspring, and some offspring mutated</p>
+                <p>Could look at implementing another idea from NEAT, where agents are given a metric based on their properties, and have a higher chance to reproduce with similar agents.  This can create species groups even within my island populations, leading to a greater variety of solutions.  This may require larger populations to work well, 100-200 agents per group, where I currently have 25 per group.</p>
+                <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge</p>
+                <p>I want to be able to pan the screen around with arrows, not just locked to the agent.  I can also position the agent better on the screen by default</p>
+                <p>Currently, my crossover methods both treat each neuron independently, it would be good to also allow groups of neurons to be transfered together so learned features are maintained.</p>
             </div>
-        </div>
+        }
+        else if (activeTab.Title == "Favourites")
+        {
+            <div class="settings-container">
+                @foreach (var favSettingName in stageProperties.FavouriteSettings)
+                {
+                    var favSetting = tabs.SelectMany(tab => tab.Settings)
+                    .FirstOrDefault(setting => setting.Name == favSettingName);
 
-        <!-- Number of Agent Inter-gen Batches -->
-        <div class="setting">
-            <label for="totalNumAgentsMultiplier" title="Number of agents inter-gen batches.  Multiply Number of agents to run at once by this multiplier to get the total agents in the population.">Number of Agent Intergenerational Batches</label>
-            <div class="slider-container">
-                <input type="range" id="totalNumAgentsMultiplier" @bind="stageProperties.totalNumAgentsMultiplier" min="1" max="100" step="1">
-                <input type="number" @bind="stageProperties.totalNumAgentsMultiplier" min="1" max="100" step="1">
+                    if (favSetting == null)
+                    {
+                        favSetting = tabs.SelectMany(tab => tab.AdvancedSettings)
+                        .FirstOrDefault(setting => setting.Name == favSettingName);
+                    }
+
+                    if (favSetting != null)
+                    {
+                        <div class="@(favSetting.Type == SettingType.Slider || favSetting.Type == SettingType.Dropdown ? "setting large" : "setting")">
+                            <label>@favSetting.Name</label>
+                            @switch (favSetting.Type)
+                            {
+                                case SettingType.Slider:
+                                    <input type="range" @bind="favSetting.Value" min="@favSetting.Min" max="@favSetting.Max" step="@favSetting.Step" />
+                                    <input type="number" @bind="favSetting.Value" min="@favSetting.Min" max="@favSetting.Max" step="@favSetting.Step" />
+                                    break;
+                                case SettingType.Dropdown:
+                                    <select @bind="favSetting.SelectedValue">
+                                        @foreach (var option in favSetting.Options)
+                                        {
+                                            <option value="@option">@option</option>
+                                        }
+                                    </select>
+                                    break;
+                                case SettingType.Checkbox:
+                                    <label class="switch">
+                                        <input type="checkbox" @bind="favSetting.BooleanValue" />
+                                        <span class="slider"></span>
+                                    </label>
+                                    break;
+                            }
+                            <button @onclick="@(() => ToggleFavourite(favSetting.Name))" class="favourite-button">
+                                @if (stageProperties.FavouriteSettings.Contains(favSetting.Name))
+                                {
+                                    <span class="favourited">★</span> <!-- Marked as favourite -->
+                                }
+                                else
+                                {
+                                    <span>☆</span> <!-- Not favourite -->
+                                }
+                            </button>
+                            <p class="setting-details">@favSetting.Details</p>
+                        </div>
+                    }
+                }
             </div>
-        </div>
-
-        <!-- Agents updated per batch -->
-        <div class="setting">
-            <label for="muscleBatch" title="Update this many agents muscles, wait, then move to next batch.  Setting this equal to the population size will update every agent, every update cycle">Agents Per Batch of Joint Updates</label>
-            <div class="slider-container">
-                <input type="range" id="muscleBatch" @bind="stageProperties.muscleBatch" min="1" max="500" step="1">
-                <input type="number" @bind="stageProperties.muscleBatch" min="1" max="500" step="1">
+        }
+        else
+        {
+            <p class="tabDesc">@activeTab.Description</p>
+            <div class="settings-container">
+                @foreach (var setting in activeTab.Settings)
+                {
+                    <div class="@(setting.Type == SettingType.Slider || setting.Type == SettingType.Dropdown ? "setting large" : "setting")">
+                        <label>@setting.Name</label>
+                        @switch (setting.Type)
+                        {
+                            case SettingType.Slider:
+                                <input type="range" @bind="setting.Value" min="@setting.Min" max="@setting.Max" step="@setting.Step" />
+                                <input type="number" @bind="setting.Value" min="@setting.Min" max="@setting.Max" step="@setting.Step" />
+                                break;
+                            case SettingType.Dropdown:
+                                <select @bind="setting.SelectedValue">
+                                    @foreach (var option in setting.Options)
+                                    {
+                                        <option value="@option">@option</option>
+                                    }
+                                </select>
+                                break;
+                            case SettingType.Checkbox:
+                                <label class="switch">
+                                    <input type="checkbox" @bind="setting.BooleanValue" />
+                                    <span class="slider"></span>
+                                </label>
+                                break;
+                        }
+                        <button @onclick="@(() => ToggleFavourite(setting.Name))" class="favourite-button">
+                            @if (stageProperties.FavouriteSettings.Contains(setting.Name))
+                            {
+                                <span class="favourited">★</span> <!-- Marked as favourite -->
+                            }
+                            else
+                            {
+                                <span>☆</span> <!-- Not favourite -->
+                            }
+                        </button>
+                        <p class="setting-details">@setting.Details</p>
+                    </div>
+                }
+                @if (activeTab.HasAdvanced)
+                {
+                    <button class="toggleAdvanced" @onclick="() => ToggleAdvanced(activeTab)">Toggle Advanced</button>
+                    @if (activeTab.ShowAdvanced)
+                    {
+                        @foreach (var advancedSetting in activeTab.AdvancedSettings)
+                        {
+                            <div class="@(advancedSetting.Type == SettingType.Slider || advancedSetting.Type == SettingType.Dropdown ? "setting large" : "setting")">
+                                <label>@advancedSetting.Name</label>
+                                @switch (advancedSetting.Type)
+                                {
+                                    case SettingType.Slider:
+                                        <input type="range" @bind="advancedSetting.Value" min="@advancedSetting.Min" max="@advancedSetting.Max" step="@advancedSetting.Step" />
+                                        <input type="number" @bind="advancedSetting.Value" min="@advancedSetting.Min" max="@advancedSetting.Max" step="@advancedSetting.Step" />
+                                        break;
+                                    case SettingType.Dropdown:
+                                        <select @bind="advancedSetting.SelectedValue">
+                                            @foreach (var option in advancedSetting.Options)
+                                            {
+                                                <option value="@option">@option</option>
+                                            }
+                                        </select>
+                                        break;
+                                    case SettingType.Checkbox:
+                                        <label class="switch">
+                                            <input type="checkbox" @bind="advancedSetting.BooleanValue" />
+                                            <span class="slider"></span>
+                                        </label>
+                                        break;
+                                }
+                                <button @onclick="@(() => ToggleFavourite(advancedSetting.Name))" class="favourite-button">
+                                    @if (stageProperties.FavouriteSettings.Contains(advancedSetting.Name))
+                                    {
+                                        <span class="favourited">★</span> <!-- Marked as favourite -->
+                                    }
+                                    else
+                                    {
+                                        <span>☆</span> <!-- Not favourite -->
+                                    }
+                                </button>
+                                <p class="setting-details">@advancedSetting.Details</p>
+                            </div>
+                        }
+                    }
+                }
             </div>
-        </div>
-
-        <!-- Frames per batch -->
-        <div class="setting">
-            <label for="muscleDelay" title="1 means no delay between batches">Delay Between Batch of Joint Updates (frames)</label>
-            <div class="slider-container">
-                <input type="range" id="muscleDelay" @bind="stageProperties.muscleDelay" min="1" max="50" step="1">
-                <input type="number" @bind="stageProperties.muscleDelay" min="1" max="50" step="1">
-            </div>
-        </div>
-
-        <!-- Frames between muscle update rounds -->
-        <div class="setting">
-            <label for="totalMuscleUpdateTime" title="Frames between muscle update rounds. Combines with muscle batching.">Delay Between Muscle Update Rounds (frames)</label>
-            <div class="slider-container">
-                <input type="range" id="totalMuscleUpdateTime" @bind="stageProperties.totalMuscleUpdateTime" min="1" max="50" step="1">
-                <input type="number" @bind="stageProperties.totalMuscleUpdateTime" min="1" max="50" step="1">
-            </div>
-        </div>
-
-        <!-- Physics Speed -->
-        <div class="setting">
-            <label for="simSpeed" title="Physics Speed, the number of physics ticks per 60 rendered frames, approx 1 second (try slower speeds on slow computers).">Physics Updates Per Second (at 60 fps)</label>
-            <div class="slider-container">
-                <input type="range" id="simSpeed" @bind="stageProperties.simSpeed" min="6" max="480" step="6">
-                <input type="number" @bind="stageProperties.simSpeed" min="6" max="480" step="6">
-            </div>
-        </div>
-
-        <!-- Spawn Batch Size -->
-        <div class="setting">
-            <label for="BatchSize" title="Spawn agents in batches of this many.  Helps to distribute calculations over a few seconds">Spawn Batch Size</label>
-            <div class="slider-container">
-                <input type="range" id="BatchSize" @bind="stageProperties.BatchSize" min="1" max="200" step="1">
-                <input type="number" @bind="stageProperties.BatchSize" min="1" max="200" step="1">
-            </div>
-        </div>
-
-        <!-- Spawn Delay Between batches -->
-        <div class="setting">
-            <label for="delay" title="Spawn Delay Between batches (ms), more delay smooths out resource spikes when loading agents.">Spawn Delay Between Batches (ms)</label>
-            <div class="slider-container">
-                <input type="range" id="delay" @bind="stageProperties.delay" min="0" max="200" step="1">
-                <input type="number" @bind="stageProperties.delay" min="0" max="200" step="1">
-            </div>
-        </div>
-
-    </div>
-
-    <div class="settings-section">
-        <h2>Agent Properties</h2>
-
-        <!-- Number of limbs per agent -->
-@*        <div class="setting">
-            <label for="numLimbs" title="Number of limbs per agent.">Number of Limbs per Agent</label>
-            <div class="slider-container">
-                <input type="range" id="numLimbs" @bind="stageProperties.numLimbs" min="1" max="20" step="1">
-                <input type="number" @bind="stageProperties.numLimbs" min="1" max="20" step="1">
-            </div>
-        </div>*@
-
-        <!-- Max Joint Speed -->
-        <div class="setting">
-            <label for="maxJointSpeed" title="Maximum joint speed.">Max Joint Speed</label>
-            <div class="slider-container">
-                <input type="range" id="maxJointSpeed" @bind="stageProperties.maxJointSpeed" min="0.5" max="5" step="0.5">
-                <input type="number" @bind="stageProperties.maxJointSpeed" min="0.5" max="5" step="0.5">
-            </div>
-        </div>
-
-        <!-- Number of limbs per agent -->
-@*        <div class="setting">
-            <label for="musculeTorque" title="Number of limbs per agent.">Max Torque Per Joint</label>
-            <div class="slider-container">
-                <input type="range" id="musculeTorque" @bind="stageProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
-                <input type="number" @bind="stageProperties.musculeTorque" min="50000.0" max="5000000.0" step="5000.0">
-            </div>
-        </div>*@
-
-        <!-- Weight and Bias Mutation rate -->
-        <div class="setting">
-            <label for="offspringMutationRate" title="The mutation rate for weights and biases within the network">Mutation rate for weights and biases</label>
-            <div class="slider-container">
-                <input type="range" id="offspringMutationRate" @bind="stageProperties.offspringMutationRate" min="0" max="10" step="0.001">
-                <input type="number" @bind="stageProperties.offspringMutationRate" min="0" max="10" step="0.001">
-            </div>
-        </div>
-
-        <!-- Node Mutation rate -->
-        <div class="setting">
-            <label for="offspringNodeMutationRate" title="The Mutation rate for gaining or loosing a node in a random layer">Mutation rate for gaining or loosing a node</label>
-            <div class="slider-container">
-                <input type="range" id="offspringNodeMutationRate" @bind="stageProperties.offspringNodeMutationRate" min="0" max="10" step="0.001">
-                <input type="number" @bind="stageProperties.offspringNodeMutationRate" min="0" max="10" step="0.001">
-            </div>
-        </div>
-
-        <!-- Layer Mutation rate -->
-        <div class="setting">
-            <label for="offspringLayerMutationRate" title="The Mutation rate for gaining or loosing a network layer at a random position">Mutation rate for gaining or loosing a network layer</label>
-            <div class="slider-container">
-                <input type="range" id="offspringLayerMutationRate" @bind="stageProperties.offspringLayerMutationRate" min="0" max="10" step="0.001">
-                <input type="number" @bind="stageProperties.offspringLayerMutationRate" min="0" max="10" step="0.001">
-            </div>
-        </div>
-
-        <!-- Body Plan Mutation rate -->
-        <div class="setting">
-            <label for="offspringLimbMutationRate" title="The Mutation rate for the body plan, gaining or loosing limbs is half this amount">Mutation rate for the body plan, gaining or loosing limbs is half this amount</label>
-            <div class="slider-container">
-                <input type="range" id="offspringLimbMutationRate" @bind="stageProperties.offspringLimbMutationRate" min="0" max="10" step="0.001">
-                <input type="number" @bind="stageProperties.offspringLimbMutationRate" min="0" max="10" step="0.001">
-            </div>
-        </div>
-
-        <!-- Max limb movement -->
-@*        <div class="setting">
-            <label for="maxJointMoveDivider" title="Number of limbs per agent.">Joint Movement Restriction (0 means no restriction, 2 means half their possible movement)</label>
-            <div class="slider-container">
-                <input type="range" id="maxJointMoveDivider" @bind="stageProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
-                <input type="number" @bind="stageProperties.maxJointMoveDivider" min="0" max="8" step="0.1">
-            </div>
-        </div>*@
-
-        <!-- liquid Viscosity -->
-        <div class="setting">
-            <label for="liquidViscosity" title="Movement decay factor for agents">Liquid Environment Viscosity</label>
-            <div class="slider-container">
-                <input type="range" id="liquidViscosity" @bind="stageProperties.liquidViscosity" min="0.9" max="1" step="0.001">
-                <input type="number" @bind="stageProperties.liquidViscosity" min="0.9" max="1" step="0.001">
-            </div>
-        </div>
-
-        <!-- swim Strength -->
-        <div class="setting">
-            <label for="swimStrength" title="Multiplier on the force applied to each limb for agent swimming">Swim Strength</label>
-            <div class="slider-container">
-                <input type="range" id="swimStrength" @bind="stageProperties.swimStrength" min="100000" max="50000000" step="10000">
-                <input type="number" @bind="stageProperties.swimStrength" min="100000" max="50000000" step="10000">
-            </div>
-        </div>
-
-        <!-- Max limb movement -->
-        <div class="setting">
-            <label for="swimBias" title="Adds a slight bias in the force applied, so 'limb strokes' apply more force than retuning to starting position, based on left right split of limbs on body">Swim Bias</label>
-            <div class="slider-container">
-                <input type="range" id="swimBias" @bind="stageProperties.swimBias" min="1" max="2" step="0.01">
-                <input type="number" @bind="stageProperties.swimBias" min="1" max="2" step="0.01">
-            </div>
-        </div>
-
-        <!-- Input List -->
-        <div class="setting">
-
-            <p title="Select the inputs available to the agents">Agent Input Selection</p>
-
-            <label for="inputJointAngle" title="The current angle of each joint relative to the main body">Joint Angle</label>
-            <input type="checkbox" id="inputJointAngle" @bind="stageProperties.inputJointAngle" />
-
-            <label for="inputJointSpeed" title="The current speed of the joint/limb">Joint/Limb Speed</label>
-            <input type="checkbox" id="inputJointSpeed" @bind="stageProperties.inputJointSpeed" />
-
-            <label for="inputAgentPos" title="The agents position in the world">Agents Position</label>
-            <input type="checkbox" id="inputAgentPos" @bind="stageProperties.inputAgentPos" />
-
-            <label for="inputAgentV" title="The current velocity of the agent">Agent Velocity</label>
-            <input type="checkbox" id="inputAgentV" @bind="stageProperties.inputAgentV" />
-
-            <label for="inputScore" title="The agents current score">Current score</label>
-            <input type="checkbox" id="inputScore" @bind="stageProperties.inputScore" />
-
-            <label for="inputOrientation" title="Agents current orientation in the world">Agents MainBody Orientation</label>
-            <input type="checkbox" id="inputOrientation" @bind="stageProperties.inputOrientation" />
-
-            <label for="inputTimeRemaining" title="The time left in this round">Time Remaining</label>
-            <input type="checkbox" id="inputTimeRemaining" @bind="stageProperties.inputTimeRemaining" />
-
-            <label for="inputDistanceSensors" title="Sensors for distance from agent to closest object in 8 directions">Distance to object Sensors</label>
-            <input type="checkbox" id="inputDistanceSensors" @bind="stageProperties.inputDistanceSensors" />
-
-        </div>
-
-        <!-- Output List -->
-        <div class="setting">
-            <p title="Select the outputs available to the agents">Agent Output Selection</p>
-
-            <label for="outputsJointSpeed" title="The speed the angle is moving at">Joint Speed</label>
-            <input type="checkbox" id="outputsJointSpeed" @bind="stageProperties.outputsJointSpeed" />
-
-            <label for="outputsJointTorque" title="Torque of the joint">Joint Torque</label>
-            <input type="checkbox" id="outputsJointTorque" @bind="stageProperties.outputsJointTorque" />
-
-            <label for="outputsBias" title="The amount of bias towards direction agent is facing">Limb Directional Bias</label>
-            <input type="checkbox" id="outputsBias" @bind="stageProperties.outputsBias" />
-        </div>
-
-    </div>
-
-    <div class="settings-section">
-        <h2>Score and Energy</h2>
-        <!-- X Score Multiplier -->
-        <div class="setting">
-            <label for="xScoreMultiplier" title="Multiplier for score gained for moving in the x direction">X Score Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="xScoreMultiplier" @bind="stageProperties.xScoreMultiplier" min="0" max="10" step="0.5">
-                <input type="number" @bind="stageProperties.xScoreMultiplier" min="0" max="10" step="0.5">
-            </div>
-        </div>
-
-        <!-- Y Score Multiplier -->
-        <div class="setting">
-            <label for="yScoreMultiplier" title="Multiplier for score gained for moving in the y direction">Y Score Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="yScoreMultiplier" @bind="stageProperties.yScoreMultiplier" min="0" max="10" step="0.5">
-                <input type="number" @bind="stageProperties.yScoreMultiplier" min="0" max="10" step="0.5">
-            </div>
-        </div>
-
-        <!-- Movement Score Multiplier -->
-        <div class="setting">
-            <label for="movementScoreMultiplier" title="Multiplier for score gained for moving limbs about.  This decays for progressive movement.  Designed to create active agents early on">Limb Movement Score Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="movementScoreMultiplier" @bind="stageProperties.movementScoreMultiplier" min="0" max="10" step="0.5">
-                <input type="number" @bind="stageProperties.movementScoreMultiplier" min="0" max="10" step="0.5">
-            </div>
-        </div>
-
-        <!-- Exploration Score Multiplier -->
-        <div class="setting">
-            <label for="explorationScoreMultiplier" title="Multiplier for score gained for exploring more of the map.  Each 50x50 pixels explored is worth this much score. Max of 500x500 squares to explore.  No points are given for moving below or left of the starting position">Exploration Score Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="explorationScoreMultiplier" @bind="stageProperties.explorationScoreMultiplier" min="0" max="100" step="1">
-                <input type="number" @bind="stageProperties.explorationScoreMultiplier" min="0" max="100" step="1">
-            </div>
-        </div>
-
-        <!-- Size Score Multiplier -->
-        <div class="setting">
-            <label for="sizeScoreMultiplier" title="Small bonus given to score for being larger.  This is to combat agents all becoming tiny to move faster early in training, before the energy system has much effect">Size Score Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="sizeScoreMultiplier" @bind="stageProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
-                <input type="number" @bind="stageProperties.sizeScoreMultiplier" min="0" max="1" step="0.01">
-            </div>
-        </div>
-
-        <!-- Starting Energy -->
-        <div class="setting">
-            <label for="startingEnergyBase" title="Base energy for agents">Base Starting Energy</label>
-            <div class="slider-container">
-                <input type="range" id="startingEnergyBase" @bind="stageProperties.startingEnergyBase" min="0" max="1000" step="1">
-                <input type="number" @bind="stageProperties.startingEnergyBase" min="0" max="1000" step="1">
-            </div>
-        </div>
-
-        <!-- Starting Energy Power -->
-        <div class="setting">
-            <label for="startingEnergyMassPower" title="Power used for giving more energy based on mass">Starting Energy Mass Exponent</label>
-            <div class="slider-container">
-                <input type="range" id="startingEnergyMassPower" @bind="stageProperties.startingEnergyMassPower" min="1" max="5" step="1">
-                <input type="number" @bind="stageProperties.startingEnergyMassPower" min="1" max="5" step="1">
-            </div>
-        </div>
-
-        <!-- Starting Energy Body Mass Multiplier -->
-        <div class="setting">
-            <label for="startingEnergyBodyMassMult" title="Flat multiplier giving energy for main body mass">Starting Energy Body Mass Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="startingEnergyBodyMassMult" @bind="stageProperties.startingEnergyBodyMassMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="stageProperties.startingEnergyBodyMassMult" min="0" max="5" step="0.1">
-            </div>
-        </div>
-
-        <!-- Starting Energy Limb Mass Multiplier -->
-        <div class="setting">
-            <label for="startingEnergyLimbMassMult" title="Flat multiplier giving energy for limbs masses">Starting Energy Limb Mass Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="startingEnergyLimbMassMult" @bind="stageProperties.startingEnergyLimbMassMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="stageProperties.startingEnergyLimbMassMult" min="0" max="5" step="0.1">
-            </div>
-        </div>
-
-        <!-- Energy Use Limb Mass Multiplier -->
-        <div class="setting">
-            <label for="energyUseLimbSizeMult" title="Flat multiplier for how much energy is used based on limb mass">Energy Use From Limb Mass Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="energyUseLimbSizeMult" @bind="stageProperties.energyUseLimbSizeMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="stageProperties.energyUseLimbSizeMult" min="0" max="5" step="0.1">
-            </div>
-        </div>
-
-        <!-- Energy Use Brain Size Multiplier -->
-        <div class="setting">
-            <label for="energyUseBrainSizeMult" title="Flat multiplier for how much energy is used based on size/complexity of the brain">Energy Use From Brain Size Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="energyUseBrainSizeMult" @bind="stageProperties.energyUseBrainSizeMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="stageProperties.energyUseBrainSizeMult" min="0" max="5" step="0.1">
-            </div>
-        </div>
-
-        <!-- Energy Use Limb Mass Multiplier -->
-        <div class="setting">
-            <label for="energyUseForceSizeMult" title="Flat multiplier for how much energy is used based on limb movements">Energy Use From Limb Movements Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="energyUseForceSizeMult" @bind="stageProperties.energyUseForceSizeMult" min="0" max="5" step="0.1">
-                <input type="number" @bind="stageProperties.energyUseForceSizeMult" min="0" max="5" step="0.1">
-            </div>
-        </div>
-
-    </div>
-
-    <div class="settings-section">
-        <h2>Training Settings</h2>
-
-        <!-- Starting Physics ticks per round -->
-        <div class="setting">
-            <label for="SimulationLength" title="Starting Physics ticks per round/generation, set alongside physics speed.">Starting Round Length (Physics Ticks)</label>
-            <div class="slider-container">
-                <input type="range" id="SimulationLength" @bind="stageProperties.SimulationLength" min="100" max="100000" step="100">
-                <input type="number" @bind="stageProperties.SimulationLength" min="100" max="10000" step="100">
-            </div>
-        </div>
-
-        <!-- Time increase per generation -->
-        <div class="setting">
-            <label for="timeIncrease" title="Increase the round length by * 1.005 each round">Increase Round Time Per Generation</label>
-            <input type="checkbox" id="timeIncrease" @bind="stageProperties.timeIncrease" />
-        </div>
-
-        <!-- Increase in ticks per round -->
-        <div class="setting">
-            <label for="simulationLengthIncrease" title="Physics ticks per round/generation, set alongside physics speed.">Increase round by x ticks each generation</label>
-            <div class="slider-container">
-                <input type="range" id="simulationLengthIncrease" @bind="stageProperties.simulationLengthIncrease" min="1" max="500" step="1">
-                <input type="number" @bind="stageProperties.simulationLengthIncrease" min="1" max="500" step="1">
-            </div>
-        </div>
-
-        <!-- Maximum Physics ticks per round -->
-        <div class="setting">
-            <label for="maxSimulationLength" title="Maximum Physics ticks per round/generation, set alongside physics speed.">Maximum Round Length (Physics Ticks)</label>
-            <div class="slider-container">
-                <input type="range" id="maxSimulationLength" @bind="stageProperties.maxSimulationLength" min="1000" max="10000000" step="100">
-                <input type="number" @bind="stageProperties.maxSimulationLength" min="1000" max="1000000" step="100">
-            </div>
-        </div>
-
-        <!-- Group Tournament Size -->
-        <div class="setting">
-            <label for="tournamentSize" title="Group Tournament Size, the number of random agents picked to compete to be parents, mostly from within the same group.">Group Tournament Size</label>
-            <div class="slider-container">
-                <input type="range" id="tournamentSize" @bind="stageProperties.tournamentSize" min="1" max="50" step="1">
-                <input type="number" @bind="stageProperties.tournamentSize" min="1" max="50" step="1">
-            </div>
-        </div>
-
-        <!-- Migration rate between groups -->
-        <div class="setting">
-            <label for="migrationRate" title="Migration rate between groups, the chance a parent is selected from random group instead of the same.">Migration Rate Between Groups</label>
-            <div class="slider-container">
-                <input type="range" id="migrationRate" @bind="stageProperties.migrationRate" min="0.001" max="0.1" step="0.001">
-                <input type="number" @bind="stageProperties.migrationRate" min="0.001" max="0.1" step="0.001">
-            </div>
-        </div>
-
-        <!-- Minimum agents per population group -->
-        <div class="setting">
-            <label for="minPopGroupSize" title="Minimum agents per population group. If the total number is less than this, all agents will be in the same group.">Minimum Agents Per Population Group</label>
-            <div class="slider-container">
-                <input type="range" id="minPopGroupSize" @bind="stageProperties.minPopGroupSize" min="5" max="50" step="1">
-                <input type="number" @bind="stageProperties.minPopGroupSize" min="5" max="50" step="1">
-            </div>
-        </div>
-
-        <!-- Maximum agents per population group -->
-        <div class="setting">
-            <label for="maxPopGroupSize" title="Maximum agents per population group. Sets the number of groups as total population / Max agents per group, when total is more than max.">Maximum Agents Per Population Group</label>
-            <div class="slider-container">
-                <input type="range" id="maxPopGroupSize" @bind="stageProperties.maxPopGroupSize" min="1" max="50" step="1">
-                <input type="number" @bind="stageProperties.maxPopGroupSize" min="1" max="50" step="1">
-            </div>
-        </div>
-
-        <!-- Percentage of top agents kept between generations -->
-        <div class="setting">
-            <label for="topPerformerNumber" title="Percentage of top agents kept between generations.">Percentage of Top Agents Kept</label>
-            <div class="slider-container">
-                <input type="range" id="topPerformerNumber" @bind="stageProperties.topPerformerNumber" min="5" max="50" step="1">
-                <input type="number" @bind="stageProperties.topPerformerNumber" min="5" max="50" step="1">
-            </div>
-        </div>
-
-        <!-- Brain Decay -->
-        <div class="setting">
-            <label for="brainDecayOverTime" title="Decay all weights in agents brain by a small amount each round">Brain Decay Over Time</label>
-            <input type="checkbox" id="brainDecayOverTime" @bind="stageProperties.brainDecayOverTime" />
-        </div>
-
-    </div>
-
-    <div class="settings-section">
-        <h2>World Properties</h2>
-
-        <!-- Agent to fix camera on -->
-        <div class="setting">
-            <label for="agentInCentre" title="Agent to fix camera on (average can cause lag).">Agent to Fix Camera On</label>
-            <select id="agentInCentre" @bind="stageProperties.agentInCentre">
-                <option value="leader">leader</option>
-                <option value="trailer">trailer</option>
-                <option value="average">average</option>
-            </select>
-        </div>
-
-        <!-- Randomize Map -->
-        <div class="setting">
-            <label for="randomMap" title="Select a random map each generation">Randomize Map</label>
-            <input type="checkbox" id="randomMap" @bind="stageProperties.randomMap" />
-        </div>
-
-        <!-- Map -->
-        <div class="setting">
-            <label for="map" title="Pick between maps">Map Selector</label>
-            <select id="map" @bind="stageProperties.map">
-                <option value="0">1</option>
-                <option value="1">2</option>
-                <option value="2">3</option>
-                <option value="3">4</option>
-                <option value="4">5</option>
-            </select>
-        </div>
-
-        <!-- Gravity Strength Multiplier -->
-        <div class="setting">
-            <label for="Gravity" title="Gravity Strength Multiplier.">Gravity Strength Multiplier</label>
-            <div class="slider-container">
-                <input type="range" id="Gravity" @bind="stageProperties.Gravity" min="0" max="5" step="0.1">
-                <input type="number" @bind="stageProperties.Gravity" min="0" max="5" step="0.1">
-            </div>
-        </div>
-
-        <!-- Friction Strength Multiplier -->
-        <div class="setting">
-            <label for="Friction" title="Friction Strength Multiplier.">Friction Strength Multiplier (Not implemented yet)</label>
-            <div class="slider-container">
-                <input type="range" id="Friction" @bind="stageProperties.Friction" min="0" max="5" step="0.1">
-                <input type="number" @bind="stageProperties.Friction" min="0" max="5" step="0.1">
-            </div>
-        </div>
-
-    </div>
-
-    <button class="toggle-advanced" @onclick="ToggleAdvancedSettings">Show Advanced Settings</button>
-
-    <div class="settings-section full-width advanced-settings" hidden="@showAdvancedSettings">
-        <h2>Advanced Settings</h2>
-
-        <!-- Number of random agents per group -->
-        <div class="setting">
-            <label for="renderedAgents" title="Number of random agents per group, plus the group leader, to render.">Number of Random Agents Per Group</label>
-            <div class="slider-container">
-                <input type="range" id="renderedAgents" @bind="stageProperties.renderedAgents" min="1" max="50" step="1">
-                <input type="number" @bind="stageProperties.renderedAgents" min="1" max="50" step="1">
-            </div>
-        </div>
-
-        <!-- UI (Neural Network and Text) Update Rate -->
-        <div class="setting">
-            <label for="uiRefreshRate" title="UI (Neural Network and Text) Update Rate in milliseconds.">UI Update Rate (ms)</label>
-            <div class="slider-container">
-                <input type="range" id="uiRefreshRate" @bind="stageProperties.uiRefreshRate" min="100" max="1000" step="100">
-                <input type="number" @bind="stageProperties.uiRefreshRate" min="100" max="1000" step="100">
-            </div>
-        </div>
-
-        <!-- velocityIteration for plank -->
-        <div class="setting">
-            <label for="velocityIteration" title="velocityIteration value for planck">Velocity Iterations</label>
-            <div class="slider-container">
-                <input type="range" id="velocityIteration" @bind="stageProperties.velocityIteration" min="1" max="10" step="1">
-                <input type="number" @bind="stageProperties.velocityIteration" min="1" max="10" step="1">
-            </div>
-        </div>
-
-        <!-- positionIteration for plank -->
-        <div class="setting">
-            <label for="positionIteration" title="UI (Neural Network and Text) Update Rate in milliseconds.">Position Iterations</label>
-            <div class="slider-container">
-                <input type="range" id="positionIteration" @bind="stageProperties.positionIteration" min="1" max="10" step="1">
-                <input type="number" @bind="stageProperties.positionIteration" min="1" max="10" step="1">
-            </div>
-        </div>
-
-        <!-- physicsGranularity for plank -->
-        <div class="setting">
-            <label for="physicsGranularityMultipliers" title="Physics Granularity">Physics Granularity</label>
-            <div class="slider-container">
-                <input type="range" id="physicsGranularityMultipliers" @bind="stageProperties.physicsGranularityMultipliers" min="0.1" max="3" step="0.1">
-                <input type="number" @bind="stageProperties.physicsGranularityMultipliers" min="0.1" max="3" step="0.1">
-            </div>
-        </div>
-    </div>
-
-    <div class="simDescription">
-        <h3>Documentation:</h3>
-        <h4>Quick Start Guide:</h4>
-        <p>Please select a pre-configuration from the top to get a good starting point.</p>
-        <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
-        <p>Start/Reset will respect all configurations, while Simplified Start will remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
-        <p>Simplified Start should see much faster learning, with agents completing the maps with 50 generations or so, using full configurations will result in much more interesting behavior, but will take 100+ generations to see much progress</p>
-        <p>Super Simplified Start will also give agents a small, fixed brain and preset body plan, and will see agents complete the maps in 20-30 generations</p>
-        <p>Use the button bank in the top right to toggle rendering of the leading agents brain/neural network, their vision lines/ray casts, switch between the leading agent and training agent or fast-forward generations (only about twice as fast as normal currently)</p>
-        <p>Logging the genomes writes the current population to the console, and retrieving genomes is the first step towards implementing an agent database online where pre-trained agents cam be stored and retrieved.</p>
-        <p>The skip x generation buttons will disable the rendering and increase the physics update rate by 4x.  If you are already running at the limit of what your computer can handle, IE. your fps is below 30-40 at normal speed, this is not going to actually speed up much.  The rendering only adds about 10% to the processing time per frame.</p>
-        <h4>Some Explanation:</h4>
-        <p>This is my take on a NEAT genetic evolution simulation.</p>
-        <p>I would describe this as a 'Semi-NEAT' algorithm since I have restriction on what network shapes can evolve.  This is due to TensorFlow.JS's restriction to static models, where a full NEAT implementation requires dynamic models, and more control over connections</p>
-        <p>Resetting/updating is a little buggy, its currently best to refresh the page if you want to try new settings</p>
-        <p>Showing the Neural Network on screen adds a fair amount of lag so its hidden by default</p>
-        <p>I am making use of P5.JS for my rendering, Planck.JS; a port of Box2D, for my physics and TensorFlow.JS for my neural network processing</p>
-        <h4>So whats going on?</h4>
-        <p>If you start the simulation with default settings, you will see about 15 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest right, and the furthest left agent</p>
-        <p>Default settings will produce 200 agents in the population, split into batches of 25, as well as species groups.  25 agents from the run group are evaluated at a time, with a random selection of species</p>
-        <p>On my PC, using a Ryzen 7 3700X CPU about 3.5Ghz per core, I can target about 150 agents at a time, with 10 Agents Per Batch of Joint Updates.  The Number of Inter-gen Batches will not effect performance, but will increase training time, as only 1 batch can be evaluated at a time</p>
-        <p>Since i'm making use of JS, the bottleneck for most systems is going to be the speed of a single CPU core.  Some configurations may reach a browser memory limit before a CPU limit, if you have a high number of inter-gen batches.  Browsers I have tested seem ok up to about 1000 agents total</p>
-        <p>The GPU is also utilized for any Neural Network functions, the most intense of which happen between rounds, so it doesn't really matter how long they take, but during the simulation, the actual decision making also utilities the GPU using WebGL.  I have not found a configuration where this is the bottleneck, but its possible</p>
-        <p>Each round, the agents have 2000 ticks, about 34 seconds at 60 fps with default physics speed of 60, to move as far North East as possible.</p>
-        <p>The agents are all given a randomly initialized neural network, with a random shape for a brain, the leaders brain is rendered.  They are given a random body plan.  Both the brain and the body plan will evolve over time based on a number of crossover and mutation functions</p>
-        <p>Between rounds, the agents are sorted by score, where the top x% from each species are selected to remain unchanged, and the other 90% of the population is built using crossover and mutation.</p>
-        <p>This is performed between generations, on the whole population</p>
-        <p>Crossover is the function of picking 2 parent agents and combining the weights and biases in their brains, keeping some features from one, and some from the other.  There are a range of methods for this, I am currently using biased Arithmetic Crossover, where there is a weighted bias given by the relative scores of the parents.</p>
-        <p>Mutation adds a small chance that each weight, bias, limb or body will be altered by a small, random amount.  Again, there are many methods, currently i am using the Box-Muller transform to get a Gaussian random number for my mutation amount.  I have a function that changes the mutation rate if agents brains get too close to the average</p>
-        <p>I am currently also mutating the number of limbs and layers in the brain.  These are more complex to mutate than others, as they tend to produce 'dead' agents that need retaining from scratch, which naturaly cant compete with already trained agents.  I am playing with a number of methods to counter this.</p>
-        <p>Now, when a new limb is mutated, it finds an existing limb with a similar starting angle, and copies the weights from that limb.  When a new layer is mutated, it should create a matching layer, where biases are copied from the previous layer, and weights are connected so the old node connects to its new copy with a weight of 1, and all other weights are 0 in the new layer, hopefully copying the previous layers function until new values are evolved.</p>
-        <p>The parents for crossover can be selected in many ways, I am actually using 1 method for 1 parent, and another for the other.  The first is picked via tournament selection, where 10 random agents are selected from the group, and the best of those if picked.  The second is picked via a weighted random selection, where ever agent is entered into a lottery with more entries for a higher score, and a random agent is picked from the pool.</p>
-        <p>I am also using 'Island Populations' or 'Island Speciation', where parents are always picked from the same distinct group.  This means, with default settings, 3 distinct populations should evolve with different strategies.  There is a small chance that parents are picked from a different group, allowing some sharing of strategies</p>
-        <p>You should see some 'evolution' within  50 or so generations, and they can continue to improve indefinitely, however, they can get stuck in whats known as a 'local maxima' where the agents converge on 1 or a few ok strategies, and never seem to improve.  Through mutation, they might eventually, but in those situations, its best to restart.  A greater number of agents or distinct population groups can help with this</p>
-        <p>If enabled, I am experimenting with a form of normalization which slowly decays all weights in the network over time.  It's meant to prevent any noise in the network over time, based on a 'use it or loose it' principal.  Useful connections should be maintained by re-selection and unused connections will drop away</p>
-        <h4>Current Selective Pressures:</h4>
-        <ol>
-            <li>Score for movement North East</li>
-            <li>Bonus for joint movement that diminishes over time</li>
-            <li>Exploration bonus</li>
-            <li>Size bonus</li>
-            <li>Larger limbs give more swimming force</li>
-        </ol>
-        <h5>Energy System:</h5>
-        <ol>
-            <li>Starting energy based on body size, larger bodies can store more energy</li>
-            <li>More energy is used to move larger limbs</li>
-            <li>Agents limb movement speed is based on their remaining energy %, with no energy, they cant move at all</li>
-        </ol>
-        <h4>Future Plans</h4>
-        <p>There is a lot of clean up work to do on the code, the genome and the agent objects.  I have lots of duplicated values and old structures.  I am not making use of 'const' enough, and I am duplicating functions in places</p>
-        <p>I need to work on the maps.  They are too simple and not varied enough.  I want to implement some goals, like food, tied to the energy system.  A puzzle to open a door or similar could also be interesting</p>
-        <p>I want to make all variables customizable, which is a huge number.  I need to find a nice way to arrange them</p>
-        <p>I plan on adding further ways the agents can evolve. I want to allow more complex body plans with different types of limb and body segments, such as wings, thrusters, suckers, energy storage limbs etc</p>
-        <p>I want to add a greater range of crossover, mutation and selection methods to increase diversity, and have them toggle in settings to play with different combinations</p>
-        <p>I want to add a way to save and load agents, and a way to download and upload agents to a database</p>
-        <p>I want to add the ability to see genomes on screen somehow</p>
-        <p>I want to play around with a predator and prey scenario, where some agents learn to catch others</p>
-        <p>There are many different ways to adjust the energy system to see more interesting evolution, such as food, recovering energy by resting, reducing update speed based on energy, adding limbs just for energy storage etc</p>
-        <p>I have created a few different versions of my mutate and crossover functions, I would like to let the user pick which is used.  I need to get the old ones working first</p>
-        <p>Could look at creating 4 routs for re-populating instead of 2; some top performers unchanged, some top performers mutated, some offspring, and some offspring mutated</p>
-        <p>Could look at implementing another idea from NEAT, where agents are given a metric based on their properties, and have a higher chance to reproduce with similar agents.  This can create species groups even within my island populations, leading to a greater variety of solutions.  This may require larger populations to work well, 100-200 agents per group, where I currently have 25 per group.</p>
-        <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge</p>
-        <p>I want to be able to pan the screen around with arrows, not just locked to the agent.  I can also position the agent better on the screen by default</p>
-        <p>Currently, my crossover methods both treat each neuron independently, it would be good to also allow groups of neurons to be transfered together so learned features are maintained.</p>
-    </div>
-
+        }
+    }
 </div>
 
 <div class="button-container">
@@ -633,11 +264,1408 @@
     <button class="floating-button uploadGenomes-button leftColumn" title="Upload agent genome pool to continue training" @onclick="UploadGenomes">Upload Genomes / Start</button>
     <button class="floating-button skip10Gen-button rightColumn" title="Skips 10 generations by disabling rendering and increasing physics speed.  This will still take a few minutes" @onclick="Skip10Gen">Skip 10 Generations</button>
     <button class="floating-button skip100Gen-button leftColumn" title="Skips 1 generation by disabling rendering and increasing physics speed. This will still take a few minutes" @onclick="Skip100Gen">Skip 1 Generations</button>
-    <!--add a reset settings button-->
-    <!--add a super simplified start button-->
 </div>
 
 @code {
+
+    private TabModel activeTab;
+
+    protected override void OnInitialized()
+    {
+        InitializeTabs();
+        activeTab = tabs.FirstOrDefault(); // Set the first tab as active by default
+    }
+
+    private List<TabModel> tabs;
+    private void InitializeTabs()
+    {
+        tabs = new List<TabModel>
+        {
+            new TabModel
+            {
+                Title = "Home",
+                Description = "This is the home tab.  I will have the whole introduction here.",
+                HasAdvanced = false
+            },
+            new TabModel
+            {
+                Title = "Favourites",
+                Settings = new List<Setting>(), // This will be populated dynamically
+                HasAdvanced = false
+            },
+            new TabModel
+            {
+                Title = "Performance",
+                Description = "Configure the performance-related aspects of the simulation.",
+                Settings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Number of Agents",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.numAgents,
+                        ValueChanged = val => stageProperties.numAgents = val,
+                        Min = 1,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Determines the number of agents active at any given time."
+                    },
+                    new Setting
+                    {
+                        Name = "Agent Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.totalNumAgentsMultiplier,
+                        ValueChanged = val => stageProperties.totalNumAgentsMultiplier = val,
+                        Min = 1,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Multiplier to increase the total number of agents in the population."
+                    },
+                    new Setting
+                    {
+                        Name = "Muscle Update Delay",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.muscleDelay,
+                        ValueChanged = val => stageProperties.muscleDelay = val,
+                        Min = 0,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Delay between muscle updates, affecting agent movement fluidity."
+                    },
+                    new Setting
+                    {
+                        Name = "Muscle Batch Size",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.muscleBatch,
+                        ValueChanged = val => stageProperties.muscleBatch = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Number of muscle updates processed together in a batch."
+                    },
+                    new Setting
+                    {
+                        Name = "Simulation Speed",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.simSpeed,
+                        ValueChanged = val => stageProperties.simSpeed = val,
+                        Min = 10,
+                        Max = 120,
+                        Step = 1,
+                        Details = "Adjusts the physics speed of the simulation."
+                    },
+                    new Setting
+                    {
+                        Name = "Brain Decay",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.brainDecayOverTime,
+                        BooleanValueChanged = val => stageProperties.brainDecayOverTime = val,
+                        Details = "Toggles whether the agents' brains decay over time."
+                    },
+                    new Setting
+                    {
+                        Name = "Agent in Centre",
+                        Type = SettingType.Dropdown,
+                        SelectedValueExpression = () => stageProperties.agentInCentre,
+                        SelectedValueChanged = val => stageProperties.agentInCentre = val,
+                        Options = new List<string> { "leader", "trailer", "average" },
+                        Details = "Selects the agent to focus the camera on."
+                    }
+                },
+                AdvancedSettings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Total Muscle Update Time",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.totalMuscleUpdateTime,
+                        ValueChanged = val => stageProperties.totalMuscleUpdateTime = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Defines the total time for muscle updates."
+                    },
+                    new Setting
+                    {
+                        Name = "Delay",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.delay,
+                        ValueChanged = val => stageProperties.delay = val,
+                        Min = 0,
+                        Max = 50,
+                        Step = 1,
+                        Details = "Sets the delay parameter for processing."
+                    },
+                    new Setting
+                    {
+                        Name = "Batch Size",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.BatchSize,
+                        ValueChanged = val => stageProperties.BatchSize = val,
+                        Min = 1,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Determines the size of each batch in processing."
+                    },
+                    new Setting
+                    {
+                        Name = "Updates Per Agent Start",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.updatesPerAgentStart,
+                        ValueChanged = val => stageProperties.updatesPerAgentStart = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Specifies the number of updates per agent at the start."
+                    },
+                    new Setting
+                    {
+                        Name = "Frames Per Update Start",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.framesPerUpdateStart,
+                        ValueChanged = val => stageProperties.framesPerUpdateStart = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines the number of frames per update at the start."
+                    },
+                    new Setting
+                    {
+                        Name = "Rendered Agents",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.renderedAgents,
+                        ValueChanged = val => stageProperties.renderedAgents = val,
+                        Min = 1,
+                        Max = 50,
+                        Step = 1,
+                        Details = "Controls the number of agents rendered in the simulation."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Group Leaders",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showGroupLeaders,
+                        BooleanValueChanged = val => stageProperties.showGroupLeaders = val,
+                        Details = "Toggle to show or hide group leaders in the simulation."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Group Trailers",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showGroupTrailers,
+                        BooleanValueChanged = val => stageProperties.showGroupTrailers = val,
+                        Details = "Toggle to show or hide group trailers in the simulation."
+                    },
+                    new Setting
+                    {
+                        Name = "Agent Start Spawn Gap",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.agentStartSpawnGap,
+                        ValueChanged = val => stageProperties.agentStartSpawnGap = val,
+                        Min = 1000,
+                        Max = 10000,
+                        Step = 500,
+                        Details = "Defines the gap between agent spawns at the start."
+                    }
+                },
+                HasAdvanced = true
+            },
+            new TabModel
+            {
+            Title = "Agent",
+            Description = "Configure the properties of the agents.",
+            Settings = new List<Setting>
+            {
+                new Setting
+                {
+                    Name = "Minimum Limbs",
+                    Type = SettingType.Slider,
+                    ValueExpression = () => stageProperties.minLimbs,
+                    ValueChanged = val => stageProperties.minLimbs = val,
+                    Min = 1,
+                    Max = 10,
+                    Step = 1,
+                    Details = "Sets the minimum number of limbs for an agent."
+                },
+                new Setting
+                {
+                    Name = "Maximum Limbs",
+                    Type = SettingType.Slider,
+                    ValueExpression = () => stageProperties.maxLimbs,
+                    ValueChanged = val => stageProperties.maxLimbs = val,
+                    Min = 1,
+                    Max = 10,
+                    Step = 1,
+                    Details = "Sets the maximum number of limbs for an agent."
+                },
+                new Setting
+                {
+                    Name = "Minimum Neural Network Layers",
+                    Type = SettingType.Slider,
+                    ValueExpression = () => stageProperties.minNNLayers,
+                    ValueChanged = val => stageProperties.minNNLayers = val,
+                    Min = 1,
+                    Max = 10,
+                    Step = 1,
+                    Details = "Determines the minimum number of neural network layers in an agent."
+                },
+                new Setting
+                {
+                    Name = "Maximum Neural Network Layers",
+                    Type = SettingType.Slider,
+                    ValueExpression = () => stageProperties.maxNNLayers,
+                    ValueChanged = val => stageProperties.maxNNLayers = val,
+                    Min = 1,
+                    Max = 10,
+                    Step = 1,
+                    Details = "Determines the maximum number of neural network layers in an agent."
+                },
+                new Setting
+                {
+                    Name = "Starting Limb Chain Length",
+                    Type = SettingType.Slider,
+                    ValueExpression = () => stageProperties.startingLimbChainLength,
+                    ValueChanged = val => stageProperties.startingLimbChainLength = val,
+                    Min = 1,
+                    Max = 10,
+                    Step = 1,
+                    Details = "Sets the initial limb chain length for each agent."
+                },
+                new Setting
+                {
+                    Name = "Swim Strength",
+                    Type = SettingType.Slider,
+                    ValueExpression = () => stageProperties.swimStrength,
+                    ValueChanged = val => stageProperties.swimStrength = val,
+                    Min = 0,
+                    Max = 50,
+                    Step = 1,
+                    Details = "Adjusts the swim strength of agents in aquatic environments."
+                },
+                new Setting
+                {
+                    Name = "Swim Bias",
+                    Type = SettingType.Slider,
+                    ValueExpression = () => stageProperties.swimBias,
+                    ValueChanged = val => stageProperties.swimBias = val,
+                    Min = 0,
+                    Max = 20,
+                    Step = 1,
+                    Details = "Modifies the bias applied to swimming actions of agents."
+                },
+                new Setting
+                {
+                    Name = "Maximum Joint Speed",
+                    Type = SettingType.Slider,
+                    ValueExpression = () => stageProperties.maxJointSpeed,
+                    ValueChanged = val => stageProperties.maxJointSpeed = val,
+                    Min = 5,
+                    Max = 20,
+                    Step = 1,
+                    Details = "Controls the maximum speed of joint movements for agents."
+                },
+            },
+                AdvancedSettings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Max Torque Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.maxTorqueMultiplier,
+                        ValueChanged = val => stageProperties.maxTorqueMultiplier = val,
+                        Min = 100000,
+                        Max = 500000,
+                        Step = 10000,
+                        Details = "Adjusts the maximum torque multiplier for agents."
+                    },
+                    new Setting
+                    {
+                        Name = "Limb Mass Force Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.limbMassForceDivider,
+                        ValueChanged = val => stageProperties.limbMassForceDivider = val,
+                        Min = 10,
+                        Max = 100,
+                        Step = 5,
+                        Details = "Determines the force divider for limb mass."
+                    },
+                    new Setting
+                    {
+                        Name = "Limb Length Force Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.limbLengthForceDivider,
+                        ValueChanged = val => stageProperties.limbLengthForceDivider = val,
+                        Min = 10,
+                        Max = 100,
+                        Step = 5,
+                        Details = "Sets the force divider based on the limb length."
+                    },
+                    new Setting
+                    {
+                        Name = "Agent Start X Position",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.agentStartX,
+                        ValueChanged = val => stageProperties.agentStartX = val,
+                        Min = 100,
+                        Max = 1000,
+                        Step = 50,
+                        Details = "Initial X-axis position of the agent in the environment."
+                    },
+                    new Setting
+                    {
+                        Name = "Agent Start Y Position",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.agentStartY,
+                        ValueChanged = val => stageProperties.agentStartY = val,
+                        Min = 100,
+                        Max = 1000,
+                        Step = 50,
+                        Details = "Initial Y-axis position of the agent in the environment."
+                    },
+                    new Setting
+                    {
+                        Name = "Swim Force Over N Frames",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.swimForceOverNFrames,
+                        ValueChanged = val => stageProperties.swimForceOverNFrames = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Number of frames over which swim force is applied."
+                    },
+                    new Setting
+                    {
+                        Name = "Speed Force Normalizer",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.speedForceNormilizer,
+                        ValueChanged = val => stageProperties.speedForceNormilizer = val,
+                        Min = 5,
+                        Max = 30,
+                        Step = 1,
+                        Details = "Normalizes the speed force applied to agents."
+                    },
+                    new Setting
+                    {
+                        Name = "Speed Normalization for Drag",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.speedNormalizationForDrag,
+                        ValueChanged = val => stageProperties.speedNormalizationForDrag = val,
+                        Min = 1000,
+                        Max = 5000,
+                        Step = 100,
+                        Details = "Adjusts speed normalization factor for drag calculations."
+                    },
+                    new Setting
+                    {
+                        Name = "Body Angular Drag Power",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.bodyAngularDragPower,
+                        ValueChanged = val => stageProperties.bodyAngularDragPower = val,
+                        Min = 1,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Controls the angular drag power on the agent's body."
+                    },
+                    new Setting
+                    {
+                        Name = "Max Torque for Damping",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.maxTorqueForDamping,
+                        ValueChanged = val => stageProperties.maxTorqueForDamping = val,
+                        Min = 5000,
+                        Max = 20000,
+                        Step = 500,
+                        Details = "Sets the maximum torque value for damping."
+                    },
+                    new Setting
+                    {
+                        Name = "Threshold Angle for Damping",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.threasholdAngleForDamping,
+                        ValueChanged = val => stageProperties.threasholdAngleForDamping = val,
+                        Min = 5,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Determines the threshold angle for applying damping."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Joint Angle",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.inputJointAngle,
+                        BooleanValueChanged = val => stageProperties.inputJointAngle = val,
+                        Details = "Enables or disables the input of joint angles to the agent's brain."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Joint Speed",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.inputJointSpeed,
+                        BooleanValueChanged = val => stageProperties.inputJointSpeed = val,
+                        Details = "Determines if joint speed information is fed into the agent's brain."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Agent Position",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.inputAgentPos,
+                        BooleanValueChanged = val => stageProperties.inputAgentPos = val,
+                        Details = "Controls whether the agent's position is used as input to its brain."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Agent Velocity",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.inputAgentV,
+                        BooleanValueChanged = val => stageProperties.inputAgentV = val,
+                        Details = "Enables or disables the use of agent velocity as a brain input."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Current Score",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.inputScore,
+                        BooleanValueChanged = val => stageProperties.inputScore = val,
+                        Details = "Determines if the agent's current score is input to the brain."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Orientation",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.inputOrientation,
+                        BooleanValueChanged = val => stageProperties.inputOrientation = val,
+                        Details = "Toggles whether the agent's orientation is an input for its brain."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Time Remaining",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.inputTimeRemaining,
+                        BooleanValueChanged = val => stageProperties.inputTimeRemaining = val,
+                        Details = "Allows the remaining time to be an input parameter to the agent's brain."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Distance Sensors",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.inputDistanceSensors,
+                        BooleanValueChanged = val => stageProperties.inputDistanceSensors = val,
+                        Details = "Enables distance sensors as inputs to the agent's decision-making process."
+                    },
+                    new Setting
+                    {
+                        Name = "Output Joint Speed",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.outputsJointSpeed,
+                        BooleanValueChanged = val => stageProperties.outputsJointSpeed = val,
+                        Details = "Controls if the agent's brain can output joint speed commands."
+                    },
+                    new Setting
+                    {
+                        Name = "Output Joint Torque",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.outputsJointTorque,
+                        BooleanValueChanged = val => stageProperties.outputsJointTorque = val,
+                        Details = "Determines whether the brain can output joint torque instructions."
+                    },
+                    new Setting
+                    {
+                        Name = "Output Bias",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.outputsBias,
+                        BooleanValueChanged = val => stageProperties.outputsBias = val,
+                        Details = "Enables or disables the output of bias values from the agent's brain."
+                    }
+                    // public bool brainDecayOverTime { get; set; } = false; // Not implemented
+                },
+                HasAdvanced = true
+            },
+            new TabModel
+            {
+                Title = "Score and Energy",
+                Description = "Configure the scoring and energy systems.",
+                Settings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "X-Axis Score Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.xScoreMultiplier,
+                        ValueChanged = val => stageProperties.xScoreMultiplier = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Multiplier for the score gained when moving along the X-axis."
+                    },
+                    new Setting
+                    {
+                        Name = "Y-Axis Score Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.yScoreMultiplier,
+                        ValueChanged = val => stageProperties.yScoreMultiplier = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Multiplier for the score gained when moving along the Y-axis."
+                    },
+                    new Setting
+                    {
+                        Name = "Movement Score Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.movementScoreMultiplier,
+                        ValueChanged = val => stageProperties.movementScoreMultiplier = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Multiplier for the score based on agent's movement."
+                    },
+                    new Setting
+                    {
+                        Name = "Exploration Score Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.explorationScoreMultiplier,
+                        ValueChanged = val => stageProperties.explorationScoreMultiplier = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Multiplier for the score based on agent's exploration."
+                    },
+                    new Setting
+                    {
+                        Name = "Size Score Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.sizeScoreMultiplier,
+                        ValueChanged = val => stageProperties.sizeScoreMultiplier = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Multiplier for the score based on agent's size."
+                    },
+                    new Setting
+                    {
+                        Name = "Dynamic Mass Bonus",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.massBonusIsDynamic,
+                        BooleanValueChanged = val => stageProperties.massBonusIsDynamic = val,
+                        Details = "Toggles dynamic mass bonus for scoring."
+                    },
+                    new Setting
+                    {
+                        Name = "Starting Energy Base",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.startingEnergyBase,
+                        ValueChanged = val => stageProperties.startingEnergyBase = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Base energy level for agents at the start."
+                    },
+                    new Setting
+                    {
+                        Name = "Starting Energy Mass Power",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.startingEnergyMassPower,
+                        ValueChanged = val => stageProperties.startingEnergyMassPower = val,
+                        Min = 0,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines how agent mass affects starting energy."
+                    }
+                },
+                AdvancedSettings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Starting Energy Body Mass Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.startingEnergyBodyMassMult,
+                        ValueChanged = val => stageProperties.startingEnergyBodyMassMult = val,
+                        Min = 1,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Multiplier for starting energy based on body mass."
+                    },
+                    new Setting
+                    {
+                        Name = "Starting Energy Limb Mass Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.startingEnergyLimbMassMult,
+                        ValueChanged = val => stageProperties.startingEnergyLimbMassMult = val,
+                        Min = 1,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Multiplier for starting energy based on limb mass."
+                    },
+                    new Setting
+                    {
+                        Name = "Energy Use Force Size Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.energyUseForceSizeMult,
+                        ValueChanged = val => stageProperties.energyUseForceSizeMult = val,
+                        Min = 1,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Multiplier for energy use based on force size."
+                    },
+                    new Setting
+                    {
+                        Name = "Energy Use Force Size Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.energyUseLimbSizeMult,
+                        ValueChanged = val => stageProperties.energyUseLimbSizeMult = val,
+                        Min = 1,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Multiplier for energy use based on force size."
+                    },
+                    new Setting
+                    {
+                        Name = "Energy Use Force Size Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.energyUseBrainSizeMult,
+                        ValueChanged = val => stageProperties.energyUseBrainSizeMult = val,
+                        Min = 1,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Multiplier for energy use based on force size."
+                    },
+                    new Setting
+                    {
+                        Name = "Limb Mass Energy Reduction Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.limbMassEnergyReductionDivider,
+                        ValueChanged = val => stageProperties.limbMassEnergyReductionDivider = val,
+                        Min = 10,
+                        Max = 50,
+                        Step = 5,
+                        Details = "Divider for energy reduction based on limb mass."
+                    },
+                    new Setting
+                    {
+                        Name = "Limb Mass Energy Reduction Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.limbMassEnergyReductionDivider,
+                        ValueChanged = val => stageProperties.limbMassEnergyReductionDivider = val,
+                        Min = 10,
+                        Max = 50,
+                        Step = 5,
+                        Details = "Divider for energy reduction based on limb mass."
+                    },
+                    new Setting
+                    {
+                        Name = "Brain Size Energy Reduction Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.brainSizeEnergyReductionDivider,
+                        ValueChanged = val => stageProperties.brainSizeEnergyReductionDivider = val,
+                        Min = 50,
+                        Max = 150,
+                        Step = 10,
+                        Details = "Divider for energy reduction based on brain size."
+                    },
+                    new Setting
+                    {
+                        Name = "Force Magnitude Energy Reduction Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.forceMagnitudeEnergyReductionDivider,
+                        ValueChanged = val => stageProperties.forceMagnitudeEnergyReductionDivider = val,
+                        Min = 500000,
+                        Max = 1500000,
+                        Step = 100000,
+                        Details = "Divider for energy reduction based on force magnitude."
+                    },
+                    new Setting
+                    {
+                        Name = "Body Starting Mass Energy Reduction Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.bodyStartingMassEnergyReductionDivider,
+                        ValueChanged = val => stageProperties.bodyStartingMassEnergyReductionDivider = val,
+                        Min = 200,
+                        Max = 600,
+                        Step = 50,
+                        Details = "Divider for energy reduction based on body starting mass."
+                    },
+                    new Setting
+                    {
+                        Name = "Limb Starting Mass Energy Reduction Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.limbStartingMassEnergyReductionDivider,
+                        ValueChanged = val => stageProperties.limbStartingMassEnergyReductionDivider = val,
+                        Min = 10,
+                        Max = 30,
+                        Step = 5,
+                        Details = "Divider for energy reduction based on limb starting mass."
+                    },
+                    new Setting
+                    {
+                        Name = "Joint Movement Reward Limb Mass Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.jointMovementRewardLimbMassDivider,
+                        ValueChanged = val => stageProperties.jointMovementRewardLimbMassDivider = val,
+                        Min = 50,
+                        Max = 150,
+                        Step = 10,
+                        Details = "Divider for calculating joint movement reward based on limb mass."
+                    },
+                    new Setting
+                    {
+                        Name = "Internal Map Size",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.internalMapSize,
+                        ValueChanged = val => stageProperties.internalMapSize = val,
+                        Min = 100,
+                        Max = 1000,
+                        Step = 100,
+                        Details = "Size of the internal map used in simulations."
+                    },
+                    new Setting
+                    {
+                        Name = "Internal Map Cell Size",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.internalMapCellSize,
+                        ValueChanged = val => stageProperties.internalMapCellSize = val,
+                        Min = 10,
+                        Max = 100,
+                        Step = 10,
+                        Details = "Size of each cell in the internal map."
+                    },
+                    new Setting
+                    {
+                        Name = "Dynamic Mass Bonus Divider",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.dynamicMassBonusDivider,
+                        ValueChanged = val => stageProperties.dynamicMassBonusDivider = val,
+                        Min = 100,
+                        Max = 1000,
+                        Step = 100,
+                        Details = "Divider for dynamic mass bonus calculation."
+                    }
+                },
+                HasAdvanced = true
+            },
+            new TabModel
+            {
+                Title = "Training",
+                Description = "Configure the training and evolution systems.",
+                Settings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Offspring Mutation Rate",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.offspringMutationRate,
+                        ValueChanged = val => stageProperties.offspringMutationRate = val,
+                        Min = 10,
+                        Max = 500,
+                        Step = 10,
+                        Details = "Adjusts the mutation rate for offspring."
+                    },
+                    new Setting
+                    {
+                        Name = "Offspring Node Mutation Rate",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.offspringNodeMutationRate,
+                        ValueChanged = val => stageProperties.offspringNodeMutationRate = val,
+                        Min = 10,
+                        Max = 500,
+                        Step = 10,
+                        Details = "Adjusts the node mutation rate for offspring."
+                    },
+                    new Setting
+                    {
+                        Name = "Offspring Layer Mutation Rate",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.offspringLayerMutationRate,
+                        ValueChanged = val => stageProperties.offspringLayerMutationRate = val,
+                        Min = 1,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Adjusts the layer mutation rate for offspring."
+                    },
+                    new Setting
+                    {
+                        Name = "Offspring Limb Mutation Rate",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.offspringLimbMutationRate,
+                        ValueChanged = val => stageProperties.offspringLimbMutationRate = val,
+                        Min = 1,
+                        Max = 500,
+                        Step = 1,
+                        Details = "Adjusts the limb mutation rate for offspring."
+                    },
+                    new Setting
+                    {
+                        Name = "Top Performer Number",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.topPerformerNumber,
+                        ValueChanged = val => stageProperties.topPerformerNumber = val,
+                        Min = 10,
+                        Max = 50,
+                        Step = 1,
+                        Details = "Sets the number of top performers in the population."
+                    },
+                    new Setting
+                    {
+                        Name = "Migration Rate",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.migrationRate,
+                        ValueChanged = val => stageProperties.migrationRate = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines the rate of migration in the population."
+                    },
+                    new Setting
+                    {
+                        Name = "Minimum Population Group Size",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.minPopGroupSize,
+                        ValueChanged = val => stageProperties.minPopGroupSize = val,
+                        Min = 5,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Sets the minimum size of a population group."
+                    },
+                    new Setting
+                    {
+                        Name = "Maximum Population Group Size",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.maxPopGroupSize,
+                        ValueChanged = val => stageProperties.maxPopGroupSize = val,
+                        Min = 20,
+                        Max = 50,
+                        Step = 1,
+                        Details = "Sets the maximum size of a population group."
+                    },
+                    new Setting
+                    {
+                        Name = "Agents Require Stabilizing",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.agentsRequireStablising,
+                        BooleanValueChanged = val => stageProperties.agentsRequireStablising = val,
+                        Details = "Determines if agents require stabilization."
+                    }
+                },
+                AdvancedSettings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Tournament Size",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.tournamentSize,
+                        ValueChanged = val => stageProperties.tournamentSize = val,
+                        Min = 1,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Sets the size of the tournament for selection."
+                    },
+                    new Setting
+                    {
+                        Name = "Linear Stability Threshold for Body",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.linearStabilityThresholdBody,
+                        ValueChanged = val => stageProperties.linearStabilityThresholdBody = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines the linear stability threshold for the agent's body."
+                    },
+                    new Setting
+                    {
+                        Name = "Angular Stability Threshold for Body",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.angularStabilityThresholdBody,
+                        ValueChanged = val => stageProperties.angularStabilityThresholdBody = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines the angular stability threshold for the agent's body."
+                    },
+                    new Setting
+                    {
+                        Name = "Angular Stability Threshold for Limb",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.angularStabilityThresholdLimb,
+                        ValueChanged = val => stageProperties.angularStabilityThresholdLimb = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines the angular stability threshold for the agent's limbs."
+                    },
+                    new Setting
+                    {
+                        Name = "Stability Frames",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.stabilityFrames,
+                        ValueChanged = val => stageProperties.stabilityFrames = val,
+                        Min = 10,
+                        Max = 50,
+                        Step = 1,
+                        Details = "Sets the number of frames for checking stability."
+                    },
+                    new Setting
+                    {
+                        Name = "Stability Check Overwrite Frames",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.stabilityCheckOverwriteFrames,
+                        ValueChanged = val => stageProperties.stabilityCheckOverwriteFrames = val,
+                        Min = 100,
+                        Max = 1000,
+                        Step = 50,
+                        Details = "Sets the number of frames for overwriting stability check."
+                    },
+                    new Setting
+                    {
+                        Name = "Chance to Include Top Performer in Mutation",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.chanceToIncludeTopPerformerInMutation,
+                        ValueChanged = val => stageProperties.chanceToIncludeTopPerformerInMutation = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 5,
+                        Details = "The probability of including top performers in mutation processes."
+                    },
+                    new Setting
+                    {
+                        Name = "Chance to Include Offspring in Mutation",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.chanceToIncludeOffspringInMutation,
+                        ValueChanged = val => stageProperties.chanceToIncludeOffspringInMutation = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 5,
+                        Details = "The probability of including offspring in mutation processes."
+                    },
+                    new Setting
+                    {
+                        Name = "Neuron Mutation Standard Deviation",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.neuronMutationStandardDeviation,
+                        ValueChanged = val => stageProperties.neuronMutationStandardDeviation = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 5,
+                        Details = "Standard deviation for neuron mutation."
+                    },
+                    new Setting
+                    {
+                        Name = "Body Plan Mutation Standard Deviation",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.bodyPlanMutationStandardDeviation,
+                        ValueChanged = val => stageProperties.bodyPlanMutationStandardDeviation = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 5,
+                        Details = "Standard deviation for body plan mutation."
+                    },
+                    new Setting
+                    {
+                        Name = "Max Position for Normalisation",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.maxPosForNormalisation,
+                        ValueChanged = val => stageProperties.maxPosForNormalisation = val,
+                        Min = 1000,
+                        Max = 10000,
+                        Step = 500,
+                        Details = "Maximum position value for normalisation."
+                    },
+                    new Setting
+                    {
+                        Name = "Max Velocity for Normalisation",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.maxVelForNormalisation,
+                        ValueChanged = val => stageProperties.maxVelForNormalisation = val,
+                        Min = 10,
+                        Max = 100,
+                        Step = 5,
+                        Details = "Maximum velocity value for normalisation."
+                    }
+                },
+                HasAdvanced = true
+            },
+            new TabModel
+            {
+                Title = "World",
+                Description = "Configure the properties of the world.",
+                Settings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "timeIncrease",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.timeIncrease,
+                        BooleanValueChanged = val => stageProperties.timeIncrease = val,
+                        Details = "Toggles the display of agent names."
+                    },
+                    new Setting
+                    {
+                        Name = "agentInCentre",
+                        Type = SettingType.Dropdown,
+                        SelectedValueExpression = () => stageProperties.agentInCentre,
+                        SelectedValueChanged = val => stageProperties.agentInCentre = val,
+                        Options = new List<string> { "leader", "trailer", "average" },
+                        Details = "Selects the type of environment for the simulation."
+                    },
+                    new Setting
+                    {
+                        Name = "Liquid Viscosity",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.liquidViscosity,
+                        ValueChanged = val => stageProperties.liquidViscosity = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Adjusts the viscosity of the liquid in the world."
+                    },
+                    new Setting
+                    {
+                        Name = "Map Type",
+                        Type = SettingType.Dropdown,
+                        SelectedValueExpression = () => stageProperties.map.ToString(),
+                        SelectedValueChanged = val => stageProperties.map = int.Parse(val),
+                        Options = new List<string> { "1", "2", "3" }, // Assuming map types are numbered
+                        Details = "Selects the type of map for the simulation."
+                    },
+                    new Setting
+                    {
+                        Name = "Random Map",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.randomMap,
+                        BooleanValueChanged = val => stageProperties.randomMap = val,
+                        Details = "Toggles the use of a random map in the simulation."
+                    }
+                },
+                AdvancedSettings = new List<Setting>
+                {
+                    // public float Gravity { get; set; } = 1; // not implemented
+                    // public double Friction { get; set; } = 0.4; // not implemented
+                    new Setting
+                    {
+                        Name = "Simulation Length",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.SimulationLength,
+                        ValueChanged = val => stageProperties.SimulationLength = val,
+                        Min = 500,
+                        Max = 5000,
+                        Step = 50,
+                        Details = "Adjusts the total length of the simulation in ticks."
+                    },
+                    new Setting
+                    {
+                        Name = "Simulation Width",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.Width,
+                        ValueChanged = val => stageProperties.Width = val,
+                        Min = 800,
+                        Max = 2400,
+                        Step = 50,
+                        Details = "Sets the width of the simulation area."
+                    },
+                    new Setting
+                    {
+                        Name = "Simulation Height",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.Height,
+                        ValueChanged = val => stageProperties.Height = val,
+                        Min = 400,
+                        Max = 1200,
+                        Step = 50,
+                        Details = "Sets the height of the simulation area."
+                    },
+                    new Setting
+                    {
+                        Name = "Ground Level",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.GroundY,
+                        ValueChanged = val => stageProperties.GroundY = val,
+                        Min = 500,
+                        Max = 900,
+                        Step = 10,
+                        Details = "Adjusts the Y-coordinate of the ground level."
+                    },
+                    new Setting
+                    {
+                        Name = "Simulation Length Increase",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.simulationLengthIncrease,
+                        ValueChanged = val => stageProperties.simulationLengthIncrease = val,
+                        Min = 10,
+                        Max = 100,
+                        Step = 5,
+                        Details = "Increases the simulation length incrementally per generation."
+                    },
+                    new Setting
+                    {
+                        Name = "Max Simulation Length",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.maxSimulationLength,
+                        ValueChanged = val => stageProperties.maxSimulationLength = val,
+                        Min = 10000,
+                        Max = 100000,
+                        Step = 1000,
+                        Details = "Sets the maximum limit for the simulation length."
+                    },
+                    new Setting
+                    {
+                        Name = "Velocity Iterations",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.velocityIteration,
+                        ValueChanged = val => stageProperties.velocityIteration = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines the number of velocity calculations per simulation tick."
+                    },
+                    new Setting
+                    {
+                        Name = "Position Iterations",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.positionIteration,
+                        ValueChanged = val => stageProperties.positionIteration = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines the number of position calculations per simulation tick."
+                    },
+                    new Setting
+                    {
+                        Name = "Physics Granularity Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.physicsGranularityMultipliers,
+                        ValueChanged = val => stageProperties.physicsGranularityMultipliers = val,
+                        Min = 5,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Adjusts the granularity of physics calculations."
+                    }
+                },
+                HasAdvanced = true
+            },
+            new TabModel
+            {
+                Title = "Visualization",
+                Description = "Configure the visualization and UI.",
+                Settings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Background Red",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.backgroundRed,
+                        ValueChanged = val => stageProperties.backgroundRed = val,
+                        Min = 0,
+                        Max = 255,
+                        Step = 1,
+                        Details = "Adjusts the red component of the background color."
+                    },
+                    new Setting
+                    {
+                        Name = "Background Green",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.backgroundGreen,
+                        ValueChanged = val => stageProperties.backgroundGreen = val,
+                        Min = 0,
+                        Max = 255,
+                        Step = 1,
+                        Details = "Adjusts the green component of the background color."
+                    },
+                    new Setting
+                    {
+                        Name = "Background Blue",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.backgroundBlue,
+                        ValueChanged = val => stageProperties.backgroundBlue = val,
+                        Min = 0,
+                        Max = 255,
+                        Step = 1,
+                        Details = "Adjusts the blue component of the background color."
+                    },
+                    new Setting
+                    {
+                        Name = "Background Particles",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.backgroundParticles,
+                        ValueChanged = val => stageProperties.backgroundParticles = val,
+                        Min = 0,
+                        Max = 500,
+                        Step = 10,
+                        Details = "Controls the number of particles in the background."
+                    }
+                },
+                AdvancedSettings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Show Neural Network",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showNN,
+                        BooleanValueChanged = val => stageProperties.showNN = val,
+                        Details = "Toggles the visibility of the neural network representation."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Rays",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showRays,
+                        BooleanValueChanged = val => stageProperties.showRays = val,
+                        Details = "Controls whether rays used for sensing the environment are displayed."
+                    },
+                    new Setting
+                    {
+                        Name = "UI Refresh Rate",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.uiRefreshRate,
+                        ValueChanged = val => stageProperties.uiRefreshRate = val,
+                        Min = 100,
+                        Max = 1000,
+                        Step = 50,
+                        Details = "Adjusts the refresh rate of the user interface."
+                    },
+                    new Setting
+                    {
+                        Name = "NN Layer Gap",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.renderedNNLayerGap,
+                        ValueChanged = val => stageProperties.renderedNNLayerGap = val,
+                        Min = 50,
+                        Max = 200,
+                        Step = 10,
+                        Details = "Sets the gap between layers in the rendered neural network."
+                    },
+                    new Setting
+                    {
+                        Name = "NN Node Gap",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.renderedNNNodeGap,
+                        ValueChanged = val => stageProperties.renderedNNNodeGap = val,
+                        Min = 20,
+                        Max = 100,
+                        Step = 5,
+                        Details = "Defines the spacing between nodes in each neural network layer."
+                    }
+                },
+                HasAdvanced = true
+            },
+            new TabModel
+            {
+                Title = "Debugging",
+                Description = "Configure the debugging and diagnostics.",
+                Settings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Show Force Vectors",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showForceVectors,
+                        BooleanValueChanged = val => stageProperties.showForceVectors = val,
+                        Details = "Enables or disables the display of force vectors on agents."
+                    }
+                },
+                AdvancedSettings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Visual Force Scale",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.visualForceScale,
+                        ValueChanged = val => stageProperties.visualForceScale = val,
+                        Min = 10,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Adjusts the scale of visual representation of forces."
+                    },
+                    new Setting
+                    {
+                        Name = "Max Force Length",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.visualMaxForceLength,
+                        ValueChanged = val => stageProperties.visualMaxForceLength = val,
+                        Min = 100,
+                        Max = 500,
+                        Step = 10,
+                        Details = "Sets the maximum length for force vector visualization."
+                    }
+                },
+                HasAdvanced = true
+            },
+        };
+    }
+
+    private void SetActiveTab(TabModel tab)
+    {
+        activeTab = tab;
+    }
+
+    private void ToggleAdvanced(TabModel tab)
+    {
+        tab.ShowAdvanced = !tab.ShowAdvanced;
+    }
+
+    private void ToggleFavourite(string settingName)
+    {
+        if (stageProperties.FavouriteSettings.Contains(settingName))
+        {
+            stageProperties.FavouriteSettings.Remove(settingName);
+        }
+        else
+        {
+            stageProperties.FavouriteSettings.Add(settingName);
+        }
+    }
+
+    public enum SettingType
+    {
+        Slider,
+        Checkbox,
+        Dropdown,
+        Info
+    }
+
+    public class TabModel
+    {
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public List<Setting> Settings { get; set; } = new List<Setting>();
+        public List<Setting> AdvancedSettings { get; set; } = new List<Setting>();
+        public bool HasAdvanced { get; set; }
+        public bool ShowAdvanced { get; set; }
+    }
+
+    public class Setting
+    {
+        public string Name { get; set; }
+        public SettingType Type { get; set; }
+        public Func<int> ValueExpression { get; set; }
+        public Action<int> ValueChanged { get; set; }
+        public Func<bool> BooleanValueExpression { get; set; }
+        public Action<bool> BooleanValueChanged { get; set; }
+        public Func<string> SelectedValueExpression { get; set; }
+        public Action<string> SelectedValueChanged { get; set; }
+        public int Min { get; set; }
+        public int Max { get; set; }
+        public int Step { get; set; }
+        public string Details { get; set; }
+        public List<string> Options { get; set; } = new List<string>();
+
+        public int Value
+        {
+            get => ValueExpression?.Invoke() ?? 0;
+            set => ValueChanged?.Invoke(value);
+        }
+
+        public bool BooleanValue
+        {
+            get => BooleanValueExpression.Invoke();
+            set => BooleanValueChanged?.Invoke(value);
+        }
+
+        public string SelectedValue
+        {
+            get => SelectedValueExpression?.Invoke();
+            set => SelectedValueChanged?.Invoke(value);
+        }
+    }
+
+
     private StageProperties stageProperties = new StageProperties();
     public bool box2dPhysics { get; set; } = true;
     private bool showAdvancedSettings = true;
@@ -646,44 +1674,46 @@
 
     public class StageProperties
     {
-        public float Width { get; set; } = 1600;
-        public float Height { get; set; } = 800;
-        public float GroundY { get; set; } = 700;
-        public float Gravity { get; set; } = 1;
-        public double Friction { get; set; } = 0.4;
-        public int SimulationLength { get; set; } = 2000;
-        public int renderedAgents { get; set; } = 1;
-        public int simSpeed { get; set; } = 60;
-        public double topPerformerNumber { get; set; } = 20;
-        public int delay { get; set; } = 20;
-        public int BatchSize { get; set; } = 10;
-        public bool showNN { get; set; } = false;
-        public bool showRays { get; set; } = true;
-        public string agentInCentre { get; set; } = "leader";
+        public List<string> FavouriteSettings { get; set; } = new List<string> { "Number of Agents", "Agent Multiplier", "Minimum Limbs", "Maximum Limbs", "Minimum Neural Network Layers", "Maximum Neural Network Layers", "Starting Limb Chain Length", "Swim Strength", "Size Score Multiplier", "Offspring Mutation Rate", "Offspring Limb Mutation Rate", "Top Performer Number", "Migration Rate", "Maximum Population Group Size", "Liquid Viscosity", "Simulation Length" };
+        
+        // Performance
         public int numAgents { get; set; } = 25;
         public int totalNumAgentsMultiplier { get; set; } = 8;
-        public int tournamentSize { get; set; } = 10;
-        public double migrationRate { get; set; } = 0.002;
-        public int minPopGroupSize { get; set; } = 10;
-        public int maxPopGroupSize { get; set; } = 25;
-        public int uiRefreshRate { get; set; } = 500;
         public int muscleDelay { get; set; } = 2;
         public int muscleBatch { get; set; } = 5;
+        public int simSpeed { get; set; } = 60;
+        // Advanced Performance
         public int totalMuscleUpdateTime { get; set; } = 2;
-        public int velocityIteration { get; set; } = 4;
-        public int positionIteration { get; set; } = 2;
-        public double physicsGranularityMultipliers { get; set; } = 1;
-        public bool timeIncrease { get; set; } = true;
-        public int map { get; set; } = 1;
-        public bool randomMap { get; set; } = true;
-        public int simulationLengthIncrease { get; set; } = 25;
-        public int maxSimulationLength { get; set; } = 50000;
-        public double maxJointSpeed { get; set; } = 1;
-        public double offspringMutationRate { get; set; } = 0.02;
-        public double offspringNodeMutationRate { get; set; } = 0.005;
-        public double offspringLayerMutationRate { get; set; } = 0.001;
-        public double offspringLimbMutationRate { get; set; } = 0.01;
-        public bool brainDecayOverTime { get; set; } = false;
+        public int delay { get; set; } = 20;
+        public int BatchSize { get; set; } = 10;
+        public int updatesPerAgentStart { get; set; } = 1;
+        public int framesPerUpdateStart { get; set; } = 1;
+        public int renderedAgents { get; set; } = 1;
+        public bool showGroupLeaders { get; set; } = true;
+        public bool showGroupTrailers { get; set; } = true;
+        public int agentStartSpawnGap { get; set; } = 5000;
+
+        // Agent
+        public int minLimbs { get; set; } = 2;
+        public int maxLimbs { get; set; } = 5;
+        public int minNNLayers { get; set; } = 1;
+        public int maxNNLayers { get; set; } = 5;
+        public int startingLimbChainLength { get; set; } = 1;
+        public int swimStrength { get; set; } = 17;
+        public int swimBias { get; set; } = 15; 
+        public int maxJointSpeed { get; set; } = 10;
+        // Advanced Agent
+        public int maxTorqueMultiplier { get; set; } = 300000;
+        public int limbMassForceDivider { get; set; } = 50;
+        public int limbLengthForceDivider { get; set; } = 30;
+        public int agentStartX { get; set; } = 200;
+        public int agentStartY { get; set; } = 600;
+        public int swimForceOverNFrames { get; set; } = 5;
+        public int speedForceNormilizer { get; set; } = 15;
+        public int speedNormalizationForDrag { get; set; } = 2500;
+        public int bodyAngularDragPower { get; set; } = 10;
+        public int maxTorqueForDamping { get; set; } = 10000;
+        public int threasholdAngleForDamping { get; set; } = 10;
         public bool inputJointAngle { get; set; } = true;
         public bool inputJointSpeed { get; set; } = false;
         public bool inputAgentPos { get; set; } = true;
@@ -695,42 +1725,23 @@
         public bool outputsJointSpeed { get; set; } = true;
         public bool outputsJointTorque { get; set; } = false;
         public bool outputsBias { get; set; } = false;
-        public double swimBias { get; set; } = 1.5; 
-        public double xScoreMultiplier { get; set; } = 3;
-        public double yScoreMultiplier { get; set; } = 3;
-        public double movementScoreMultiplier { get; set; } = 3;
-        public double explorationScoreMultiplier { get; set; } = 5;
-        public double sizeScoreMultiplier { get; set; } = 0.2;
-        public int startingEnergyBase { get; set; } = 10;
-        public int startingEnergyMassPower { get; set; } = 3;
-        public double startingEnergyBodyMassMult { get; set; } = 1;
-        public double startingEnergyLimbMassMult { get; set; } = 1;
-        public double energyUseForceSizeMult { get; set; } = 1;
-        public double energyUseLimbSizeMult { get; set; } = 1;
-        public double energyUseBrainSizeMult { get; set; } = 1;
-
-        // New, need to copy to other start functions and make UI selectors
-        // Performance
-        public int updatesPerAgentStart { get; set; } = 1;
-        public int framesPerUpdateStart { get; set; } = 1;
-        public bool showGroupLeaders { get; set; } = true;
-        public bool showGroupTrailers { get; set; } = true;
-        public int agentStartSpawnGap { get; set; } = 5000;
-
-        // Agent
-        public int minLimbs { get; set; } = 2;
-        public int maxLimbs { get; set; } = 5;
-        public int minNNLayers { get; set; } = 1;
-        public int maxNNLayers { get; set; } = 5;
-        public int startingLimbChainLength { get; set; } = 1;
-        public int maxTorqueMultiplier { get; set; } = 300000;
-        public int limbMassForceDivider { get; set; } = 50;
-        public int limbLengthForceDivider { get; set; } = 30;
-        public int agentStartX { get; set; } = 200;
-        public int agentStartY { get; set; } = 600;
-        public double swimStrength { get; set; } = 17;
+        public bool brainDecayOverTime { get; set; } = false; // Not implemented
 
         // Score and Energy
+        public int xScoreMultiplier { get; set; } = 30;
+        public int yScoreMultiplier { get; set; } = 30;
+        public int movementScoreMultiplier { get; set; } = 30;
+        public int explorationScoreMultiplier { get; set; } = 50;
+        public int sizeScoreMultiplier { get; set; } = 20;
+        public bool massBonusIsDynamic { get; set; } = true;
+        public int startingEnergyBase { get; set; } = 10;
+        public int startingEnergyMassPower { get; set; } = 3;
+        // Advanced Score and Energy
+        public int startingEnergyBodyMassMult { get; set; } = 10;
+        public int startingEnergyLimbMassMult { get; set; } = 10;
+        public int energyUseForceSizeMult { get; set; } = 10;
+        public int energyUseLimbSizeMult { get; set; } = 10;
+        public int energyUseBrainSizeMult { get; set; } = 10;
         public int limbMassEnergyReductionDivider { get; set; } = 15;
         public int brainSizeEnergyReductionDivider { get; set; } = 100;
         public int forceMagnitudeEnergyReductionDivider { get; set; } = 1000000;
@@ -739,43 +1750,68 @@
         public int jointMovementRewardLimbMassDivider { get; set; } = 100;
         public int internalMapSize { get; set; } = 500;
         public int internalMapCellSize { get; set; } = 50;
-        public bool massBonusIsDynamic { get; set; } = true;
         public int dynamicMassBonusDivider { get; set; } = 500;
 
-        // Training
-        public double chanceToIncludeTopPerformerInMutation { get; set; } = 0.1;
-        public double chanceToIncludeOffspringInMutation { get; set; } = 0.5;
-        public double neuronMutationStandardDeviation { get; set; } = 0.1;
-        public double bodyPlanMutationStandardDeviation { get; set; } = 0.1;
+        // Training and Evolution
+        public int offspringMutationRate { get; set; } = 200;
+        public int offspringNodeMutationRate { get; set; } = 50;
+        public int offspringLayerMutationRate { get; set; } = 10;
+        public int offspringLimbMutationRate { get; set; } = 100;
+        public int topPerformerNumber { get; set; } = 20;
+        public int migrationRate { get; set; } = 2;
+        public int minPopGroupSize { get; set; } = 10;
+        public int maxPopGroupSize { get; set; } = 25;
+        public bool agentsRequireStablising { get; set; } = false;
+        // Advanced Training and Evolution
+        public int tournamentSize { get; set; } = 10;
+        public int linearStabilityThresholdBody { get; set; } = 15;
+        public int angularStabilityThresholdBody { get; set; } = 20;
+        public int angularStabilityThresholdLimb { get; set; } = 15;
+        public int stabilityFrames { get; set; } = 20;
+        public int stabilityCheckOverwriteFrames { get; set; } = 500;
+        public int chanceToIncludeTopPerformerInMutation { get; set; } = 10;
+        public int chanceToIncludeOffspringInMutation { get; set; } = 50;
+        public int neuronMutationStandardDeviation { get; set; } = 10;
+        public int bodyPlanMutationStandardDeviation { get; set; } = 10;
+        public int maxPosForNormalisation { get; set; } = 5000;
+        public int maxVelForNormalisation { get; set; } = 50;
 
-        // World
-        public double liquidViscosity { get; set; } = 0.0005;
-        public int speedNormalizationForDrag { get; set; } = 2500;
+        // World Properties
+        public int liquidViscosity { get; set; } = 5;
+        public bool timeIncrease { get; set; } = true;
+        public int map { get; set; } = 1;
+        public bool randomMap { get; set; } = true;
+        public int SimulationLength { get; set; } = 2000;
+        // Advanced World Properties
+        public int Width { get; set; } = 1600;
+        public int Height { get; set; } = 800;
+        public int GroundY { get; set; } = 700;
+        public int Gravity { get; set; } = 1; // not implemented
+        public double Friction { get; set; } = 0.4; // not implemented
+        public int simulationLengthIncrease { get; set; } = 25;
+        public int maxSimulationLength { get; set; } = 50000;
+        public int velocityIteration { get; set; } = 4;
+        public int positionIteration { get; set; } = 2;
+        public int physicsGranularityMultipliers { get; set; } = 10;
+
+        // Visualization and UI
         public int backgroundRed { get; set; } = 0;
         public int backgroundGreen { get; set; } = 0;
         public int backgroundBlue { get; set; } = 128;
         public int backgroundParticles { get; set; } = 100;
-        public int bodyAngularDragPower { get; set; } = 10;
-        public double surfaceAreaCoefficient { get; set; } = 0.0001;
-
-        // Advanced
-        public bool agentsRequireStablising { get; set; } = false;
-        public double linearStabilityThresholdBody { get; set; } = 0.01;
-        public double angularStabilityThresholdBody { get; set; } = 0.15;
-        public double angularStabilityThresholdLimb { get; set; } = 0.1;
-        public int stabilityFrames { get; set; } = 20;
-        public int swimForceOverNFrames { get; set; } = 5;
-        public int maxTorqueForDamping { get; set; } = 10000;
-        public double threasholdAngleForDamping { get; set; } = 0.1;
+        // Advanced Visualization and UI
+        public bool showNN { get; set; } = false;
+        public bool showRays { get; set; } = true;
+        public string agentInCentre { get; set; } = "leader";
+        public int uiRefreshRate { get; set; } = 500;
         public int renderedNNLayerGap { get; set; } = 100;
         public int renderedNNNodeGap { get; set; } = 30;
-        public int maxPosForNormalisation { get; set; } = 5000;
-        public int maxVelForNormalisation { get; set; } = 50;
-        public int stabilityCheckOverwriteFrames { get; set; } = 500;
+
+        // Debugging and Diagnostics
         public bool showForceVectors { get; set; } = true;
+        // Advanced Debugging and Diagnostics
         public int visualForceScale { get; set; } = 20;
         public int visualMaxForceLength { get; set; } = 300;
-        public int speedForceNormilizer { get; set; } = 15;
 
         // Behind the scenes
         public double topScoreEver { get; set; } = 0;
@@ -857,7 +1893,7 @@
         stageProperties.numAgents = 25;
         stageProperties.totalNumAgentsMultiplier = 8;
         stageProperties.tournamentSize = 10;
-        stageProperties.migrationRate = 0.002;
+        stageProperties.migrationRate = 2;
         stageProperties.minPopGroupSize = 10;
         stageProperties.maxPopGroupSize = 25;
         stageProperties.uiRefreshRate = 500;
@@ -866,19 +1902,19 @@
         stageProperties.totalMuscleUpdateTime = 2;
         stageProperties.velocityIteration = 4;
         stageProperties.positionIteration = 2;
-        stageProperties.physicsGranularityMultipliers = 1;
-        stageProperties.liquidViscosity = 0.99;
+        stageProperties.physicsGranularityMultipliers = 10;
+        stageProperties.liquidViscosity = 5;
         stageProperties.timeIncrease = true;
         stageProperties.map = 1;
         stageProperties.randomMap = true;
         stageProperties.simulationLengthIncrease = 25;
         stageProperties.maxSimulationLength = 50000;
         stageProperties.agentsRequireStablising = true;
-        stageProperties.maxJointSpeed = 1.5;
-        stageProperties.offspringMutationRate = 0.02;
-        stageProperties.offspringNodeMutationRate = 0.001;
-        stageProperties.offspringLayerMutationRate = 0.0005;
-        stageProperties.offspringLimbMutationRate = 0.005;
+        stageProperties.maxJointSpeed = 10;
+        stageProperties.offspringMutationRate = 200;
+        stageProperties.offspringNodeMutationRate = 10;
+        stageProperties.offspringLayerMutationRate = 5;
+        stageProperties.offspringLimbMutationRate = 50;
         stageProperties.brainDecayOverTime = false;
         stageProperties.inputJointAngle = true;
         stageProperties.inputJointSpeed = false;
@@ -892,19 +1928,19 @@
         stageProperties.outputsJointTorque = false;
         stageProperties.outputsBias = false;
         stageProperties.swimStrength = 600000;
-        stageProperties.swimBias = 1.5;
-        stageProperties.xScoreMultiplier = 3;
-        stageProperties.yScoreMultiplier = 3;
+        stageProperties.swimBias = 15;
+        stageProperties.xScoreMultiplier = 30;
+        stageProperties.yScoreMultiplier = 30;
         stageProperties.movementScoreMultiplier = 3;
-        stageProperties.explorationScoreMultiplier = 5;
-        stageProperties.sizeScoreMultiplier = 0.2;
+        stageProperties.explorationScoreMultiplier = 50;
+        stageProperties.sizeScoreMultiplier = 20;
         stageProperties.startingEnergyBase = 100;
         stageProperties.startingEnergyMassPower = 3;
-        stageProperties.startingEnergyBodyMassMult = 1;
-        stageProperties.startingEnergyLimbMassMult = 1;
-        stageProperties.energyUseForceSizeMult = 1;
-        stageProperties.energyUseLimbSizeMult = 1;
-        stageProperties.energyUseBrainSizeMult = 1;
+        stageProperties.startingEnergyBodyMassMult = 10;
+        stageProperties.startingEnergyLimbMassMult = 10;
+        stageProperties.energyUseForceSizeMult = 10;
+        stageProperties.energyUseLimbSizeMult = 10;
+        stageProperties.energyUseBrainSizeMult = 10;
         stageProperties.maxTorqueMultiplier = 300000;
         stageProperties.updatesPerAgentStart = 1;
         stageProperties.framesPerUpdateStart = 10;
@@ -914,9 +1950,9 @@
         stageProperties.backgroundGreen = 0;
         stageProperties.backgroundBlue = 128;
         stageProperties.backgroundParticles = 100;
-        stageProperties.linearStabilityThresholdBody = 0.01;
-        stageProperties.angularStabilityThresholdBody = 0.15;
-        stageProperties.angularStabilityThresholdLimb = 0.1;
+        stageProperties.linearStabilityThresholdBody = 10;
+        stageProperties.angularStabilityThresholdBody = 15;
+        stageProperties.angularStabilityThresholdLimb = 10;
         stageProperties.stabilityFrames = 10;
         stageProperties.swimForceOverNFrames = 5;
         stageProperties.limbMassForceDivider = 50;
@@ -925,7 +1961,7 @@
         stageProperties.brainSizeEnergyReductionDivider = 100;
         stageProperties.forceMagnitudeEnergyReductionDivider = 1000000;
         stageProperties.maxTorqueForDamping = 10000;
-        stageProperties.threasholdAngleForDamping = 0.1;
+        stageProperties.threasholdAngleForDamping = 10;
         stageProperties.bodyStartingMassEnergyReductionDivider = 400;
         stageProperties.limbStartingMassEnergyReductionDivider = 15;
         stageProperties.jointMovementRewardLimbMassDivider = 100;
@@ -938,10 +1974,10 @@
         stageProperties.agentStartX = 200;
         stageProperties.agentStartY = 600;
         stageProperties.agentStartSpawnGap = 5000;
-        stageProperties.chanceToIncludeTopPerformerInMutation = 0.25;
-        stageProperties.chanceToIncludeOffspringInMutation = 0.5;
-        stageProperties.neuronMutationStandardDeviation = 0.1;
-        stageProperties.bodyPlanMutationStandardDeviation = 0.1;
+        stageProperties.chanceToIncludeTopPerformerInMutation = 10;
+        stageProperties.chanceToIncludeOffspringInMutation = 80;
+        stageProperties.neuronMutationStandardDeviation = 10;
+        stageProperties.bodyPlanMutationStandardDeviation = 10;
         stageProperties.renderedNNLayerGap = 100;
         stageProperties.renderedNNNodeGap = 30;
         stageProperties.maxPosForNormalisation = 5000;
@@ -984,7 +2020,7 @@
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 0.005;
+        stageProperties.offspringLimbMutationRate = 50;
         stageProperties.agentsRequireStablising = false;
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
@@ -1005,7 +2041,7 @@
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringNodeMutationRate = 0;
         stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 0.005;
+        stageProperties.offspringLimbMutationRate = 50;
         stageProperties.swimStrength = 17;
         stageProperties.randomMap = false;
         stageProperties.map = 1;
@@ -1146,10 +2182,10 @@
             genome.Metadata.AgentName = agentName;
             genome.Metadata.RunGroup = runGroups[i];
             genome.Metadata.AgentGroup = i % numGroups;
-            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate;
-            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate;
-            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate;
-            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate;
+            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
+            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
+            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
+            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
 
             // add ids to usedLayerIDs, 1 to numLayers
             genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
@@ -1205,10 +2241,10 @@
             genome.Metadata.AgentName = agentName;
             genome.Metadata.RunGroup = runGroups[i];
             genome.Metadata.AgentGroup = i % numGroups;
-            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate;
-            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate;
-            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate;
-            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate;
+            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
+            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
+            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
+            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
 
             // add ids to usedLayerIDs, 1 to numLayers
             genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
