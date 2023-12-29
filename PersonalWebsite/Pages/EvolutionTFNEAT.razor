@@ -106,6 +106,7 @@
         }
         else if (activeTab.Title == "Favourites")
         {
+            <p class="tabDesc">@activeTab.Description</p>
             <div class="settings-container">
                 @foreach (var favSettingName in stageProperties.FavouriteSettings)
                 {
@@ -269,6 +270,12 @@
 @code {
 
     private TabModel activeTab;
+    private List<TabModel> tabs;
+    private StageProperties stageProperties = new StageProperties();
+    public bool box2dPhysics { get; set; } = true;
+    private bool showAdvancedSettings = true;
+    public List<Genome> population = new List<Genome>();
+    public List<Genome> evolvedPopulation = new List<Genome>();
 
     protected override void OnInitialized()
     {
@@ -276,7 +283,1189 @@
         activeTab = tabs.FirstOrDefault(); // Set the first tab as active by default
     }
 
-    private List<TabModel> tabs;
+    private async Task UpdateSettingHoverEffects()
+    {
+        // Delay to ensure new DOM elements are rendered
+        await Task.Delay(100);
+        await JSRuntime.InvokeVoidAsync("initializeSettingHoverEffects");
+    }
+
+    private async void SetActiveTab(TabModel tab)
+    {
+        activeTab = tab;
+        await JSRuntime.InvokeVoidAsync("clearAllTooltips");
+        await UpdateSettingHoverEffects();
+    }
+
+    private async void ToggleAdvanced(TabModel tab)
+    {
+        tab.ShowAdvanced = !tab.ShowAdvanced;
+        await UpdateSettingHoverEffects();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await UpdateSettingHoverEffects();
+        }
+    }
+
+    private async  void ToggleFavourite(string settingName)
+    {
+        if (stageProperties.FavouriteSettings.Contains(settingName))
+        {
+            stageProperties.FavouriteSettings.Remove(settingName);
+        }
+        else
+        {
+            stageProperties.FavouriteSettings.Add(settingName);
+        }
+        StateHasChanged();
+        await Task.Delay(100);
+        await JSRuntime.InvokeVoidAsync("initializeSettingHoverEffects");
+        await JSRuntime.InvokeVoidAsync("clearAllTooltips");
+    }
+
+
+    public enum SettingType
+    {
+        Slider,
+        Checkbox,
+        Dropdown,
+        Info
+    }
+
+    public class TabModel
+    {
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public List<Setting> Settings { get; set; } = new List<Setting>();
+        public List<Setting> AdvancedSettings { get; set; } = new List<Setting>();
+        public bool HasAdvanced { get; set; }
+        public bool ShowAdvanced { get; set; }
+    }
+
+    public class Setting
+    {
+        public string Name { get; set; }
+        public SettingType Type { get; set; }
+        public Func<int> ValueExpression { get; set; }
+        public Action<int> ValueChanged { get; set; }
+        public Func<bool> BooleanValueExpression { get; set; }
+        public Action<bool> BooleanValueChanged { get; set; }
+        public Func<string> SelectedValueExpression { get; set; }
+        public Action<string> SelectedValueChanged { get; set; }
+        public int Min { get; set; }
+        public int Max { get; set; }
+        public int Step { get; set; }
+        public string Details { get; set; }
+        public List<string> Options { get; set; } = new List<string>();
+
+        public int Value
+        {
+            get => ValueExpression?.Invoke() ?? 0;
+            set => ValueChanged?.Invoke(value);
+        }
+
+        public bool BooleanValue
+        {
+            get => BooleanValueExpression.Invoke();
+            set => BooleanValueChanged?.Invoke(value);
+        }
+
+        public string SelectedValue
+        {
+            get => SelectedValueExpression?.Invoke();
+            set => SelectedValueChanged?.Invoke(value);
+        }
+    }
+
+    private async Task saveSettings()
+    {
+        await JSRuntime.InvokeVoidAsync("saveSettings", stageProperties);
+    }
+
+    private async Task uploadSettings()
+    {
+        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadSettings");
+    }
+
+    private async Task toggleNN()
+    {
+        stageProperties.showNN = !stageProperties.showNN;
+        await UpdateSimulation();
+    }
+
+    private async Task toggleRayCasts()
+    {
+        stageProperties.showRays = !stageProperties.showRays;
+        await UpdateSimulation();
+    }
+
+    private void ToggleAdvancedSettings()
+    {
+        showAdvancedSettings = !showAdvancedSettings;
+    }
+
+    private async Task UpdateSimulation()
+    {
+        await JSRuntime.InvokeVoidAsync("updateSimulationNEAT", stageProperties);
+    }
+
+    private async Task toggleLeader()
+    {
+        if (stageProperties.agentInCentre == "leader")
+        {
+            stageProperties.agentInCentre = "trailer";
+        }
+        else
+        {
+            stageProperties.agentInCentre = "leader";
+        }
+
+        await UpdateSimulation();
+    }
+
+    private async Task LogGenomes()
+    {
+        await JSRuntime.InvokeVoidAsync("logGenomes");
+    }
+
+    public override string ToString()
+    {
+        return JsonSerializer.Serialize(this);
+    }
+
+    private async Task RetrieveGenomes()
+    {
+        await JSRuntime.InvokeAsync<string>("saveGenomes");
+    }
+
+    private async Task UploadGenomes()
+    {
+        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadGenomes");
+    }
+
+    public async Task Skip10Gen()
+    {
+        await JSRuntime.InvokeVoidAsync("skipGen", 10);
+    }
+
+    public async Task Skip100Gen()
+    {
+        await JSRuntime.InvokeVoidAsync("skipGen", 1);
+    }
+
+    void Shuffle<T>(List<T> list, Random random)
+    {
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = random.Next(n + 1);
+            T value = list[k];
+            list[k] = list[n];
+            list[n] = value;
+        }
+    }
+
+    public async Task InitializePopulation(int populationSize)
+    {
+        population = new List<Genome>();
+        Random random = new Random();
+        //let agentsPerGroup = Math.ceil(totalPopulationGenomes.length / numGroups);
+        // For now, set manual total population size as 10 * numAgents
+        int totalPopulation = populationSize * stageProperties.totalNumAgentsMultiplier;
+        // Calculate the number of groups
+        int numGroups = Math.Max(1, (int)Math.Ceiling((double)totalPopulation / stageProperties.maxPopGroupSize));
+        List<int> runGroups = Enumerable.Range(0, stageProperties.totalNumAgentsMultiplier)
+                                         .SelectMany(x => Enumerable.Repeat(x, totalPopulation / stageProperties.totalNumAgentsMultiplier))
+                                         .ToList();
+
+        // If the total population isn't perfectly divisible by stageProperties.totalNumAgentsMultiplier,
+        // add extra run groups to fill up the list
+        while (runGroups.Count < totalPopulation)
+        {
+            runGroups.Add(new Random().Next(0, stageProperties.totalNumAgentsMultiplier));
+        }
+
+        // Shuffle the list
+        runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
+
+        for (int i = 0; i < totalPopulation; i++)
+        {
+            Genome genome = new Genome();
+            genome.Metadata.AgentIndex = i;
+
+            int numLimbs = random.Next(stageProperties.minLimbs, stageProperties.maxLimbs);
+
+            // Initialize genes, examples used for now, will be randomized once the constructor is complete
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
+
+            int numLayers = random.Next(stageProperties.minNNLayers, stageProperties.maxNNLayers);
+
+            // assuming you want to add 3 layers, and the layer numbers are between 1 and 3, and sizes between 10 and 20
+            for (int j = 0; j < numLayers; j++)
+            {
+                int randomSize = random.Next(3, 20); // Generates a random integer between 3 and 20
+                genome.LayerGenes.Add(InitializeLayer(j, randomSize));
+            }
+
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * stageProperties.startingLimbChainLength));
+            genome.MainBody = InitializeBodyPlan(numLimbs);
+            // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
+            var randomName = new Random();
+            var consonants = "bcdfghjklmnpqrstvwxyz";
+            var vowels = "aeiou";
+            var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
+            genome.Metadata.AgentName = agentName;
+            genome.Metadata.RunGroup = runGroups[i];
+            genome.Metadata.AgentGroup = i % numGroups;
+            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
+            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
+            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
+            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
+
+            // add ids to usedLayerIDs, 1 to numLayers
+            genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
+
+            population.Add(genome);
+        }
+    }
+
+    public async Task InitializePopulationSimple(int populationSize)
+    {
+        population = new List<Genome>();
+        Random random = new Random();
+        //let agentsPerGroup = Math.ceil(totalPopulationGenomes.length / numGroups);
+        // For now, set manual total population size as 10 * numAgents
+        int totalPopulation = populationSize * stageProperties.totalNumAgentsMultiplier;
+        // Calculate the number of groups
+        int numGroups = Math.Max(1, (int)Math.Ceiling((double)totalPopulation / stageProperties.maxPopGroupSize));
+        List<int> runGroups = Enumerable.Range(0, stageProperties.totalNumAgentsMultiplier)
+                                         .SelectMany(x => Enumerable.Repeat(x, totalPopulation / stageProperties.totalNumAgentsMultiplier))
+                                         .ToList();
+
+        // If the total population isn't perfectly divisible by stageProperties.totalNumAgentsMultiplier,
+        // add extra run groups to fill up the list
+        while (runGroups.Count < totalPopulation)
+        {
+            runGroups.Add(new Random().Next(0, stageProperties.totalNumAgentsMultiplier));
+        }
+
+        // Shuffle the list
+        runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
+
+        for (int i = 0; i < totalPopulation; i++)
+        {
+            Genome genome = new Genome();
+            genome.Metadata.AgentIndex = i;
+
+            int numLimbs = 3;
+
+            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
+
+            int numLayers = 3;
+
+            genome.LayerGenes.Add(InitializeLayer(0, 18));
+            genome.LayerGenes.Add(InitializeLayer(1, 10));
+
+            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * stageProperties.startingLimbChainLength));
+            genome.MainBody = InitializeBodyPlanSimple(numLimbs);
+            // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
+            var randomName = new Random();
+            var consonants = "bcdfghjklmnpqrstvwxyz";
+            var vowels = "aeiou";
+            var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
+            genome.Metadata.AgentName = agentName;
+            genome.Metadata.RunGroup = runGroups[i];
+            genome.Metadata.AgentGroup = i % numGroups;
+            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
+            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
+            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
+            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
+
+            // add ids to usedLayerIDs, 1 to numLayers
+            genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
+
+            population.Add(genome);
+        }
+    }
+
+    private InputLayerGene InitializeInputLayer(int numLimbs)
+    {
+        return new InputLayerGene
+            {
+                NumberOfNeurons = 10 + numLimbs, 
+                ActivationType = ActivationType.ReLU,
+                Inputs = Enumerable.Range(1, 10 + numLimbs).ToList()
+            };
+    }
+
+    private LayerGene InitializeLayer(int layerId, int numberOfNeurons)
+    {
+        return new LayerGene
+            {
+                LayerID = layerId,
+                LayerType = LayerType.Dense,
+                NumberOfNeurons = numberOfNeurons,
+                ActivationType = ActivationType.ReLU
+            };
+    }
+
+    private OutputLayerGene InitializeOutputLayer(int numLimbs)
+    {
+        return new OutputLayerGene
+            {
+                NumberOfNeurons = numLimbs, // 3 outputs
+                ActivationType = ActivationType.Tanh,
+                Outputs = Enumerable.Range(1, numLimbs).ToList() // List of outputs from 1 to 3
+            };
+    }
+
+    private MainBody InitializeBodyPlan(int numLimbs)
+    {
+        Random random = new Random();
+
+        MainBody mainBody = new MainBody
+            {
+                PartID = 0,
+                NumberInChain = 0,
+                Shape = "Circle",
+                Size = 10 + random.NextDouble() * 30.0,
+                Density = 0.1 + random.NextDouble() * 0.6,
+                Arms = new List<Arm>() // Initializing the Limbs list
+            };
+
+        for (int i = 1; i <= numLimbs; i++)
+        {
+            double angle = random.NextDouble() * 2 * Math.PI; // Random angle in radians
+
+            int id = i;
+
+            Arm arm = new Arm
+                {
+                    PartID = id,
+                    ParentPartID = 0,
+                    NumberInChain = 1,
+                    Type = "Arm",
+                    Shape = "Rectangle",
+                    Length = 10 + random.NextDouble() * 50.0,
+                    Width = 2 + random.NextDouble() * 20.0,
+                    StartingAngle = angle,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 1000 + random.NextDouble() * 79000,
+                        MinAngle = -(Math.PI / random.Next(2, 5)),
+                        MaxAngle = (Math.PI / random.Next(2, 5))
+                    }
+                };
+
+            Arm subArm = new Arm
+                {
+                    PartID = id + numLimbs,
+                    ParentPartID = id,
+                    NumberInChain = 2,
+                    Type = "Arm",
+                    Shape = "Rectangle",
+                    Length = 10 + random.NextDouble() * 50.0,
+                    Width = 2 + random.NextDouble() * 20.0,
+                    StartingAngle = random.NextDouble() * 2 * Math.PI,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 1000 + random.NextDouble() * 79000,
+                        MinAngle = -(Math.PI / random.Next(2, 5)),
+                        MaxAngle = (Math.PI / random.Next(2, 5))
+                    }
+                };
+
+            Arm subArm2 = new Arm
+                {
+                    PartID = id + numLimbs * 2,
+                    ParentPartID = subArm.PartID,
+                    NumberInChain = 3,
+                    Type = "Arm",
+                    Shape = "Rectangle",
+                    Length = 10 + random.NextDouble() * 50.0,
+                    Width = 2 + random.NextDouble() * 20.0,
+                    StartingAngle = random.NextDouble() * 2 * Math.PI,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 1000 + random.NextDouble() * 79000,
+                        MinAngle = -(Math.PI / random.Next(2, 5)),
+                        MaxAngle = (Math.PI / random.Next(2, 5))
+                    }
+                };
+
+            if (stageProperties.startingLimbChainLength > 1)
+            {
+                arm.SubArms.Add(subArm);
+                if (stageProperties.startingLimbChainLength > 2)
+                {
+                    subArm.SubArms.Add(subArm2);
+                }
+            }
+
+            mainBody.Arms.Add(arm);
+        }
+
+        return mainBody;
+    }
+
+
+    private MainBody InitializeBodyPlanSimple(int numLimbs)
+    {
+        Random random = new Random();
+
+        MainBody mainBody = new MainBody
+            {
+                PartID = 0,
+                NumberInChain = 0,
+                Shape = "Circle",
+                Size = 25,
+                Density = 0.3,
+                Arms = new List<Arm>() // Initializing the Limbs list
+            };
+
+        for (int i = 1; i <= numLimbs; i++)
+        {
+            double angle = ((i - 1) * 2 * Math.PI) / numLimbs;
+
+            // reserve ids 0 to 10 for body segments
+            int id = i + 10;
+
+            Arm arm = new Arm
+                {
+                    PartID = id,
+                    ParentPartID = 0,
+                    NumberInChain = 1,
+                    Type = "Arm",
+                    Shape = "Rectangle",
+                    Length = 50.0,
+                    Width = 10,
+                    StartingAngle = angle,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 80000,
+                        MinAngle = -(Math.PI / 3),
+                        MaxAngle = (Math.PI / 3)
+                    }
+                };
+
+            Arm subArm = new Arm
+                {
+                    PartID = id + numLimbs,
+                    ParentPartID = id,
+                    NumberInChain = 2,
+                    Type = "Arm",
+                    Shape = "Rectangle",
+                    Length = 40,
+                    Width = 10,
+                    StartingAngle = angle,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 80000,
+                        MinAngle = -(Math.PI / 3),
+                        MaxAngle = (Math.PI / 3)
+                    }
+                };
+
+            Arm subArm2 = new Arm
+                {
+                    PartID = id + numLimbs * 2,
+                    ParentPartID = subArm.PartID,
+                    NumberInChain = 3,
+                    Type = "Arm",
+                    Shape = "Rectangle",
+                    Length = 40,
+                    Width = 10,
+                    StartingAngle = angle,
+                    Attachment = new AttachmentPoint
+                    {
+                        X = 0,
+                        Y = 0
+                    },
+                    Constraints = new JointConstraints
+                    {
+                        MaxTorque = 80000,
+                        MinAngle = -(Math.PI / 3),
+                        MaxAngle = (Math.PI / 3)
+                    }
+                };
+
+            if (stageProperties.startingLimbChainLength > 1)
+            {
+                arm.SubArms.Add(subArm);
+                if (stageProperties.startingLimbChainLength > 2)
+                {
+                    subArm.SubArms.Add(subArm2);
+                }
+            }
+
+            mainBody.Arms.Add(arm);
+        }
+
+        return mainBody;
+    }
+
+    public class Genome
+    {
+        public List<InputLayerGene> InputLayerGenes { get; set; }
+        public List<LayerGene> LayerGenes { get; set; }
+        public List<OutputLayerGene> OutputLayerGenes { get; set; }
+        // public List<InnovationEntry> InnovationLog { get; set; }
+        public MainBody MainBody { get; set; }
+        public AgentHistory AgentHistory { get; set; }
+        public Hyperparameters Hyperparameters { get; set; }
+        public Metadata Metadata { get; set; }
+        public List<int>? UsedBiasIDs { get; set; }
+        public List<int>? UsedLayerIDs { get; set; }
+
+        public Genome()
+        {
+            // Initialize properties with defaults or random values.
+            this.InputLayerGenes = new List<InputLayerGene>();
+            this.LayerGenes = new List<LayerGene>();
+            this.OutputLayerGenes = new List<OutputLayerGene>();
+            // this.InnovationLog = new List<InnovationEntry>();
+            this.MainBody = new MainBody();
+            this.AgentHistory = new AgentHistory();
+            this.Hyperparameters = new Hyperparameters();
+            this.Metadata = new Metadata();
+        }
+    }
+
+    public class MainBody
+    {
+        public int PartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Shape { get; set; }
+        public double Size { get; set; }
+        public double Density { get; set; }
+        public List<Arm> Arms { get; set; } = new List<Arm>();
+        public List<Wing> Wings { get; set; } = new List<Wing>();
+        public List<Thruster> Thrusters { get; set; } = new List<Thruster>();
+        public List<BodySegment> BodySegments { get; set; } = new List<BodySegment>();
+        public List<int> UsedLimbIDs { get; set; } = new List<int>();
+    }
+
+    public class BodySegment
+    {
+        public int PartID { get; set; }
+        public int ParentPartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Type { get; set; }
+        public string Shape { get; set; }
+        public double Size { get; set; }
+        public double Density { get; set; }
+        public JointConstraints? Constraints { get; set; }
+        public AttachmentPoint Attachment { get; set; }
+        public List<Arm> Arms { get; set; } = new List<Arm>();
+        public List<Wing> Wings { get; set; } = new List<Wing>();
+        public List<Thruster> Thrusters { get; set; } = new List<Thruster>();
+    }
+
+    public class Arm
+    {
+        public int PartID { get; set; }
+        public int ParentPartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Type { get; set; }
+        public string Shape { get; set; }
+        public double Length { get; set; }
+        public double Width { get; set; }
+        public double StartingAngle { get; set; }
+        public double SwimBias { get; set; }
+        public JointConstraints Constraints { get; set; } = new JointConstraints();
+        public AttachmentPoint Attachment { get; set; }
+        public List<Arm> SubArms { get; set; } = new List<Arm>(); 
+        public List<Wing> SubWings { get; set; } = new List<Wing>(); 
+        public List<Thruster> SubThrusters { get; set; } = new List<Thruster>(); 
+    }
+
+    public class Wing
+    {
+        public int PartID { get; set; }
+        public int ParentPartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Type { get; set; }
+        public string Shape { get; set; }
+        public double Length { get; set; }
+        public double Width { get; set; }
+        public double StartingAngle { get; set; }
+        public double SwimBias { get; set; }
+        public JointConstraints Constraints { get; set; } = new JointConstraints();
+        public AttachmentPoint Attachment { get; set; }
+    }
+
+    public class Thruster
+    {
+        public double ThrustForce { get; set; }
+        public int PartID { get; set; }
+        public int ParentPartID { get; set; }
+        public int NumberInChain { get; set; }
+        public string Type { get; set; }
+        public string Shape { get; set; }
+        public double Length { get; set; }
+        public double Width { get; set; }
+        public double StartingAngle { get; set; }
+        public double SwimBias { get; set; }
+        public JointConstraints Constraints { get; set; } = new JointConstraints();
+        public AttachmentPoint Attachment { get; set; }
+    }
+
+    public class AttachmentPoint
+    {
+        public double? X { get; set; }
+        public double? Y { get; set; }
+    }
+
+    public class JointConstraints
+    {
+        public double? MaxTorque { get; set; }
+        public double? MinAngle { get; set; }
+        public double? MaxAngle { get; set; }
+    }
+
+    // Encode the agents history into the genome:
+
+    public class AgentHistory
+    {
+        public bool RunThisGeneration { get; set; }
+        public ScoreHistory? LastScore { get; set; }
+        public List<ScoreHistory>? ScoreHistory { get; set; }
+        public int RoundsAsTopPerformer { get; set; }
+        public int UsedAsParent { get; set; }
+        public List<String>? Mutations { get; set; }
+        public double RankInGroup { get; set; }
+        public double RankInPop { get; set; }
+
+        public AgentHistory()
+        {
+            this.LastScore = new ScoreHistory();
+            this.RunThisGeneration = false;
+            this.ScoreHistory = new List<ScoreHistory>();
+            this.RoundsAsTopPerformer = 0;
+            this.UsedAsParent = 0;
+            this.Mutations = new List<String>();
+        }
+    }
+
+    public class ScoreHistory
+    {
+        public float Score { get; set; }
+        public int Map { get; set; }
+        public int Generation { get; set; }
+    }
+
+    public class Hyperparameters
+    {
+        public double MutationRate { get; set; }
+        public double NodeMutationRate { get; set; }
+        public double LayerMutationRate { get; set; }
+        public double LimbMutationRate { get; set; }
+    }
+
+    public class Metadata
+    {
+        public int RunGroup { get; set; }
+        public int AgentGroup { get; set; }
+        public string AgentName { get; set; }
+        public int AgentIndex { get; set; }
+        public string GroupName { get; set; }
+        public string Species { get; set; }
+        public double BestScore { get; set; }
+        public int CompatabilityDistance { get; set; }
+
+        public Metadata()
+        {
+            // Initialize with default values, or leave them null.  Should maybe have these as parameters in the call
+            this.AgentName = "Unnamed"; // Set randomly on initialization, unique to an agent
+            this.AgentIndex = 0; // Set randomly on initialization, unique to an agent
+            this.GroupName = "DefaultGroup"; // set randomly on initialization, the same for all agents in a population
+            this.Species = "Unspecified"; // set randomly on initialization, same for agents in the same spices.  might need to set this later after distinct spices groups form.
+            this.BestScore = 0; // Set to 0 on initialization, updated after each round
+            this.CompatabilityDistance = 0; // Set to 0 on initialization, updated after each round
+        }
+    }
+
+    public class InputLayerGene
+    {
+        public int NumberOfNeurons { get; set; }
+        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
+        public List<Bias>? Biases { get; set; }
+        public List<int>? Inputs { get; set; }
+
+        public InputLayerGene()
+        {
+            this.Biases = new List<Bias>();
+            this.Inputs = new List<int>();
+        }
+    }
+
+    public class LayerGene
+    {
+        public int LayerID { get; set; }
+        public LayerType LayerType { get; set; }  // "Dense", "Conv", "LSTM", etc.
+        public int NumberOfNeurons { get; set; }
+        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
+        public List<List<Weight>>? Weights { get; set; }
+        public List<Bias>? Biases { get; set; }
+
+        public LayerGene()
+        {
+            this.Weights = new List<List<Weight>>();
+            this.Biases = new List<Bias>();            
+        }
+    }
+
+    public class OutputLayerGene
+    {
+        public int NumberOfNeurons { get; set; }
+        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
+        public List<List<Weight>>? Weights { get; set; }
+        public List<Bias>? Biases { get; set; }
+        public List<int>? Outputs { get; set; }
+
+        public OutputLayerGene()
+        {
+            this.Weights = new List<List<Weight>>();
+            this.Biases = new List<Bias>();
+            this.Outputs = new List<int>();
+        }
+    }
+
+    public class Weight
+    {
+        //public int ID { get; set; }
+        public int FromNodeID { get; set; }
+        public int ToNodeID { get; set; }
+        public double? Value { get; set; }
+    }
+
+    public class Bias
+    {
+        public int ID { get; set; }
+        public double? Value { get; set; }
+    }
+
+    public enum LayerType
+    {
+        Dense,
+        Convolutional,
+        LSTM,
+        // ...other types
+    }
+
+    public enum ActivationType
+    {
+        ReLU,
+        Sigmoid,
+        Tanh,
+        // ...other types
+    }
+
+    private async Task ResetSimulation()
+    {
+        await InitializePopulation(stageProperties.numAgents);
+        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
+    }
+
+    private async Task ResetSimulationSimple()
+    {
+        stageProperties.energyUseForceSizeMult = 0;
+        stageProperties.energyUseLimbSizeMult = 0;
+        stageProperties.energyUseBrainSizeMult = 0;
+        stageProperties.startingEnergyMassPower = 0;
+        stageProperties.startingEnergyBase = 1;
+        stageProperties.startingEnergyBodyMassMult = 0;
+        stageProperties.startingEnergyLimbMassMult = 0;
+        stageProperties.movementScoreMultiplier = 1;
+        stageProperties.explorationScoreMultiplier = 0;
+        stageProperties.sizeScoreMultiplier = 0;
+        stageProperties.offspringLayerMutationRate = 0;
+        stageProperties.offspringLimbMutationRate = 50;
+        stageProperties.agentsRequireStablising = false;
+        await InitializePopulation(stageProperties.numAgents);
+        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
+    }
+
+    private async Task ResetSimulationSuperSimple()
+    {
+        stageProperties.energyUseForceSizeMult = 0;
+        stageProperties.energyUseLimbSizeMult = 0;
+        stageProperties.energyUseBrainSizeMult = 0;
+        stageProperties.startingEnergyMassPower = 0;
+        stageProperties.startingEnergyBase = 1;
+        stageProperties.startingEnergyBodyMassMult = 0;
+        stageProperties.startingEnergyLimbMassMult = 0;
+        stageProperties.movementScoreMultiplier = 1;
+        stageProperties.explorationScoreMultiplier = 0;
+        stageProperties.sizeScoreMultiplier = 0;
+        stageProperties.offspringNodeMutationRate = 0;
+        stageProperties.offspringLayerMutationRate = 0;
+        stageProperties.offspringLimbMutationRate = 50;
+        stageProperties.swimStrength = 100;
+        stageProperties.randomMap = false;
+        stageProperties.map = 1;
+        stageProperties.agentsRequireStablising = false;
+        await InitializePopulationSimple(stageProperties.numAgents);
+        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
+        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
+    }
+
+    public class StageProperties
+    {
+        public List<string> FavouriteSettings { get; set; } = new List<string> { "Number of Agents", "Agent Multiplier", "Minimum Limbs", "Maximum Limbs", "Minimum Neural Network Layers", "Maximum Neural Network Layers", "Starting Limb Chain Length", "Swim Strength", "Size Score Multiplier", "Offspring Mutation Rate", "Offspring Limb Mutation Rate", "Top Performer Number", "Migration Rate", "Maximum Population Group Size", "Liquid Viscosity", "Simulation Length" };
+
+        // Performance
+        public int numAgents { get; set; } = 25;
+        public int totalNumAgentsMultiplier { get; set; } = 8;
+        public int muscleDelay { get; set; } = 2;
+        public int muscleBatch { get; set; } = 5;
+        public int simSpeed { get; set; } = 60;
+        // Advanced Performance
+        public int totalMuscleUpdateTime { get; set; } = 2;
+        public int delay { get; set; } = 20;
+        public int BatchSize { get; set; } = 10;
+        public int updatesPerAgentStart { get; set; } = 1;
+        public int framesPerUpdateStart { get; set; } = 1;
+        public int renderedAgents { get; set; } = 1;
+        public bool showGroupLeaders { get; set; } = true;
+        public bool showGroupTrailers { get; set; } = true;
+        public int agentStartSpawnGap { get; set; } = 5000;
+
+        // Agent
+        public int minLimbs { get; set; } = 2;
+        public int maxLimbs { get; set; } = 5;
+        public int minNNLayers { get; set; } = 1;
+        public int maxNNLayers { get; set; } = 5;
+        public int startingLimbChainLength { get; set; } = 1;
+        public int swimStrength { get; set; } = 100;
+        public int swimBias { get; set; } = 15;
+        public int maxJointSpeed { get; set; } = 10;
+        // Advanced Agent
+        public int maxForceMagnitude { get; set; } = 1000;
+        public int maxTorqueMultiplier { get; set; } = 300000;
+        public int limbMassForceDivider { get; set; } = 50;
+        public int limbLengthForceDivider { get; set; } = 30;
+        public int agentStartX { get; set; } = 200;
+        public int agentStartY { get; set; } = 600;
+        public int swimForceOverNFrames { get; set; } = 5;
+        public int speedForceNormilizer { get; set; } = 15;
+        public int speedNormalizationForDrag { get; set; } = 2500;
+        public int bodyAngularDragPower { get; set; } = 10;
+        public int maxTorqueForDamping { get; set; } = 10000;
+        public int threasholdAngleForDamping { get; set; } = 10;
+        public bool inputJointAngle { get; set; } = true;
+        public bool inputJointSpeed { get; set; } = false;
+        public bool inputAgentPos { get; set; } = true;
+        public bool inputAgentV { get; set; } = true;
+        public bool inputScore { get; set; } = false;
+        public bool inputOrientation { get; set; } = true;
+        public bool inputTimeRemaining { get; set; } = true;
+        public bool inputDistanceSensors { get; set; } = true;
+        public bool outputsJointSpeed { get; set; } = true;
+        public bool outputsJointTorque { get; set; } = false;
+        public bool outputsBias { get; set; } = false;
+        public bool brainDecayOverTime { get; set; } = false; // Not implemented
+
+        // Score and Energy
+        public int xScoreMultiplier { get; set; } = 30;
+        public int yScoreMultiplier { get; set; } = 30;
+        public int movementScoreMultiplier { get; set; } = 30;
+        public int explorationScoreMultiplier { get; set; } = 50;
+        public int sizeScoreMultiplier { get; set; } = 20;
+        public bool massBonusIsDynamic { get; set; } = true;
+        public int startingEnergyBase { get; set; } = 10;
+        public int startingEnergyMassPower { get; set; } = 3;
+        // Advanced Score and Energy
+        public int startingEnergyBodyMassMult { get; set; } = 10;
+        public int startingEnergyLimbMassMult { get; set; } = 10;
+        public int energyUseForceSizeMult { get; set; } = 10;
+        public int energyUseLimbSizeMult { get; set; } = 10;
+        public int energyUseBrainSizeMult { get; set; } = 10;
+        public int limbMassEnergyReductionDivider { get; set; } = 15;
+        public int brainSizeEnergyReductionDivider { get; set; } = 100;
+        public int forceMagnitudeEnergyReductionDivider { get; set; } = 1000000;
+        public int bodyStartingMassEnergyReductionDivider { get; set; } = 400;
+        public int limbStartingMassEnergyReductionDivider { get; set; } = 15;
+        public int jointMovementRewardLimbMassDivider { get; set; } = 100;
+        public int internalMapSize { get; set; } = 500;
+        public int internalMapCellSize { get; set; } = 50;
+        public int dynamicMassBonusDivider { get; set; } = 500;
+
+        // Training and Evolution
+        public int offspringMutationRate { get; set; } = 200;
+        public int offspringNodeMutationRate { get; set; } = 50;
+        public int offspringLayerMutationRate { get; set; } = 10;
+        public int offspringLimbMutationRate { get; set; } = 100;
+        public int topPerformerNumber { get; set; } = 20;
+        public int migrationRate { get; set; } = 2;
+        public int minPopGroupSize { get; set; } = 10;
+        public int maxPopGroupSize { get; set; } = 25;
+        public bool agentsRequireStablising { get; set; } = false;
+        // Advanced Training and Evolution
+        public int tournamentSize { get; set; } = 10;
+        public int linearStabilityThresholdBody { get; set; } = 15;
+        public int angularStabilityThresholdBody { get; set; } = 20;
+        public int angularStabilityThresholdLimb { get; set; } = 15;
+        public int stabilityFrames { get; set; } = 20;
+        public int stabilityCheckOverwriteFrames { get; set; } = 500;
+        public int chanceToIncludeTopPerformerInMutation { get; set; } = 10;
+        public int chanceToIncludeOffspringInMutation { get; set; } = 50;
+        public int neuronMutationStandardDeviation { get; set; } = 10;
+        public int bodyPlanMutationStandardDeviation { get; set; } = 10;
+        public int maxPosForNormalisation { get; set; } = 5000;
+        public int maxVelForNormalisation { get; set; } = 50;
+
+        // World Properties
+        public int liquidViscosity { get; set; } = 5;
+        public bool timeIncrease { get; set; } = true;
+        public int map { get; set; } = 1;
+        public bool randomMap { get; set; } = true;
+        public int SimulationLength { get; set; } = 2000;
+        // Advanced World Properties
+        public int Width { get; set; } = 1600;
+        public int Height { get; set; } = 800;
+        public int GroundY { get; set; } = 700;
+        public int Gravity { get; set; } = 1; // not implemented
+        public double Friction { get; set; } = 0.4; // not implemented
+        public int simulationLengthIncrease { get; set; } = 25;
+        public int maxSimulationLength { get; set; } = 50000;
+        public int velocityIteration { get; set; } = 4;
+        public int positionIteration { get; set; } = 2;
+        public int physicsGranularityMultipliers { get; set; } = 10;
+
+        // Visualization and UI
+        public int backgroundRed { get; set; } = 0;
+        public int backgroundGreen { get; set; } = 0;
+        public int backgroundBlue { get; set; } = 128;
+        public int backgroundParticles { get; set; } = 100;
+        // Advanced Visualization and UI
+        public bool showNN { get; set; } = false;
+        public bool showRays { get; set; } = true;
+        public string agentInCentre { get; set; } = "leader";
+        public int uiRefreshRate { get; set; } = 500;
+        public int renderedNNLayerGap { get; set; } = 100;
+        public int renderedNNNodeGap { get; set; } = 30;
+
+        // Debugging and Diagnostics
+        public bool showForceVectors { get; set; } = true;
+        // Advanced Debugging and Diagnostics
+        public int visualForceScale { get; set; } = 20;
+        public int visualMaxForceLength { get; set; } = 300;
+
+        // Behind the scenes
+        public double topScoreEver { get; set; }
+        public int genCount { get; set; }
+
+    }
+
+    private async Task setMobilePresets()
+    {
+        stageProperties.delay = 10;
+        stageProperties.BatchSize = 5;
+        stageProperties.numAgents = 5;
+        stageProperties.totalNumAgentsMultiplier = 20;
+        stageProperties.muscleDelay = 5;
+        stageProperties.muscleBatch = 1;
+        stageProperties.totalMuscleUpdateTime = 1;
+    }
+
+    private async Task setLowPresets()
+    {
+        stageProperties.delay = 10;
+        stageProperties.BatchSize = 10;
+        stageProperties.numAgents = 20;
+        stageProperties.totalNumAgentsMultiplier = 10;
+        stageProperties.muscleDelay = 2;
+        stageProperties.muscleBatch = 5;
+        stageProperties.totalMuscleUpdateTime = 2;
+    }
+
+    private async Task setMidPresets()
+    {
+        stageProperties.delay = 10;
+        stageProperties.BatchSize = 20;
+        stageProperties.numAgents = 50;
+        stageProperties.totalNumAgentsMultiplier = 5;
+        stageProperties.muscleDelay = 2;
+        stageProperties.muscleBatch = 10;
+        stageProperties.totalMuscleUpdateTime = 2;
+    }
+
+    private async Task setHighPresets()
+    {
+        stageProperties.delay = 5;
+        stageProperties.BatchSize = 20;
+        stageProperties.numAgents = 100;
+        stageProperties.totalNumAgentsMultiplier = 4;
+        stageProperties.muscleDelay = 1;
+        stageProperties.muscleBatch = 10;
+        stageProperties.totalMuscleUpdateTime = 1;
+    }
+
+    private async Task setVHighPresets()
+    {
+        stageProperties.delay = 1;
+        stageProperties.BatchSize = 20;
+        stageProperties.numAgents = 150;
+        stageProperties.totalNumAgentsMultiplier = 3;
+        stageProperties.muscleDelay = 1;
+        stageProperties.muscleBatch = 15;
+        stageProperties.totalMuscleUpdateTime = 1;
+    }
+
+    private async Task resetSettings()
+    {
+        stageProperties.numAgents = 25;
+        stageProperties.totalNumAgentsMultiplier = 8;
+        stageProperties.muscleDelay = 2;
+        stageProperties.muscleBatch = 5;
+        stageProperties.simSpeed = 60;
+        stageProperties.totalMuscleUpdateTime = 2;
+        stageProperties.delay = 20;
+        stageProperties.BatchSize = 10;
+        stageProperties.updatesPerAgentStart = 1;
+        stageProperties.framesPerUpdateStart = 1;
+        stageProperties.renderedAgents = 1;
+        stageProperties.showGroupLeaders = true;
+        stageProperties.showGroupTrailers = true;
+        stageProperties.agentStartSpawnGap = 5000;
+        stageProperties.minLimbs = 2;
+        stageProperties.maxLimbs = 5;
+        stageProperties.minNNLayers = 1;
+        stageProperties.maxNNLayers = 5;
+        stageProperties.startingLimbChainLength = 1;
+        stageProperties.swimStrength = 100;
+        stageProperties.swimBias = 15;
+        stageProperties.maxJointSpeed = 10;
+        stageProperties.maxForceMagnitude = 1000;
+        stageProperties.maxTorqueMultiplier = 300000;
+        stageProperties.limbMassForceDivider = 50;
+        stageProperties.limbLengthForceDivider = 30;
+        stageProperties.agentStartX = 200;
+        stageProperties.agentStartY = 600;
+        stageProperties.swimForceOverNFrames = 5;
+        stageProperties.speedForceNormilizer = 15;
+        stageProperties.speedNormalizationForDrag = 2500;
+        stageProperties.bodyAngularDragPower = 10;
+        stageProperties.maxTorqueForDamping = 10000;
+        stageProperties.threasholdAngleForDamping = 10;
+        stageProperties.inputJointAngle = true;
+        stageProperties.inputJointSpeed = false;
+        stageProperties.inputAgentPos = true;
+        stageProperties.inputAgentV = true;
+        stageProperties.inputScore = false;
+        stageProperties.inputOrientation = true;
+        stageProperties.inputTimeRemaining = true;
+        stageProperties.inputDistanceSensors = true;
+        stageProperties.outputsJointSpeed = true;
+        stageProperties.outputsJointTorque = false;
+        stageProperties.outputsBias = false;
+        stageProperties.brainDecayOverTime = false;
+        stageProperties.xScoreMultiplier = 30;
+        stageProperties.yScoreMultiplier = 30;
+        stageProperties.movementScoreMultiplier = 30;
+        stageProperties.explorationScoreMultiplier = 50;
+        stageProperties.sizeScoreMultiplier = 20;
+        stageProperties.massBonusIsDynamic = true;
+        stageProperties.startingEnergyBase = 10;
+        stageProperties.startingEnergyMassPower = 3;
+        stageProperties.startingEnergyBodyMassMult = 10;
+        stageProperties.startingEnergyLimbMassMult = 10;
+        stageProperties.energyUseForceSizeMult = 10;
+        stageProperties.energyUseLimbSizeMult = 10;
+        stageProperties.energyUseBrainSizeMult = 10;
+        stageProperties.limbMassEnergyReductionDivider = 15;
+        stageProperties.brainSizeEnergyReductionDivider = 100;
+        stageProperties.forceMagnitudeEnergyReductionDivider = 1000000;
+        stageProperties.bodyStartingMassEnergyReductionDivider = 400;
+        stageProperties.limbStartingMassEnergyReductionDivider = 15;
+        stageProperties.jointMovementRewardLimbMassDivider = 100;
+        stageProperties.internalMapSize = 500;
+        stageProperties.internalMapCellSize = 50;
+        stageProperties.dynamicMassBonusDivider = 500;
+        stageProperties.offspringMutationRate = 200;
+        stageProperties.offspringNodeMutationRate = 50;
+        stageProperties.offspringLayerMutationRate = 10;
+        stageProperties.offspringLimbMutationRate = 100;
+        stageProperties.topPerformerNumber = 20;
+        stageProperties.migrationRate = 2;
+        stageProperties.minPopGroupSize = 10;
+        stageProperties.maxPopGroupSize = 25;
+        stageProperties.agentsRequireStablising = false;
+        stageProperties.tournamentSize = 10;
+        stageProperties.linearStabilityThresholdBody = 15;
+        stageProperties.angularStabilityThresholdBody = 20;
+        stageProperties.angularStabilityThresholdLimb = 15;
+        stageProperties.stabilityFrames = 20;
+        stageProperties.stabilityCheckOverwriteFrames = 500;
+        stageProperties.chanceToIncludeTopPerformerInMutation = 10;
+        stageProperties.chanceToIncludeOffspringInMutation = 50;
+        stageProperties.neuronMutationStandardDeviation = 10;
+        stageProperties.bodyPlanMutationStandardDeviation = 10;
+        stageProperties.maxPosForNormalisation = 5000;
+        stageProperties.maxVelForNormalisation = 50;
+        stageProperties.liquidViscosity = 5;
+        stageProperties.timeIncrease = true;
+        stageProperties.map = 1;
+        stageProperties.randomMap = true;
+        stageProperties.SimulationLength = 2000;
+        stageProperties.Width = 1600;
+        stageProperties.Height = 800;
+        stageProperties.GroundY = 700;
+        stageProperties.Gravity = 1;
+        stageProperties.Friction = 0.4;
+        stageProperties.simulationLengthIncrease = 25;
+        stageProperties.maxSimulationLength = 50000;
+        stageProperties.velocityIteration = 4;
+        stageProperties.positionIteration = 2;
+        stageProperties.physicsGranularityMultipliers = 10;
+        stageProperties.backgroundRed = 0;
+        stageProperties.backgroundGreen = 0;
+        stageProperties.backgroundBlue = 128;
+        stageProperties.backgroundParticles = 100;
+        stageProperties.showNN = false;
+        stageProperties.showRays = true;
+        stageProperties.agentInCentre = "leader";
+        stageProperties.uiRefreshRate = 500;
+        stageProperties.renderedNNLayerGap = 100;
+        stageProperties.renderedNNNodeGap = 30;
+        stageProperties.showForceVectors = true;
+        stageProperties.visualForceScale = 20;
+        stageProperties.visualMaxForceLength = 300;
+    }
+
     private void InitializeTabs()
     {
         tabs = new List<TabModel>
@@ -284,12 +1473,12 @@
             new TabModel
             {
                 Title = "Home",
-                Description = "This is the home tab.  I will have the whole introduction here.",
                 HasAdvanced = false
             },
             new TabModel
             {
                 Title = "Favourites",
+                Description = "The favourites list is saved alongside other settings.",
                 Settings = new List<Setting>(), // This will be populated dynamically
                 HasAdvanced = false
             },
@@ -466,6 +1655,39 @@
                         Max = 10000,
                         Step = 500,
                         Details = "Defines the gap between agent spawns at the start."
+                    },
+                    new Setting
+                    {
+                        Name = "Velocity Calculations",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.velocityIteration,
+                        ValueChanged = val => stageProperties.velocityIteration = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines the number of velocity calculations per simulation tick. Shouldn't be adjusted too far, but you can increase how frequently position calculations are made, making the sim more accurate."
+                    },
+                    new Setting
+                    {
+                        Name = "Position Calculations",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.positionIteration,
+                        ValueChanged = val => stageProperties.positionIteration = val,
+                        Min = 1,
+                        Max = 10,
+                        Step = 1,
+                        Details = "Determines the number of position calculations per simulation tick.  Shouldn't be adjusted too far, but you can increase how frequently position calculations are made, making the sim more accurate."
+                    },
+                    new Setting
+                    {
+                        Name = "Physics Granularity Multiplier",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.physicsGranularityMultipliers,
+                        ValueChanged = val => stageProperties.physicsGranularityMultipliers = val,
+                        Min = 5,
+                        Max = 20,
+                        Step = 1,
+                        Details = "Adjusts the granularity of physics calculations.  This setting can do some strange things if adjusted too far, but if you have CPU overhead, try increasing the granularity slightly."
                     }
                 },
                 HasAdvanced = true
@@ -538,8 +1760,8 @@
                     ValueExpression = () => stageProperties.swimStrength,
                     ValueChanged = val => stageProperties.swimStrength = val,
                     Min = 0,
-                    Max = 50,
-                    Step = 1,
+                    Max = 1000,
+                    Step = 10,
                     Details = "Adjusts the swim strength of agents in aquatic environments."
                 },
                 new Setting
@@ -567,6 +1789,17 @@
             },
                 AdvancedSettings = new List<Setting>
                 {
+                    new Setting
+{
+                        Name = "Maximum Swim Force",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.maxForceMagnitude,
+                        ValueChanged = val => stageProperties.maxForceMagnitude = val,
+                        Min = 100,
+                        Max = 10000,
+                        Step = 50,
+                        Details = "Sets the maximum force that can be applied to a limb"
+                    },
                     new Setting
                     {
                         Name = "Max Torque Multiplier",
@@ -1255,8 +2488,11 @@
                         Min = 0,
                         Max = 100,
                         Step = 5,
-                        Details = "Standard deviation for body plan mutation."
+                        Details = "The standard deviation used for body plan mutation.  A larger value means larger mutations. This value is divided by 100."
                     },
+
+                    // Checked up to here so far, from the bottom
+
                     new Setting
                     {
                         Name = "Max Position for Normalisation",
@@ -1266,7 +2502,7 @@
                         Min = 1000,
                         Max = 10000,
                         Step = 500,
-                        Details = "Maximum position value for normalisation."
+                        Details = "Maximum position value for normalisation for agents neural network / brain input."
                     },
                     new Setting
                     {
@@ -1277,7 +2513,7 @@
                         Min = 10,
                         Max = 100,
                         Step = 5,
-                        Details = "Maximum velocity value for normalisation."
+                        Details = "Maximum velocity value for normalisation for agents neural network / brain input."
                     }
                 },
                 HasAdvanced = true
@@ -1285,7 +2521,7 @@
             new TabModel
             {
                 Title = "World",
-                Description = "Configure the properties of the world.",
+                Description = "Configure properties like the round length, the viscosity of the environment and the map.",
                 Settings = new List<Setting>
                 {
                     new Setting
@@ -1294,7 +2530,18 @@
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.timeIncrease,
                         BooleanValueChanged = val => stageProperties.timeIncrease = val,
-                        Details = "Toggles the display of agent names."
+                        Details = "Toggles whether to increase the time agents are given per round, increasing per generation.  If disabled, I recommended setting a longer round length."
+                    },
+                    new Setting
+                    {
+                        Name = "Starting Round Length",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.SimulationLength,
+                        ValueChanged = val => stageProperties.SimulationLength = val,
+                        Min = 100,
+                        Max = 500000,
+                        Step = 50,
+                        Details = "Adjusts the length of the round in ticks.  2000 ticks is about 40 seconds depending on frame rate."
                     },
                     new Setting
                     {
@@ -1303,7 +2550,7 @@
                         SelectedValueExpression = () => stageProperties.agentInCentre,
                         SelectedValueChanged = val => stageProperties.agentInCentre = val,
                         Options = new List<string> { "leader", "trailer", "average" },
-                        Details = "Selects the type of environment for the simulation."
+                        Details = "Selects the agent to focus the camera on.  Best toggled with the top right button bank."
                     },
                     new Setting
                     {
@@ -1311,19 +2558,19 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.liquidViscosity,
                         ValueChanged = val => stageProperties.liquidViscosity = val,
-                        Min = 1,
-                        Max = 10,
+                        Min = 0,
+                        Max = 100,
                         Step = 1,
-                        Details = "Adjusts the viscosity of the liquid in the world."
+                        Details = "Adjusts the viscosity of the liquid in the world.  This number is divided by 10000 then adjusted for speed, and taken from 1 to create a drag multiple, which all agent velocities are multiplied by every frame.  This property does not give the agents pushing forces on limbs, thats handled elsewhere."
                     },
                     new Setting
                     {
-                        Name = "Map Type",
+                        Name = "Starting Map",
                         Type = SettingType.Dropdown,
                         SelectedValueExpression = () => stageProperties.map.ToString(),
                         SelectedValueChanged = val => stageProperties.map = int.Parse(val),
-                        Options = new List<string> { "1", "2", "3" }, // Assuming map types are numbered
-                        Details = "Selects the type of map for the simulation."
+                        Options = new List<string> { "1", "2", "3", "4", "5" },
+                        Details = "Select the map to start the simulation on. If 'Random Map' is toggled off, this selects the map for the duration of training."
                     },
                     new Setting
                     {
@@ -1331,8 +2578,8 @@
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.randomMap,
                         BooleanValueChanged = val => stageProperties.randomMap = val,
-                        Details = "Toggles the use of a random map in the simulation."
-                    }
+                        Details = "Toggles the use of a random map in the simulation.  Using the same map makes it easier to learn as some maps have a different start, but makes learning less general."
+                    },
                 },
                 AdvancedSettings = new List<Setting>
                 {
@@ -1340,36 +2587,25 @@
                     // public double Friction { get; set; } = 0.4; // not implemented
                     new Setting
                     {
-                        Name = "Simulation Length",
-                        Type = SettingType.Slider,
-                        ValueExpression = () => stageProperties.SimulationLength,
-                        ValueChanged = val => stageProperties.SimulationLength = val,
-                        Min = 500,
-                        Max = 5000,
-                        Step = 50,
-                        Details = "Adjusts the total length of the simulation in ticks."
-                    },
-                    new Setting
-                    {
-                        Name = "Simulation Width",
+                        Name = "Canvas Width",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.Width,
                         ValueChanged = val => stageProperties.Width = val,
                         Min = 800,
                         Max = 2400,
                         Step = 50,
-                        Details = "Sets the width of the simulation area."
+                        Details = "Sets the width of the canvas used to host the simulation.  I've not tested this so it will have strange effects."
                     },
                     new Setting
                     {
-                        Name = "Simulation Height",
+                        Name = "Canvas Height",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.Height,
                         ValueChanged = val => stageProperties.Height = val,
                         Min = 400,
                         Max = 1200,
                         Step = 50,
-                        Details = "Sets the height of the simulation area."
+                        Details = "Sets the height of the canvas used to host the simulation.  I've not tested this so it will have strange effects."
                     },
                     new Setting
                     {
@@ -1380,70 +2616,37 @@
                         Min = 500,
                         Max = 900,
                         Step = 10,
-                        Details = "Adjusts the Y-coordinate of the ground level."
+                        Details = "Adjusts the Y-coordinate of the ground level.  I've not tested this at all, but it might do something?"
                     },
                     new Setting
                     {
-                        Name = "Simulation Length Increase",
+                        Name = "Round Length Increase",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.simulationLengthIncrease,
                         ValueChanged = val => stageProperties.simulationLengthIncrease = val,
                         Min = 10,
                         Max = 100,
                         Step = 5,
-                        Details = "Increases the simulation length incrementally per generation."
+                        Details = "Increases the simulation length incrementally by this amount per generation."
                     },
                     new Setting
                     {
-                        Name = "Max Simulation Length",
+                        Name = "Max Round Length",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.maxSimulationLength,
                         ValueChanged = val => stageProperties.maxSimulationLength = val,
                         Min = 10000,
                         Max = 100000,
                         Step = 1000,
-                        Details = "Sets the maximum limit for the simulation length."
+                        Details = "Sets the maximum limit for the simulation length.  By default its about 15 minutes"
                     },
-                    new Setting
-                    {
-                        Name = "Velocity Iterations",
-                        Type = SettingType.Slider,
-                        ValueExpression = () => stageProperties.velocityIteration,
-                        ValueChanged = val => stageProperties.velocityIteration = val,
-                        Min = 1,
-                        Max = 10,
-                        Step = 1,
-                        Details = "Determines the number of velocity calculations per simulation tick."
-                    },
-                    new Setting
-                    {
-                        Name = "Position Iterations",
-                        Type = SettingType.Slider,
-                        ValueExpression = () => stageProperties.positionIteration,
-                        ValueChanged = val => stageProperties.positionIteration = val,
-                        Min = 1,
-                        Max = 10,
-                        Step = 1,
-                        Details = "Determines the number of position calculations per simulation tick."
-                    },
-                    new Setting
-                    {
-                        Name = "Physics Granularity Multiplier",
-                        Type = SettingType.Slider,
-                        ValueExpression = () => stageProperties.physicsGranularityMultipliers,
-                        ValueChanged = val => stageProperties.physicsGranularityMultipliers = val,
-                        Min = 5,
-                        Max = 20,
-                        Step = 1,
-                        Details = "Adjusts the granularity of physics calculations."
-                    }
                 },
                 HasAdvanced = true
             },
             new TabModel
             {
-                Title = "Visualization",
-                Description = "Configure the visualization and UI.",
+                Title = "Visualizations",
+                Description = "Configure the visualization and UI.  Most of these are background settings that don't need to be touched but if you have a hard time seeing some colours, or cant fit elements on the screen, you can adjust that here.",
                 Settings = new List<Setting>
                 {
                     new Setting
@@ -1499,15 +2702,15 @@
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.showNN,
                         BooleanValueChanged = val => stageProperties.showNN = val,
-                        Details = "Toggles the visibility of the neural network representation."
+                        Details = "Toggles the visibility of the neural network representation.  Off by default as it can use a fair amount of memory.  I recommend only toggling it temporally using the top right button bank."
                     },
                     new Setting
                     {
-                        Name = "Show Rays",
+                        Name = "Show Agents Vision",
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.showRays,
                         BooleanValueChanged = val => stageProperties.showRays = val,
-                        Details = "Controls whether rays used for sensing the environment are displayed."
+                        Details = "Controls whether rays used for sensing the environment are displayed for the focused agent."
                     },
                     new Setting
                     {
@@ -1518,7 +2721,7 @@
                         Min = 100,
                         Max = 1000,
                         Step = 50,
-                        Details = "Adjusts the refresh rate of the user interface."
+                        Details = "Adjusts the refresh rate of the on screen information and the neural network."
                     },
                     new Setting
                     {
@@ -1548,7 +2751,7 @@
             new TabModel
             {
                 Title = "Debugging",
-                Description = "Configure the debugging and diagnostics.",
+                Description = "Configure settings for debugging and diagnostics.  Mostly settings for visualizing swimming forces.",
                 Settings = new List<Setting>
                 {
                     new Setting
@@ -1575,1200 +2778,19 @@
                     },
                     new Setting
                     {
-                        Name = "Max Force Length",
+                        Name = "Max Force Arrow",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.visualMaxForceLength,
                         ValueChanged = val => stageProperties.visualMaxForceLength = val,
                         Min = 100,
                         Max = 500,
                         Step = 10,
-                        Details = "Sets the maximum length for force vector visualization."
+                        Details = "Sets the maximum length for force vector visualization arrow."
                     }
                 },
                 HasAdvanced = true
             },
         };
-    }
-
-    private void SetActiveTab(TabModel tab)
-    {
-        activeTab = tab;
-    }
-
-    private void ToggleAdvanced(TabModel tab)
-    {
-        tab.ShowAdvanced = !tab.ShowAdvanced;
-    }
-
-    private void ToggleFavourite(string settingName)
-    {
-        if (stageProperties.FavouriteSettings.Contains(settingName))
-        {
-            stageProperties.FavouriteSettings.Remove(settingName);
-        }
-        else
-        {
-            stageProperties.FavouriteSettings.Add(settingName);
-        }
-    }
-
-    public enum SettingType
-    {
-        Slider,
-        Checkbox,
-        Dropdown,
-        Info
-    }
-
-    public class TabModel
-    {
-        public string Title { get; set; }
-        public string Description { get; set; }
-        public List<Setting> Settings { get; set; } = new List<Setting>();
-        public List<Setting> AdvancedSettings { get; set; } = new List<Setting>();
-        public bool HasAdvanced { get; set; }
-        public bool ShowAdvanced { get; set; }
-    }
-
-    public class Setting
-    {
-        public string Name { get; set; }
-        public SettingType Type { get; set; }
-        public Func<int> ValueExpression { get; set; }
-        public Action<int> ValueChanged { get; set; }
-        public Func<bool> BooleanValueExpression { get; set; }
-        public Action<bool> BooleanValueChanged { get; set; }
-        public Func<string> SelectedValueExpression { get; set; }
-        public Action<string> SelectedValueChanged { get; set; }
-        public int Min { get; set; }
-        public int Max { get; set; }
-        public int Step { get; set; }
-        public string Details { get; set; }
-        public List<string> Options { get; set; } = new List<string>();
-
-        public int Value
-        {
-            get => ValueExpression?.Invoke() ?? 0;
-            set => ValueChanged?.Invoke(value);
-        }
-
-        public bool BooleanValue
-        {
-            get => BooleanValueExpression.Invoke();
-            set => BooleanValueChanged?.Invoke(value);
-        }
-
-        public string SelectedValue
-        {
-            get => SelectedValueExpression?.Invoke();
-            set => SelectedValueChanged?.Invoke(value);
-        }
-    }
-
-
-    private StageProperties stageProperties = new StageProperties();
-    public bool box2dPhysics { get; set; } = true;
-    private bool showAdvancedSettings = true;
-    public List<Genome> population = new List<Genome>();
-    public List<Genome> evolvedPopulation = new List<Genome>();
-
-    public class StageProperties
-    {
-        public List<string> FavouriteSettings { get; set; } = new List<string> { "Number of Agents", "Agent Multiplier", "Minimum Limbs", "Maximum Limbs", "Minimum Neural Network Layers", "Maximum Neural Network Layers", "Starting Limb Chain Length", "Swim Strength", "Size Score Multiplier", "Offspring Mutation Rate", "Offspring Limb Mutation Rate", "Top Performer Number", "Migration Rate", "Maximum Population Group Size", "Liquid Viscosity", "Simulation Length" };
-        
-        // Performance
-        public int numAgents { get; set; } = 25;
-        public int totalNumAgentsMultiplier { get; set; } = 8;
-        public int muscleDelay { get; set; } = 2;
-        public int muscleBatch { get; set; } = 5;
-        public int simSpeed { get; set; } = 60;
-        // Advanced Performance
-        public int totalMuscleUpdateTime { get; set; } = 2;
-        public int delay { get; set; } = 20;
-        public int BatchSize { get; set; } = 10;
-        public int updatesPerAgentStart { get; set; } = 1;
-        public int framesPerUpdateStart { get; set; } = 1;
-        public int renderedAgents { get; set; } = 1;
-        public bool showGroupLeaders { get; set; } = true;
-        public bool showGroupTrailers { get; set; } = true;
-        public int agentStartSpawnGap { get; set; } = 5000;
-
-        // Agent
-        public int minLimbs { get; set; } = 2;
-        public int maxLimbs { get; set; } = 5;
-        public int minNNLayers { get; set; } = 1;
-        public int maxNNLayers { get; set; } = 5;
-        public int startingLimbChainLength { get; set; } = 1;
-        public int swimStrength { get; set; } = 17;
-        public int swimBias { get; set; } = 15; 
-        public int maxJointSpeed { get; set; } = 10;
-        // Advanced Agent
-        public int maxTorqueMultiplier { get; set; } = 300000;
-        public int limbMassForceDivider { get; set; } = 50;
-        public int limbLengthForceDivider { get; set; } = 30;
-        public int agentStartX { get; set; } = 200;
-        public int agentStartY { get; set; } = 600;
-        public int swimForceOverNFrames { get; set; } = 5;
-        public int speedForceNormilizer { get; set; } = 15;
-        public int speedNormalizationForDrag { get; set; } = 2500;
-        public int bodyAngularDragPower { get; set; } = 10;
-        public int maxTorqueForDamping { get; set; } = 10000;
-        public int threasholdAngleForDamping { get; set; } = 10;
-        public bool inputJointAngle { get; set; } = true;
-        public bool inputJointSpeed { get; set; } = false;
-        public bool inputAgentPos { get; set; } = true;
-        public bool inputAgentV { get; set; } = true;
-        public bool inputScore { get; set; } = false;
-        public bool inputOrientation { get; set; } = true;
-        public bool inputTimeRemaining { get; set; } = true;
-        public bool inputDistanceSensors { get; set; } = true;
-        public bool outputsJointSpeed { get; set; } = true;
-        public bool outputsJointTorque { get; set; } = false;
-        public bool outputsBias { get; set; } = false;
-        public bool brainDecayOverTime { get; set; } = false; // Not implemented
-
-        // Score and Energy
-        public int xScoreMultiplier { get; set; } = 30;
-        public int yScoreMultiplier { get; set; } = 30;
-        public int movementScoreMultiplier { get; set; } = 30;
-        public int explorationScoreMultiplier { get; set; } = 50;
-        public int sizeScoreMultiplier { get; set; } = 20;
-        public bool massBonusIsDynamic { get; set; } = true;
-        public int startingEnergyBase { get; set; } = 10;
-        public int startingEnergyMassPower { get; set; } = 3;
-        // Advanced Score and Energy
-        public int startingEnergyBodyMassMult { get; set; } = 10;
-        public int startingEnergyLimbMassMult { get; set; } = 10;
-        public int energyUseForceSizeMult { get; set; } = 10;
-        public int energyUseLimbSizeMult { get; set; } = 10;
-        public int energyUseBrainSizeMult { get; set; } = 10;
-        public int limbMassEnergyReductionDivider { get; set; } = 15;
-        public int brainSizeEnergyReductionDivider { get; set; } = 100;
-        public int forceMagnitudeEnergyReductionDivider { get; set; } = 1000000;
-        public int bodyStartingMassEnergyReductionDivider { get; set; } = 400;
-        public int limbStartingMassEnergyReductionDivider { get; set; } = 15;
-        public int jointMovementRewardLimbMassDivider { get; set; } = 100;
-        public int internalMapSize { get; set; } = 500;
-        public int internalMapCellSize { get; set; } = 50;
-        public int dynamicMassBonusDivider { get; set; } = 500;
-
-        // Training and Evolution
-        public int offspringMutationRate { get; set; } = 200;
-        public int offspringNodeMutationRate { get; set; } = 50;
-        public int offspringLayerMutationRate { get; set; } = 10;
-        public int offspringLimbMutationRate { get; set; } = 100;
-        public int topPerformerNumber { get; set; } = 20;
-        public int migrationRate { get; set; } = 2;
-        public int minPopGroupSize { get; set; } = 10;
-        public int maxPopGroupSize { get; set; } = 25;
-        public bool agentsRequireStablising { get; set; } = false;
-        // Advanced Training and Evolution
-        public int tournamentSize { get; set; } = 10;
-        public int linearStabilityThresholdBody { get; set; } = 15;
-        public int angularStabilityThresholdBody { get; set; } = 20;
-        public int angularStabilityThresholdLimb { get; set; } = 15;
-        public int stabilityFrames { get; set; } = 20;
-        public int stabilityCheckOverwriteFrames { get; set; } = 500;
-        public int chanceToIncludeTopPerformerInMutation { get; set; } = 10;
-        public int chanceToIncludeOffspringInMutation { get; set; } = 50;
-        public int neuronMutationStandardDeviation { get; set; } = 10;
-        public int bodyPlanMutationStandardDeviation { get; set; } = 10;
-        public int maxPosForNormalisation { get; set; } = 5000;
-        public int maxVelForNormalisation { get; set; } = 50;
-
-        // World Properties
-        public int liquidViscosity { get; set; } = 5;
-        public bool timeIncrease { get; set; } = true;
-        public int map { get; set; } = 1;
-        public bool randomMap { get; set; } = true;
-        public int SimulationLength { get; set; } = 2000;
-        // Advanced World Properties
-        public int Width { get; set; } = 1600;
-        public int Height { get; set; } = 800;
-        public int GroundY { get; set; } = 700;
-        public int Gravity { get; set; } = 1; // not implemented
-        public double Friction { get; set; } = 0.4; // not implemented
-        public int simulationLengthIncrease { get; set; } = 25;
-        public int maxSimulationLength { get; set; } = 50000;
-        public int velocityIteration { get; set; } = 4;
-        public int positionIteration { get; set; } = 2;
-        public int physicsGranularityMultipliers { get; set; } = 10;
-
-        // Visualization and UI
-        public int backgroundRed { get; set; } = 0;
-        public int backgroundGreen { get; set; } = 0;
-        public int backgroundBlue { get; set; } = 128;
-        public int backgroundParticles { get; set; } = 100;
-        // Advanced Visualization and UI
-        public bool showNN { get; set; } = false;
-        public bool showRays { get; set; } = true;
-        public string agentInCentre { get; set; } = "leader";
-        public int uiRefreshRate { get; set; } = 500;
-        public int renderedNNLayerGap { get; set; } = 100;
-        public int renderedNNNodeGap { get; set; } = 30;
-
-        // Debugging and Diagnostics
-        public bool showForceVectors { get; set; } = true;
-        // Advanced Debugging and Diagnostics
-        public int visualForceScale { get; set; } = 20;
-        public int visualMaxForceLength { get; set; } = 300;
-
-        // Behind the scenes
-        public double topScoreEver { get; set; } = 0;
-        public int genCount { get; set; } = 1;
-
-    }
-
-    private async Task setMobilePresets()
-    {
-        stageProperties.delay = 10;
-        stageProperties.BatchSize = 5;
-        stageProperties.numAgents = 5;
-        stageProperties.totalNumAgentsMultiplier = 20;
-        stageProperties.muscleDelay = 5;
-        stageProperties.muscleBatch = 1;
-        stageProperties.totalMuscleUpdateTime = 1;
-    }
-
-    private async Task setLowPresets()
-    {
-        stageProperties.delay = 10;
-        stageProperties.BatchSize = 10;
-        stageProperties.numAgents = 20;
-        stageProperties.totalNumAgentsMultiplier = 10;
-        stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 5;
-        stageProperties.totalMuscleUpdateTime = 2;
-    }
-
-    private async Task setMidPresets()
-    {
-        stageProperties.delay = 10;
-        stageProperties.BatchSize = 20;
-        stageProperties.numAgents = 50;
-        stageProperties.totalNumAgentsMultiplier = 5;
-        stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 10;
-        stageProperties.totalMuscleUpdateTime = 2;
-    }
-
-    private async Task setHighPresets()
-    {
-        stageProperties.delay = 5;
-        stageProperties.BatchSize = 20;
-        stageProperties.numAgents = 100;
-        stageProperties.totalNumAgentsMultiplier = 4;
-        stageProperties.muscleDelay = 1;
-        stageProperties.muscleBatch = 10;
-        stageProperties.totalMuscleUpdateTime = 1;
-    }
-
-    private async Task setVHighPresets()
-    {
-        stageProperties.delay = 1;
-        stageProperties.BatchSize = 20;
-        stageProperties.numAgents = 150;
-        stageProperties.totalNumAgentsMultiplier = 3;
-        stageProperties.muscleDelay = 1;
-        stageProperties.muscleBatch = 15;
-        stageProperties.totalMuscleUpdateTime = 1;
-    }
-
-    private async Task resetSettings()
-    {
-        stageProperties.Width = 1600;  // Canvas width
-        stageProperties.Height = 800;  // Canvas height
-        stageProperties.GroundY = 700;  // Y position of the ground in the canvas
-        stageProperties.Gravity = 1;
-        stageProperties.Friction = 0.4;
-        stageProperties.SimulationLength = 2000;
-        stageProperties.renderedAgents = 1;
-        stageProperties.simSpeed = 60;
-        stageProperties.topPerformerNumber = 5;
-        stageProperties.delay = 20;
-        stageProperties.BatchSize = 10;
-        stageProperties.showNN = false;
-        stageProperties.showRays = true;
-        stageProperties.agentInCentre = "leader";
-        stageProperties.numAgents = 25;
-        stageProperties.totalNumAgentsMultiplier = 8;
-        stageProperties.tournamentSize = 10;
-        stageProperties.migrationRate = 2;
-        stageProperties.minPopGroupSize = 10;
-        stageProperties.maxPopGroupSize = 25;
-        stageProperties.uiRefreshRate = 500;
-        stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 5;
-        stageProperties.totalMuscleUpdateTime = 2;
-        stageProperties.velocityIteration = 4;
-        stageProperties.positionIteration = 2;
-        stageProperties.physicsGranularityMultipliers = 10;
-        stageProperties.liquidViscosity = 5;
-        stageProperties.timeIncrease = true;
-        stageProperties.map = 1;
-        stageProperties.randomMap = true;
-        stageProperties.simulationLengthIncrease = 25;
-        stageProperties.maxSimulationLength = 50000;
-        stageProperties.agentsRequireStablising = true;
-        stageProperties.maxJointSpeed = 10;
-        stageProperties.offspringMutationRate = 200;
-        stageProperties.offspringNodeMutationRate = 10;
-        stageProperties.offspringLayerMutationRate = 5;
-        stageProperties.offspringLimbMutationRate = 50;
-        stageProperties.brainDecayOverTime = false;
-        stageProperties.inputJointAngle = true;
-        stageProperties.inputJointSpeed = false;
-        stageProperties.inputAgentPos = true;
-        stageProperties.inputAgentV = true;
-        stageProperties.inputScore = false;
-        stageProperties.inputOrientation = true;
-        stageProperties.inputTimeRemaining = true;
-        stageProperties.inputDistanceSensors = true;
-        stageProperties.outputsJointSpeed = true;
-        stageProperties.outputsJointTorque = false;
-        stageProperties.outputsBias = false;
-        stageProperties.swimStrength = 600000;
-        stageProperties.swimBias = 15;
-        stageProperties.xScoreMultiplier = 30;
-        stageProperties.yScoreMultiplier = 30;
-        stageProperties.movementScoreMultiplier = 3;
-        stageProperties.explorationScoreMultiplier = 50;
-        stageProperties.sizeScoreMultiplier = 20;
-        stageProperties.startingEnergyBase = 100;
-        stageProperties.startingEnergyMassPower = 3;
-        stageProperties.startingEnergyBodyMassMult = 10;
-        stageProperties.startingEnergyLimbMassMult = 10;
-        stageProperties.energyUseForceSizeMult = 10;
-        stageProperties.energyUseLimbSizeMult = 10;
-        stageProperties.energyUseBrainSizeMult = 10;
-        stageProperties.maxTorqueMultiplier = 300000;
-        stageProperties.updatesPerAgentStart = 1;
-        stageProperties.framesPerUpdateStart = 10;
-        stageProperties.topScoreEver = 0;
-        stageProperties.genCount = 1;
-        stageProperties.backgroundRed = 0;
-        stageProperties.backgroundGreen = 0;
-        stageProperties.backgroundBlue = 128;
-        stageProperties.backgroundParticles = 100;
-        stageProperties.linearStabilityThresholdBody = 10;
-        stageProperties.angularStabilityThresholdBody = 15;
-        stageProperties.angularStabilityThresholdLimb = 10;
-        stageProperties.stabilityFrames = 10;
-        stageProperties.swimForceOverNFrames = 5;
-        stageProperties.limbMassForceDivider = 50;
-        stageProperties.limbLengthForceDivider = 30;
-        stageProperties.limbMassEnergyReductionDivider = 15;
-        stageProperties.brainSizeEnergyReductionDivider = 100;
-        stageProperties.forceMagnitudeEnergyReductionDivider = 1000000;
-        stageProperties.maxTorqueForDamping = 10000;
-        stageProperties.threasholdAngleForDamping = 10;
-        stageProperties.bodyStartingMassEnergyReductionDivider = 400;
-        stageProperties.limbStartingMassEnergyReductionDivider = 15;
-        stageProperties.jointMovementRewardLimbMassDivider = 100;
-        stageProperties.internalMapSize = 500;
-        stageProperties.internalMapCellSize = 50;
-        stageProperties.massBonusIsDynamic = true;
-        stageProperties.dynamicMassBonusDivider = 500;
-        stageProperties.showGroupLeaders = true;
-        stageProperties.showGroupTrailers = true;
-        stageProperties.agentStartX = 200;
-        stageProperties.agentStartY = 600;
-        stageProperties.agentStartSpawnGap = 5000;
-        stageProperties.chanceToIncludeTopPerformerInMutation = 10;
-        stageProperties.chanceToIncludeOffspringInMutation = 80;
-        stageProperties.neuronMutationStandardDeviation = 10;
-        stageProperties.bodyPlanMutationStandardDeviation = 10;
-        stageProperties.renderedNNLayerGap = 100;
-        stageProperties.renderedNNNodeGap = 30;
-        stageProperties.maxPosForNormalisation = 5000;
-        stageProperties.maxVelForNormalisation = 500;
-        stageProperties.minLimbs = 2;
-        stageProperties.maxLimbs = 5;
-        stageProperties.minNNLayers = 1;
-        stageProperties.maxNNLayers = 5;
-        stageProperties.startingLimbChainLength = 1;
-
-    }
-
-    private async Task saveSettings()
-    {
-        await JSRuntime.InvokeVoidAsync("saveSettings", stageProperties);
-    }
-
-    private async Task uploadSettings()
-    {
-        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadSettings");
-    }
-
-    private async Task ResetSimulation()
-    {
-        await InitializePopulation(stageProperties.numAgents);
-        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
-    }
-
-    private async Task ResetSimulationSimple()
-    {
-        stageProperties.energyUseForceSizeMult = 0;
-        stageProperties.energyUseLimbSizeMult = 0;
-        stageProperties.energyUseBrainSizeMult = 0;
-        stageProperties.startingEnergyMassPower = 0;
-        stageProperties.startingEnergyBase = 1;
-        stageProperties.startingEnergyBodyMassMult = 0;
-        stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 1;
-        stageProperties.explorationScoreMultiplier = 0;
-        stageProperties.sizeScoreMultiplier = 0;
-        stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 50;
-        stageProperties.agentsRequireStablising = false;
-        await InitializePopulation(stageProperties.numAgents);
-        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
-    }
-
-    private async Task ResetSimulationSuperSimple()
-    {
-        stageProperties.energyUseForceSizeMult = 0;
-        stageProperties.energyUseLimbSizeMult = 0;
-        stageProperties.energyUseBrainSizeMult = 0;
-        stageProperties.startingEnergyMassPower = 0;
-        stageProperties.startingEnergyBase = 1;
-        stageProperties.startingEnergyBodyMassMult = 0;
-        stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 1;
-        stageProperties.explorationScoreMultiplier = 0;
-        stageProperties.sizeScoreMultiplier = 0;
-        stageProperties.offspringNodeMutationRate = 0;
-        stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 50;
-        stageProperties.swimStrength = 17;
-        stageProperties.randomMap = false;
-        stageProperties.map = 1;
-        stageProperties.agentsRequireStablising = false;
-        await InitializePopulationSimple(stageProperties.numAgents);
-        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
-    }
-
-    private async Task toggleNN()
-    {
-        stageProperties.showNN = !stageProperties.showNN;
-        await UpdateSimulation();
-    }
-
-    private async Task toggleRayCasts()
-    {
-        stageProperties.showRays = !stageProperties.showRays;
-        await UpdateSimulation();
-    }
-
-    private void ToggleAdvancedSettings()
-    {
-        showAdvancedSettings = !showAdvancedSettings;
-    }
-
-    private async Task UpdateSimulation()
-    {
-        await JSRuntime.InvokeVoidAsync("updateSimulationNEAT", stageProperties);
-    }
-
-    private async Task toggleLeader()
-    {
-        if (stageProperties.agentInCentre == "leader")
-        {
-            stageProperties.agentInCentre = "trailer";
-        }
-        else
-        {
-            stageProperties.agentInCentre = "leader";
-        }
-
-        await UpdateSimulation();
-    }
-
-    private async Task LogGenomes()
-    {
-        await JSRuntime.InvokeVoidAsync("logGenomes");
-    }
-
-    public override string ToString()
-    {
-        return JsonSerializer.Serialize(this);
-    }
-
-    private async Task RetrieveGenomes()
-    {
-        await JSRuntime.InvokeAsync<string>("saveGenomes");
-    }
-
-    private async Task UploadGenomes()
-    {
-        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadGenomes");
-    }
-
-    public async Task Skip10Gen()
-    {
-        await JSRuntime.InvokeVoidAsync("skipGen", 10);
-    }
-
-    public async Task Skip100Gen()
-    {
-        await JSRuntime.InvokeVoidAsync("skipGen", 1);
-    }
-
-    void Shuffle<T>(List<T> list, Random random)
-    {
-        int n = list.Count;
-        while (n > 1)
-        {
-            n--;
-            int k = random.Next(n + 1);
-            T value = list[k];
-            list[k] = list[n];
-            list[n] = value;
-        }
-    }
-
-    public async Task InitializePopulation(int populationSize)
-    {
-        population = new List<Genome>();
-        Random random = new Random();
-        //let agentsPerGroup = Math.ceil(totalPopulationGenomes.length / numGroups);
-        // For now, set manual total population size as 10 * numAgents
-        int totalPopulation = populationSize * stageProperties.totalNumAgentsMultiplier;
-        // Calculate the number of groups
-        int numGroups = Math.Max(1, (int)Math.Ceiling((double)totalPopulation / stageProperties.maxPopGroupSize));
-        List<int> runGroups = Enumerable.Range(0, stageProperties.totalNumAgentsMultiplier)
-                                         .SelectMany(x => Enumerable.Repeat(x, totalPopulation / stageProperties.totalNumAgentsMultiplier))
-                                         .ToList();
-
-        // If the total population isn't perfectly divisible by stageProperties.totalNumAgentsMultiplier,
-        // add extra run groups to fill up the list
-        while (runGroups.Count < totalPopulation)
-        {
-            runGroups.Add(new Random().Next(0, stageProperties.totalNumAgentsMultiplier));
-        }
-
-        // Shuffle the list
-        runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
-
-        for (int i = 0; i < totalPopulation; i++)
-        {
-            Genome genome = new Genome();
-            genome.Metadata.AgentIndex = i;
-
-            int numLimbs = random.Next(stageProperties.minLimbs, stageProperties.maxLimbs);
-
-            // Initialize genes, examples used for now, will be randomized once the constructor is complete
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
-
-            int numLayers = random.Next(stageProperties.minNNLayers, stageProperties.maxNNLayers);
-
-            // assuming you want to add 3 layers, and the layer numbers are between 1 and 3, and sizes between 10 and 20
-            for (int j = 0; j < numLayers; j++)
-            {
-                int randomSize = random.Next(3, 20); // Generates a random integer between 3 and 20
-                genome.LayerGenes.Add(InitializeLayer(j, randomSize));
-            }
-
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * stageProperties.startingLimbChainLength));
-            genome.MainBody = InitializeBodyPlan(numLimbs);
-            // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
-            var randomName = new Random();
-            var consonants = "bcdfghjklmnpqrstvwxyz";
-            var vowels = "aeiou";
-            var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
-            genome.Metadata.AgentName = agentName;
-            genome.Metadata.RunGroup = runGroups[i];
-            genome.Metadata.AgentGroup = i % numGroups;
-            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
-            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
-            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
-            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
-
-            // add ids to usedLayerIDs, 1 to numLayers
-            genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
-
-            population.Add(genome);
-        }
-    }
-
-    public async Task InitializePopulationSimple(int populationSize)
-    {
-        population = new List<Genome>();
-        Random random = new Random();
-        //let agentsPerGroup = Math.ceil(totalPopulationGenomes.length / numGroups);
-        // For now, set manual total population size as 10 * numAgents
-        int totalPopulation = populationSize * stageProperties.totalNumAgentsMultiplier;
-        // Calculate the number of groups
-        int numGroups = Math.Max(1, (int)Math.Ceiling((double)totalPopulation / stageProperties.maxPopGroupSize));
-        List<int> runGroups = Enumerable.Range(0, stageProperties.totalNumAgentsMultiplier)
-                                         .SelectMany(x => Enumerable.Repeat(x, totalPopulation / stageProperties.totalNumAgentsMultiplier))
-                                         .ToList();
-
-        // If the total population isn't perfectly divisible by stageProperties.totalNumAgentsMultiplier,
-        // add extra run groups to fill up the list
-        while (runGroups.Count < totalPopulation)
-        {
-            runGroups.Add(new Random().Next(0, stageProperties.totalNumAgentsMultiplier));
-        }
-
-        // Shuffle the list
-        runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
-
-        for (int i = 0; i < totalPopulation; i++)
-        {
-            Genome genome = new Genome();
-            genome.Metadata.AgentIndex = i;
-
-            int numLimbs = 3;
-
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
-
-            int numLayers = 3;
-
-            genome.LayerGenes.Add(InitializeLayer(0, 18));
-            genome.LayerGenes.Add(InitializeLayer(1, 10));
-
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * stageProperties.startingLimbChainLength));
-            genome.MainBody = InitializeBodyPlanSimple(numLimbs);
-            // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
-            var randomName = new Random();
-            var consonants = "bcdfghjklmnpqrstvwxyz";
-            var vowels = "aeiou";
-            var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
-            genome.Metadata.AgentName = agentName;
-            genome.Metadata.RunGroup = runGroups[i];
-            genome.Metadata.AgentGroup = i % numGroups;
-            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
-            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
-            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
-            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
-
-            // add ids to usedLayerIDs, 1 to numLayers
-            genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
-
-            population.Add(genome);
-        }
-    }
-
-    public async Task UploadExistingPopulation()
-    {
-        //foreach (Genome in UploadedGenomes)
-        //{
-        //    Genome genome = new Genome();
-        //    genome.Metadata.AgentIndex = i;
-
-        //    // Initialize genes, examples used for now, will be randomised once the constructor is complete
-        //    genome.InputLayerGenes.Add();
-        //    genome.LayerGenes.Add(); // First hidden layer with 10 neurons
-        //    genome.LayerGenes.Add();  // Second hidden layer with 5 neurons
-        //    genome.OutputLayerGenes.Add();
-        //    genome.BodyPlan = ;
-
-        //    // Further initialization
-
-        //    population.Add(genome);
-        //}
-    }
-
-    private InputLayerGene InitializeInputLayer(int numLimbs)
-    {
-        return new InputLayerGene
-            {
-                NumberOfNeurons = 10 + numLimbs, 
-                ActivationType = ActivationType.ReLU,
-                Inputs = Enumerable.Range(1, 10 + numLimbs).ToList()
-            };
-    }
-
-    private LayerGene InitializeLayer(int layerId, int numberOfNeurons)
-    {
-        return new LayerGene
-            {
-                LayerID = layerId,
-                LayerType = LayerType.Dense,
-                NumberOfNeurons = numberOfNeurons,
-                ActivationType = ActivationType.ReLU
-            };
-    }
-
-    private OutputLayerGene InitializeOutputLayer(int numLimbs)
-    {
-        return new OutputLayerGene
-            {
-                NumberOfNeurons = numLimbs, // 3 outputs
-                ActivationType = ActivationType.Tanh,
-                Outputs = Enumerable.Range(1, numLimbs).ToList() // List of outputs from 1 to 3
-            };
-    }
-
-    private MainBody InitializeBodyPlan(int numLimbs)
-    {
-        Random random = new Random();
-
-        MainBody mainBody = new MainBody
-            {
-                PartID = 0,
-                NumberInChain = 0,
-                Shape = "Circle",
-                Size = 10 + random.NextDouble() * 30.0,
-                Density = 0.1 + random.NextDouble() * 0.6,
-                Arms = new List<Arm>() // Initializing the Limbs list
-            };
-
-        for (int i = 1; i <= numLimbs; i++)
-        {
-            double angle = random.NextDouble() * 2 * Math.PI; // Random angle in radians
-
-            int id = i;
-
-            Arm arm = new Arm
-                {
-                    PartID = id,
-                    ParentPartID = 0,
-                    NumberInChain = 1,
-                    Type = "Arm",
-                    Shape = "Rectangle",
-                    Length = 10 + random.NextDouble() * 50.0,
-                    Width = 2 + random.NextDouble() * 20.0,
-                    StartingAngle = angle,
-                    Attachment = new AttachmentPoint
-                    {
-                        X = 0,
-                        Y = 0
-                    },
-                    Constraints = new JointConstraints
-                    {
-                        MaxTorque = 1000 + random.NextDouble() * 79000,
-                        MinAngle = -(Math.PI / random.Next(2, 5)),
-                        MaxAngle = (Math.PI / random.Next(2, 5))
-                    }
-                };
-
-            Arm subArm = new Arm
-                {
-                    PartID = id + numLimbs,
-                    ParentPartID = id,
-                    NumberInChain = 2,
-                    Type = "Arm",
-                    Shape = "Rectangle",
-                    Length = 10 + random.NextDouble() * 50.0,
-                    Width = 2 + random.NextDouble() * 20.0,
-                    StartingAngle = random.NextDouble() * 2 * Math.PI,
-                    Attachment = new AttachmentPoint
-                    {
-                        X = 0,
-                        Y = 0
-                    },
-                    Constraints = new JointConstraints
-                    {
-                        MaxTorque = 1000 + random.NextDouble() * 79000,
-                        MinAngle = -(Math.PI / random.Next(2, 5)),
-                        MaxAngle = (Math.PI / random.Next(2, 5))
-                    }
-                };
-
-            Arm subArm2 = new Arm
-                {
-                    PartID = id + numLimbs * 2,
-                    ParentPartID = subArm.PartID,
-                    NumberInChain = 3,
-                    Type = "Arm",
-                    Shape = "Rectangle",
-                    Length = 10 + random.NextDouble() * 50.0,
-                    Width = 2 + random.NextDouble() * 20.0,
-                    StartingAngle = random.NextDouble() * 2 * Math.PI,
-                    Attachment = new AttachmentPoint
-                    {
-                        X = 0,
-                        Y = 0
-                    },
-                    Constraints = new JointConstraints
-                    {
-                        MaxTorque = 1000 + random.NextDouble() * 79000,
-                        MinAngle = -(Math.PI / random.Next(2, 5)),
-                        MaxAngle = (Math.PI / random.Next(2, 5))
-                    }
-                };
-
-            if (stageProperties.startingLimbChainLength > 1)
-            {
-                arm.SubArms.Add(subArm);
-                if (stageProperties.startingLimbChainLength > 2)
-                {
-                    subArm.SubArms.Add(subArm2);
-                }
-            }
-
-            mainBody.Arms.Add(arm);
-        }
-
-        return mainBody;
-    }
-
-
-    private MainBody InitializeBodyPlanSimple(int numLimbs)
-    {
-        Random random = new Random();
-
-        MainBody mainBody = new MainBody
-            {
-                PartID = 0,
-                NumberInChain = 0,
-                Shape = "Circle",
-                Size = 25,
-                Density = 0.3,
-                Arms = new List<Arm>() // Initializing the Limbs list
-            };
-
-        for (int i = 1; i <= numLimbs; i++)
-        {
-            double angle = ((i - 1) * 2 * Math.PI) / numLimbs;
-
-            // reserve ids 0 to 10 for body segments
-            int id = i + 10;
-
-            Arm arm = new Arm
-                {
-                    PartID = id,
-                    ParentPartID = 0,
-                    NumberInChain = 1,
-                    Type = "Arm",
-                    Shape = "Rectangle",
-                    Length = 50.0,
-                    Width = 10,
-                    StartingAngle = angle,
-                    Attachment = new AttachmentPoint
-                    {
-                        X = 0,
-                        Y = 0
-                    },
-                    Constraints = new JointConstraints
-                    {
-                        MaxTorque = 80000,
-                        MinAngle = -(Math.PI / 3),
-                        MaxAngle = (Math.PI / 3)
-                    }
-                };
-
-            Arm subArm = new Arm
-                {
-                    PartID = id + numLimbs,
-                    ParentPartID = id,
-                    NumberInChain = 2,
-                    Type = "Arm",
-                    Shape = "Rectangle",
-                    Length = 40,
-                    Width = 10,
-                    StartingAngle = angle,
-                    Attachment = new AttachmentPoint
-                    {
-                        X = 0,
-                        Y = 0
-                    },
-                    Constraints = new JointConstraints
-                    {
-                        MaxTorque = 80000,
-                        MinAngle = -(Math.PI / 3),
-                        MaxAngle = (Math.PI / 3)
-                    }
-                };
-
-            Arm subArm2 = new Arm
-                {
-                    PartID = id + numLimbs * 2,
-                    ParentPartID = subArm.PartID,
-                    NumberInChain = 3,
-                    Type = "Arm",
-                    Shape = "Rectangle",
-                    Length = 40,
-                    Width = 10,
-                    StartingAngle = angle,
-                    Attachment = new AttachmentPoint
-                    {
-                        X = 0,
-                        Y = 0
-                    },
-                    Constraints = new JointConstraints
-                    {
-                        MaxTorque = 80000,
-                        MinAngle = -(Math.PI / 3),
-                        MaxAngle = (Math.PI / 3)
-                    }
-                };
-
-            if (stageProperties.startingLimbChainLength > 1)
-            {
-                arm.SubArms.Add(subArm);
-                if (stageProperties.startingLimbChainLength > 2)
-                {
-                    subArm.SubArms.Add(subArm2);
-                }
-            }
-
-            mainBody.Arms.Add(arm);
-        }
-
-        return mainBody;
-    }
-
-    public class Genome
-    {
-        public List<InputLayerGene> InputLayerGenes { get; set; }
-        public List<LayerGene> LayerGenes { get; set; }
-        public List<OutputLayerGene> OutputLayerGenes { get; set; }
-        // public List<InnovationEntry> InnovationLog { get; set; }
-        public MainBody MainBody { get; set; }
-        public AgentHistory AgentHistory { get; set; }
-        public Hyperparameters Hyperparameters { get; set; }
-        public Metadata Metadata { get; set; }
-        public List<int>? UsedBiasIDs { get; set; }
-        public List<int>? UsedLayerIDs { get; set; }
-
-        public Genome()
-        {
-            // Initialize properties with defaults or random values.
-            this.InputLayerGenes = new List<InputLayerGene>();
-            this.LayerGenes = new List<LayerGene>();
-            this.OutputLayerGenes = new List<OutputLayerGene>();
-            // this.InnovationLog = new List<InnovationEntry>();
-            this.MainBody = new MainBody();
-            this.AgentHistory = new AgentHistory();
-            this.Hyperparameters = new Hyperparameters();
-            this.Metadata = new Metadata();
-        }
-    }
-
-    public class MainBody
-    {
-        public int PartID { get; set; }
-        public int NumberInChain { get; set; }
-        public string Shape { get; set; }
-        public double Size { get; set; }
-        public double Density { get; set; }
-        public List<Arm> Arms { get; set; } = new List<Arm>();
-        public List<Wing> Wings { get; set; } = new List<Wing>();
-        public List<Thruster> Thrusters { get; set; } = new List<Thruster>();
-        public List<BodySegment> BodySegments { get; set; } = new List<BodySegment>();
-        public List<int> UsedLimbIDs { get; set; } = new List<int>();
-    }
-
-    public class BodySegment
-    {
-        public int PartID { get; set; }
-        public int ParentPartID { get; set; }
-        public int NumberInChain { get; set; }
-        public string Type { get; set; }
-        public string Shape { get; set; }
-        public double Size { get; set; }
-        public double Density { get; set; }
-        public JointConstraints? Constraints { get; set; }
-        public AttachmentPoint Attachment { get; set; }
-        public List<Arm> Arms { get; set; } = new List<Arm>();
-        public List<Wing> Wings { get; set; } = new List<Wing>();
-        public List<Thruster> Thrusters { get; set; } = new List<Thruster>();
-    }
-
-    public class Arm
-    {
-        public int PartID { get; set; }
-        public int ParentPartID { get; set; }
-        public int NumberInChain { get; set; }
-        public string Type { get; set; }
-        public string Shape { get; set; }
-        public double Length { get; set; }
-        public double Width { get; set; }
-        public double StartingAngle { get; set; }
-        public double SwimBias { get; set; }
-        public JointConstraints Constraints { get; set; } = new JointConstraints();
-        public AttachmentPoint Attachment { get; set; }
-        public List<Arm> SubArms { get; set; } = new List<Arm>(); 
-        public List<Wing> SubWings { get; set; } = new List<Wing>(); 
-        public List<Thruster> SubThrusters { get; set; } = new List<Thruster>(); 
-    }
-
-    public class Wing
-    {
-        public int PartID { get; set; }
-        public int ParentPartID { get; set; }
-        public int NumberInChain { get; set; }
-        public string Type { get; set; }
-        public string Shape { get; set; }
-        public double Length { get; set; }
-        public double Width { get; set; }
-        public double StartingAngle { get; set; }
-        public double SwimBias { get; set; }
-        public JointConstraints Constraints { get; set; } = new JointConstraints();
-        public AttachmentPoint Attachment { get; set; }
-    }
-
-    public class Thruster
-    {
-        public double ThrustForce { get; set; }
-        public int PartID { get; set; }
-        public int ParentPartID { get; set; }
-        public int NumberInChain { get; set; }
-        public string Type { get; set; }
-        public string Shape { get; set; }
-        public double Length { get; set; }
-        public double Width { get; set; }
-        public double StartingAngle { get; set; }
-        public double SwimBias { get; set; }
-        public JointConstraints Constraints { get; set; } = new JointConstraints();
-        public AttachmentPoint Attachment { get; set; }
-    }
-
-    public class AttachmentPoint
-    {
-        public double? X { get; set; }
-        public double? Y { get; set; }
-    }
-
-    public class JointConstraints
-    {
-        public double? MaxTorque { get; set; }
-        public double? MinAngle { get; set; }
-        public double? MaxAngle { get; set; }
-    }
-
-    // Encode the agents history into the genome:
-
-    public class AgentHistory
-    {
-        public bool RunThisGeneration { get; set; }
-        public ScoreHistory? LastScore { get; set; }
-        public List<ScoreHistory>? ScoreHistory { get; set; }
-        public int RoundsAsTopPerformer { get; set; }
-        public int UsedAsParent { get; set; }
-        public List<String>? Mutations { get; set; }
-        public double RankInGroup { get; set; }
-        public double RankInPop { get; set; }
-
-        public AgentHistory()
-        {
-            this.LastScore = new ScoreHistory();
-            this.RunThisGeneration = false;
-            this.ScoreHistory = new List<ScoreHistory>();
-            this.RoundsAsTopPerformer = 0;
-            this.UsedAsParent = 0;
-            this.Mutations = new List<String>();
-        }
-    }
-
-    public class ScoreHistory
-    {
-        public float Score { get; set; }
-        public int Map { get; set; }
-        public int Generation { get; set; }
-    }
-
-    public class Hyperparameters
-    {
-        public double MutationRate { get; set; }
-        public double NodeMutationRate { get; set; }
-        public double LayerMutationRate { get; set; }
-        public double LimbMutationRate { get; set; }
-    }
-
-    public class Metadata
-    {
-        public int RunGroup { get; set; }
-        public int AgentGroup { get; set; }
-        public string AgentName { get; set; }
-        public int AgentIndex { get; set; }
-        public string GroupName { get; set; }
-        public string Species { get; set; }
-        public double BestScore { get; set; }
-        public int CompatabilityDistance { get; set; }
-
-        public Metadata()
-        {
-            // Initialize with default values, or leave them null.  Should maybe have these as parameters in the call
-            this.AgentName = "Unnamed"; // Set randomly on initialization, unique to an agent
-            this.AgentIndex = 0; // Set randomly on initialization, unique to an agent
-            this.GroupName = "DefaultGroup"; // set randomly on initialization, the same for all agents in a population
-            this.Species = "Unspecified"; // set randomly on initialization, same for agents in the same spices.  might need to set this later after distinct spices groups form.
-            this.BestScore = 0; // Set to 0 on initialization, updated after each round
-            this.CompatabilityDistance = 0; // Set to 0 on initialization, updated after each round
-        }
-    }
-
-    public class InputLayerGene
-    {
-        public int NumberOfNeurons { get; set; }
-        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<Bias>? Biases { get; set; }
-        public List<int>? Inputs { get; set; }
-
-        public InputLayerGene()
-        {
-            this.Biases = new List<Bias>();
-            this.Inputs = new List<int>();
-        }
-    }
-
-    public class LayerGene
-    {
-        public int LayerID { get; set; }
-        public LayerType LayerType { get; set; }  // "Dense", "Conv", "LSTM", etc.
-        public int NumberOfNeurons { get; set; }
-        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<List<Weight>>? Weights { get; set; }
-        public List<Bias>? Biases { get; set; }
-
-        public LayerGene()
-        {
-            this.Weights = new List<List<Weight>>();
-            this.Biases = new List<Bias>();            
-        }
-    }
-
-    public class OutputLayerGene
-    {
-        public int NumberOfNeurons { get; set; }
-        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
-        public List<List<Weight>>? Weights { get; set; }
-        public List<Bias>? Biases { get; set; }
-        public List<int>? Outputs { get; set; }
-
-        public OutputLayerGene()
-        {
-            this.Weights = new List<List<Weight>>();
-            this.Biases = new List<Bias>();
-            this.Outputs = new List<int>();
-        }
-    }
-
-    public class Weight
-    {
-        //public int ID { get; set; }
-        public int FromNodeID { get; set; }
-        public int ToNodeID { get; set; }
-        public double? Value { get; set; }
-    }
-
-    public class Bias
-    {
-        public int ID { get; set; }
-        public double? Value { get; set; }
-    }
-
-    public enum LayerType
-    {
-        Dense,
-        Convolutional,
-        LSTM,
-        // ...other types
-    }
-
-    public enum ActivationType
-    {
-        ReLU,
-        Sigmoid,
-        Tanh,
-        // ...other types
     }
 }
 

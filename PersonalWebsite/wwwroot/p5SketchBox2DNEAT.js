@@ -609,7 +609,7 @@ function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
 //}
 
 function applyDrag(agent) {
-    const dragFactor = (stageProperties.liquidViscosity / 1000); //(0.0009)
+    const dragFactor = (stageProperties.liquidViscosity / 10000); //(0.0005)
     const speedNormalization = stageProperties.speedNormalizationForDrag; //(2500)
 
     // Function to calculate dynamic drag based on velocity
@@ -641,6 +641,7 @@ function applyDrag(agent) {
 function applySwimmingForce(p, agent) {
     const N = stageProperties.swimForceOverNFrames; // Number of frames to average over and apply force (5)
     const propulsionCoefficient = stageProperties.swimStrength; // Adjust as needed (17)
+    const maxForceMagnitude = stageProperties.maxForceMagnitude; // Maximum allowed force magnitude
     agent.frameCounter = (agent.frameCounter || 0) + 1; // Frame counter for each agent
 
     // Function to calculate propulsive force based on limb movement
@@ -669,8 +670,9 @@ function applySwimmingForce(p, agent) {
             let deltaLimbVelocity = updateBufferAndGetDeltaVelocity(agent.limbVelocityBuffers[index], limbVelocity);
             let limbArea = limb.width * limb.length;
             let limbPropulsiveForce = calculatePropulsiveForce(deltaLimbVelocity, limbArea);
-            // Need to re-implement energy use
-//            // Force magnitude is calculated based on; deltaTheta which is the change in angle over the last N frames, bias which is a value between 0 and 2 giving more control in the forward direction, the scaling factor which is a constant, then adjusted based on the limb's mass and length, length reduces the force, mass increases it.  Then modified by the agents remaining energy.
+
+            // Need to re-implement energy use.  Old code below:
+//          // Force magnitude is calculated based on; deltaTheta which is the change in angle over the last N frames, bias which is a value between 0 and 2 giving more control in the forward direction, the scaling factor which is a constant, then adjusted based on the limb's mass and length, length reduces the force, mass increases it.  Then modified by the agents remaining energy.
 //            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbMass[i] / stageProperties.limbMassForceDivider) * (agent.bodyParts[i].length / stageProperties.limbLengthForceDivider) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
 
 //            if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
@@ -692,7 +694,16 @@ function applySwimmingForce(p, agent) {
             let orientationAdjustment = Math.cos(agent.mainBody.getAngle() - limbBody.getAngle());
             let adjustedForce = biasedForce.mul(orientationAdjustment);
 
-            limbBody.applyForceToCenter(adjustedForce);
+            // Create a p5.Vector for adjustedForce
+            let adjustedForceVector = p.createVector(adjustedForce.x, adjustedForce.y);
+
+            // Cap the magnitude of the adjusted force
+            if (adjustedForceVector.mag() > maxForceMagnitude) {
+                adjustedForceVector.setMag(maxForceMagnitude);
+            }
+
+            // Apply the capped force
+            limbBody.applyForceToCenter(planck.Vec2(adjustedForceVector.x, adjustedForceVector.y));
 
             // Set 'forceAngle' property for visualization
             let forceAngle = Math.atan2(adjustedForce.y, adjustedForce.x);
@@ -700,7 +711,7 @@ function applySwimmingForce(p, agent) {
             // Visualize limb force
             let limbCenterPos = limbBody.getPosition();
             if (agent.currentlyLeading == true) {
-                agent.drawForceVectors(p, limbCenterPos.x, limbCenterPos.y, adjustedForce, forceAngle);
+                agent.drawForceVectors(p, limbCenterPos.x, limbCenterPos.y, adjustedForceVector, forceAngle);
             }
         });
     }
@@ -1321,7 +1332,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     }
 
     if ((stageProperties.startingEnergyBodyMassMult / 10) > 0) {
-        this.startingEnergy = stageProperties.startingEnergyBase + (((this.mainBody.getMass() / stageProperties.bodyStartingMassEnergyReductionDivider * (stageProperties.startingEnergyBodyMassMult / 10)) + (this.limbMassTot / stageProperties.limbStartingMassEnergyReductionDivider * stageProperties.startingEnergyLimbMassMult)) * (stageProperties.simulationLength / 2000)) ** stageProperties.startingEnergyMassPower; // + body segments mass and maybe limbs later
+        this.startingEnergy = stageProperties.startingEnergyBase + (((this.mainBody.getMass() / stageProperties.bodyStartingMassEnergyReductionDivider * (stageProperties.startingEnergyBodyMassMult / 10)) + (this.limbMassTot / stageProperties.limbStartingMassEnergyReductionDivider * stageProperties.startingEnergyLimbMassMult / 10)) * (stageProperties.simulationLength / 2000)) ** stageProperties.startingEnergyMassPower; // + body segments mass and maybe limbs later
         this.agentEnergy = this.startingEnergy;
     } else {
         this.startingEnergy = 1;
@@ -1573,7 +1584,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             const maxForceLength = stageProperties.visualMaxForceLength; // Maximum length for visualized force vector
 
             // Scale the force for visualization
-            let scaledForce = p.createVector(force.x, force.y).mult(forceScale);
+            let scaledForce = force;
 
             // Cap the length of the scaled force
             if (scaledForce.mag() > maxForceLength) {
@@ -3908,3 +3919,98 @@ AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY, frameTracker) 
         renderNeuralNetworkNEAT(p, this, offsetX, offsetY, frameTracker);
     }
 };
+
+function initializeSettingHoverEffects() {
+    const settings = document.querySelectorAll('.setting');
+
+    settings.forEach(setting => {
+        setting.tooltipActive = false;
+        setting.removeEventListener('mouseenter', handleMouseEnter); // Clean up
+        setting.removeEventListener('mouseleave', handleMouseLeave); // Clean up
+
+        setting.addEventListener('mouseenter', handleMouseEnter);
+        setting.addEventListener('mouseleave', handleMouseLeave);
+    });
+}
+
+function handleMouseEnter(e) {
+    const original = e.currentTarget;
+    if (original.tooltipActive) {
+        return; // Don't create tooltip if one is already active
+    }
+
+    original.tooltipActive = true; // Set flag to indicate tooltip is active
+
+    const description = original.querySelector('.setting-details').innerHTML;
+    const tabContent = document.querySelector('.tab-content');
+
+    const tooltip = document.createElement('div');
+    tooltip.innerHTML = description;
+
+    const rect = original.getBoundingClientRect();
+    tooltip.style.position = 'fixed';
+    tooltip.style.top = `${rect.bottom + window.scrollY}px`; // Position below the card
+    tooltip.style.left = `${rect.left + window.scrollX + 1}px`;
+    tooltip.style.width = `${rect.width}px`;
+    tooltip.style.zIndex = '1000';
+    tooltip.style.padding = '10px';
+    tooltip.style.backgroundColor = '#344444';
+    tooltip.style.borderRadius = '8px';
+    tooltip.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+    tooltip.style.fontSize = '11px';
+    tooltip.style.color = '#aaa';
+    tooltip.style.margin = '8px 0 6px 0';
+    tooltip.style.pointerEvents = 'none';
+
+    document.body.appendChild(tooltip);
+
+    // Adjust the bottom padding of the tab-content
+    adjustTabContentPaddingForTooltip(tooltip, tabContent, true);
+
+    original.tooltip = tooltip;
+
+    // Set a timer to automatically remove the tooltip
+    original.tooltipTimeout = setTimeout(() => {
+        if (original.tooltip) {
+            document.body.removeChild(original.tooltip);
+            original.tooltip = null;
+        }
+    }, 5000); // 3 seconds timeout or as needed
+}
+
+function handleMouseLeave(e) {
+    const original = e.currentTarget;
+    original.tooltipActive = false; // Reset flag when mouse leaves
+
+    if (original.tooltip) {
+        document.body.removeChild(original.tooltip);
+        original.tooltip = null;
+        // Adjust the bottom padding of the tab-content
+        adjustTabContentPaddingForTooltip(tooltip, tabContent, false);
+        clearTimeout(element.tooltipTimeout);
+    }
+}
+
+function clearAllTooltips() {
+    document.querySelectorAll('.setting-tooltip').forEach(tooltip => {
+        tooltip.parentNode.removeChild(tooltip);
+    });
+}
+
+function adjustTabContentPaddingForTooltip(tooltip, tabContent, add) {
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const tabContentRect = tabContent.getBoundingClientRect();
+    const additionalPadding = Math.max(0, (tooltipRect.height));
+    if (add) {
+        tabContent.style.paddingBottom = `${additionalPadding}px`;
+    }
+    else {
+        tabContent.style.paddingBottom = `${-additionalPadding}px`;
+    }
+}
+
+window.initializeSettingHoverEffects = initializeSettingHoverEffects;
+window.clearAllTooltips = clearAllTooltips;
+
+
+
