@@ -1332,7 +1332,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     }
 
     if ((stageProperties.startingEnergyBodyMassMult / 10) > 0) {
-        this.startingEnergy = stageProperties.startingEnergyBase + (((this.mainBody.getMass() / stageProperties.bodyStartingMassEnergyReductionDivider * (stageProperties.startingEnergyBodyMassMult / 10)) + (this.limbMassTot / stageProperties.limbStartingMassEnergyReductionDivider * stageProperties.startingEnergyLimbMassMult / 10)) * (stageProperties.simulationLength / 2000)) ** stageProperties.startingEnergyMassPower; // + body segments mass and maybe limbs later
+        this.startingEnergy = stageProperties.startingEnergyBase + ((((this.mainBody.getMass() / stageProperties.bodyStartingMassEnergyReductionDivider) * (stageProperties.startingEnergyBodyMassMult / 10)) + ((this.limbMassTot / stageProperties.limbStartingMassEnergyReductionDivider) * stageProperties.startingEnergyLimbMassMult / 10)) * (stageProperties.simulationLength / 2000)) ** stageProperties.startingEnergyMassPower; // + body segments mass and maybe limbs later
         this.agentEnergy = this.startingEnergy;
     } else {
         this.startingEnergy = 1;

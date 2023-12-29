@@ -38,46 +38,70 @@
             <div class="simDescription">
                 <h4>Welcome to My Genetic Evolution Simulator!</h4>
                 <p class="tagline">Read on to get started!</p>
+
                 <h5>Quick Start Guide:</h5>
                 <p>Please select a pre-configuration from the top to get a good starting point.</p>
-                <p>You can then use the settings tabs to alter specific settings.</p>
+                <p>You can then use the settings tabs to alter specific settings.  You can save your current settings locally and re-upload them for later use.  This includes which settings are favourited.  A lot of the example numbers below will be slightly off, as I am constantly updating the default values.</p>
                 <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
                 <p>Start/Reset will respect all configurations, while Simplified Start will remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
-                <p>Simplified Start should see much faster learning, with agents completing the maps with 50 generations or so, using full configurations will result in much more interesting behavior, but will take 100+ generations to see much progress</p>
-                <p>Super Simplified Start will also give agents a small, fixed brain and preset body plan, and will see agents complete the maps in 20-30 generations</p>
+                <p>Simplified Start should see much faster learning, with agents completing the maps with 100 generations or so; using full configurations will result in much more interesting behavior, but will take 100+ generations to see much progress</p>
+                <p>Super Simplified Start will also give agents a small, fixed brain and pre-set body plan, and will see agents complete the maps in 50-100 generations</p>
                 <p>Use the button bank in the top right to toggle rendering of the leading agents brain/neural network, their vision lines/ray casts, switch between the leading agent and training agent or fast-forward generations (only about twice as fast as normal currently)</p>
-                <p>Logging the genomes writes the current population to the console, and retrieving genomes is the first step towards implementing an agent database online where pre-trained agents cam be stored and retrieved.</p>
-                <p>The skip x generation buttons will disable the rendering and increase the physics update rate by 4x.  If you are already running at the limit of what your computer can handle, IE. your fps is below 30-40 at normal speed, this is not going to actually speed up much.  The rendering only adds about 10% to the processing time per frame.</p>
+                <p>You can also save the current set of agents genomes locally so you can continue training later.  This saves the current settings alongside the agents Genomes so they continue with the same setup.</p>
+                <p>The skip x generation buttons will disable the rendering and increase the physics update rate by 4x.  If you are already running at the limit of what your computer can handle, IE. your fps is below 30-40 at normal speed, this is not going to actually speed up much.  Rendering the scene only adds about 5-10% to the processing time per frame.</p>
+                <p>This simulation can be temperamental, it is prone to running out of memory, and still sometimes errors relating to tensor disposal.  Please save genomes regularly so you can continue in those cases.</p>
+                <p>I have not tested all settings in all configurations, and I have been very generous with settings ranges, so its very easy to break things!</p>
+                <p>You can also update any settings mid-run using the update button.  This works well for things like swim strength or world properties, but will break for most agent properties.  I have not tested this extensively.</p>
+
+                <h5>Settings To Play With</h5>
+                <p>Aside from performance settings and numbers of agents, there are many settings that effect training and starting conditions.  Some of the more interesting are:</p>
+                <ol>
+                    <li>Min and Max number of starting limbs.  Agents can evolve past this.</li>
+                    <li>Swim Strength, Joint Speed and Liquid Viscosity.  Together effect agents movement.  Swim Bias gives a bias to forces parallel to the agents facing direction</li>
+                    <li>Starting Limb Chain Length, which means agents start with either 1 set of limbs, 2 or 3, where subsequent sets are attached to the ends of the previous.  Agents can evolve beyond this.</li>
+                    <li>Maximum and Minimum starting neural network layers.  Agents can evolve past this.</li>
+                    <li>Different score and energy configurations.</li>
+                    <li>Different training settings, like migration rate, top performers to keep and mutation rates.</li>
+                </ol>
+                
                 <h5>Some Explanation:</h5>
-                <p>This is my take on a NEAT genetic evolution simulation.</p>
-                <p>I would describe this as a 'Semi-NEAT' algorithm since I have restriction on what network shapes can evolve.  This is due to TensorFlow.JS's restriction to static models, where a full NEAT implementation requires dynamic models, and more control over connections</p>
-                <p>Resetting/updating is a little buggy, its currently best to refresh the page if you want to try new settings</p>
-                <p>Showing the Neural Network on screen adds a fair amount of lag so its hidden by default</p>
-                <p>I am making use of P5.JS for my rendering, Planck.JS; a port of Box2D, for my physics and TensorFlow.JS for my neural network processing</p>
+                <p>This is my take on a NEAT style genetic evolution simulation.  It's not actually using the NEAT algorithm, as far as I can tell it's not possible using TensorFlow.js due to requiring dynamic models for networks.</p>
+                <p>I have however, used many of the principals talked about in the original paper.  Unlike most evolution sims using neural networks, my agents brains can evolve in shape as well as weights.  Mutating the number of layers and nodes per layer was not too complex, but performing crossover on networks that dont match in shape is a non trivial task.</p>
+                <p>The original paper solved this in 2 ways, 1 was specialization, where agents with similar shaped networks where selected as parents, making crossover easier, and creating different species groups that arose naturally, and also by keeping track of mutated network features using IDs, and deciding whether to keep new mutated features from one parent or the other.</p>
+                <p>This is where TensorFlow.js limits come into play.  In NEAT proper, the neural networks are not static or restricted to rows  of specific numbers of neurons.  It was built on a system that allows any neurones to connect to any others, regardless of depth in the network.  They are generally still feed froward, but just not in the neat format of rows and nodes TensorFlow.js is restricted to.</p>
+                <p>There are a number of ways around this.  I thought about having large numbers of redundant nodes per row, and redundant rows, and just using some connections and nodes and leaving others dead, essentially a sparsely connected network.  Those sparse connections could mimic the more random connection structure needed.  I think this is possible, but it would be complicated to crossover.  You would have to group neurons into 'features' that are crossed over and find ways to maintain already existing connections to maintain learning.  This would also have large memory overheads in redundant nodes</p>
+                <p>The solution I have ended up using is a node-to-node ID system.  Each node is given a unique ID, and each connection is identified as the fromNodeID and toNodeID that they connect to.  I can then use a system of checks to see if nodes and layers exist in both parents, and chose which to keep.  Networks are still restricted to densely connected, rigid networks, but they can gain or loose nodes and layers.</p>
+                <p>A feature of my simulation thats missing from most NEAT implementations is the ability for agents to evolve their body plan over time as well a their brains.  This can result in some interesting and complex bodies over time.</p>
+                <p>I have implemented the ability to see agents brains on screen, but this seems to add a fair amount of CPU overhead.  It should only be toggled on for a while, it seems to cause memory issues after a while</p>
+                <p>I am making use of P5.JS for my rendering, Planck.JS; a port of Box2D, for my physics and TensorFlow.JS for my neural network processing.  Thanks to Blazor WASM's service workers, this application should run fine offline, though some browsers may never load it without an initial internet connection.</p>
+                <p>I started building the first version of this just for a bit of fun.  I had seen lots of YouTube videos of similar projects and wanted to try and emulated them as a way to learn.  I read the NEAT paper when it first published, and have wanted to explore this direction ever since.  The project has since evolved somewhat; I'm not really sure the end goal, but it's become a bit of a passion project over the last 12 months.  I've thought about making it a teaching tool or something similar, but I have no idea if there is any use for it.  It's really just here to teach me!  Please do email me at samw.denton@gmail.com if you have found this tool and have any use for it or any suggestions!</p>
+                <p>There is some further information on the history of the project on the <a style="text-decoration: none" href="/Projects/all/all">Projects Page of the Wiki</a></p>
+
                 <h5>So whats going on?</h5>
-                <p>If you start the simulation with default settings, you will see about 15 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest right, and the furthest left agent</p>
-                <p>Default settings will produce 200 agents in the population, split into batches of 25, as well as species groups.  25 agents from the run group are evaluated at a time, with a random selection of species</p>
-                <p>On my PC, using a Ryzen 7 3700X CPU about 3.5Ghz per core, I can target about 150 agents at a time, with 10 Agents Per Batch of Joint Updates.  The Number of Inter-gen Batches will not effect performance, but will increase training time, as only 1 batch can be evaluated at a time</p>
+                <p>If you start the simulation with default settings, you will see about 10-20 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest, and the trailing agent.  Which agents are on screen can be configured.</p>
+                <p>Default settings will produce 100-300 agents in the population, split into batches of species groups, denoted by colour.  25 agents from the run group are evaluated at a time, with a random selection of species</p>
+                <p>There are a number of settings that will effect performance.  The pre-sets should handle these, but you may want to adjust a few.  The main ones will be the 'Number Of Agents' which is the number of agents to run at a time.  This is multiplied by 'Groups Per Generation' to get the total number of agents in the population.  Also the 'Agents Per Batch of Joint Updates', which is how many agents are updated per frame.  Ideally, each agent should get a minimum of 2 updates per second, as more updates gives more control.  Having this number about 1/10th the number of agents is about right.</p>
+                <p>On my PC, using a Ryzen 7 3700X CPU about 3.5Ghz per core, I can target about 100 agents at a time, with 10 Agents Per Batch of Joint Updates.  The Number of Inter-gen Batches will not effect performance, but will increase training time, as only 1 batch can be evaluated at a time</p>
                 <p>Since i'm making use of JS, the bottleneck for most systems is going to be the speed of a single CPU core.  Some configurations may reach a browser memory limit before a CPU limit, if you have a high number of inter-gen batches.  Browsers I have tested seem ok up to about 1000 agents total</p>
                 <p>The GPU is also utilized for any Neural Network functions, the most intense of which happen between rounds, so it doesn't really matter how long they take, but during the simulation, the actual decision making also utilities the GPU using WebGL.  I have not found a configuration where this is the bottleneck, but its possible</p>
                 <p>Each round, the agents have 2000 ticks, about 34 seconds at 60 fps with default physics speed of 60, to move as far North East as possible.</p>
-                <p>The agents are all given a randomly initialized neural network, with a random shape for a brain, the leaders brain is rendered.  They are given a random body plan.  Both the brain and the body plan will evolve over time based on a number of crossover and mutation functions</p>
-                <p>Between rounds, the agents are sorted by score, where the top x% from each species are selected to remain unchanged, and the other 90% of the population is built using crossover and mutation.</p>
+                <p>The agents are all given a randomly initialized neural network, with a random shape for a brain, the leaders brain can be rendered.  They are given a random body plan.  Both the brain and the body plan will evolve over time based on a number of crossover and mutation functions</p>
+                <p>Between rounds, the agents are sorted by score, where the top 10% from each species are selected to remain unchanged, and the other 90% of the population is built using crossover and mutation.</p>
                 <p>This is performed between generations, on the whole population</p>
                 <p>Crossover is the function of picking 2 parent agents and combining the weights and biases in their brains, keeping some features from one, and some from the other.  There are a range of methods for this, I am currently using biased Arithmetic Crossover, where there is a weighted bias given by the relative scores of the parents.</p>
                 <p>Mutation adds a small chance that each weight, bias, limb or body will be altered by a small, random amount.  Again, there are many methods, currently i am using the Box-Muller transform to get a Gaussian random number for my mutation amount.  I have a function that changes the mutation rate if agents brains get too close to the average</p>
                 <p>I am currently also mutating the number of limbs and layers in the brain.  These are more complex to mutate than others, as they tend to produce 'dead' agents that need retaining from scratch, which naturaly cant compete with already trained agents.  I am playing with a number of methods to counter this.</p>
                 <p>Now, when a new limb is mutated, it finds an existing limb with a similar starting angle, and copies the weights from that limb.  When a new layer is mutated, it should create a matching layer, where biases are copied from the previous layer, and weights are connected so the old node connects to its new copy with a weight of 1, and all other weights are 0 in the new layer, hopefully copying the previous layers function until new values are evolved.</p>
                 <p>The parents for crossover can be selected in many ways, I am actually using 1 method for 1 parent, and another for the other.  The first is picked via tournament selection, where 10 random agents are selected from the group, and the best of those if picked.  The second is picked via a weighted random selection, where ever agent is entered into a lottery with more entries for a higher score, and a random agent is picked from the pool.</p>
-                <p>I am also using 'Island Populations' or 'Island Speciation', where parents are always picked from the same distinct group.  This means, with default settings, 3 distinct populations should evolve with different strategies.  There is a small chance that parents are picked from a different group, allowing some sharing of strategies</p>
-                <p>You should see some 'evolution' within  50 or so generations, and they can continue to improve indefinitely, however, they can get stuck in whats known as a 'local maxima' where the agents converge on 1 or a few ok strategies, and never seem to improve.  Through mutation, they might eventually, but in those situations, its best to restart.  A greater number of agents or distinct population groups can help with this</p>
+                <p>I am also using 'Island Populations' or 'Island Speciation', where parents are always picked from the same distinct group.  This means, with default settings, 5-10 distinct populations should evolve with different strategies.  There is a small chance that parents are picked from a different group, allowing some sharing of strategies</p>
+                <p>You should see some 'evolution' within  50 or so generations, and they can continue to improve indefinitely, however, they can get stuck in whats known as a 'local maxima' where the agents converge on 1 or a few ok strategies, and never seem to improve.  Through mutation, they might eventually, but in those situations, it can be best to restart.  A greater number of agents or distinct population groups can help with this</p>
                 <p>If enabled, I am experimenting with a form of normalization which slowly decays all weights in the network over time.  It's meant to prevent any noise in the network over time, based on a 'use it or loose it' principal.  Useful connections should be maintained by re-selection and unused connections will drop away</p>
                 <h5>Current Selective Pressures:</h5>
                 <ol>
                     <li>Score for movement North East</li>
                     <li>Bonus for joint movement that diminishes over time</li>
                     <li>Exploration bonus</li>
-                    <li>Size bonus</li>
+                    <li>Size bonus, multiplied by movement</li>
                     <li>Larger limbs give more swimming force</li>
                 </ol>
                 <h6>Energy System:</h6>
@@ -86,22 +110,23 @@
                     <li>More energy is used to move larger limbs</li>
                     <li>Agents limb movement speed is based on their remaining energy %, with no energy, they cant move at all</li>
                 </ol>
+
                 <h5>Future Plans</h5>
                 <p>There is a lot of clean up work to do on the code, the genome and the agent objects.  I have lots of duplicated values and old structures.  I am not making use of 'const' enough, and I am duplicating functions in places</p>
                 <p>I need to work on the maps.  They are too simple and not varied enough.  I want to implement some goals, like food, tied to the energy system.  A puzzle to open a door or similar could also be interesting</p>
-                <p>I want to make all variables customizable, which is a huge number.  I need to find a nice way to arrange them</p>
                 <p>I plan on adding further ways the agents can evolve. I want to allow more complex body plans with different types of limb and body segments, such as wings, thrusters, suckers, energy storage limbs etc</p>
                 <p>I want to add a greater range of crossover, mutation and selection methods to increase diversity, and have them toggle in settings to play with different combinations</p>
-                <p>I want to add a way to save and load agents, and a way to download and upload agents to a database</p>
+                <p>I am also going to introduce a diversity metric that gives score bonus for being different from other agents, and also increases an agents mutation rate if it is too similar to the average agent.</p>
+                <p>I want to add a way to save and load agents to an online repo like git hub, so top agents can be shared.</p>
                 <p>I want to add the ability to see genomes on screen somehow</p>
                 <p>I want to play around with a predator and prey scenario, where some agents learn to catch others</p>
                 <p>There are many different ways to adjust the energy system to see more interesting evolution, such as food, recovering energy by resting, reducing update speed based on energy, adding limbs just for energy storage etc</p>
                 <p>I have created a few different versions of my mutate and crossover functions, I would like to let the user pick which is used.  I need to get the old ones working first</p>
-                <p>Could look at creating 4 routs for re-populating instead of 2; some top performers unchanged, some top performers mutated, some offspring, and some offspring mutated</p>
                 <p>Could look at implementing another idea from NEAT, where agents are given a metric based on their properties, and have a higher chance to reproduce with similar agents.  This can create species groups even within my island populations, leading to a greater variety of solutions.  This may require larger populations to work well, 100-200 agents per group, where I currently have 25 per group.</p>
-                <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge</p>
+                <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge.  As a first step, creating a custom Electron implementation could help increase the available memory and give more control over resource use, but would still be very tricky to parallelize across CPU cores.  I think the easiest way would be to just have multiple instances of the program running at once, and between generations, the agent pool is transfered between the 2 and split back up.</p>
                 <p>I want to be able to pan the screen around with arrows, not just locked to the agent.  I can also position the agent better on the screen by default</p>
                 <p>Currently, my crossover methods both treat each neuron independently, it would be good to also allow groups of neurons to be transfered together so learned features are maintained.</p>
+                <p>Body plan crossover has not been re-implemented since I added limb chains.  I should be able to borrow logic from by NN crossover code.</p>
             </div>
         }
         else if (activeTab.Title == "Favourites")
@@ -1180,7 +1205,6 @@
         public int agentStartX { get; set; } = 200;
         public int agentStartY { get; set; } = 600;
         public int swimForceOverNFrames { get; set; } = 5;
-        public int speedForceNormilizer { get; set; } = 15;
         public int speedNormalizationForDrag { get; set; } = 2500;
         public int bodyAngularDragPower { get; set; } = 10;
         public int maxTorqueForDamping { get; set; } = 10000;
@@ -1376,7 +1400,6 @@
         stageProperties.agentStartX = 200;
         stageProperties.agentStartY = 600;
         stageProperties.swimForceOverNFrames = 5;
-        stageProperties.speedForceNormilizer = 15;
         stageProperties.speedNormalizationForDrag = 2500;
         stageProperties.bodyAngularDragPower = 10;
         stageProperties.maxTorqueForDamping = 10000;
@@ -1485,7 +1508,7 @@
             new TabModel
             {
                 Title = "Performance",
-                Description = "Configure the performance-related aspects of the simulation.",
+                Description = "Configure the performance-related aspects of the simulation.  This is mostly how many agents are running at a time, and how frequently they are able to update.  An update means a new set of inputs and outputs in the neural networks / brains, so gives finer, more fluid control.  Try to target at least 200 agents in total, and at least 2 updates per agent per second.",
                 Settings = new List<Setting>
                 {
                     new Setting
@@ -1497,29 +1520,29 @@
                         Min = 1,
                         Max = 100,
                         Step = 1,
-                        Details = "Determines the number of agents active at any given time."
+                        Details = "Determines the number of agents to run at a time.  This is multiplied by the Groups Per Generation to get the total number of agents in the population"
                     },
                     new Setting
                     {
-                        Name = "Agent Multiplier",
+                        Name = "Groups Per Generation",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.totalNumAgentsMultiplier,
                         ValueChanged = val => stageProperties.totalNumAgentsMultiplier = val,
                         Min = 1,
                         Max = 20,
                         Step = 1,
-                        Details = "Multiplier to increase the total number of agents in the population."
+                        Details = "Multiplier to increase the total number of agents in the population.  More groups means a bigger population, but will take longer to train as only 1 group is run at a time."
                     },
                     new Setting
                     {
-                        Name = "Muscle Update Delay",
+                        Name = "Muscle Batch Delay",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.muscleDelay,
                         ValueChanged = val => stageProperties.muscleDelay = val,
                         Min = 0,
                         Max = 10,
                         Step = 1,
-                        Details = "Delay between muscle updates, affecting agent movement fluidity."
+                        Details = "Delay between muscle batch updates, affecting agent movement fluidity.  Try to target at least 2 updates per agent per second (look at console for agent updates)"
                     },
                     new Setting
                     {
@@ -1530,7 +1553,7 @@
                         Min = 1,
                         Max = 10,
                         Step = 1,
-                        Details = "Number of muscle updates processed together in a batch."
+                        Details = "Number of muscle updates processed together in a batch.  This should generally be about half the number of agents in the run group."
                     },
                     new Setting
                     {
@@ -1538,10 +1561,10 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.simSpeed,
                         ValueChanged = val => stageProperties.simSpeed = val,
-                        Min = 10,
-                        Max = 120,
-                        Step = 1,
-                        Details = "Adjusts the physics speed of the simulation."
+                        Min = 15,
+                        Max = 480,
+                        Step = 15,
+                        Details = "Adjusts the physics speed of the simulation, approx this number of frames per second, if the simulation is running at 60 FPS.  If you are struggling to run the simulation with a reasonable number of agents, try slowing down the physics speed."
                     },
                     new Setting
                     {
@@ -1549,7 +1572,7 @@
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.brainDecayOverTime,
                         BooleanValueChanged = val => stageProperties.brainDecayOverTime = val,
-                        Details = "Toggles whether the agents' brains decay over time."
+                        Details = "Toggles whether the agents' brains decay over time.  This is still being implemented."
                     },
                     new Setting
                     {
@@ -1557,8 +1580,8 @@
                         Type = SettingType.Dropdown,
                         SelectedValueExpression = () => stageProperties.agentInCentre,
                         SelectedValueChanged = val => stageProperties.agentInCentre = val,
-                        Options = new List<string> { "leader", "trailer", "average" },
-                        Details = "Selects the agent to focus the camera on."
+                        Options = new List<string> { "leader", "trailer" },
+                        Details = "Selects the agent to focus the camera on.  Best toggled using the button bank in the top right."
                     }
                 },
                 AdvancedSettings = new List<Setting>
@@ -1572,7 +1595,7 @@
                         Min = 1,
                         Max = 10,
                         Step = 1,
-                        Details = "Defines the total time for muscle updates."
+                        Details = "Defines the number of frames between complete agent updates.  Has very little effect."
                     },
                     new Setting
                     {
@@ -1583,7 +1606,7 @@
                         Min = 0,
                         Max = 50,
                         Step = 1,
-                        Details = "Sets the delay parameter for processing."
+                        Details = "Sets the delay parameter for spawn processing between agents."
                     },
                     new Setting
                     {
@@ -1594,7 +1617,7 @@
                         Min = 1,
                         Max = 20,
                         Step = 1,
-                        Details = "Determines the size of each batch in processing."
+                        Details = "Determines the size of each batch in spawn processing."
                     },
                     new Setting
                     {
@@ -1605,7 +1628,7 @@
                         Min = 1,
                         Max = 10,
                         Step = 1,
-                        Details = "Specifies the number of updates per agent at the start."
+                        Details = "Specifies the number of updates per agent at the start before begining the simulation proper. Helps the physics engine get over the initial difficult calculations before everything settles.  If agents require settling (set in agent properties) they will be fixed in place for these frames."
                     },
                     new Setting
                     {
@@ -1616,7 +1639,7 @@
                         Min = 1,
                         Max = 10,
                         Step = 1,
-                        Details = "Determines the number of frames per update at the start."
+                        Details = "Determines the number of frames per agent update for the first few updates.  Helps the physics engine get over the initial difficult calculations before everything settles."
                     },
                     new Setting
                     {
@@ -1627,7 +1650,7 @@
                         Min = 1,
                         Max = 50,
                         Step = 1,
-                        Details = "Controls the number of agents rendered in the simulation."
+                        Details = "Controls the number of random agents rendered from each group, independent of the leader and trailer."
                     },
                     new Setting
                     {
@@ -1654,7 +1677,7 @@
                         Min = 1000,
                         Max = 10000,
                         Step = 500,
-                        Details = "Defines the gap between agent spawns at the start."
+                        Details = "Defines the gap between agent spawns at the start.  Physics engine has a problem with too many agents stacked in 1 location, even with collisions disabled.  Agents are rendered in the same location regardless of start, and the map is duplicated but invisible for agents spread beyond the shown map."
                     },
                     new Setting
                     {
@@ -1707,7 +1730,7 @@
                     Min = 1,
                     Max = 10,
                     Step = 1,
-                    Details = "Sets the minimum number of limbs for an agent."
+                    Details = "Sets the minimum number of starting limbs for an agent. Agents can evolve beyond this."
                 },
                 new Setting
                 {
@@ -1718,7 +1741,7 @@
                     Min = 1,
                     Max = 10,
                     Step = 1,
-                    Details = "Sets the maximum number of limbs for an agent."
+                    Details = "Sets the maximum number of starting limbs for an agent. Agents can evolve beyond this."
                 },
                 new Setting
                 {
@@ -1729,7 +1752,7 @@
                     Min = 1,
                     Max = 10,
                     Step = 1,
-                    Details = "Determines the minimum number of neural network layers in an agent."
+                    Details = "Determines the minimum number of starting neural network layers in an agent. Agents can evolve beyond this."
                 },
                 new Setting
                 {
@@ -1740,7 +1763,7 @@
                     Min = 1,
                     Max = 10,
                     Step = 1,
-                    Details = "Determines the maximum number of neural network layers in an agent."
+                    Details = "Determines the maximum number of starting neural network layers in an agent. Agents can evolve beyond this."
                 },
                 new Setting
                 {
@@ -1749,9 +1772,9 @@
                     ValueExpression = () => stageProperties.startingLimbChainLength,
                     ValueChanged = val => stageProperties.startingLimbChainLength = val,
                     Min = 1,
-                    Max = 10,
+                    Max = 3,
                     Step = 1,
-                    Details = "Sets the initial limb chain length for each agent."
+                    Details = "Sets how many sets of limbs agents start with.  1 set of limbs are attached directly to the body, and subsequent sets attach to previous limbs.  Agents can evolve beyond this"
                 },
                 new Setting
                 {
@@ -1762,7 +1785,7 @@
                     Min = 0,
                     Max = 1000,
                     Step = 10,
-                    Details = "Adjusts the swim strength of agents in aquatic environments."
+                    Details = "Adjusts the swim strength of agents.  This is the agents main way of moving."
                 },
                 new Setting
                 {
@@ -1842,7 +1865,7 @@
                         Min = 100,
                         Max = 1000,
                         Step = 50,
-                        Details = "Initial X-axis position of the agent in the environment."
+                        Details = "Initial X-axis position of the agent in the environment.  I have not tested what happens if this is changed."
                     },
                     new Setting
                     {
@@ -1853,7 +1876,7 @@
                         Min = 100,
                         Max = 1000,
                         Step = 50,
-                        Details = "Initial Y-axis position of the agent in the environment."
+                        Details = "Initial Y-axis position of the agent in the environment.  I have not tested what happens if this is changed."
                     },
                     new Setting
                     {
@@ -1864,18 +1887,7 @@
                         Min = 1,
                         Max = 10,
                         Step = 1,
-                        Details = "Number of frames over which swim force is applied."
-                    },
-                    new Setting
-                    {
-                        Name = "Speed Force Normalizer",
-                        Type = SettingType.Slider,
-                        ValueExpression = () => stageProperties.speedForceNormilizer,
-                        ValueChanged = val => stageProperties.speedForceNormilizer = val,
-                        Min = 5,
-                        Max = 30,
-                        Step = 1,
-                        Details = "Normalizes the speed force applied to agents."
+                        Details = "Number of frames over which swim force is applied calculated.  Higher values means forces are applied less often.  Too low of a value can result in too twitchy forces."
                     },
                     new Setting
                     {
@@ -1886,7 +1898,7 @@
                         Min = 1000,
                         Max = 5000,
                         Step = 100,
-                        Details = "Adjusts speed normalization factor for drag calculations."
+                        Details = "Adjusts speed normalization factor for drag calculations.  Faster moving limbs experience more drag.  Smaller numbers here exaggerate  this effect."
                     },
                     new Setting
                     {
@@ -1897,7 +1909,7 @@
                         Min = 1,
                         Max = 20,
                         Step = 1,
-                        Details = "Controls the angular drag power on the agent's body."
+                        Details = "Controls the exponent for angular drag vs linear, since angular momentum seems to need more drag applied."
                     },
                     new Setting
                     {
@@ -1908,7 +1920,7 @@
                         Min = 5000,
                         Max = 20000,
                         Step = 500,
-                        Details = "Sets the maximum torque value for damping."
+                        Details = "Sets the maximum torque value for applying damping forces to agents limbs.  Should only apply when close to the limit of a joints movement.."
                     },
                     new Setting
                     {
@@ -1919,7 +1931,7 @@
                         Min = 5,
                         Max = 20,
                         Step = 1,
-                        Details = "Determines the threshold angle for applying damping."
+                        Details = "Determines the threshold angle for applying damping forces to agents limbs.  Should only apply when close to the limit of a joints movement."
                     },
                     new Setting
                     {
@@ -2007,7 +2019,7 @@
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.outputsBias,
                         BooleanValueChanged = val => stageProperties.outputsBias = val,
-                        Details = "Enables or disables the output of bias values from the agent's brain."
+                        Details = "Enables or disables the output of bias values for swim forces from the agent's brain."
                     }
                     // public bool brainDecayOverTime { get; set; } = false; // Not implemented
                 },
@@ -2043,14 +2055,14 @@
                     },
                     new Setting
                     {
-                        Name = "Movement Score Multiplier",
+                        Name = "Joint Movement Score",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.movementScoreMultiplier,
                         ValueChanged = val => stageProperties.movementScoreMultiplier = val,
                         Min = 0,
                         Max = 100,
                         Step = 1,
-                        Details = "Multiplier for the score based on agent's movement."
+                        Details = "Multiplier for the score bonus given based on agent's joint movements.  Helps to encourage more active agents to evolve early on.  This bonus diminishes for each movement made."
                     },
                     new Setting
                     {
@@ -2061,7 +2073,7 @@
                         Min = 0,
                         Max = 100,
                         Step = 1,
-                        Details = "Multiplier for the score based on agent's exploration."
+                        Details = "Multiplier for the score based on the number of cells explored in the agents internal map.  This encourages agents to explore less obvious paths."
                     },
                     new Setting
                     {
@@ -2072,7 +2084,7 @@
                         Min = 0,
                         Max = 100,
                         Step = 1,
-                        Details = "Multiplier for the score based on agent's size."
+                        Details = "Multiplier for the score bonus based on agent's size."
                     },
                     new Setting
                     {
@@ -2080,7 +2092,7 @@
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.massBonusIsDynamic,
                         BooleanValueChanged = val => stageProperties.massBonusIsDynamic = val,
-                        Details = "Toggles dynamic mass bonus for scoring."
+                        Details = "Toggles between a fixed score bonus for being larger vs a score bonus for moving a larger body further."
                     },
                     new Setting
                     {
@@ -2102,7 +2114,7 @@
                         Min = 0,
                         Max = 10,
                         Step = 1,
-                        Details = "Determines how agent mass affects starting energy."
+                        Details = "Determines the exponent used for calculating agent starting energy based on mass"
                     }
                 },
                 AdvancedSettings = new List<Setting>
@@ -2171,7 +2183,7 @@
                         Min = 10,
                         Max = 50,
                         Step = 5,
-                        Details = "Divider for energy reduction based on limb mass."
+                        Details = "Normalization divider for energy reduction based on limb mass."
                     },
                     new Setting
                     {
@@ -2182,7 +2194,7 @@
                         Min = 10,
                         Max = 50,
                         Step = 5,
-                        Details = "Divider for energy reduction based on limb mass."
+                        Details = "Normalization divider for energy reduction based on limb mass."
                     },
                     new Setting
                     {
@@ -2193,7 +2205,7 @@
                         Min = 50,
                         Max = 150,
                         Step = 10,
-                        Details = "Divider for energy reduction based on brain size."
+                        Details = "Normalization divider for energy reduction based on brain size."
                     },
                     new Setting
                     {
@@ -2204,29 +2216,29 @@
                         Min = 500000,
                         Max = 1500000,
                         Step = 100000,
-                        Details = "Divider for energy reduction based on force magnitude."
+                        Details = "Normalization divider for energy reduction based on force magnitude."
                     },
                     new Setting
                     {
-                        Name = "Body Starting Mass Energy Reduction Divider",
+                        Name = "Body Starting Mass Energy Divider",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.bodyStartingMassEnergyReductionDivider,
                         ValueChanged = val => stageProperties.bodyStartingMassEnergyReductionDivider = val,
                         Min = 200,
                         Max = 600,
                         Step = 50,
-                        Details = "Divider for energy reduction based on body starting mass."
+                        Details = "Normalization divider for energy based on body starting mass."
                     },
                     new Setting
                     {
-                        Name = "Limb Starting Mass Energy Reduction Divider",
+                        Name = "Limb Starting Mass Energy Divider",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.limbStartingMassEnergyReductionDivider,
                         ValueChanged = val => stageProperties.limbStartingMassEnergyReductionDivider = val,
                         Min = 10,
                         Max = 30,
                         Step = 5,
-                        Details = "Divider for energy reduction based on limb starting mass."
+                        Details = "Normalization divider for energy based on limb starting mass."
                     },
                     new Setting
                     {
@@ -2237,7 +2249,7 @@
                         Min = 50,
                         Max = 150,
                         Step = 10,
-                        Details = "Divider for calculating joint movement reward based on limb mass."
+                        Details = "Normalization divider for calculating joint movement reward based on limb mass."
                     },
                     new Setting
                     {
@@ -2248,7 +2260,7 @@
                         Min = 100,
                         Max = 1000,
                         Step = 100,
-                        Details = "Size of the internal map used in simulations."
+                        Details = "Size of the internal map used in agents brains."
                     },
                     new Setting
                     {
@@ -2270,7 +2282,7 @@
                         Min = 100,
                         Max = 1000,
                         Step = 100,
-                        Details = "Divider for dynamic mass bonus calculation."
+                        Details = "Normalization divider for dynamic mass bonus calculation."
                     }
                 },
                 HasAdvanced = true
@@ -2278,7 +2290,7 @@
             new TabModel
             {
                 Title = "Training",
-                Description = "Configure the training and evolution systems.",
+                Description = "Configure the training and evolution systems.  These settings will have a large impact on how quickly agents can learn, and how diverse the groups are.  Small changes are recommended.",
                 Settings = new List<Setting>
                 {
                     new Setting
@@ -2287,43 +2299,43 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.offspringMutationRate,
                         ValueChanged = val => stageProperties.offspringMutationRate = val,
-                        Min = 10,
-                        Max = 500,
-                        Step = 10,
-                        Details = "Adjusts the mutation rate for offspring."
+                        Min = 0,
+                        Max = 1000,
+                        Step = 1,
+                        Details = "Adjusts the mutation rate for agents brains. This number is divided by 1000.  How likely each value is to mutate, weights and biases."
                     },
                     new Setting
                     {
-                        Name = "Offspring Node Mutation Rate",
+                        Name = "Node Mutation Rate",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.offspringNodeMutationRate,
                         ValueChanged = val => stageProperties.offspringNodeMutationRate = val,
-                        Min = 10,
-                        Max = 500,
-                        Step = 10,
-                        Details = "Adjusts the node mutation rate for offspring."
+                        Min = 0,
+                        Max = 1000,
+                        Step = 1,
+                        Details = "Adjusts the neural network node mutation rate. This number is divided by 1000.  This is how frequently agents brains can gain or loose nodes."
                     },
                     new Setting
                     {
-                        Name = "Offspring Layer Mutation Rate",
+                        Name = "Layer Mutation Rate",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.offspringLayerMutationRate,
                         ValueChanged = val => stageProperties.offspringLayerMutationRate = val,
-                        Min = 1,
-                        Max = 100,
+                        Min = 0,
+                        Max = 1000,
                         Step = 1,
-                        Details = "Adjusts the layer mutation rate for offspring."
+                        Details = "Adjusts the neural network layer mutation rate. This number is divided by 1000.  This is how frequently agents brains can gain or loose a layer.  This process can interrupt learning, but produces a greater range of agents."
                     },
                     new Setting
                     {
-                        Name = "Offspring Limb Mutation Rate",
+                        Name = "Limb Mutation Rate",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.offspringLimbMutationRate,
                         ValueChanged = val => stageProperties.offspringLimbMutationRate = val,
-                        Min = 1,
-                        Max = 500,
+                        Min = 0,
+                        Max = 1000,
                         Step = 1,
-                        Details = "Adjusts the limb mutation rate for offspring."
+                        Details = "Adjusts the limb mutation rate.  This number is divided by 1000.  Higher numbers will see more diverse agents with different body plans, but it will take longer to learn how to use limbs if they change conatsntly."
                     },
                     new Setting
                     {
@@ -2331,10 +2343,10 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.topPerformerNumber,
                         ValueChanged = val => stageProperties.topPerformerNumber = val,
-                        Min = 10,
-                        Max = 50,
+                        Min = 0,
+                        Max = 100,
                         Step = 1,
-                        Details = "Sets the number of top performers in the population."
+                        Details = "Sets the percentage of top performers to keep per group.  Top performers have a small chance to mutate but otherwise are kept unchanged.  A higher value will see faster learning, but less diverse as agents quickly converge."
                     },
                     new Setting
                     {
@@ -2342,10 +2354,10 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.migrationRate,
                         ValueChanged = val => stageProperties.migrationRate = val,
-                        Min = 1,
-                        Max = 10,
+                        Min = 0,
+                        Max = 100,
                         Step = 1,
-                        Details = "Determines the rate of migration in the population."
+                        Details = "Determines the rate of migration between species or population groups.  A lower number will mean more divers agents between groups, but it's less common for useful traits to be shared between groups."
                     },
                     new Setting
                     {
@@ -2356,7 +2368,7 @@
                         Min = 5,
                         Max = 20,
                         Step = 1,
-                        Details = "Sets the minimum size of a population group."
+                        Details = "If the total number of agents does not divide property by the Max group size, this is the smallest a group can be before creating a new group."
                     },
                     new Setting
                     {
@@ -2367,7 +2379,7 @@
                         Min = 20,
                         Max = 50,
                         Step = 1,
-                        Details = "Sets the maximum size of a population group."
+                        Details = "Sets the maximum size of a population group.  The total number of agents is divided by this to get the number of species / population groups"
                     },
                     new Setting
                     {
@@ -2375,7 +2387,7 @@
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.agentsRequireStablising,
                         BooleanValueChanged = val => stageProperties.agentsRequireStablising = val,
-                        Details = "Determines if agents require stabilization."
+                        Details = "Determines if agents require stabilization before the round begins.  Using this can help performance in the first few frames, and can also encourage more robust learning in agents, as they cant just push off and glide for the first move."
                     }
                 },
                 AdvancedSettings = new List<Setting>
@@ -2387,9 +2399,9 @@
                         ValueExpression = () => stageProperties.tournamentSize,
                         ValueChanged = val => stageProperties.tournamentSize = val,
                         Min = 1,
-                        Max = 20,
+                        Max = 50,
                         Step = 1,
-                        Details = "Sets the size of the tournament for selection."
+                        Details = "Sets the number of agents randomly picked for tournament selection within tournament parent selector."
                     },
                     new Setting
                     {
@@ -2398,7 +2410,7 @@
                         ValueExpression = () => stageProperties.linearStabilityThresholdBody,
                         ValueChanged = val => stageProperties.linearStabilityThresholdBody = val,
                         Min = 1,
-                        Max = 10,
+                        Max = 20,
                         Step = 1,
                         Details = "Determines the linear stability threshold for the agent's body."
                     },
@@ -2409,7 +2421,7 @@
                         ValueExpression = () => stageProperties.angularStabilityThresholdBody,
                         ValueChanged = val => stageProperties.angularStabilityThresholdBody = val,
                         Min = 1,
-                        Max = 10,
+                        Max = 20,
                         Step = 1,
                         Details = "Determines the angular stability threshold for the agent's body."
                     },
@@ -2419,8 +2431,8 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.angularStabilityThresholdLimb,
                         ValueChanged = val => stageProperties.angularStabilityThresholdLimb = val,
-                        Min = 1,
-                        Max = 10,
+                        Min = 0,
+                        Max = 20,
                         Step = 1,
                         Details = "Determines the angular stability threshold for the agent's limbs."
                     },
@@ -2430,25 +2442,25 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.stabilityFrames,
                         ValueChanged = val => stageProperties.stabilityFrames = val,
-                        Min = 10,
-                        Max = 50,
+                        Min = 0,
+                        Max = 60,
                         Step = 1,
-                        Details = "Sets the number of frames for checking stability."
+                        Details = "Sets the number of frames agents must be stable for before starting round."
                     },
                     new Setting
                     {
-                        Name = "Stability Check Overwrite Frames",
+                        Name = "Stability Check Overwrite",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.stabilityCheckOverwriteFrames,
                         ValueChanged = val => stageProperties.stabilityCheckOverwriteFrames = val,
                         Min = 100,
                         Max = 1000,
                         Step = 50,
-                        Details = "Sets the number of frames for overwriting stability check."
+                        Details = "Sets the number of frames to wait before overwriting the stability check.  Prevents sim never starting if agents never settle"
                     },
                     new Setting
                     {
-                        Name = "Chance to Include Top Performer in Mutation",
+                        Name = "Include Top Performer in Mutation",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.chanceToIncludeTopPerformerInMutation,
                         ValueChanged = val => stageProperties.chanceToIncludeTopPerformerInMutation = val,
@@ -2459,7 +2471,7 @@
                     },
                     new Setting
                     {
-                        Name = "Chance to Include Offspring in Mutation",
+                        Name = "Include Offspring in Mutation",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.chanceToIncludeOffspringInMutation,
                         ValueChanged = val => stageProperties.chanceToIncludeOffspringInMutation = val,
@@ -2477,7 +2489,7 @@
                         Min = 0,
                         Max = 100,
                         Step = 5,
-                        Details = "Standard deviation for neuron mutation."
+                        Details = "The standard deviation use for neuron mutation.  A larger value means larger mutations. This value is divided by 100."
                     },
                     new Setting
                     {
