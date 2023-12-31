@@ -505,8 +505,8 @@
         // Calculate the number of groups
         int numGroups = Math.Max(1, (int)Math.Ceiling((double)totalPopulation / stageProperties.maxPopGroupSize));
         List<int> runGroups = Enumerable.Range(0, stageProperties.totalNumAgentsMultiplier)
-                                         .SelectMany(x => Enumerable.Repeat(x, totalPopulation / stageProperties.totalNumAgentsMultiplier))
-                                         .ToList();
+                                            .SelectMany(x => Enumerable.Repeat(x, totalPopulation / stageProperties.totalNumAgentsMultiplier))
+                                            .ToList();
 
         // If the total population isn't perfectly divisible by stageProperties.totalNumAgentsMultiplier,
         // add extra run groups to fill up the list
@@ -518,103 +518,106 @@
         // Shuffle the list
         runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
 
-        for (int i = 0; i < totalPopulation; i++)
+        if (stageProperties.bodyPlanStart == "simple")
         {
-            Genome genome = new Genome();
-            genome.Metadata.AgentIndex = i;
-
-            int numLimbs = random.Next(stageProperties.minLimbs, stageProperties.maxLimbs);
-
-            // Initialize genes, examples used for now, will be randomized once the constructor is complete
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
-
-            int numLayers = random.Next(stageProperties.minNNLayers, stageProperties.maxNNLayers);
-
-            // assuming you want to add 3 layers, and the layer numbers are between 1 and 3, and sizes between 10 and 20
-            for (int j = 0; j < numLayers; j++)
+            for (int i = 0; i < totalPopulation; i++)
             {
-                int randomSize = random.Next(3, 20); // Generates a random integer between 3 and 20
-                genome.LayerGenes.Add(InitializeLayer(j, randomSize));
+                Genome genome = new Genome();
+                genome.Metadata.AgentIndex = i;
+
+                int numLimbs = 3;
+
+                int numLimbsModified;
+                if (stageProperties.keepAgentSymmetrical == true)
+                {
+                    numLimbsModified = numLimbs - 1;
+                }
+                else
+                {
+                    numLimbsModified = numLimbs;
+                }
+
+                genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
+
+                int numLayers = 3;
+
+                genome.LayerGenes.Add(InitializeLayer(0, 18));
+                genome.LayerGenes.Add(InitializeLayer(1, 10));
+
+                genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbsModified * stageProperties.startingLimbChainLength));
+                genome.MainBody = InitializeBodyPlanSimple(numLimbs);
+                // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
+                var randomName = new Random();
+                var consonants = "bcdfghjklmnpqrstvwxyz";
+                var vowels = "aeiou";
+                var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
+                genome.Metadata.AgentName = agentName;
+                genome.Metadata.RunGroup = runGroups[i];
+                genome.Metadata.AgentGroup = i % numGroups;
+                genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
+                genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
+                genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
+                genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
+
+                // add ids to usedLayerIDs, 1 to numLayers
+                genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
+
+                population.Add(genome);
             }
-
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * stageProperties.startingLimbChainLength));
-            genome.MainBody = InitializeBodyPlan(numLimbs);
-            // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
-            var randomName = new Random();
-            var consonants = "bcdfghjklmnpqrstvwxyz";
-            var vowels = "aeiou";
-            var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
-            genome.Metadata.AgentName = agentName;
-            genome.Metadata.RunGroup = runGroups[i];
-            genome.Metadata.AgentGroup = i % numGroups;
-            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
-            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
-            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
-            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
-
-            // add ids to usedLayerIDs, 1 to numLayers
-            genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
-
-            population.Add(genome);
         }
-    }
-
-    public async Task InitializePopulationSimple(int populationSize)
-    {
-        population = new List<Genome>();
-        Random random = new Random();
-        //let agentsPerGroup = Math.ceil(totalPopulationGenomes.length / numGroups);
-        // For now, set manual total population size as 10 * numAgents
-        int totalPopulation = populationSize * stageProperties.totalNumAgentsMultiplier;
-        // Calculate the number of groups
-        int numGroups = Math.Max(1, (int)Math.Ceiling((double)totalPopulation / stageProperties.maxPopGroupSize));
-        List<int> runGroups = Enumerable.Range(0, stageProperties.totalNumAgentsMultiplier)
-                                         .SelectMany(x => Enumerable.Repeat(x, totalPopulation / stageProperties.totalNumAgentsMultiplier))
-                                         .ToList();
-
-        // If the total population isn't perfectly divisible by stageProperties.totalNumAgentsMultiplier,
-        // add extra run groups to fill up the list
-        while (runGroups.Count < totalPopulation)
+        else
         {
-            runGroups.Add(new Random().Next(0, stageProperties.totalNumAgentsMultiplier));
-        }
+            for (int i = 0; i < totalPopulation; i++)
+            {
+                Genome genome = new Genome();
+                genome.Metadata.AgentIndex = i;
 
-        // Shuffle the list
-        runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
+                int numLimbs = random.Next(stageProperties.minLimbs, stageProperties.maxLimbs);
 
-        for (int i = 0; i < totalPopulation; i++)
-        {
-            Genome genome = new Genome();
-            genome.Metadata.AgentIndex = i;
+                int numLimbsModified;
+                if (stageProperties.keepAgentSymmetrical == true)
+                {
+                    numLimbsModified = numLimbs / 2;
+                    // Initialize genes, examples used for now, will be randomized once the constructor is complete
+                    genome.InputLayerGenes.Add(InitializeInputLayer((numLimbs - (numLimbs % 2)) * stageProperties.startingLimbChainLength));
+                }
+                else
+                {
+                    numLimbsModified = numLimbs;
+                    // Initialize genes, examples used for now, will be randomized once the constructor is complete
+                    genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
+                }
 
-            int numLimbs = 3;
 
-            genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
+                int numLayers = random.Next(stageProperties.minNNLayers, stageProperties.maxNNLayers);
 
-            int numLayers = 3;
+                // assuming you want to add 3 layers, and the layer numbers are between 1 and 3, and sizes between 10 and 20
+                for (int j = 0; j < numLayers; j++)
+                {
+                    int randomSize = random.Next(3, 20); // Generates a random integer between 3 and 20
+                    genome.LayerGenes.Add(InitializeLayer(j, randomSize));
+                }
 
-            genome.LayerGenes.Add(InitializeLayer(0, 18));
-            genome.LayerGenes.Add(InitializeLayer(1, 10));
+                genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbsModified * stageProperties.startingLimbChainLength));
+                genome.MainBody = InitializeBodyPlan(numLimbsModified);
+                // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
+                var randomName = new Random();
+                var consonants = "bcdfghjklmnpqrstvwxyz";
+                var vowels = "aeiou";
+                var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
+                genome.Metadata.AgentName = agentName;
+                genome.Metadata.RunGroup = runGroups[i];
+                genome.Metadata.AgentGroup = i % numGroups;
+                genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
+                genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
+                genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
+                genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
 
-            genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbs * stageProperties.startingLimbChainLength));
-            genome.MainBody = InitializeBodyPlanSimple(numLimbs);
-            // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
-            var randomName = new Random();
-            var consonants = "bcdfghjklmnpqrstvwxyz";
-            var vowels = "aeiou";
-            var agentName = $"{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}{consonants[randomName.Next(consonants.Length)]}{vowels[randomName.Next(vowels.Length)]}{consonants[randomName.Next(consonants.Length)]}";
-            genome.Metadata.AgentName = agentName;
-            genome.Metadata.RunGroup = runGroups[i];
-            genome.Metadata.AgentGroup = i % numGroups;
-            genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
-            genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
-            genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
-            genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
+                // add ids to usedLayerIDs, 1 to numLayers
+                genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
 
-            // add ids to usedLayerIDs, 1 to numLayers
-            genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
-
-            population.Add(genome);
+                population.Add(genome);
+            }
         }
     }
 
@@ -767,8 +770,16 @@
                 Density = 0.3,
                 Arms = new List<Arm>() // Initializing the Limbs list
             };
-
-        for (int i = 1; i <= numLimbs; i++)
+        int numLimbsModified;
+        if (stageProperties.keepAgentSymmetrical == true)
+        {
+            numLimbsModified = numLimbs - 1;
+        }
+        else
+        {
+            numLimbsModified = numLimbs;
+        }
+        for (int i = 1; i <= numLimbsModified; i++)
         {
             double angle = ((i - 1) * 2 * Math.PI) / numLimbs;
 
@@ -1130,6 +1141,7 @@
         stageProperties.energyUseBrainSizeMult = 0;
         stageProperties.startingEnergyMassPower = 0;
         stageProperties.startingEnergyBase = 1;
+        stageProperties.swimMethod = "simple";
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
         stageProperties.movementScoreMultiplier = 1;
@@ -1150,6 +1162,8 @@
         stageProperties.energyUseBrainSizeMult = 0;
         stageProperties.startingEnergyMassPower = 0;
         stageProperties.startingEnergyBase = 1;
+        stageProperties.swimMethod = "superSimple";
+        stageProperties.keepAgentSymmetrical = true;
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
         stageProperties.movementScoreMultiplier = 1;
@@ -1162,7 +1176,8 @@
         stageProperties.randomMap = false;
         stageProperties.map = 1;
         stageProperties.agentsRequireStablising = false;
-        await InitializePopulationSimple(stageProperties.numAgents);
+        stageProperties.bodyPlanStart = "simple";
+        await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
     }
@@ -1197,14 +1212,18 @@
         public int swimStrength { get; set; } = 100;
         public int swimBias { get; set; } = 15;
         public int maxJointSpeed { get; set; } = 10;
+        public string swimMethod { get; set; } = "advanced";
+        public string bodyPlanStart { get; set; } = "complex";
+        public bool keepAgentSymmetrical { get; set; } = false;
         // Advanced Agent
-        public int maxForceMagnitude { get; set; } = 1000;
+        public int maxForceMagnitude { get; set; } = 25000;
         public int maxTorqueMultiplier { get; set; } = 300000;
         public int limbMassForceDivider { get; set; } = 50;
         public int limbLengthForceDivider { get; set; } = 30;
         public int agentStartX { get; set; } = 200;
         public int agentStartY { get; set; } = 600;
         public int swimForceOverNFrames { get; set; } = 5;
+        public int speedForceNormilizer { get; set; } = 20;
         public int speedNormalizationForDrag { get; set; } = 2500;
         public int bodyAngularDragPower { get; set; } = 10;
         public int maxTorqueForDamping { get; set; } = 10000;
@@ -1272,7 +1291,7 @@
         public int maxVelForNormalisation { get; set; } = 50;
 
         // World Properties
-        public int liquidViscosity { get; set; } = 5;
+        public int liquidViscosity { get; set; } = 10;
         public bool timeIncrease { get; set; } = true;
         public int map { get; set; } = 1;
         public bool randomMap { get; set; } = true;
@@ -1392,6 +1411,9 @@
         stageProperties.startingLimbChainLength = 1;
         stageProperties.swimStrength = 100;
         stageProperties.swimBias = 15;
+        stageProperties.swimMethod = "advanced";
+        stageProperties.bodyPlanStart = "complex";
+        stageProperties.keepAgentSymmetrical = false;
         stageProperties.maxJointSpeed = 10;
         stageProperties.maxForceMagnitude = 1000;
         stageProperties.maxTorqueMultiplier = 300000;
@@ -1400,6 +1422,7 @@
         stageProperties.agentStartX = 200;
         stageProperties.agentStartY = 600;
         stageProperties.swimForceOverNFrames = 5;
+        stageProperties.speedForceNormilizer = 20;
         stageProperties.speedNormalizationForDrag = 2500;
         stageProperties.bodyAngularDragPower = 10;
         stageProperties.maxTorqueForDamping = 10000;
@@ -1809,6 +1832,33 @@
                     Step = 1,
                     Details = "Controls the maximum speed of joint movements for agents."
                 },
+                new Setting
+                {
+                    Name = "Swim Method",
+                    Type = SettingType.Dropdown,
+                    SelectedValueExpression = () => stageProperties.swimMethod,
+                    SelectedValueChanged = val => stageProperties.swimMethod = val,
+                    Options = new List<string> { "advanced", "simple", "superSimple" },
+                    Details = "Selects the method used to calculate swim forces.  Advanced is more accurate, but simple is easier to learn.  Super simple sets the neural network output to a sign function, mapped to 1 or -1, limiting the choices the agent can make"
+                },
+                new Setting
+                {
+                    Name = "Body Plan",
+                    Type = SettingType.Dropdown,
+                    SelectedValueExpression = () => stageProperties.bodyPlanStart,
+                    SelectedValueChanged = val => stageProperties.bodyPlanStart = val,
+                    Options = new List<string> { "simple", "complex" },
+                    Details = "Selects the starting body plan for agents.  Simple starts with 3 limbs arranged evenly and complex starts with random limbs"
+                },
+                new Setting
+                {
+                    Name = "Keep Agent Symmetrical",
+                    Type = SettingType.Checkbox,
+                    BooleanValueExpression = () => stageProperties.keepAgentSymmetrical,
+                    BooleanValueChanged = val => stageProperties.keepAgentSymmetrical = val,
+                    Details = "Toggles whether agents are forced to be symmetrical throughout evolution.  Also forces limbs to move with their opposite."
+                }
+
             },
                 AdvancedSettings = new List<Setting>
                 {
@@ -1888,6 +1938,17 @@
                         Max = 10,
                         Step = 1,
                         Details = "Number of frames over which swim force is applied calculated.  Higher values means forces are applied less often.  Too low of a value can result in too twitchy forces."
+                    },
+                    new Setting
+                    {
+                        Name = "Speed Force Normalizer",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.speedForceNormilizer,
+                        ValueChanged = val => stageProperties.speedForceNormilizer = val,
+                        Min = 1,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Adjusts the speed force normalizer for agents.  Higher values mean less force is applied for based on the limb speed vs it's area."
                     },
                     new Setting
                     {
