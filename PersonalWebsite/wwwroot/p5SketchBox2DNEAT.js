@@ -3299,6 +3299,9 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
             let inputNodeId = generateUniqueId(childGenome.usedBiasIDs);  // Generate a unique ID for this node
             inputLayer.biases.splice(inputNodeIndex, 0, { id: inputNodeId, value: Math.random() }); // Insert at index = limb ID
             inputLayer.numberOfNeurons++;
+            if (stageProperties.keepAgentSymmetrical == true) {
+                inputLayer.numberOfNeurons++;
+            }
             childGenome.inputLayerGenes[0].inputs.push(childGenome.inputLayerGenes[0].inputs.length);
 
             // Add a new node to the output layer for the limb
@@ -3378,6 +3381,9 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                     // Remove node from the input layer
                     childGenome.inputLayerGenes[0].biases.splice(flattenedIndex, 1);
                     childGenome.inputLayerGenes[0].numberOfNeurons--;
+                    if (stageProperties.keepAgentSymmetrical == true) {
+                        inputLayer.numberOfNeurons--;
+                    }
                     childGenome.inputLayerGenes[0].inputs.splice(flattenedIndex, 1);
 
                     // Remove weights connected to the removed input node from the first hidden layer
