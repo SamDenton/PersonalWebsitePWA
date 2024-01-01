@@ -626,7 +626,7 @@
         return new InputLayerGene
             {
                 NumberOfNeurons = 10 + numLimbs, 
-                ActivationType = ActivationType.ReLU,
+                ActivationType = stageProperties.inputActivationFunction,
                 Inputs = Enumerable.Range(1, 10 + numLimbs).ToList()
             };
     }
@@ -638,7 +638,7 @@
                 LayerID = layerId,
                 LayerType = LayerType.Dense,
                 NumberOfNeurons = numberOfNeurons,
-                ActivationType = ActivationType.ReLU
+                ActivationType = stageProperties.hiddenActivationFunction
             };
     }
 
@@ -647,7 +647,7 @@
         return new OutputLayerGene
             {
                 NumberOfNeurons = numLimbs, // 3 outputs
-                ActivationType = ActivationType.Tanh,
+                ActivationType = stageProperties.outputActivationFunction,
                 Outputs = Enumerable.Range(1, numLimbs).ToList() // List of outputs from 1 to 3
             };
     }
@@ -1054,7 +1054,7 @@
     public class InputLayerGene
     {
         public int NumberOfNeurons { get; set; }
-        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
+        public String ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
         public List<Bias>? Biases { get; set; }
         public List<int>? Inputs { get; set; }
 
@@ -1070,7 +1070,7 @@
         public int LayerID { get; set; }
         public LayerType LayerType { get; set; }  // "Dense", "Conv", "LSTM", etc.
         public int NumberOfNeurons { get; set; }
-        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
+        public String ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
         public List<List<Weight>>? Weights { get; set; }
         public List<Bias>? Biases { get; set; }
 
@@ -1084,7 +1084,7 @@
     public class OutputLayerGene
     {
         public int NumberOfNeurons { get; set; }
-        public ActivationType ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
+        public String ActivationType { get; set; } // "ReLU", "Sigmoid", "Tanh", etc.
         public List<List<Weight>>? Weights { get; set; }
         public List<Bias>? Biases { get; set; }
         public List<int>? Outputs { get; set; }
@@ -1119,13 +1119,22 @@
         // ...other types
     }
 
-    public enum ActivationType
-    {
-        ReLU,
-        Sigmoid,
-        Tanh,
-        // ...other types
-    }
+    // public enum ActivationType
+    // {
+    //     ReLU,
+    //     Sigmoid,
+    //     Tanh,
+    //     Linear,
+    //     Softmax,
+    //     Softplus,
+    //     Softsign,
+    //     Relu6,
+    //     Elu,
+    //     Selu,
+    //     LeakyReLU,
+    //     PReLU,
+    //     Swish
+    // }
 
     private async Task ResetSimulation()
     {
@@ -1162,7 +1171,8 @@
         stageProperties.energyUseBrainSizeMult = 0;
         stageProperties.startingEnergyMassPower = 0;
         stageProperties.startingEnergyBase = 1;
-        stageProperties.swimMethod = "superSimple";
+        stageProperties.swimMethod = "simple";
+        stageProperties.networkOutput = "simple";
         stageProperties.keepAgentSymmetrical = true;
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
@@ -1215,8 +1225,12 @@
         public string swimMethod { get; set; } = "advanced";
         public string bodyPlanStart { get; set; } = "complex";
         public bool keepAgentSymmetrical { get; set; } = false;
+        public string networkOutput { get; set; } = "complex";
+        public string inputActivationFunction { get; set; } = "linear";
+        public string hiddenActivationFunction { get; set; } = "tanh";
+        public string outputActivationFunction { get; set; } = "tanh";
         // Advanced Agent
-        public int maxForceMagnitude { get; set; } = 20000;
+        public int maxForceMagnitude { get; set; } = 40000;
         public int maxTorqueMultiplier { get; set; } = 300000;
         public int limbMassForceDivider { get; set; } = 50;
         public int limbLengthForceDivider { get; set; } = 30;
@@ -1413,6 +1427,10 @@
         stageProperties.swimBias = 15;
         stageProperties.swimMethod = "advanced";
         stageProperties.bodyPlanStart = "complex";
+        stageProperties.networkOutput = "complex";
+        stageProperties.inputActivationFunction = "linear";
+        stageProperties.hiddenActivationFunction = "tanh";
+        stageProperties.outputActivationFunction = "tanh";
         stageProperties.keepAgentSymmetrical = false;
         stageProperties.maxJointSpeed = 10;
         stageProperties.maxForceMagnitude = 1000;
@@ -1838,7 +1856,7 @@
                     Type = SettingType.Dropdown,
                     SelectedValueExpression = () => stageProperties.swimMethod,
                     SelectedValueChanged = val => stageProperties.swimMethod = val,
-                    Options = new List<string> { "advanced", "simple", "superSimple" },
+                    Options = new List<string> { "advanced", "simple" },
                     Details = "Selects the method used to calculate swim forces.  Advanced is more accurate, but simple is easier to learn.  Super simple sets the neural network output to a sign function, mapped to 1 or -1, limiting the choices the agent can make"
                 },
                 new Setting
@@ -1852,12 +1870,48 @@
                 },
                 new Setting
                 {
+                    Name = "Network Output",
+                    Type = SettingType.Dropdown,
+                    SelectedValueExpression = () => stageProperties.networkOutput,
+                    SelectedValueChanged = val => stageProperties.networkOutput = val,
+                    Options = new List<string> { "simple", "complex" },
+                    Details = "Selects the activation function simplicity for the agents brains output layer.  Simple uses a sign function, mapping output to exactly -1 or 1, while complex is a tanh function (or otherwise selected in advanced settings), allowing any value between -1 and 1."
+                },
+                new Setting
+                {
                     Name = "Keep Agent Symmetrical",
                     Type = SettingType.Checkbox,
                     BooleanValueExpression = () => stageProperties.keepAgentSymmetrical,
                     BooleanValueChanged = val => stageProperties.keepAgentSymmetrical = val,
                     Details = "Toggles whether agents are forced to be symmetrical throughout evolution.  Also forces limbs to move with their opposite."
-                }
+                },
+                new Setting
+                {
+                    Name = "Activation Function for Input Layer",
+                    Type = SettingType.Dropdown,
+                    SelectedValueExpression = () => stageProperties.inputActivationFunction,
+                    SelectedValueChanged = val => stageProperties.inputActivationFunction = val,
+                    Options = new List<string> { "relu", "sigmoid", "tanh", "linear", "softmax", "softplus", "softsign", "relu6", "elu", "selu", "leakyReLU", "prelu", "swish" },
+                    Details = "Selects the activation function for the agents brain input layer. Linear: Preserves the original scale and distribution of the input data. ReLU/Sigmoid/Tanh: These are generally not recommended for the input layer, as they can distort the raw input data. For instance, ReLU would turn all negative inputs to zero."
+                },
+                new Setting
+                {
+                    Name = "Activation Function for Hidden Layers",
+                    Type = SettingType.Dropdown,
+                    SelectedValueExpression = () => stageProperties.hiddenActivationFunction,
+                    SelectedValueChanged = val => stageProperties.hiddenActivationFunction = val,
+                    Options = new List<string> { "relu", "sigmoid", "tanh", "linear", "softmax", "softplus", "softsign", "relu6", "elu", "selu", "leakyReLU", "prelu", "swish" },
+                    Details = "Selects the activation function for the agents brains hidden layers. ReLU: The most common choice for hidden layers in deep networks due to its simplicity and efficiency. LeakyReLU, PReLU: Variants of ReLU that allow small gradients when the unit is not active, potentially avoiding dead neurons.  Tanh/Sigmoid: These can be used but are less common in deep networks due to the vanishing gradient problem. Swish, Selu, Elu: More sophisticated functions that can sometimes outperform ReLU in specific tasks."
+                },
+                new Setting
+                {
+                    Name = "Activation Function for Output Layer",
+                    Type = SettingType.Dropdown,
+                    SelectedValueExpression = () => stageProperties.outputActivationFunction,
+                    SelectedValueChanged = val => stageProperties.outputActivationFunction = val,
+                    Options = new List<string> { "relu", "sigmoid", "tanh", "linear", "softmax", "softplus", "softsign", "relu6", "elu", "selu", "leakyReLU", "prelu", "swish" },
+                    Details = "Selects the activation function for the agents brain input layer  Most of these will not produce valid output in a useful range. Linear: Suitable for regression tasks where you need a wide range of output values. Sigmoid: Ideal for binary classification, as it maps the output to a probability between 0 and 1. Softmax: Used for multiclass classification problems. It outputs a probability distribution across multiple classes. ReLU: Not typically used in output layers, as they are not suited for probability prediction. Tanh: Could be used in a scenario where the output needs to be bounded between -1 and 1."
+                },
 
             },
                 AdvancedSettings = new List<Setting>

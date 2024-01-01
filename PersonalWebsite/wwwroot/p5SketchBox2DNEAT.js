@@ -194,10 +194,10 @@ let sketchNEAT = function (p) {
                         applySwimmingForce(p, agent);
                     } else {
                         applySwimmingForceOld(p, agent);
+                        // Apply drag to agents to simulate a liquid environment
+                        applyDrag(agent);
                     }
 
-                    // Apply drag to agents to simulate a liquid environment
-                    applyDrag(agent);
 
                     // Apply joint damping to agents to prevent limbs from moving too fast or slamming into boundaries
                     // applyJointDamping(agent);
@@ -661,7 +661,7 @@ function applyDrag(agent) {
 
 function applySwimmingForce(p, agent) {
     const N = stageProperties.swimForceOverNFrames; // Use the last 5 frames for force calculation
-    const propulsionCoefficient = stageProperties.swimStrength * 5;
+    const propulsionCoefficient = stageProperties.swimStrength;
     const maxForceMagnitude = stageProperties.maxForceMagnitude; // Maximum force magnitude
     agent.frameCounter = (agent.frameCounter || 0) + 1;
 
@@ -723,6 +723,20 @@ function applySwimmingForce(p, agent) {
             }
         });
     });
+
+    // Calculate and apply drag force to the main body
+    let bodyDisplacement = updateBufferAndGetDisplacement(agent.bodyBuffer, agent.mainBody.getPosition());
+    let bodyArea = Math.PI * Math.pow(agent.genome.mainBody.size / 5, 2); // Assuming circular body
+    let bodyForce = calculatePropulsiveForce(bodyDisplacement, bodyArea);
+    let adjustedbodyForce = p.createVector(bodyForce.x, bodyForce.y);
+    adjustedbodyForce.limit(maxForceMagnitude);
+    agent.mainBody.applyForceToCenter(adjustedbodyForce);
+
+    // Visualization for the main body's drag force
+    if (agent.currentlyLeading) {
+        let adjustedBodyDragForce = p.createVector(adjustedbodyForce.x, adjustedbodyForce.y);
+        visualizeForce(p, agent, agent.mainBody.getPosition(), adjustedBodyDragForce);
+    }
 }
 
 function calculatePointPosition(limbBody, offset, angle) {
@@ -1155,6 +1169,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     this.startingX = stageProperties.agentStartX + (Math.floor(this.genome.metadata.runGroup) * stageProperties.agentStartSpawnGap);
     this.startingY = stageProperties.agentStartY;
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
+    this.bodyBuffer = Array(1).fill().map(() => []);
     this.limbDisplacementBuffers = this.bodyParts.map(() => ({
         base: [],
         center: [],
@@ -1994,7 +2009,7 @@ function createNeuralNetworkNEAT(genome) {
     tf.tidy(() => {
         const inputLayer = tf.layers.dense({
             units: genome.inputLayerGenes[0].numberOfNeurons,
-            activation: activationTypeToString(genome.inputLayerGenes[0].activationType),
+            activation: genome.inputLayerGenes[0].activationType,
             inputShape: [genome.inputLayerGenes[0].inputs.length],
             biasInitializer: 'heNormal',
             kernelInitializer: 'heNormal'
@@ -2014,7 +2029,7 @@ function createNeuralNetworkNEAT(genome) {
 
             const layer = tf.layers.dense({
                 units: genome.layerGenes[i].numberOfNeurons,
-                activation: activationTypeToString(genome.layerGenes[i].activationType),
+                activation: genome.layerGenes[i].activationType,
                 biasInitializer: 'heNormal',
                 kernelInitializer: 'heNormal'
             });
@@ -2045,7 +2060,7 @@ function createNeuralNetworkNEAT(genome) {
     tf.tidy(() => {
         const outputLayer = tf.layers.dense({
             units: genome.outputLayerGenes[0].numberOfNeurons,
-            activation: activationTypeToString(genome.outputLayerGenes[0].activationType),
+            activation: genome.outputLayerGenes[0].activationType,
             biasInitializer: 'heNormal'
         });
         model.add(outputLayer);
@@ -2090,7 +2105,7 @@ function constructModelFromGenome(genome) {
     const inputLayer = tf.layers.dense({
         units: inputNeurons,
         inputShape: [genome.inputLayerGenes[0].inputs.length],
-        activation: activationTypeToString(genome.inputLayerGenes[0].activationType)
+        activation: genome.inputLayerGenes[0].activationType
     });
     model.add(inputLayer);
 
@@ -2102,7 +2117,7 @@ function constructModelFromGenome(genome) {
     genome.layerGenes.forEach(layerGene => {
         const layer = tf.layers.dense({
             units: layerGene.numberOfNeurons,
-            activation: activationTypeToString(layerGene.activationType)
+            activation: layerGene.activationType
         });
         model.add(layer);
 
@@ -2141,7 +2156,7 @@ function constructModelFromGenome(genome) {
     const outputLayerGene = genome.outputLayerGenes[0];
     const outputLayer = tf.layers.dense({
         units: outputLayerGene.numberOfNeurons,
-        activation: activationTypeToString(outputLayerGene.activationType)
+        activation: outputLayerGene.activationType
     });
     model.add(outputLayer);
 
@@ -2175,11 +2190,10 @@ function constructModelFromGenome(genome) {
     return model;
 }
 
-
-function activationTypeToString(type) {
-    const types = ["relu", "sigmoid", "tanh"]; // add other types as needed
-    return types[type];
-}
+//function activationTypeToString(type) {
+//    const types = ["relu", "sigmoid", "tanh"]; // add other types as needed
+//    return types[type];
+//}
 
 function nextAgentgroupNEAT(p) {
 
@@ -3945,7 +3959,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
 
 AgentNEAT.prototype.updateMusclesNEAT = function () {
     let inputs = this.collectInputsNEAT();
-    if (stageProperties.swimMethod === "superSimple") {
+    if (stageProperties.networkOutput === "simple") {
         this.makeDecisionSimpleNEAT(inputs)
     } else {
         this.makeDecisionNEAT(inputs);
