@@ -4025,7 +4025,7 @@ function handleMouseEnter(e) {
     // Set a timer to automatically remove the tooltip
     original.tooltipTimeout = setTimeout(() => {
         if (original.tooltip) {
-            adjustTabContentPaddingForTooltip(tooltip, tabContent, false);
+            // adjustTabContentPaddingForTooltip(tooltip, tabContent, false);
             document.body.removeChild(original.tooltip);
             original.tooltip = null;
         }
@@ -4041,6 +4041,7 @@ function handleMouseLeave(e) {
         document.body.removeChild(original.tooltip);
         original.tooltip = null;
         // Adjust the bottom padding of the tab-content
+        // adjustTabContentPaddingForTooltip(tooltip, tabContent, false);
         clearTimeout(original.tooltipTimeout);
     }
 }

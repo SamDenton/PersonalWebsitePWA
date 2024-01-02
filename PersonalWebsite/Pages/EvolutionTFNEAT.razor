@@ -1260,7 +1260,7 @@
         public int yScoreMultiplier { get; set; } = 30;
         public int movementScoreMultiplier { get; set; } = 30;
         public int explorationScoreMultiplier { get; set; } = 50;
-        public int sizeScoreMultiplier { get; set; } = 20;
+        public int sizeScoreMultiplier { get; set; } = 50;
         public bool massBonusIsDynamic { get; set; } = true;
         public int startingEnergyBase { get; set; } = 10;
         public int startingEnergyMassPower { get; set; } = 3;
@@ -1277,19 +1277,19 @@
         public int limbStartingMassEnergyReductionDivider { get; set; } = 15;
         public int jointMovementRewardLimbMassDivider { get; set; } = 100;
         public int internalMapSize { get; set; } = 500;
-        public int internalMapCellSize { get; set; } = 50;
+        public int internalMapCellSize { get; set; } = 25;
         public int dynamicMassBonusDivider { get; set; } = 500;
 
         // Training and Evolution
-        public int offspringMutationRate { get; set; } = 200;
-        public int offspringNodeMutationRate { get; set; } = 50;
-        public int offspringLayerMutationRate { get; set; } = 10;
-        public int offspringLimbMutationRate { get; set; } = 100;
-        public int topPerformerNumber { get; set; } = 20;
-        public int migrationRate { get; set; } = 2;
+        public int offspringMutationRate { get; set; } = 20;
+        public int offspringNodeMutationRate { get; set; } = 5;
+        public int offspringLayerMutationRate { get; set; } = 1;
+        public int offspringLimbMutationRate { get; set; } = 10;
+        public int topPerformerNumber { get; set; } = 10;
+        public int migrationRate { get; set; } = 1;
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 25;
-        public bool agentsRequireStablising { get; set; } = false;
+        public bool agentsRequireStablising { get; set; } = true;
         // Advanced Training and Evolution
         public int tournamentSize { get; set; } = 10;
         public int linearStabilityThresholdBody { get; set; } = 15;
@@ -1336,7 +1336,7 @@
         public int renderedNNNodeGap { get; set; } = 30;
 
         // Debugging and Diagnostics
-        public bool showForceVectors { get; set; } = true;
+        public bool showForceVectors { get; set; } = false;
         // Advanced Debugging and Diagnostics
         public int visualForceScale { get; set; } = 20;
         public int visualMaxForceLength { get; set; } = 300;
@@ -1346,6 +1346,43 @@
         public int genCount { get; set; }
 
     }
+
+    // The below properties were previously doubles but had to be changed to ints to work with some of the data binding for UI setting selectors.
+    // Ideally, I should find a way to keep their native types rather then converting them to ints here then back to doubles in the JS code.
+
+    // public class StageProperties2
+    // {
+    //     public double migrationRate { get; set; } = 0.002;
+    //     public double physicsGranularityMultipliers { get; set; } = 1;
+    //     public double maxJointSpeed { get; set; } = 1;
+
+    //     public double offspringMutationRate { get; set; } = 0.02;
+    //     public double offspringNodeMutationRate { get; set; } = 0.005;
+    //     public double offspringLayerMutationRate { get; set; } = 0.001;
+    //     public double offspringLimbMutationRate { get; set; } = 0.01;
+
+    //     public double swimBias { get; set; } = 1.5;
+    //     public double xScoreMultiplier { get; set; } = 3;
+    //     public double yScoreMultiplier { get; set; } = 3;
+    //     public double movementScoreMultiplier { get; set; } = 3;
+    //     public double explorationScoreMultiplier { get; set; } = 5;
+    //     public double sizeScoreMultiplier { get; set; } = 0.2;
+    //     public double startingEnergyBodyMassMult { get; set; } = 1;
+    //     public double startingEnergyLimbMassMult { get; set; } = 1;
+    //     public double energyUseForceSizeMult { get; set; } = 1;
+    //     public double energyUseLimbSizeMult { get; set; } = 1;
+    //     public double energyUseBrainSizeMult { get; set; } = 1;
+    //     public double chanceToIncludeTopPerformerInMutation { get; set; } = 0.1;
+    //     public double chanceToIncludeOffspringInMutation { get; set; } = 0.5;
+    //     public double neuronMutationStandardDeviation { get; set; } = 0.1;
+    //     public double bodyPlanMutationStandardDeviation { get; set; } = 0.1;
+    //     public double liquidViscosity { get; set; } = 0.0005;
+    //     public double surfaceAreaCoefficient { get; set; } = 0.0001;
+    //     public double linearStabilityThresholdBody { get; set; } = 0.01;
+    //     public double angularStabilityThresholdBody { get; set; } = 0.15;
+    //     public double angularStabilityThresholdLimb { get; set; } = 0.1;
+    //     public double threasholdAngleForDamping { get; set; } = 0.1;
+    // }
 
     private async Task setMobilePresets()
     {
@@ -1479,10 +1516,10 @@
         stageProperties.internalMapSize = 500;
         stageProperties.internalMapCellSize = 50;
         stageProperties.dynamicMassBonusDivider = 500;
-        stageProperties.offspringMutationRate = 200;
-        stageProperties.offspringNodeMutationRate = 50;
-        stageProperties.offspringLayerMutationRate = 10;
-        stageProperties.offspringLimbMutationRate = 100;
+        stageProperties.offspringMutationRate = 20;
+        stageProperties.offspringNodeMutationRate = 5;
+        stageProperties.offspringLayerMutationRate = 1;
+        stageProperties.offspringLimbMutationRate = 10;
         stageProperties.topPerformerNumber = 20;
         stageProperties.migrationRate = 2;
         stageProperties.minPopGroupSize = 10;
