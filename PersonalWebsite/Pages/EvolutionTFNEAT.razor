@@ -608,10 +608,10 @@
                 genome.Metadata.AgentName = agentName;
                 genome.Metadata.RunGroup = runGroups[i];
                 genome.Metadata.AgentGroup = i % numGroups;
-                genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
-                genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
-                genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
-                genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
+                genome.Hyperparameters.MutationRate = (double)stageProperties.offspringMutationRate / 1000;
+                genome.Hyperparameters.NodeMutationRate = (double)stageProperties.offspringNodeMutationRate / 1000;
+                genome.Hyperparameters.LayerMutationRate = (double)stageProperties.offspringLayerMutationRate / 1000;
+                genome.Hyperparameters.LimbMutationRate = (double)stageProperties.offspringLimbMutationRate / 1000;
 
                 // add ids to usedLayerIDs, 1 to numLayers
                 genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
@@ -1221,6 +1221,7 @@
         public int startingLimbChainLength { get; set; } = 1;
         public int swimStrength { get; set; } = 100;
         public int swimBias { get; set; } = 15;
+        public bool randomAgentStartAngle { get; set; } = true;
         public int maxJointSpeed { get; set; } = 10;
         public string swimMethod { get; set; } = "advanced";
         public string bodyPlanStart { get; set; } = "complex";
@@ -1399,10 +1400,10 @@
     {
         stageProperties.delay = 10;
         stageProperties.BatchSize = 10;
-        stageProperties.numAgents = 20;
+        stageProperties.numAgents = 25;
         stageProperties.totalNumAgentsMultiplier = 10;
         stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 5;
+        stageProperties.muscleBatch = 3;
         stageProperties.totalMuscleUpdateTime = 2;
     }
 
@@ -1411,18 +1412,18 @@
         stageProperties.delay = 10;
         stageProperties.BatchSize = 20;
         stageProperties.numAgents = 50;
-        stageProperties.totalNumAgentsMultiplier = 5;
+        stageProperties.totalNumAgentsMultiplier = 10;
         stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 10;
+        stageProperties.muscleBatch = 5;
         stageProperties.totalMuscleUpdateTime = 2;
     }
 
     private async Task setHighPresets()
     {
         stageProperties.delay = 5;
-        stageProperties.BatchSize = 20;
+        stageProperties.BatchSize = 5;
         stageProperties.numAgents = 100;
-        stageProperties.totalNumAgentsMultiplier = 4;
+        stageProperties.totalNumAgentsMultiplier = 5;
         stageProperties.muscleDelay = 1;
         stageProperties.muscleBatch = 10;
         stageProperties.totalMuscleUpdateTime = 1;
@@ -1431,7 +1432,7 @@
     private async Task setVHighPresets()
     {
         stageProperties.delay = 1;
-        stageProperties.BatchSize = 20;
+        stageProperties.BatchSize = 10;
         stageProperties.numAgents = 150;
         stageProperties.totalNumAgentsMultiplier = 3;
         stageProperties.muscleDelay = 1;
@@ -1462,6 +1463,7 @@
         stageProperties.startingLimbChainLength = 1;
         stageProperties.swimStrength = 100;
         stageProperties.swimBias = 15;
+        stageProperties.randomAgentStartAngle = true;
         stageProperties.swimMethod = "advanced";
         stageProperties.bodyPlanStart = "complex";
         stageProperties.networkOutput = "complex";
@@ -1631,7 +1633,7 @@
                         Min = 1,
                         Max = 10,
                         Step = 1,
-                        Details = "Number of muscle updates processed together in a batch.  This should generally be about half the number of agents in the run group."
+                        Details = "Number of muscle updates processed together in a batch.  This should generally be about 1/10th the number of agents in the run group."
                     },
                     new Setting
                     {
@@ -1875,6 +1877,14 @@
                     Max = 20,
                     Step = 1,
                     Details = "Modifies the bias applied to swimming actions of agents."
+                },
+                new Setting
+                {
+                    Name = "Random Agent Start Angle",
+                    Type = SettingType.Checkbox,
+                    BooleanValueExpression = () => stageProperties.randomAgentStartAngle,
+                    BooleanValueChanged = val => stageProperties.randomAgentStartAngle = val,
+                    Details = "Toggles whether agents start at a random angle between 0 and 90 (PI/2) deg or all facing the same direction, 45 (PI/4) deg."
                 },
                 new Setting
                 {

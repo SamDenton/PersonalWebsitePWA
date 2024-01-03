@@ -1057,8 +1057,13 @@ function initializeAgentNEAT(i, genome) {
     setTimeout(() => {
         // Using genome properties to initialize the agent
         let agent = new AgentNEAT(genome, i, false);
-
-        let randomAngle = -Math.random() * Math.PI / 2;
+        let randomAngle;
+        if (stagegProperties.randomAgentStartAngle == true) {
+            randomAngle = -Math.random() * Math.PI / 2;
+        } else {
+            // spawn angle is equal 45 degrees in radians
+            randomAngle = -Math.PI / 4;
+        }
         agent.mainBody.setAngle(randomAngle);
         agent.genome.metadata.groupName = GROUP_COLORS_NAMES[agent.genome.metadata.agentGroup];
         agents.push(agent);
