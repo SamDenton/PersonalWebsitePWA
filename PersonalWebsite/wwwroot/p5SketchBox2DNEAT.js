@@ -131,7 +131,7 @@ let sketchNEAT = function (p) {
                             if (updateCountStart[agentIndexStart] < stageProperties.updatesPerAgentStart) {
 
                                 // Update the agent
-                                agents[agentIndexStart].mainBody.setType('dynamic');
+                                // agents[agentIndexStart].mainBody.setType('dynamic');
                                 agents[agentIndexStart].updateMusclesNEAT();
                             }
 
@@ -1055,10 +1055,10 @@ function initializeAgentBatchNEAT(startIndex, endIndex, populationGenomes) {
 // Function to initialize a single agent
 function initializeAgentNEAT(i, genome) {
     setTimeout(() => {
-        // Using genome properties to initialize the agent
+        // Using genome properties to initialize the agent.  Could add spawn angle to genome metadata
         let agent = new AgentNEAT(genome, i, false);
         let randomAngle;
-        if (stagegProperties.randomAgentStartAngle == true) {
+        if (stageProperties.randomAgentStartAngle == true) {
             randomAngle = -Math.random() * Math.PI / 2;
         } else {
             // spawn angle is equal 45 degrees in radians
@@ -1353,7 +1353,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             let currentAngle = this.joints[i].getJointAngle();
 
             // Now that I randomly change the agent's starting angles, we need to only increment score after round starts
-            if (stabilised) {
+            if (stabilised && stageProperties.agentsRequireStablising) {
                 let change = Math.abs(currentAngle - this.previousJointAngles[i]) * (this.limbs[i].getMass() / stageProperties.jointMovementRewardLimbMassDivider);
                 totalChange += change;
             }
@@ -3495,11 +3495,11 @@ function createNewLimb(angle, selectedPart, newLimbID) {
         },
         constraints: {
             maxTorque: Math.random() * 79000,
-            maxAngle: Math.PI / (2 + Math.floor(Math.random(4))),
-            minAngle: -Math.PI / (2 + Math.floor(Math.random(4)))
+            maxAngle: Math.PI / (2 + Math.floor(Math.random() * 4)),
+            minAngle: -Math.PI / (2 + Math.floor(Math.random() * 4))
         },
-        length: 10 + Math.floor(Math.random(50)), // length: 30 + Math.floor(Math.random(20)),
-        width: 2 + Math.floor(Math.random(20)), // width: 10 + Math.floor(Math.random(10)),
+        length: 10 + Math.floor(Math.random() * 50),
+        width: 2 + Math.floor(Math.random() * 20),
         shape: "rectangle",
         subArms: [],
         numberInChain: selectedPart.numberInChain + 1,

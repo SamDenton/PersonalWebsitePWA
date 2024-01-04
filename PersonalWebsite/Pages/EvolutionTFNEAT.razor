@@ -112,6 +112,7 @@
                 </ol>
 
                 <h5>Future Plans</h5>
+                <p>If I switch from storing the full population genome as a JS object to storing it in IndexedDB, I can achieve much greater total population numbers.  Currently, about 700 is the limit.  I can also make the agents object more efficient</p>
                 <p>There is a lot of clean up work to do on the code, the genome and the agent objects.  I have lots of duplicated values and old structures.  I am not making use of 'const' enough, and I am duplicating functions in places</p>
                 <p>I need to work on the maps.  They are too simple and not varied enough.  I want to implement some goals, like food, tied to the energy system.  A puzzle to open a door or similar could also be interesting</p>
                 <p>I plan on adding further ways the agents can evolve. I want to allow more complex body plans with different types of limb and body segments, such as wings, thrusters, suckers, energy storage limbs etc</p>
@@ -1425,7 +1426,7 @@
         stageProperties.numAgents = 100;
         stageProperties.totalNumAgentsMultiplier = 5;
         stageProperties.muscleDelay = 1;
-        stageProperties.muscleBatch = 10;
+        stageProperties.muscleBatch = 5;
         stageProperties.totalMuscleUpdateTime = 1;
     }
 
@@ -1436,7 +1437,7 @@
         stageProperties.numAgents = 150;
         stageProperties.totalNumAgentsMultiplier = 3;
         stageProperties.muscleDelay = 1;
-        stageProperties.muscleBatch = 15;
+        stageProperties.muscleBatch = 10;
         stageProperties.totalMuscleUpdateTime = 1;
     }
 
@@ -2549,7 +2550,7 @@
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.agentsRequireStablising,
                         BooleanValueChanged = val => stageProperties.agentsRequireStablising = val,
-                        Details = "Determines if agents require stabilization before the round begins.  Using this can help performance in the first few frames, and can also encourage more robust learning in agents, as they cant just push off and glide for the first move."
+                        Details = "Determines if agents require stabilization before the round begins.  Using this can help performance in the first few frames, and can also encourage more robust learning in agents, as they cant just push off and glide for the first move.  It will also slow training initially as their first action is wasted."
                     }
                 },
                 AdvancedSettings = new List<Setting>
