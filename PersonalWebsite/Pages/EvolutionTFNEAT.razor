@@ -1158,7 +1158,7 @@
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 50;
+        stageProperties.offspringLimbMutationRate = 5;
         stageProperties.agentsRequireStablising = false;
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
@@ -1182,7 +1182,7 @@
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringNodeMutationRate = 0;
         stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 50;
+        stageProperties.offspringLimbMutationRate = 1;
         stageProperties.swimStrength = 100;
         stageProperties.randomMap = false;
         stageProperties.map = 1;
@@ -1220,10 +1220,10 @@
         public int minNNLayers { get; set; } = 1;
         public int maxNNLayers { get; set; } = 5;
         public int startingLimbChainLength { get; set; } = 1;
-        public int swimStrength { get; set; } = 100;
+        public int swimStrength { get; set; } = 90;
         public int swimBias { get; set; } = 15;
         public bool randomAgentStartAngle { get; set; } = true;
-        public int maxJointSpeed { get; set; } = 10;
+        public int maxJointSpeed { get; set; } = 20;
         public string swimMethod { get; set; } = "advanced";
         public string bodyPlanStart { get; set; } = "complex";
         public bool keepAgentSymmetrical { get; set; } = false;
@@ -1232,7 +1232,8 @@
         public string hiddenActivationFunction { get; set; } = "tanh";
         public string outputActivationFunction { get; set; } = "tanh";
         // Advanced Agent
-        public int maxForceMagnitude { get; set; } = 40000;
+        public int maxForceMagnitude { get; set; } = 5000;
+        public int speedThreshold { get; set; } = 100;
         public int maxTorqueMultiplier { get; set; } = 300000;
         public int limbMassForceDivider { get; set; } = 50;
         public int limbLengthForceDivider { get; set; } = 30;
@@ -1261,7 +1262,7 @@
         public int xScoreMultiplier { get; set; } = 30;
         public int yScoreMultiplier { get; set; } = 30;
         public int movementScoreMultiplier { get; set; } = 30;
-        public int explorationScoreMultiplier { get; set; } = 50;
+        public int explorationScoreMultiplier { get; set; } = 200;
         public int sizeScoreMultiplier { get; set; } = 50;
         public bool massBonusIsDynamic { get; set; } = true;
         public int startingEnergyBase { get; set; } = 10;
@@ -1278,17 +1279,17 @@
         public int bodyStartingMassEnergyReductionDivider { get; set; } = 400;
         public int limbStartingMassEnergyReductionDivider { get; set; } = 15;
         public int jointMovementRewardLimbMassDivider { get; set; } = 100;
-        public int internalMapSize { get; set; } = 500;
-        public int internalMapCellSize { get; set; } = 25;
+        public int internalMapSize { get; set; } = 250;
+        public int internalMapCellSize { get; set; } = 50;
         public int dynamicMassBonusDivider { get; set; } = 500;
 
         // Training and Evolution
-        public int offspringMutationRate { get; set; } = 20;
+        public int offspringMutationRate { get; set; } = 10;
         public int offspringNodeMutationRate { get; set; } = 5;
         public int offspringLayerMutationRate { get; set; } = 1;
-        public int offspringLimbMutationRate { get; set; } = 10;
+        public int offspringLimbMutationRate { get; set; } = 5;
         public int topPerformerNumber { get; set; } = 10;
-        public int migrationRate { get; set; } = 1;
+        public int migrationRate { get; set; } = 5;
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 25;
         public bool agentsRequireStablising { get; set; } = true;
@@ -1423,8 +1424,8 @@
     {
         stageProperties.delay = 5;
         stageProperties.BatchSize = 5;
-        stageProperties.numAgents = 100;
-        stageProperties.totalNumAgentsMultiplier = 5;
+        stageProperties.numAgents = 75;
+        stageProperties.totalNumAgentsMultiplier = 6;
         stageProperties.muscleDelay = 1;
         stageProperties.muscleBatch = 5;
         stageProperties.totalMuscleUpdateTime = 1;
@@ -1519,12 +1520,12 @@
         stageProperties.internalMapSize = 500;
         stageProperties.internalMapCellSize = 50;
         stageProperties.dynamicMassBonusDivider = 500;
-        stageProperties.offspringMutationRate = 20;
+        stageProperties.offspringMutationRate = 10;
         stageProperties.offspringNodeMutationRate = 5;
         stageProperties.offspringLayerMutationRate = 1;
-        stageProperties.offspringLimbMutationRate = 10;
+        stageProperties.offspringLimbMutationRate = 5;
         stageProperties.topPerformerNumber = 20;
-        stageProperties.migrationRate = 2;
+        stageProperties.migrationRate = 5;
         stageProperties.minPopGroupSize = 10;
         stageProperties.maxPopGroupSize = 25;
         stageProperties.agentsRequireStablising = false;
@@ -1589,7 +1590,7 @@
             new TabModel
             {
                 Title = "Performance",
-                Description = "Configure the performance-related aspects of the simulation.  This is mostly how many agents are running at a time, and how frequently they are able to update.  An update means a new set of inputs and outputs in the neural networks / brains, so gives finer, more fluid control.  Try to target at least 200 agents in total, and at least 2 updates per agent per second.",
+                Description = "Configure the performance-related aspects of the simulation.  This is mostly how many agents are running at a time, and how frequently they are able to update.  An update means a new set of inputs and outputs in the neural networks / brains, so gives finer, more fluid control.  Try to target at least 200 agents in total, and at least 2 updates per agent per second.  The simulation will get harder to run as agents evolve so make sure you have some overhead when starting out.  For the first 10 or so generations, your frame rate should be steady, or you will struggle later on.  You can update the number of updates per agent per second but it will effect behavior.",
                 Settings = new List<Setting>
                 {
                     new Setting
@@ -1599,7 +1600,7 @@
                         ValueExpression = () => stageProperties.numAgents,
                         ValueChanged = val => stageProperties.numAgents = val,
                         Min = 1,
-                        Max = 100,
+                        Max = 1000,
                         Step = 1,
                         Details = "Determines the number of agents to run at a time.  This is multiplied by the Groups Per Generation to get the total number of agents in the population"
                     },
@@ -1610,7 +1611,7 @@
                         ValueExpression = () => stageProperties.totalNumAgentsMultiplier,
                         ValueChanged = val => stageProperties.totalNumAgentsMultiplier = val,
                         Min = 1,
-                        Max = 20,
+                        Max = 50,
                         Step = 1,
                         Details = "Multiplier to increase the total number of agents in the population.  More groups means a bigger population, but will take longer to train as only 1 group is run at a time."
                     },
@@ -1632,7 +1633,7 @@
                         ValueExpression = () => stageProperties.muscleBatch,
                         ValueChanged = val => stageProperties.muscleBatch = val,
                         Min = 1,
-                        Max = 10,
+                        Max = 50,
                         Step = 1,
                         Details = "Number of muscle updates processed together in a batch.  This should generally be about 1/10th the number of agents in the run group."
                     },
@@ -1645,7 +1646,7 @@
                         Min = 15,
                         Max = 480,
                         Step = 15,
-                        Details = "Adjusts the physics speed of the simulation, approx this number of frames per second, if the simulation is running at 60 FPS.  If you are struggling to run the simulation with a reasonable number of agents, try slowing down the physics speed."
+                        Details = "Adjusts the physics speed of the simulation, approx this number of frames per second, if the simulation is running at 60 FPS.  If you are struggling to run the simulation with a reasonable number of agents, try slowing down the physics speed.  You can have this set higher for the first 20+ generations and lower this as the sim starts to struggle with more complex agents."
                     },
                     new Setting
                     {
@@ -1728,7 +1729,7 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.renderedAgents,
                         ValueChanged = val => stageProperties.renderedAgents = val,
-                        Min = 1,
+                        Min = 0,
                         Max = 50,
                         Step = 1,
                         Details = "Controls the number of random agents rendered from each group, independent of the leader and trailer."
@@ -1874,10 +1875,10 @@
                     Type = SettingType.Slider,
                     ValueExpression = () => stageProperties.swimBias,
                     ValueChanged = val => stageProperties.swimBias = val,
-                    Min = 0,
+                    Min = 10,
                     Max = 20,
                     Step = 1,
-                    Details = "Modifies the bias applied to swimming actions of agents."
+                    Details = "Modifies the bias applied to swimming actions of agents.  Gives a slight advantage to forces in the same direction the agent is facing."
                 },
                 new Setting
                 {
@@ -2201,7 +2202,7 @@
                         ValueExpression = () => stageProperties.xScoreMultiplier,
                         ValueChanged = val => stageProperties.xScoreMultiplier = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 1000,
                         Step = 1,
                         Details = "Multiplier for the score gained when moving along the X-axis."
                     },
@@ -2212,7 +2213,7 @@
                         ValueExpression = () => stageProperties.yScoreMultiplier,
                         ValueChanged = val => stageProperties.yScoreMultiplier = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 1000,
                         Step = 1,
                         Details = "Multiplier for the score gained when moving along the Y-axis."
                     },
@@ -2223,7 +2224,7 @@
                         ValueExpression = () => stageProperties.movementScoreMultiplier,
                         ValueChanged = val => stageProperties.movementScoreMultiplier = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 1000,
                         Step = 1,
                         Details = "Multiplier for the score bonus given based on agent's joint movements.  Helps to encourage more active agents to evolve early on.  This bonus diminishes for each movement made."
                     },
@@ -2234,7 +2235,7 @@
                         ValueExpression = () => stageProperties.explorationScoreMultiplier,
                         ValueChanged = val => stageProperties.explorationScoreMultiplier = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 1000,
                         Step = 1,
                         Details = "Multiplier for the score based on the number of cells explored in the agents internal map.  This encourages agents to explore less obvious paths."
                     },
@@ -2245,7 +2246,7 @@
                         ValueExpression = () => stageProperties.sizeScoreMultiplier,
                         ValueChanged = val => stageProperties.sizeScoreMultiplier = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 1000,
                         Step = 1,
                         Details = "Multiplier for the score bonus based on agent's size."
                     },
@@ -2264,7 +2265,7 @@
                         ValueExpression = () => stageProperties.startingEnergyBase,
                         ValueChanged = val => stageProperties.startingEnergyBase = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 1000,
                         Step = 1,
                         Details = "Base energy level for agents at the start."
                     },
@@ -2518,9 +2519,9 @@
                         ValueExpression = () => stageProperties.migrationRate,
                         ValueChanged = val => stageProperties.migrationRate = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 1000,
                         Step = 1,
-                        Details = "Determines the rate of migration between species or population groups.  A lower number will mean more divers agents between groups, but it's less common for useful traits to be shared between groups."
+                        Details = "Determines the rate of migration between species or population groups.  A lower number will mean more diverse agents between groups, but it's less common for useful traits to be shared between groups."
                     },
                     new Setting
                     {

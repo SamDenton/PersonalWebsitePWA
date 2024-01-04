@@ -119,7 +119,7 @@ let sketchNEAT = function (p) {
                 // If not all agents have been updated x times, update one agent per frame
                 if (!stabilised) {
 
-                    if (!singleUpdateCompleted && stageProperties.agentsRequireStablising) {
+                    if (!singleUpdateCompleted) {
 
                         // Initialize or increment the update count for this agent
                         frameCountStart[agentIndexStart] = (frameCountStart[agentIndexStart] || 0) + 1;
@@ -526,14 +526,14 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
         }
     }
 
-    if (allAgentsStable || startingTickCounter == stageProperties.stabilityCheckOverwriteFrames) { // after 20 seconds, if still not stable, move on
+    if (allAgentsStable || startingTickCounter >= stageProperties.stabilityCheckOverwriteFrames) {
         stabilityCounter++;
-        if (stabilityCounter >= stabilityFrames || startingTickCounter == stageProperties.stabilityCheckOverwriteFrames) {
-            stabilityCounter = 0;  // Reset counter
+        if (stabilityCounter >= stabilityFrames || startingTickCounter >= stageProperties.stabilityCheckOverwriteFrames) {
+            stabilityCounter = 0;
             return true;
         }
     } else {
-        stabilityCounter = 0;  // Reset counter if any agent is not stable
+        stabilityCounter = 0;
     }
 
     return false;
@@ -663,6 +663,8 @@ function applySwimmingForce(p, agent) {
     const N = stageProperties.swimForceOverNFrames; // Use the last 5 frames for force calculation
     const propulsionCoefficient = stageProperties.swimStrength;
     const maxForceMagnitude = stageProperties.maxForceMagnitude; // Maximum force magnitude
+    const displacementThreshold = 1;// stageProperties.displacementThreshold;
+    const dragFactor = 0.9;
     agent.frameCounter = (agent.frameCounter || 0) + 1;
 
     // Function to calculate propulsive force based on limb displacement
@@ -693,33 +695,48 @@ function applySwimmingForce(p, agent) {
         };
 
         Object.entries(positions).forEach(([key, position]) => {
+
             let displacement = updateBufferAndGetDisplacement(agent.limbDisplacementBuffers[index][key], position);
-            let localArea = limb.width * limb.length * { 'base': 0.1, 'center': 0.3, 'tip': 0.5 }[key];
-            let localForce = calculatePropulsiveForce(displacement, localArea);
+            let displacementMagnitude = displacement.length();
 
-            let defaultBias = (!stageProperties.outputsBias || !simulationStarted || !agent.biases || index >= agent.biases.length || agent.biases[index] == null)
-                ? (stageProperties.swimBias)
-                : agent.biases[index];
+            // If limb is moving too quickly, apply drag instead of force to prevent runaway feedback loop
+            if (displacementMagnitude > displacementThreshold) {
 
-            // Calculate the force direction for bias calculation
-            let forceDirection = Math.atan2(localForce.y, localForce.x);
-            let bias = calculateBias(agent.mainBody.getAngle(), forceDirection, defaultBias);
-            localForce = localForce.mul(((bias - 1) / 20) + 1);
-            localForce = localForce.mul(Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy))))
-            let adjustedForceVector = p.createVector(localForce.x, localForce.y);
-            adjustedForceVector.limit(maxForceMagnitude);
+                // Apply drag based on the limb's velocity
+                let limbVelocity = limbBody.getLinearVelocity();
+                let dragVelocity = limbVelocity.clone().mul(dragFactor);
+                limbBody.setLinearVelocity(dragVelocity);
 
-            // Apply the force
-            agent.lastCalculatedForces[index][key] = planck.Vec2(adjustedForceVector.x, adjustedForceVector.y);
-            limbBody.applyForce(agent.lastCalculatedForces[index][key], position, true);
-
-            if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
-                agent.agentEnergy -= (Math.abs(adjustedForceVector.mag() / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[index] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
             }
+            else {
 
-            // Visualization
-            if (agent.currentlyLeading) {
-                visualizeForce(p, agent, position, adjustedForceVector);
+                let localArea = limb.width * limb.length * { 'base': 0.1, 'center': 0.3, 'tip': 0.5 }[key];
+                let localForce = calculatePropulsiveForce(displacement, localArea);
+
+                let defaultBias = (!stageProperties.outputsBias || !simulationStarted || !agent.biases || index >= agent.biases.length || agent.biases[index] == null)
+                    ? (stageProperties.swimBias)
+                    : agent.biases[index];
+
+                // Calculate the force direction for bias calculation
+                let forceDirection = Math.atan2(localForce.y, localForce.x);
+                let bias = calculateBias(agent.mainBody.getAngle(), forceDirection, defaultBias);
+                localForce = localForce.mul(((bias - 1) / 20) + 1);
+                localForce = localForce.mul(Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy))))
+                let adjustedForceVector = p.createVector(localForce.x, localForce.y);
+                adjustedForceVector.limit(maxForceMagnitude);
+
+                // Apply the force
+                agent.lastCalculatedForces[index][key] = planck.Vec2(adjustedForceVector.x, adjustedForceVector.y);
+                limbBody.applyForce(agent.lastCalculatedForces[index][key], position, true);
+
+                if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
+                    agent.agentEnergy -= (Math.abs(adjustedForceVector.mag() / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[index] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
+                }
+
+                // Visualization
+                if (agent.currentlyLeading) {
+                    visualizeForce(p, agent, position, adjustedForceVector);
+                }
             }
         });
     });
@@ -871,8 +888,13 @@ function saveGenomes() {
         stageProperties: stageProperties
     };
     const jsonString = JSON.stringify(data);
-    saveToFile(jsonString, 'evolvedPopulation.json');
+
+    // Constructing the filename
+    let filename = `EvolvedPop_Gen${stageProperties.genCount}_TopScore${stageProperties.topScoreEver.toFixed(2)}_Agents${stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier}_${stageProperties.swimMethod}SwimMethod_${stageProperties.keepAgentSymmetrical ? 'Symmetrical' : 'Asymmetrical'}.json`;
+
+    saveToFile(jsonString, filename);
 }
+
 
 function saveSettings(settingsToSave) {
     const data = {
@@ -1353,7 +1375,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             let currentAngle = this.joints[i].getJointAngle();
 
             // Now that I randomly change the agent's starting angles, we need to only increment score after round starts
-            if (stabilised && stageProperties.agentsRequireStablising) {
+            if (stabilised || !stageProperties.agentsRequireStablising) {
                 let change = Math.abs(currentAngle - this.previousJointAngles[i]) * (this.limbs[i].getMass() / stageProperties.jointMovementRewardLimbMassDivider);
                 totalChange += change;
             }
@@ -2691,7 +2713,7 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
 
 function selectAgentNEAT(groupAgents, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
-    if (Math.random() < (stageProperties.migrationRate / 100)) {
+    if (Math.random() < (stageProperties.migrationRate / 1000)) {
         groupAgents = allAgents;
     }
 
@@ -2712,7 +2734,7 @@ function selectAgentNEAT(groupAgents, allAgents, excludedAgent = null) {
 
 function selectAgentWeightedNEAT(agentsLocal, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
-    if (Math.random() < (stageProperties.migrationRate / 100)) {
+    if (Math.random() < (stageProperties.migrationRate / 1000)) {
         agentsLocal = allAgents;
     }
 
