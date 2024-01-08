@@ -43,6 +43,8 @@
                 <p>Please select a pre-configuration from the top to get a good starting point.</p>
                 <p>You can then use the settings tabs to alter specific settings.  You can save your current settings locally and re-upload them for later use.  This includes which settings are favourited.  A lot of the example numbers below will be slightly off, as I am constantly updating the default values.</p>
                 <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
+                <p>You can also use one of my pre-trained genome pools to skip the first generations, but you are then restricted to my settings.</p>
+                <p>The current agent pool is auto-saved to browser storage every generation, so if you have a crash, or close without saving, hit the amber button to attempt to recover.</p>
                 <p>Start/Reset will respect all configurations, while Simplified Start will remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
                 <p>Simplified Start should see much faster learning, with agents completing the maps with 100 generations or so; using full configurations will result in much more interesting behavior, but will take 100+ generations to see much progress</p>
                 <p>Super Simplified Start will also give agents a small, fixed brain and pre-set body plan, and will see agents complete the maps in 50-100 generations</p>
@@ -278,6 +280,49 @@
     }
 </div>
 
+@if (showPopup)
+{
+    <div class="popup-overlay" @onclick="TogglePopup">
+        <div class="popup-window" @onclick:stopPropagation>
+            <div class="popup-header">
+                <h3>Select Pre-trained Agents</h3>
+                <button class="btn-close" @onclick="TogglePopup">X</button>
+            </div>
+            <div class="popup-content">
+                @foreach (var agentSet in preTrainedAgents)
+                {
+                    <div class="agent-set">
+                        <h4>@agentSet.Name</h4>
+                        <p class="preTrainedDesc">@agentSet.Description</p>
+                        <p>Generation: @agentSet.GenCount</p>
+                        <p>Top Score: @agentSet.TopScore.ToString("0.00")</p>
+                        <p>Number of Agents: @agentSet.NumberOfAgents</p>
+                        <p>Swim Method: @agentSet.SwimMethod</p>
+                        <p>Body Plan: @(agentSet.Symmetrical ? "Symmetrical" : "Asymmetrical")</p>
+                        <p>Start Method: @agentSet.StartMethod</p>
+                        <button class="btn btn-select" @onclick="() => SelectAgentSet(agentSet)">Start!</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@if (showGenomePopup)
+{
+    <div class="popup-overlay" @onclick="ToggleGenomePopup">
+        <div class="popup-window" @onclick:stopPropagation>
+            <div class="popup-header">
+                <h3>Genome Viewer</h3>
+                <button class="btn-close" @onclick="ToggleGenomePopup">X</button>
+            </div>
+            <div class="popup-content">
+                <div id="genomeViewer" class="genome-viewer"></div>
+            </div>
+        </div>
+    </div>
+}
+
 <div class="button-container">
     <button class="floating-button start-button rightColumn" title="Start simulation with full configured settings" @onclick="ResetSimulation">Start/Reset</button>
     <button class="floating-button simpleStart-button leftColumn" title="Start simulation with no energy or extra score bonuses.  Faster, but less interesting evolution" @onclick="ResetSimulationSimple">Simplified Start</button>
@@ -291,10 +336,18 @@
     <button class="floating-button uploadGenomes-button leftColumn" title="Upload agent genome pool to continue training" @onclick="UploadGenomes">Upload Genomes / Start</button>
     <button class="floating-button skip10Gen-button rightColumn" title="Skips 10 generations by disabling rendering and increasing physics speed.  This will still take a few minutes" @onclick="Skip10Gen">Skip 10 Generations</button>
     <button class="floating-button skip100Gen-button leftColumn" title="Skips 1 generation by disabling rendering and increasing physics speed. This will still take a few minutes" @onclick="Skip100Gen">Skip 1 Generations</button>
+    <button class="floating-button selectPretrained-button leftColumn" title="Allows pre-trained groups of agents to be selected to begin" @onclick="TogglePopup">Select Pre-trained Agents</button>
+    <button class="floating-button recoverGenome-button rightColumn" title="Attempts to recover auto-saved genome." @onclick="RecoverAutoSave">Recover Auto-Save</button>
+    <button class="floating-button killSim-button leftColumn" title="Attempts to stop the simulation." @onclick="killSim">Stop</button>
+    <button class="floating-button saveKill-button rightColumn" title="Attempts to save and then stop the simulation." @onclick="saveKillSim">Save and Stop</button>
+   @*  <button class="floating-button viewGenome-button leftColumn" title="View Genomes" @onclick="ToggleGenomePopup">View Genomes</button> *@
 </div>
 
 @code {
 
+    private bool showPopup = false;
+    private bool showGenomePopup = false;
+    private List<AgentSet> preTrainedAgents = new List<AgentSet>();
     private TabModel activeTab;
     private List<TabModel> tabs;
     private StageProperties stageProperties = new StageProperties();
@@ -305,6 +358,7 @@
 
     protected override void OnInitialized()
     {
+        InitializePreTrainedAgents();
         InitializeTabs();
         activeTab = tabs.FirstOrDefault(); // Set the first tab as active by default
     }
@@ -322,6 +376,39 @@
         await JSRuntime.InvokeVoidAsync("clearAllTooltips");
         await UpdateSettingHoverEffects();
     }
+
+    private void TogglePopup() => showPopup = !showPopup;
+
+    private async Task ToggleGenomePopup()
+    {
+        showGenomePopup = !showGenomePopup;
+        await Task.Delay(100);
+        if (showGenomePopup)
+        {
+            await JSRuntime.InvokeVoidAsync("showGenomes");
+        }
+    }
+
+    private async Task SelectAgentSet(AgentSet set)
+    {
+        TogglePopup();
+        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("loadPreTrainedGenome", set.Filename);
+        Console.WriteLine($"Selected: {set.Name}");
+    }
+
+    public class AgentSet
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Filename { get; set; }
+        public int GenCount { get; set; }
+        public double TopScore { get; set; }
+        public int NumberOfAgents { get; set; }
+        public string SwimMethod { get; set; }
+        public bool Symmetrical { get; set; }
+        public string StartMethod { get; set; }
+    }
+
 
     private async void ToggleAdvanced(TabModel tab)
     {
@@ -473,6 +560,11 @@
         stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadGenomes");
     }
 
+    private async Task RecoverAutoSave()
+    {
+        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("recoverStateFromIndexedDB");
+    }
+
     public async Task Skip10Gen()
     {
         await JSRuntime.InvokeVoidAsync("skipGen", 10);
@@ -555,10 +647,10 @@
                 genome.Metadata.AgentName = agentName;
                 genome.Metadata.RunGroup = runGroups[i];
                 genome.Metadata.AgentGroup = i % numGroups;
-                genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 1000;
-                genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 1000;
-                genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 1000;
-                genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 1000;
+                genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 10000;
+                genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 10000;
+                genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 10000;
+                genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 10000;
 
                 // add ids to usedLayerIDs, 1 to numLayers
                 genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
@@ -609,10 +701,10 @@
                 genome.Metadata.AgentName = agentName;
                 genome.Metadata.RunGroup = runGroups[i];
                 genome.Metadata.AgentGroup = i % numGroups;
-                genome.Hyperparameters.MutationRate = (double)stageProperties.offspringMutationRate / 1000;
-                genome.Hyperparameters.NodeMutationRate = (double)stageProperties.offspringNodeMutationRate / 1000;
-                genome.Hyperparameters.LayerMutationRate = (double)stageProperties.offspringLayerMutationRate / 1000;
-                genome.Hyperparameters.LimbMutationRate = (double)stageProperties.offspringLimbMutationRate / 1000;
+                genome.Hyperparameters.MutationRate = (double)stageProperties.offspringMutationRate / 10000;
+                genome.Hyperparameters.NodeMutationRate = (double)stageProperties.offspringNodeMutationRate / 10000;
+                genome.Hyperparameters.LayerMutationRate = (double)stageProperties.offspringLayerMutationRate / 10000;
+                genome.Hyperparameters.LimbMutationRate = (double)stageProperties.offspringLimbMutationRate / 10000;
 
                 // add ids to usedLayerIDs, 1 to numLayers
                 genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
@@ -1152,13 +1244,14 @@
         stageProperties.startingEnergyMassPower = 0;
         stageProperties.startingEnergyBase = 1;
         stageProperties.swimMethod = "simple";
+        stageProperties.networkOutput = "simple";
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 1;
+        stageProperties.movementScoreMultiplier = 10;
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
-        stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 5;
+        stageProperties.offspringLayerMutationRate = 1;
+        stageProperties.offspringLimbMutationRate = 10;
         stageProperties.agentsRequireStablising = false;
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
@@ -1177,12 +1270,12 @@
         stageProperties.keepAgentSymmetrical = true;
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 1;
+        stageProperties.movementScoreMultiplier = 10;
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringNodeMutationRate = 0;
         stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 1;
+        stageProperties.offspringLimbMutationRate = 5;
         stageProperties.swimStrength = 100;
         stageProperties.randomMap = false;
         stageProperties.map = 1;
@@ -1193,9 +1286,24 @@
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
     }
 
+    private async Task killSim()
+    {
+        await JSRuntime.InvokeVoidAsync("killSim");
+        await resetLists();
+    }
+
+    private async Task saveKillSim()
+    {
+        await RetrieveGenomes();
+        await killSim();
+    }
+
     public class StageProperties
     {
-        public List<string> FavouriteSettings { get; set; } = new List<string> { "Number of Agents", "Agent Multiplier", "Minimum Limbs", "Maximum Limbs", "Minimum Neural Network Layers", "Maximum Neural Network Layers", "Starting Limb Chain Length", "Swim Strength", "Size Score Multiplier", "Offspring Mutation Rate", "Offspring Limb Mutation Rate", "Top Performer Number", "Migration Rate", "Maximum Population Group Size", "Liquid Viscosity", "Simulation Length" };
+        public List<string> FavouriteSettings { get; set; } = new List<string> { "Number of Agents", "Agent Multiplier", "Maximum Limbs", "Minimum Neural Network Layers", "Maximum Neural Network Layers", "Starting Limb Chain Length", "Swim Strength", "Offspring Mutation Rate", "Offspring Limb Mutation Rate", "Top Performer Number", "Migration Rate", "Maximum Population Group Size", "Liquid Viscosity", "Swim Method", "Body Plan", "Keep Agent Symmetrical", "Network Output" };
+        public List<double> ScoreHistory { get; set; } = new List<double>();
+        public List<double> ScoreHistoryTop { get; set; } = new List<double>();
+        public List<double> ScoreHistoryAverage { get; set; } = new List<double>();
 
         // Performance
         public int numAgents { get; set; } = 25;
@@ -1203,15 +1311,13 @@
         public int muscleDelay { get; set; } = 2;
         public int muscleBatch { get; set; } = 5;
         public int simSpeed { get; set; } = 60;
+        public bool autoAdjustPerformance { get; set; } = true;
         // Advanced Performance
         public int totalMuscleUpdateTime { get; set; } = 2;
         public int delay { get; set; } = 20;
         public int BatchSize { get; set; } = 10;
-        public int updatesPerAgentStart { get; set; } = 1;
-        public int framesPerUpdateStart { get; set; } = 1;
-        public int renderedAgents { get; set; } = 1;
-        public bool showGroupLeaders { get; set; } = true;
-        public bool showGroupTrailers { get; set; } = true;
+        public int updatesPerAgentStart { get; set; } = 2;
+        public int framesPerUpdateStart { get; set; } = 2;
         public int agentStartSpawnGap { get; set; } = 5000;
 
         // Agent
@@ -1220,7 +1326,7 @@
         public int minNNLayers { get; set; } = 1;
         public int maxNNLayers { get; set; } = 5;
         public int startingLimbChainLength { get; set; } = 1;
-        public int swimStrength { get; set; } = 90;
+        public int swimStrength { get; set; } = 100;
         public int swimBias { get; set; } = 15;
         public bool randomAgentStartAngle { get; set; } = true;
         public int maxJointSpeed { get; set; } = 20;
@@ -1266,7 +1372,7 @@
         public int sizeScoreMultiplier { get; set; } = 50;
         public bool massBonusIsDynamic { get; set; } = true;
         public int startingEnergyBase { get; set; } = 10;
-        public int startingEnergyMassPower { get; set; } = 3;
+        public int startingEnergyMassPower { get; set; } = 2;
         // Advanced Score and Energy
         public int startingEnergyBodyMassMult { get; set; } = 10;
         public int startingEnergyLimbMassMult { get; set; } = 10;
@@ -1277,17 +1383,17 @@
         public int brainSizeEnergyReductionDivider { get; set; } = 100;
         public int forceMagnitudeEnergyReductionDivider { get; set; } = 1000000;
         public int bodyStartingMassEnergyReductionDivider { get; set; } = 400;
-        public int limbStartingMassEnergyReductionDivider { get; set; } = 15;
+        public int limbStartingMassEnergyReductionDivider { get; set; } = 30;
         public int jointMovementRewardLimbMassDivider { get; set; } = 100;
         public int internalMapSize { get; set; } = 250;
         public int internalMapCellSize { get; set; } = 50;
         public int dynamicMassBonusDivider { get; set; } = 500;
 
         // Training and Evolution
-        public int offspringMutationRate { get; set; } = 10;
-        public int offspringNodeMutationRate { get; set; } = 5;
-        public int offspringLayerMutationRate { get; set; } = 1;
-        public int offspringLimbMutationRate { get; set; } = 5;
+        public int offspringMutationRate { get; set; } = 50;
+        public int offspringNodeMutationRate { get; set; } = 10;
+        public int offspringLayerMutationRate { get; set; } = 5;
+        public int offspringLimbMutationRate { get; set; } = 10;
         public int topPerformerNumber { get; set; } = 10;
         public int migrationRate { get; set; } = 5;
         public int minPopGroupSize { get; set; } = 10;
@@ -1308,7 +1414,7 @@
         public int maxVelForNormalisation { get; set; } = 50;
 
         // World Properties
-        public int liquidViscosity { get; set; } = 10;
+        public int liquidViscosity { get; set; } = 5;
         public bool timeIncrease { get; set; } = true;
         public int map { get; set; } = 1;
         public bool randomMap { get; set; } = true;
@@ -1326,6 +1432,13 @@
         public int physicsGranularityMultipliers { get; set; } = 10;
 
         // Visualization and UI
+        public int renderedAgents { get; set; } = 1;
+        public bool showGroupLeaders { get; set; } = true;
+        public bool showLeadingAgent { get; set; } = true;
+        public bool showGroupTrailers { get; set; } = true;
+        public bool showScoreHistory { get; set; } = true;
+        public bool showAverageScoreHistory { get; set; } = true;
+        public bool showTopScoreHistory { get; set; } = true;
         public int backgroundRed { get; set; } = 0;
         public int backgroundGreen { get; set; } = 0;
         public int backgroundBlue { get; set; } = 128;
@@ -1387,6 +1500,82 @@
     //     public double threasholdAngleForDamping { get; set; } = 0.1;
     // }
 
+    private void InitializePreTrainedAgents()
+    {
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Standard Start",
+                Description = "This population started with almost default settings, using the Standard Start button.  Medium performance settings used.",
+                Filename = "EvolvedPop_Gen156_TopScore1252.91_Agents500_advancedSwimMethod_Asymmetrical.json",
+                GenCount = 156,
+                TopScore = 1252.91,
+                NumberOfAgents = 500,
+                SwimMethod = "Advanced",
+                Symmetrical = false,
+                StartMethod = " Standard"
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "1 Long Arm!",
+                Description = "This population has gone through multiple settings changes that have led them to evolve 1 arm with many sub arms.  For a while, they where getting a huge score bonus for this.  High Performance settings used.  Trained before implementation so no score graphs available.",
+                Filename = "EvolvedPop_Gen169_TopScore4465.77_Agents500_advancedSwimMethod_Asymmetrical.json",
+                GenCount = 169,
+                TopScore = 4465.77,
+                NumberOfAgents = 500,
+                SwimMethod = "Advanced",
+                Symmetrical = false,
+                StartMethod = "Standard"
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Super Simple Start",
+                Description = "This population started with almost default settings, using the Super Simple Start button.  Medium performance settings used.  Trained before implementation so no score graphs available.",
+                Filename = "EvolvedPop_Gen3_TopScore212.20_Agents500_simpleSwimMethod_Symmetrical.json",
+                GenCount = 3,
+                TopScore = 212.20,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = " Super Simple"
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Simple Start",
+                Description = "This population started with almost default settings, using the Simple Start button.  Medium performance settings used.  Trained before implementation so no score graphs available.",
+                Filename = "EvolvedPop_Gen76_TopScore1505.39_Agents500_simpleSwimMethod_Asymmetrical.json",
+                GenCount = 76,
+                TopScore = 1505.39,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = false,
+                StartMethod = "Simple"
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Standard Start, Small Pop",
+                Description = "This population started with almost default settings, but with only 50 agents in total.  Medium performance settings used.  Trained before implementation so no score graphs available.",
+                Filename = "EvolvedPop_Gen57_TopScore861.09_Agents50_advancedSwimMethod_Asymmetrical.json",
+                GenCount = 57,
+                TopScore = 861.09,
+                NumberOfAgents = 50,
+                SwimMethod = "Advanced",
+                Symmetrical = false,
+                StartMethod = "Standard"
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Super Simple, 50 Agents",
+                Description = "A quick test population since I added score graphs",
+                Filename = "EvolvedPop_Gen49_TopScore212.95_Agents50_simpleSwimMethod_Symmetrical.json",
+                GenCount = 49,
+                TopScore = 212.95,
+                NumberOfAgents = 50,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "SuperSimple"
+            });
+    }
+
     private async Task setMobilePresets()
     {
         stageProperties.delay = 10;
@@ -1442,6 +1631,13 @@
         stageProperties.totalMuscleUpdateTime = 1;
     }
 
+    private async Task resetLists()
+    {
+        stageProperties.ScoreHistory = new List<double>();
+        stageProperties.ScoreHistoryTop = new List<double>();
+        stageProperties.ScoreHistoryAverage = new List<double>();
+    }
+
     private async Task resetSettings()
     {
         stageProperties.numAgents = 25;
@@ -1449,6 +1645,7 @@
         stageProperties.muscleDelay = 2;
         stageProperties.muscleBatch = 5;
         stageProperties.simSpeed = 60;
+        stageProperties.autoAdjustPerformance = true;
         stageProperties.totalMuscleUpdateTime = 2;
         stageProperties.delay = 20;
         stageProperties.BatchSize = 10;
@@ -1456,7 +1653,11 @@
         stageProperties.framesPerUpdateStart = 1;
         stageProperties.renderedAgents = 1;
         stageProperties.showGroupLeaders = true;
+        stageProperties.showLeadingAgent = true;
         stageProperties.showGroupTrailers = true;
+        stageProperties.showScoreHistory = true;
+        stageProperties.showAverageScoreHistory = true;
+        stageProperties.showTopScoreHistory = true;
         stageProperties.agentStartSpawnGap = 5000;
         stageProperties.minLimbs = 2;
         stageProperties.maxLimbs = 5;
@@ -1505,7 +1706,7 @@
         stageProperties.sizeScoreMultiplier = 20;
         stageProperties.massBonusIsDynamic = true;
         stageProperties.startingEnergyBase = 10;
-        stageProperties.startingEnergyMassPower = 3;
+        stageProperties.startingEnergyMassPower = 2;
         stageProperties.startingEnergyBodyMassMult = 10;
         stageProperties.startingEnergyLimbMassMult = 10;
         stageProperties.energyUseForceSizeMult = 10;
@@ -1515,15 +1716,15 @@
         stageProperties.brainSizeEnergyReductionDivider = 100;
         stageProperties.forceMagnitudeEnergyReductionDivider = 1000000;
         stageProperties.bodyStartingMassEnergyReductionDivider = 400;
-        stageProperties.limbStartingMassEnergyReductionDivider = 15;
+        stageProperties.limbStartingMassEnergyReductionDivider = 30;
         stageProperties.jointMovementRewardLimbMassDivider = 100;
         stageProperties.internalMapSize = 500;
         stageProperties.internalMapCellSize = 50;
         stageProperties.dynamicMassBonusDivider = 500;
-        stageProperties.offspringMutationRate = 10;
-        stageProperties.offspringNodeMutationRate = 5;
-        stageProperties.offspringLayerMutationRate = 1;
-        stageProperties.offspringLimbMutationRate = 5;
+        stageProperties.offspringMutationRate = 50;
+        stageProperties.offspringNodeMutationRate = 10;
+        stageProperties.offspringLayerMutationRate = 5;
+        stageProperties.offspringLimbMutationRate = 10;
         stageProperties.topPerformerNumber = 20;
         stageProperties.migrationRate = 5;
         stageProperties.minPopGroupSize = 10;
@@ -1583,14 +1784,14 @@
             new TabModel
             {
                 Title = "Favourites",
-                Description = "The favourites list is saved alongside other settings.",
+                Description = "Settings that have greater effect, are more interesting or more likely to be adjusted more often.  The favourites list is saved alongside other settings.",
                 Settings = new List<Setting>(), // This will be populated dynamically
                 HasAdvanced = false
             },
             new TabModel
             {
                 Title = "Performance",
-                Description = "Configure the performance-related aspects of the simulation.  This is mostly how many agents are running at a time, and how frequently they are able to update.  An update means a new set of inputs and outputs in the neural networks / brains, so gives finer, more fluid control.  Try to target at least 200 agents in total, and at least 2 updates per agent per second.  The simulation will get harder to run as agents evolve so make sure you have some overhead when starting out.  For the first 10 or so generations, your frame rate should be steady, or you will struggle later on.  You can update the number of updates per agent per second but it will effect behavior.",
+                Description = "Configure the performance-related aspects of the simulation.  This is mostly how many agents are running at a time, and how frequently they are able to update.  An update means a new set of inputs and outputs in the neural networks / brains, so gives finer, more fluid control.  Try to target at least 200 agents in total, and at least 2 updates per agent per second.  The simulation will get harder to run as agents evolve so make sure you have some overhead when starting out.  For the first 10 or so generations, your frame rate should be steady, or you will struggle later on.  You can update the number of updates per agent per second but it will effect behavior.  There is a function that automatically adjusts the simulation speed to try and keep the frame rate between 30 and 45 which can be disabled.",
                 Settings = new List<Setting>
                 {
                     new Setting
@@ -1647,6 +1848,14 @@
                         Max = 480,
                         Step = 15,
                         Details = "Adjusts the physics speed of the simulation, approx this number of frames per second, if the simulation is running at 60 FPS.  If you are struggling to run the simulation with a reasonable number of agents, try slowing down the physics speed.  You can have this set higher for the first 20+ generations and lower this as the sim starts to struggle with more complex agents."
+                    },
+                    new Setting
+                    {
+                        Name = "Auto Adjust Performance",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.autoAdjustPerformance,
+                        BooleanValueChanged = val => stageProperties.autoAdjustPerformance = val,
+                        Details = "Toggles whether the simulation will automatically adjust the simulation speed to try and maintain a steady frame rate, between 30 and 50."
                     },
                     new Setting
                     {
@@ -1722,33 +1931,6 @@
                         Max = 10,
                         Step = 1,
                         Details = "Determines the number of frames per agent update for the first few updates.  Helps the physics engine get over the initial difficult calculations before everything settles."
-                    },
-                    new Setting
-                    {
-                        Name = "Rendered Agents",
-                        Type = SettingType.Slider,
-                        ValueExpression = () => stageProperties.renderedAgents,
-                        ValueChanged = val => stageProperties.renderedAgents = val,
-                        Min = 0,
-                        Max = 50,
-                        Step = 1,
-                        Details = "Controls the number of random agents rendered from each group, independent of the leader and trailer."
-                    },
-                    new Setting
-                    {
-                        Name = "Show Group Leaders",
-                        Type = SettingType.Checkbox,
-                        BooleanValueExpression = () => stageProperties.showGroupLeaders,
-                        BooleanValueChanged = val => stageProperties.showGroupLeaders = val,
-                        Details = "Toggle to show or hide group leaders in the simulation."
-                    },
-                    new Setting
-                    {
-                        Name = "Show Group Trailers",
-                        Type = SettingType.Checkbox,
-                        BooleanValueExpression = () => stageProperties.showGroupTrailers,
-                        BooleanValueChanged = val => stageProperties.showGroupTrailers = val,
-                        Details = "Toggle to show or hide group trailers in the simulation."
                     },
                     new Setting
                     {
@@ -2388,8 +2570,8 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.bodyStartingMassEnergyReductionDivider,
                         ValueChanged = val => stageProperties.bodyStartingMassEnergyReductionDivider = val,
-                        Min = 200,
-                        Max = 600,
+                        Min = 0,
+                        Max = 1000,
                         Step = 50,
                         Details = "Normalization divider for energy based on body starting mass."
                     },
@@ -2399,8 +2581,8 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.limbStartingMassEnergyReductionDivider,
                         ValueChanged = val => stageProperties.limbStartingMassEnergyReductionDivider = val,
-                        Min = 10,
-                        Max = 30,
+                        Min = 0,
+                        Max = 100,
                         Step = 5,
                         Details = "Normalization divider for energy based on limb starting mass."
                     },
@@ -2464,9 +2646,9 @@
                         ValueExpression = () => stageProperties.offspringMutationRate,
                         ValueChanged = val => stageProperties.offspringMutationRate = val,
                         Min = 0,
-                        Max = 1000,
+                        Max = 10000,
                         Step = 1,
-                        Details = "Adjusts the mutation rate for agents brains. This number is divided by 1000.  How likely each value is to mutate, weights and biases."
+                        Details = "Adjusts the mutation rate for agents brains. This number is divided by 10000.  How likely each value is to mutate, weights and biases."
                     },
                     new Setting
                     {
@@ -2475,9 +2657,9 @@
                         ValueExpression = () => stageProperties.offspringNodeMutationRate,
                         ValueChanged = val => stageProperties.offspringNodeMutationRate = val,
                         Min = 0,
-                        Max = 1000,
+                        Max = 10000,
                         Step = 1,
-                        Details = "Adjusts the neural network node mutation rate. This number is divided by 1000.  This is how frequently agents brains can gain or loose nodes."
+                        Details = "Adjusts the neural network node mutation rate. This number is divided by 10000.  This is how frequently agents brains can gain or loose nodes."
                     },
                     new Setting
                     {
@@ -2486,9 +2668,9 @@
                         ValueExpression = () => stageProperties.offspringLayerMutationRate,
                         ValueChanged = val => stageProperties.offspringLayerMutationRate = val,
                         Min = 0,
-                        Max = 1000,
+                        Max = 10000,
                         Step = 1,
-                        Details = "Adjusts the neural network layer mutation rate. This number is divided by 1000.  This is how frequently agents brains can gain or loose a layer.  This process can interrupt learning, but produces a greater range of agents."
+                        Details = "Adjusts the neural network layer mutation rate. This number is divided by 10000.  This is how frequently agents brains can gain or loose a layer.  This process can interrupt learning, but produces a greater range of agents."
                     },
                     new Setting
                     {
@@ -2497,9 +2679,9 @@
                         ValueExpression = () => stageProperties.offspringLimbMutationRate,
                         ValueChanged = val => stageProperties.offspringLimbMutationRate = val,
                         Min = 0,
-                        Max = 1000,
+                        Max = 10000,
                         Step = 1,
-                        Details = "Adjusts the limb mutation rate.  This number is divided by 1000.  Higher numbers will see more diverse agents with different body plans, but it will take longer to learn how to use limbs if they change conatsntly."
+                        Details = "Adjusts the limb mutation rate.  This number is divided by 10000.  Higher numbers will see more diverse agents with different body plans, but it will take longer to learn how to use limbs if they change conatsntly."
                     },
                     new Setting
                     {
@@ -2822,9 +3004,68 @@
             new TabModel
             {
                 Title = "Visualizations",
-                Description = "Configure the visualization and UI.  Most of these are background settings that don't need to be touched but if you have a hard time seeing some colours, or cant fit elements on the screen, you can adjust that here.",
+                Description = "Configure the visualization and UI, including which agents are rendered.  Most of these are background settings that don't need to be touched but if you have a hard time seeing some colours, or cant fit elements on the screen, you can adjust that here.  If you toggle off all graphs, the axis should disappear.",
                 Settings = new List<Setting>
                 {
+                    new Setting
+                    {
+                        Name = "Rendered Agents",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.renderedAgents,
+                        ValueChanged = val => stageProperties.renderedAgents = val,
+                        Min = 0,
+                        Max = 50,
+                        Step = 1,
+                        Details = "Controls the number of random agents rendered from each group, independent of the leaders and trailer.  This only updates between rounds."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Leading Agent",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showLeadingAgent,
+                        BooleanValueChanged = val => stageProperties.showGroupTrailers = val,
+                        Details = "Toggle to show or hide the leading agent.  If group leaders are also shown, this has no effect."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Group Leaders",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showGroupLeaders,
+                        BooleanValueChanged = val => stageProperties.showGroupLeaders = val,
+                        Details = "Toggle to show or hide group leaders in the simulation."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Trailing Agent",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showGroupTrailers,
+                        BooleanValueChanged = val => stageProperties.showGroupTrailers = val,
+                        Details = "Toggle to show or hide the trailing agent."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Graph of the Score History",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showScoreHistory,
+                        BooleanValueChanged = val => stageProperties.showScoreHistory = val,
+                        Details = "Toggle to show or hide a graph of the top score that round over time."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Graph of the Average Score History",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showAverageScoreHistory,
+                        BooleanValueChanged = val => stageProperties.showAverageScoreHistory = val,
+                        Details = "Toggle to show or hide a graph of the average score over time."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Graph of the Top Score History",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showTopScoreHistory,
+                        BooleanValueChanged = val => stageProperties.showTopScoreHistory = val,
+                        Details = "Toggle to show or hide a graph of the top score ever over time."
+                    },
                     new Setting
                     {
                         Name = "Background Red",

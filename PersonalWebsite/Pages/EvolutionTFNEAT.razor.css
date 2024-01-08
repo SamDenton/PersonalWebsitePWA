@@ -2,6 +2,36 @@
     position: relative;
 }
 
+.genome-viewer {
+    font-family: Arial, sans-serif;
+    color: #fff;
+    background-color: #333;
+    padding: 10px;
+    overflow: auto;
+    max-height: 400px;
+}
+
+.content {
+    padding-left: 20px; /* Indent child elements */
+    display: none;
+    background-color: #f9f9f9;
+}
+
+.key-value-pair {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px;
+}
+
+.key {
+    font-weight: bold;
+}
+
+.value {
+    margin-left: 10px;
+}
+
+
 .pageTitle {
     text-align: left;
     color: #a9aaac;
@@ -107,7 +137,6 @@
     font-size: 11px;
     color: #aaa;
     margin: 8px 0 6px 0;
-    /* Add more styling as needed */
 }
 
 .setting {
@@ -293,6 +322,125 @@ input:checked + .slider:before {
     }
 }
 
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.popup-window {
+    background-color: #333333cf;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    width: 60%;
+    max-width: 600px; /* Adjust as needed */
+}
+
+.popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.btn-close {
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-size: 1.2em;
+    color: white;
+}
+
+.popup-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.agent-set {
+    background-color: #44444473;
+    border-radius: 8px;
+    margin: 4px;
+    padding: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: box-shadow 0.3s, transform 0.3s, width 0.3s;
+    width: calc(33.3% - 8px);
+    position: relative;
+    font-size: 7px;
+    color: #aeaeae;
+    overflow: hidden;
+    z-index: 1001;
+}
+
+    .agent-set .preTrainedDesc {
+        color: white;
+        font-size: 9px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-height: 11px;
+    }
+
+    .agent-set:hover {
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        /*width: calc(50% - 8px);*/
+        transform: scale(1.5);
+        background-color: #344444;
+        z-index: 1002;
+        transition: box-shadow 0.3s, transform 0.3s, width 0.3s;
+    }
+
+        .agent-set:hover .preTrainedDesc {
+            max-height: 500px;
+            transition: max-height 0.3s ease 0.15s;
+        }
+    
+    .agent-set h4 {
+        font-weight: bold;
+        margin-bottom: 4px;
+    }
+
+    .agent-set p {
+        margin: 4px 0;
+    }
+
+.btn-select {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    margin-top: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+    .btn-select:hover {
+        background-color: #555555;
+    }
+
+
+.popup-content {
+    margin-top: 20px;
+}
+
+.agent-set {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.btn-select {
+    margin-top: 10px;
+}
+
 .simDescription {
     color: #a9aaac;
     font-family: 'Arial', sans-serif;
@@ -345,8 +493,8 @@ input:checked + .slider:before {
     position: fixed;
     top: 80px;
     right: -40px;
-    width: 130px;
-    height: 270px;
+    width: 140px;
+    height: 470px;
     z-index: 10;
     transition: all 0.3s ease-out;
 }
@@ -360,8 +508,8 @@ input:checked + .slider:before {
     }
 
     .button-container:hover {
-        width: 470px;
-        height: 350px;
+        width: 480px;
+        height: 470px;
     }
 
 .floating-button {
@@ -403,6 +551,30 @@ input:checked + .slider:before {
     top: 300px;
     right: -70px;
     background-color: #4CAF50;
+}
+
+.selectPretrained-button {
+    top: 360px;
+    right: -70px;
+    background-color: #4CAF50;
+}
+
+.recoverGenome-button {
+    top: 360px;
+    right: -250px;
+    background-color: #FFC107;
+}
+
+.killSim-button {
+    top: 420px;
+    right: -70px;
+    background-color: #de1111;
+}
+
+.saveKill-button {
+    top: 420px;
+    right: -250px;
+    background-color: #de1111;
 }
 
 .update-button {

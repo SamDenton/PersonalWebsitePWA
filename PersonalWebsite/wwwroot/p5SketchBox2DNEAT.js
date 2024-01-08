@@ -19,6 +19,9 @@ let wallBodies = [];
 let duplicateWalls = [];
 let fps = 0;
 let startingTickCounter = 0;
+let fpsHistory = [];
+const fpsCheckInterval = 5; // Check every 10 calls
+let fpsCheckCounter = 0;
 
 let stageProperties;
 
@@ -41,6 +44,75 @@ Ideas:
 */
 
 // Next major change needs to be converting all variables to configurable parameters within with stage or agent properties objects.  I should also directly reference these objects throughout my code rather than making variables out of them.
+function createTreeView(container, obj) {
+    if (typeof obj === 'object' && obj !== null) {
+        Object.entries(obj).forEach(([key, value]) => {
+            const keyValuePair = document.createElement('div');
+            keyValuePair.className = 'key-value-pair';
+
+            const keyElement = document.createElement('span');
+            keyElement.className = 'key';
+            keyElement.innerText = key + ': ';
+
+            keyValuePair.appendChild(keyElement);
+
+            if (typeof value === 'object' && value !== null) {
+                const collapsible = document.createElement('button');
+                collapsible.className = 'collapsible';
+                collapsible.innerText = 'Expand';
+
+                // Apply styles directly
+                collapsible.style.backgroundColor = '#555';
+                collapsible.style.color = 'white';
+                collapsible.style.cursor = 'pointer';
+                collapsible.style.padding = '5px 10px';
+                collapsible.style.border = '1px solid #777';
+                collapsible.style.borderRadius = '4px';
+                collapsible.style.textAlign = 'center';
+                collapsible.style.fontSize = '13px';
+                collapsible.style.marginLeft = '10px';
+                collapsible.style.transition = 'background-color 0.3s';
+
+                collapsible.onmouseover = function () {
+                    this.style.backgroundColor = '#666';
+                };
+                collapsible.onmouseout = function () {
+                    this.style.backgroundColor = '#555';
+                };
+
+                keyValuePair.appendChild(collapsible);
+
+                const content = document.createElement('div');
+                content.className = 'content';
+                content.style.display = 'none';
+                keyValuePair.appendChild(content);
+
+                createTreeView(content, value);
+
+                collapsible.addEventListener('click', function () {
+                    this.classList.toggle('active');
+                    const content = this.nextElementSibling;
+                    if (content.style.display === 'block') {
+                        content.style.display = 'none';
+                        this.innerText = 'Expand';
+                    } else {
+                        content.style.display = 'block';
+                        this.innerText = 'Collapse';
+                    }
+                });
+            } else {
+                const valueElement = document.createElement('span');
+                valueElement.className = 'value';
+                valueElement.innerText = value !== null ? value.toString() : 'null';
+                keyValuePair.appendChild(valueElement);
+            }
+
+            container.appendChild(keyValuePair);
+        });
+    } else {
+        container.innerText = obj !== null ? obj.toString() : 'null';
+    }
+}
 
 //SketchNEAT is called once to start the simulation and it then calls draw() repeatedly.
 let sketchNEAT = function (p) {
@@ -147,7 +219,7 @@ let sketchNEAT = function (p) {
                     if (Object.values(updateCountStart).every(countStart => countStart >= stageProperties.updatesPerAgentStart) || !stageProperties.agentsRequireStablising) {
                         singleUpdateCompleted = true;
                         // All agents have been updated the required number of times, now check for stability
-                        if (areAllAgentsStableNEAT() || !stageProperties.agentsRequireStablising) {
+                        if (areAllAgentsStableNEAT() || stageProperties.agentsRequireStablising == false) {
                             stabilised = true;
                             console.log("Agents Settled");
                             startingTickCounter = 0;
@@ -190,7 +262,7 @@ let sketchNEAT = function (p) {
                 if (simulationStarted) {
 
                     // Apply swimming force to agents to simulate a liquid environment
-                    if (stageProperties.swimMethod == "advanced") {
+                    if (stageProperties.swimMethod === "advanced") {
                         applySwimmingForce(p, agent);
                     } else {
                         applySwimmingForceOld(p, agent);
@@ -352,7 +424,7 @@ let sketchNEAT = function (p) {
 
                 offsetX = p.width / 6 - averageXScore + 100;
                 // offsetY = p.width / 6 - averageXScore + 100;
-            }            
+            }
 
             let agentsToRender = new Set(randomlySelectedAgents);  // Use a Set to ensure uniqueness
 
@@ -367,7 +439,7 @@ let sketchNEAT = function (p) {
             if (stageProperties.showGroupTrailers == true) {
                 agentsToRender.add(trailingAgent);
             }
-            if (stageProperties.showGroupLeaders == true) {
+            if (stageProperties.showLeadingAgent == true) {
                 agentsToRender.add(leadingAgent);
             }
 
@@ -375,7 +447,11 @@ let sketchNEAT = function (p) {
 
             if (currentTime - lastUIUpdateTime > stageProperties.uiRefreshRate && simulationStarted) {
 
-                fps = p.frameRate().toFixed(0);
+                fps = Number(p.frameRate().toFixed(0));
+
+                if (stageProperties.autoAdjustPerformance == true && stabilised) {
+                    adjustPerformance(fps);
+                }
 
                 topScoreAgent = getHighestScoreNEAT();
 
@@ -406,7 +482,7 @@ let sketchNEAT = function (p) {
                 topScoreAgentYScore = topScoreAgentScores[2];
                 topScoreAgentMovementScore = topScoreAgentScores[4];
                 topScoreAgentExplorationReward = topScoreAgentScores[5];
-                topScoreAgentSizeReward = topScoreAgentScores[6]; 
+                topScoreAgentSizeReward = topScoreAgentScores[6];
                 topScoreAgentEnergy = topScoreAgentScores[7];
 
                 let totalScore = 0;
@@ -421,7 +497,40 @@ let sketchNEAT = function (p) {
 
                 // Reset the last update time
                 lastUIUpdateTime = currentTime;
+
             }
+
+            // Graph dimensions and positions (adjust as needed)
+            let graphX = 600;
+            let graphY = stageProperties.height - 400; // Position the graph at the bottom of the canvas
+            let graphW = stageProperties.width / 3;
+            let graphH = stageProperties.height / 3.5;
+            let allScores;
+            let minYValue;
+            let maxYValue; 
+
+            if (stageProperties.showScoreHistory || stageProperties.showAverageScoreHistory || stageProperties.showTopScoreHistory && stageProperties.scoreHistory.length > 0) {
+                allScores = stageProperties.scoreHistory.concat(stageProperties.scoreHistoryAverage, stageProperties.scoreHistoryTop);
+                minYValue = p.min(allScores);
+                maxYValue = p.max(allScores);
+                let totalGenerations = stageProperties.scoreHistory.length;
+                drawAxes(p, graphX, graphY, graphW, graphH, minYValue, maxYValue, totalGenerations);
+            }
+
+            if (stageProperties.showScoreHistory && stageProperties.scoreHistory.length > 0) {
+                drawGraph(p, stageProperties.scoreHistory, graphX, graphY, graphW, graphH, p.color(255, 0, 0), minYValue, maxYValue);
+            }
+
+            if (stageProperties.showTopScoreHistory && stageProperties.scoreHistoryTop.length > 0) {
+                drawGraph(p, stageProperties.scoreHistoryTop, graphX, graphY, graphW, graphH, p.color(0, 255, 0), minYValue, maxYValue);
+            }
+
+            if (stageProperties.showAverageScoreHistory && stageProperties.scoreHistoryAverage.length > 0) {
+                drawGraph(p, stageProperties.scoreHistoryAverage, graphX, graphY, graphW, graphH, p.color(255, 0, 255), minYValue, maxYValue);
+            }
+
+            // Draw the key/legend
+            drawGraphKey(p, graphX + graphW + 20, graphY);
 
             p.push();
             p.fill(155);
@@ -462,7 +571,7 @@ let sketchNEAT = function (p) {
                 p.pop();
             }
 
-            if (agentsToRender.size > 1 && simulationStarted) {
+            if (agentsToRender.size > 0 && simulationStarted) {
                 if (selectedColor === null) {
                     for (let agent of agentsToRender) {
                         if (agent) {
@@ -493,6 +602,144 @@ let sketchNEAT = function (p) {
         p.text(`Fast-Forwarding Generation: ${stageProperties.genCount}`, 10, 20);
     };
 };
+
+function drawGraph(p, data, x, y, w, h, graphColor, minYValue, maxYValue) {
+    p.push();
+    p.translate(x, y);
+
+    // Draw the graph
+    p.stroke(graphColor);
+    p.noFill();
+    p.beginShape();
+    for (let i = 0; i < data.length; i++) {
+        let graphX = p.map(i, 0, data.length - 1, 0, w);
+        let graphY = p.map(data[i], minYValue, maxYValue, h, 0);
+        p.vertex(graphX, graphY);
+    }
+    p.endShape();
+
+    p.pop();
+}
+
+function drawAxes(p, x, y, w, h, minScore, maxScore, generations) {
+    const minYValue = minScore;
+    const maxYValue = maxScore;
+    const numYLabels = 4;
+    const numXLabels = 4;
+    const yInterval = h / numYLabels;
+    const xInterval = w / numXLabels;
+
+    p.push();
+    p.translate(x, y);
+
+    // Grid lines and labels
+    p.fill(0); // Black for text
+    p.textSize(15);
+
+    // Y-axis grid lines and labels
+    for (let i = 0; i <= numYLabels; i++) {
+        let gridYLine = yInterval * i;
+
+        if (i != numYLabels) {
+            p.stroke(200, 200, 200, 50); // Lighter gray with opacity
+            p.line(0, gridYLine, w, gridYLine); // Horizontal grid lines
+            gridYLine += 5;
+        }
+
+        if (generations > 0) {
+            let labelValue = minYValue + (maxYValue - minYValue) * ((numYLabels - i) / numYLabels);
+            p.noStroke();
+            p.fill(0); // Black for text
+            p.text(labelValue.toFixed(1), - 50, gridYLine - 0); // Adjust label positioning as needed
+        }
+    }
+
+    // X-axis grid lines and labels
+    for (let i = 0; i <= numXLabels; i++) {
+        let gridXLine = xInterval * i;
+
+        if (i != 0) {
+            p.stroke(200, 200, 200, 50); // Lighter gray with opacity
+            p.line(gridXLine, 0, gridXLine, h); // Vertical grid lines
+        }
+
+        if (generations > 0) {
+            p.noStroke();
+            p.fill(0); // Black for text
+            p.text(`Gen ${Math.floor(generations * i / numXLabels)}`, gridXLine - 15, h + 15); // Adjust label positioning as needed
+        }
+    }
+
+    // Draw Y-Axis
+    p.stroke(0);
+    p.line(0, 0, 0, h);
+
+    // Draw X-Axis
+    p.line(0, h, w, h);
+
+    p.textSize(20);
+
+    // Y-Axis Label
+    p.push();
+    p.translate(-60, h / 2);
+    p.rotate(-p.HALF_PI);
+    p.text("Score", 0 - 25, 0);
+    p.pop();
+
+    // X-Axis Label
+    p.text("Generation", w / 2 - 50, h + 40);
+
+    p.pop();
+}
+
+
+function drawGraphKey(p, x, y) {
+    const keySize = 20;
+    let yOffset = 100;
+    p.push();
+    p.textSize(12);
+    p.noStroke();
+
+    if (stageProperties.showScoreHistory && stageProperties.scoreHistory.length > 0) {
+        p.fill(255, 0, 0);
+        p.text("Top Score Ever", x + keySize + 5, y + yOffset);
+        yOffset += keySize;
+    }
+
+    if (stageProperties.showTopScoreHistory && stageProperties.scoreHistoryTop.length > 0) {
+        p.fill(0, 255, 0);
+        p.text("Top Score Per Generation", x + keySize + 5, y + yOffset);
+        yOffset += keySize;
+    }
+
+    if (stageProperties.showAverageScoreHistory && stageProperties.scoreHistoryAverage.length > 0) {
+        p.fill(255, 0, 255);
+        p.text("Average Score Per Generation", x + keySize + 5, y + yOffset);
+    }
+    p.pop();
+}
+
+function adjustPerformance(fps) {
+    fpsHistory.push(fps);
+    fpsCheckCounter++;
+
+    if (fpsCheckCounter >= fpsCheckInterval) {
+        let averageFps = fpsHistory.reduce((sum, val) => sum + val, 0) / fpsHistory.length;
+
+        if (averageFps < 35) {
+            stageProperties.simSpeed = Math.max(0, stageProperties.simSpeed - 15);
+            fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
+            console.log("Decreasing simSpeed to:", stageProperties.simSpeed);
+        } else if (averageFps > 60) {
+            stageProperties.simSpeed += 5;
+            fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
+            console.log("Increasing simSpeed to:", stageProperties.simSpeed);
+        }
+
+        fpsHistory = [];
+        fpsCheckCounter = 0;
+    }
+}
 
 function areAllAgentsStableNEAT(agentsToCheck = agents) {
 
@@ -650,15 +897,6 @@ function applyDrag(agent) {
     });
 }
 
-
-                // Need to re-implement energy use.  Old code below:
-    //          // Force magnitude is calculated based on; deltaTheta which is the change in angle over the last N frames, bias which is a value between 0 and 2 giving more control in the forward direction, the scaling factor which is a constant, then adjusted based on the limb's mass and length, length reduces the force, mass increases it.  Then modified by the agents remaining energy.
-    //            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbMass[i] / stageProperties.limbMassForceDivider) * (agent.bodyParts[i].length / stageProperties.limbLengthForceDivider) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
-
-    //            if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
-    //                agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
-    //            }
-
 function applySwimmingForce(p, agent) {
     const N = stageProperties.swimForceOverNFrames; // Use the last 5 frames for force calculation
     const propulsionCoefficient = stageProperties.swimStrength;
@@ -811,6 +1049,7 @@ function initializeSketchBox2DNEAT(StageProperties) {
     topPerformerNo = stageProperties.topPerformerNumber / 100;
     simulationLengthModified = stageProperties.simulationLength;
 
+    // Reset all global variables
     frameCountSinceLastFPS = 0;
     lastFPSCalculationTime = 0;
     tickCount = 0;
@@ -828,6 +1067,15 @@ function initializeSketchBox2DNEAT(StageProperties) {
     lastUIUpdateTime = 0;
     stabilityCounter = 0;
     selectedColor = null;
+    render = true;
+    stabilised = false;
+    randMap = 0;
+    runCount = 0;
+    cachedLeadingAgent = null;
+    fps = 0;
+    startingTickCounter = 0;
+    simulationStarted = false;
+    isInitializationComplete = false;
 
     currentProcess = "Initializing world!";
 
@@ -858,8 +1106,46 @@ function initializeSketchBox2DNEAT(StageProperties) {
         p5Instance.remove();
         p5Instance = null;
     }
+
     // Create a new p5 instance and assign it to the global reference
     p5Instance = new p5(sketchNEAT, 'canvas-container-NEAT');
+}
+
+function killSim() {
+    // Function to kill the simulation
+    // If there are existing agents with models, dispose of them
+    for (let agent of agents) {
+        if (agent.brain) {
+            agent.brain.dispose();
+        }
+    }
+
+    // If there are existing walls, destroy them
+    if (wallBodies) {
+        for (let wall of wallBodies) {
+            world.destroyBody(wall.body);
+        }
+        wallBodies = [];
+    }
+
+    if (duplicateWalls) {
+        for (let wall of duplicateWalls) {
+            world.destroyBody(wall.body);
+        }
+        duplicateWalls = [];
+    }
+
+    // If there's an existing p5 instance, remove it
+    if (p5Instance) {
+        p5Instance.remove();
+        p5Instance = null;
+    }
+
+    // Reset the agents arrays
+    agents = [];
+    agentGenomePool = [];
+    tempAgentGenomePool = [];
+    tempAgentPool = [];
 }
 
 function logGenomes() {
@@ -912,6 +1198,58 @@ function saveToFile(data, filename) {
     a.download = filename;
     a.click();
     window.URL.revokeObjectURL(url);
+}
+
+async function saveStateToIndexedDB() {
+    try {
+        const data = {
+            genomes: agentGenomePool,
+            stageProperties: stageProperties,
+            timestamp: new Date().toISOString()
+        };
+
+        const db = await idb.openDB('EvolutionSimulationDB', 1, {
+            upgrade(db) {
+                if (!db.objectStoreNames.contains('states')) {
+                    db.createObjectStore('states', { keyPath: 'id' });
+                }
+            }
+        });
+
+        const tx = db.transaction('states', 'readwrite');
+        await tx.store.put({ id: 1, data: data });
+        await tx.done;
+        console.log('State saved to IndexedDB');
+    } catch (e) {
+        console.error('Error saving state to IndexedDB:', e);
+    }
+}
+
+async function recoverStateFromIndexedDB() {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const db = await idb.openDB('EvolutionSimulationDB', 1);
+            const tx = db.transaction('states', 'readonly');
+            const storedData = await tx.store.get(1);
+
+            if (storedData) {
+                const data = storedData.data;
+                let uploadedAgentGenomePool = data.genomes;
+                let uploadedstageProperties = data.stageProperties;
+
+                initializeSketchBox2DNEAT(uploadedstageProperties);
+                initializeAgentsBox2DNEAT(uploadedAgentGenomePool);
+                console.log(`Recovered state from ${data.timestamp}`);
+                resolve(uploadedstageProperties); // Resolve the promise with the recovered state
+            } else {
+                console.log('No saved state found in IndexedDB.');
+                reject('No saved state found in IndexedDB.');
+            }
+        } catch (e) {
+            console.error('Error recovering state from IndexedDB:', e);
+            reject(e);
+        }
+    });
 }
 
 function uploadSettings() { // Function to upload settings from a JSON file
@@ -983,6 +1321,38 @@ function uploadGenomes() {
     });
 }
 
+function loadPreTrainedGenome(filename) {
+    return new Promise((resolve, reject) => {
+        fetch(`./${filename}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                let uploadedAgentGenomePool = data.genomes;
+                let uploadedstageProperties = data.stageProperties;
+
+                initializeSketchBox2DNEAT(uploadedstageProperties);
+                initializeAgentsBox2DNEAT(uploadedAgentGenomePool);
+
+                resolve(uploadedstageProperties); // Resolve the promise with the uploaded stage properties
+            })
+            .catch(err => {
+                console.error('Error loading pre-trained genome:', err);
+                reject(err);
+            });
+    });
+}
+
+function showGenomes() {
+    const genomeViewer = document.getElementById('genomeViewer');
+    //genomeViewer.innerHTML = ''; // Clear existing content
+    createTreeView(genomeViewer, agentGenomePool);
+}
+
+
 function skipGen(skipNo) {
     // Function to skip a number of generations by disabling the rendering flag and speeding up physics ticks.  Make use of the 'render' flag, the genCount, which increments automatically every generation, and the simulationSpeed which can be set to 480.  Make use of recursive function to check if genCount has increased by skipNo since the function was called.  We do not need to increment genCount, it already counts generations as they pass
     if (skipNo > 0) {
@@ -1004,17 +1374,27 @@ function skipGen(skipNo) {
 }
 
 function updateSimulationNEAT(StageProperties) {
+    let tempCurrentTopScore = stageProperties.topScoreEver;
     let tempGenCount = stageProperties.genCount;
+    let tempTopScore = stageProperties.scoreHistoryTop;
+    let tempScoreHistory = stageProperties.scoreHistory;
+    let tempScoreHistoryAverage = stageProperties.scoreHistoryAverage;
 
     // Update values in stageProperties
     stageProperties = StageProperties;
+    stageProperties.topScoreEver = tempCurrentTopScore;
     stageProperties.genCount = tempGenCount;
+    stageProperties.scoreHistoryTop = tempTopScore;
+    stageProperties.scoreHistory = tempScoreHistory;
+    stageProperties.scoreHistoryAverage = tempScoreHistoryAverage;
 }
 
 function initializeAgentsBox2DNEAT(totalPopulationGenomes) {
-
-    simulationStarted = false;
-    isInitializationComplete = false;
+    // Reset the agents arrays
+    agents = [];  
+    agentGenomePool = [];
+    tempAgentGenomePool = [];
+    tempAgentPool = [];
 
     // If the world is already initialized, clean up the previous state
     if (world) {
@@ -1046,8 +1426,6 @@ function initializeAgentsBox2DNEAT(totalPopulationGenomes) {
     }
 
     agentGenomePool = _.cloneDeep(totalPopulationGenomes);
-
-    agents = [];  // Reset the agents array
     currentProcess = "Initializing first generation!";
 
     // let populationGenomes equal a selection of totalPopulationGenomes based on the totalPopulationGenomes[i].metadata.runGroup.  Just runGroup 0 here
@@ -1099,7 +1477,6 @@ function initializeAgentNEAT(i, genome) {
 function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopulationGenomes) {
     // Check if agents initialized
     if (isInitializationComplete) {
-
         runCount++;
         currentProcess = "Starting first round of simulation!";
         // set numGroups to the largest value in agentGenomePool.metadata.AgentGroup
@@ -1111,7 +1488,7 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopula
             let groupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
 
             // Select few random agents
-            for (let i = 0; i < stageProperties.renderedAgents; i++) {
+            for (let i = 0; i <= stageProperties.renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgents.length);
                 randomlySelectedAgents.push(groupAgents[randomIndex]);
             }
@@ -1439,6 +1816,10 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * (stageProperties.movementScoreMultiplier / 10); // Adjust multiplier if needed
         }
 
+        if (this.limbs.length > 2) {
+            jointMovementReward = jointMovementReward / (this.limbs.length - 2);
+        }
+
         let explorationReward = 0;
 
         if ((stageProperties.explorationScoreMultiplier / 10) > 0) {
@@ -1707,18 +2088,20 @@ function getLeadingAgentNEAT(frameCounter) {
         // Truncate randomlySelectedAgents to keep initialized picks
         randomlySelectedAgents = randomlySelectedAgents.slice(0, numGroups * stageProperties.renderedAgents);
 
-        // Create an array of the leading agents from each group
-        let leadingAgents = [];
-        for (let groupId = 0; groupId < numGroups; groupId++) {
-            let groupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
+        if (stageProperties.showGroupLeaders == true) {
+            // Create an array of the leading agents from each group
+            let leadingAgents = [];
+            for (let groupId = 0; groupId < numGroups; groupId++) {
+                let groupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
 
-            // Select leading agent
-            let leadingAgent = groupAgents.sort((a, b) => parseFloat(b.getScore(false)[0]) - parseFloat(a.getScore(false)[0]))[0];
+                // Select leading agent
+                let leadingAgent = groupAgents.sort((a, b) => parseFloat(b.getScore(false)[0]) - parseFloat(a.getScore(false)[0]))[0];
 
-            leadingAgents.push(leadingAgent);
+                leadingAgents.push(leadingAgent);
+            }
+
+            randomlySelectedAgents.push(...leadingAgents);
         }
-
-        randomlySelectedAgents.push(...leadingAgents);
 
         // Update the cached leading agent
         let newCachedLeadingAgent = agents.reduce((leading, agent) =>
@@ -2297,7 +2680,7 @@ function waitForInitializationCompletionBatchNEAT(populationGenomes) {
             let groupAgentsForRender = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
 
             // Select few random agents
-            for (let i = 0; i < stageProperties.renderedAgents; i++) {
+            for (let i = 0; i <= stageProperties.renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * groupAgentsForRender.length);
                 randomlySelectedAgents.push(groupAgentsForRender[randomIndex]);
             }
@@ -2318,6 +2701,8 @@ function waitForInitializationCompletionBatchNEAT(populationGenomes) {
 
 function nextGenerationNEAT(p) {
 
+    saveStateToIndexedDB();
+
     usedIndices = new Set();
     if (stageProperties.framesPerUpdateStart > 1) {
         stageProperties.framesPerUpdateStart--;
@@ -2333,21 +2718,25 @@ function nextGenerationNEAT(p) {
     // calculate average network 'pattern'
     // Will need to create a NEAT version of calculateAllAverageDistances to handle different brain shapes
     // let averageBrain = calculateAllAverageDistances();
-
+    let topScoreThisRound = 0;
+    let averageScoreThisRound = 0;
     // loop through all agents scores and log them
-    for (let i = 0; i < agents.length; i++) {
-        let thisScore = agents[i].getScore(false)[0];
+    for (let i = 0; i < tempAgentPool.length; i++) {
+        let thisScore = tempAgentPool[i].Score;
 
-        // Store the score only if the generation is a multiple of STORE_EVERY_N_GENERATIONS
-        if (stageProperties.genCount % 5 === 0) {
-            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap, generation: stageProperties.genCount });
+        if (thisScore > topScoreThisRound) {
+            topScoreThisRound = thisScore;
         }
 
-        agents[i].genome.agentHistory.rankInPop = (i + 1);
+        averageScoreThisRound += thisScore;
+    }
 
-        if (thisScore > agents[i].genome.metadata.bestScore) {
-            agents[i].genome.metadata.bestScore = thisScore;
-        }
+    averageScoreThisRound /= tempAgentPool.length;
+
+    if (stageProperties.scoreHistoryTop) {
+        stageProperties.scoreHistory.push(stageProperties.topScoreEver);
+        stageProperties.scoreHistoryAverage.push(averageScoreThisRound);
+        stageProperties.scoreHistoryTop.push(topScoreThisRound);
     }
 
     // OTT manual disposal and destruction of all bodies and joints
@@ -2588,7 +2977,7 @@ function waitForFinalInitializationCompletionNEAT() {
             let newGroupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
 
             // Select few random agents
-            for (let i = 0; i < stageProperties.renderedAgents; i++) {
+            for (let i = 0; i <= stageProperties.renderedAgents; i++) {
                 let randomIndex = Math.floor(Math.random() * newGroupAgents.length);
                 randomlySelectedAgents.push(newGroupAgents[randomIndex]);
             }
