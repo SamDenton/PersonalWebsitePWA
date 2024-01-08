@@ -330,7 +330,7 @@
     <button class="floating-button update-button leftColumn" title="You can update any settings mid simulation, but some changes will break things" @onclick="UpdateSimulation">Update</button>
     <button class="floating-button toggleNN-button rightColumn" title="Toggle rendering of Neural Network.  Can cause some lag" @onclick="toggleNN">Toggle Neural Network</button>
     <button class="floating-button toggleLeader-button leftColumn" title="Toggle between following the leading vs trailing agents.  Switches rendered Neural Network as well" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
-    <button class="floating-button toggleRays-button rightColumn" title="Toggle rendering for agents vision lines" @onclick="toggleRayCasts">Toggle Ray-casts</button>
+    @* <button class="floating-button toggleRays-button rightColumn" title="Toggle rendering for agents vision lines" @onclick="toggleRayCasts">Toggle Ray-casts</button> *@
     <button class="floating-button logGenomes-button leftColumn" title="Post all agent genomes to console" @onclick="LogGenomes">Log Genomes</button>
     <button class="floating-button retrieveGenomes-button rightColumn" title="Save current agent genome pool to continue training later" @onclick="RetrieveGenomes">Save Genomes</button>
     <button class="floating-button uploadGenomes-button leftColumn" title="Upload agent genome pool to continue training" @onclick="UploadGenomes">Upload Genomes / Start</button>
@@ -340,7 +340,7 @@
     <button class="floating-button recoverGenome-button rightColumn" title="Attempts to recover auto-saved genome." @onclick="RecoverAutoSave">Recover Auto-Save</button>
     <button class="floating-button killSim-button leftColumn" title="Attempts to stop the simulation." @onclick="killSim">Stop</button>
     <button class="floating-button saveKill-button rightColumn" title="Attempts to save and then stop the simulation." @onclick="saveKillSim">Save and Stop</button>
-   @*  <button class="floating-button viewGenome-button leftColumn" title="View Genomes" @onclick="ToggleGenomePopup">View Genomes</button> *@
+    <button class="floating-button viewGenome-button rightColumn" title="View Genomes" @onclick="ToggleGenomePopup">View Leaders Genome</button>
 </div>
 
 @code {
@@ -1247,7 +1247,7 @@
         stageProperties.networkOutput = "simple";
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 10;
+        stageProperties.movementScoreMultiplier = 30;
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringLayerMutationRate = 1;
@@ -1270,7 +1270,7 @@
         stageProperties.keepAgentSymmetrical = true;
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 10;
+        stageProperties.movementScoreMultiplier = 30;
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringNodeMutationRate = 0;
@@ -1367,7 +1367,7 @@
         // Score and Energy
         public int xScoreMultiplier { get; set; } = 30;
         public int yScoreMultiplier { get; set; } = 30;
-        public int movementScoreMultiplier { get; set; } = 30;
+        public int movementScoreMultiplier { get; set; } = 60;
         public int explorationScoreMultiplier { get; set; } = 200;
         public int sizeScoreMultiplier { get; set; } = 50;
         public bool massBonusIsDynamic { get; set; } = true;
@@ -1864,15 +1864,6 @@
                         BooleanValueExpression = () => stageProperties.brainDecayOverTime,
                         BooleanValueChanged = val => stageProperties.brainDecayOverTime = val,
                         Details = "Toggles whether the agents' brains decay over time.  This is still being implemented."
-                    },
-                    new Setting
-                    {
-                        Name = "Agent in Centre",
-                        Type = SettingType.Dropdown,
-                        SelectedValueExpression = () => stageProperties.agentInCentre,
-                        SelectedValueChanged = val => stageProperties.agentInCentre = val,
-                        Options = new List<string> { "leader", "trailer" },
-                        Details = "Selects the agent to focus the camera on.  Best toggled using the button bank in the top right."
                     }
                 },
                 AdvancedSettings = new List<Setting>
@@ -3065,6 +3056,15 @@
                         BooleanValueExpression = () => stageProperties.showTopScoreHistory,
                         BooleanValueChanged = val => stageProperties.showTopScoreHistory = val,
                         Details = "Toggle to show or hide a graph of the top score ever over time."
+                    },
+                    new Setting
+                    {
+                        Name = "Agent in Centre",
+                        Type = SettingType.Dropdown,
+                        SelectedValueExpression = () => stageProperties.agentInCentre,
+                        SelectedValueChanged = val => stageProperties.agentInCentre = val,
+                        Options = new List<string> { "leader", "trailer", "average" },
+                        Details = "Selects the agent to focus the camera on.  Best toggled using the button bank in the top right."
                     },
                     new Setting
                     {

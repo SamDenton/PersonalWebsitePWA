@@ -596,6 +596,12 @@ input:checked + .slider:before {
 }
 
 .toggleNN-button {
+    top: 60px;
+    right: -70px;
+    background-color: #0d385b;
+}
+
+.viewGenome-button  {
     top: 120px;
     right: -70px;
     background-color: #0d385b;

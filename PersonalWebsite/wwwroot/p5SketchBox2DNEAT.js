@@ -22,6 +22,8 @@ let startingTickCounter = 0;
 let fpsHistory = [];
 const fpsCheckInterval = 5; // Check every 10 calls
 let fpsCheckCounter = 0;
+let panningOffsetX = 0;
+let panningOffsetY = 0;
 
 let stageProperties;
 
@@ -125,7 +127,7 @@ let sketchNEAT = function (p) {
     let leadingAgent;
     let currentPhysicsBatch = 0;
     let particles = [];
-
+    const PANNING_SPEED = 5; // Speed of camera panning
     let trailingAgent = agents[agents.length - 1];
     let topScoreAgent = agents[0];
     let leadingAgentScores, leadingAgentScore, leadingAgentXScore, leadingAgentYScore, leadingAgentMovementScore;
@@ -296,6 +298,20 @@ let sketchNEAT = function (p) {
 
     function renderScene(p) {
 
+        // Camera Panning with WASD Keys
+        if (p.keyIsDown(65)) { // A key
+            panningOffsetX += PANNING_SPEED;
+        }
+        if (p.keyIsDown(68)) { // D key
+            panningOffsetX -= PANNING_SPEED;
+        }
+        if (p.keyIsDown(87)) { // W key
+            panningOffsetY += PANNING_SPEED;
+        }
+        if (p.keyIsDown(83)) { // S key
+            panningOffsetY -= PANNING_SPEED;
+        }
+
         particles.forEach((particle) => {
             particle.x += Math.sin(particle.phase) * 0.5;
             particle.y += Math.cos(particle.phase) * 0.5;
@@ -398,6 +414,8 @@ let sketchNEAT = function (p) {
             if (stageProperties.agentInCentre == "leader") {
                 offsetX = p.width / 6 - leadingAgent.position.x + leadingAgent.startingX;  // Center the leading agent on the canvas, just to the left
                 offsetY = p.height * 4 / 6 - leadingAgent.position.y + leadingAgent.startingY;
+                offsetX += panningOffsetX;
+                offsetY += panningOffsetY;
                 if (stageProperties.showRays) {
                     let agentOffsetX = offsetX - leadingAgent.startingX;
                     let agentOffsetY = offsetY - leadingAgent.startingY;
@@ -406,6 +424,8 @@ let sketchNEAT = function (p) {
             } else if (stageProperties.agentInCentre == "trailer") {
                 offsetX = p.width / 6 - trailingAgent.position.x + trailingAgent.startingX;
                 offsetY = p.width * 4 / 6 - trailingAgent.position.y + trailingAgent.startingY - 500;
+                offsetX += panningOffsetX;
+                offsetY += panningOffsetY;
                 if (stageProperties.showRays) {
                     let agentOffsetX = offsetX - trailingAgent.startingX;
                     let agentOffsetY = offsetY - trailingAgent.startingY;
@@ -414,16 +434,25 @@ let sketchNEAT = function (p) {
             } else if (stageProperties.agentInCentre == "average") {
 
                 let totalXScore = 0;
+                let totalYScore = 0;
 
                 for (let agent of agents) {
                     let eachXScore = agent.getScore(false);
                     totalXScore += parseFloat(eachXScore[1]);
                 }
 
-                let averageXScore = totalXScore / agents.length;
+                for (let agent of agents) {
+                    let eachYScore = agent.getScore(false);
+                    totalYScore += parseFloat(eachYScore[2]);
+                }
 
-                offsetX = p.width / 6 - averageXScore + 100;
-                // offsetY = p.width / 6 - averageXScore + 100;
+                let averageXScore = totalXScore / agents.length;
+                let averageYScore = totalYScore / agents.length;
+
+                offsetX = (p.width / 6) - averageXScore + 100;
+                offsetY = (p.height * 4 / 6) + averageYScore;
+                offsetX += panningOffsetX;
+                offsetY += panningOffsetY;
             }
 
             let agentsToRender = new Set(randomlySelectedAgents);  // Use a Set to ensure uniqueness
@@ -1076,6 +1105,8 @@ function initializeSketchBox2DNEAT(StageProperties) {
     startingTickCounter = 0;
     simulationStarted = false;
     isInitializationComplete = false;
+    panningOffsetX = 0;
+    panningOffsetY = 0;
 
     currentProcess = "Initializing world!";
 
@@ -1348,8 +1379,10 @@ function loadPreTrainedGenome(filename) {
 
 function showGenomes() {
     const genomeViewer = document.getElementById('genomeViewer');
-    //genomeViewer.innerHTML = ''; // Clear existing content
-    createTreeView(genomeViewer, agentGenomePool);
+    // sort the 'agents' array by agents[i].Score
+    let leadingAgent = getLeadingAgentNEAT(0);
+
+    createTreeView(genomeViewer, leadingAgent.genome);
 }
 
 
@@ -2144,6 +2177,8 @@ function endSimulationNEAT(p) {
     singleUpdateCompleted = false;
     isInitializationComplete = false;
     simulationStarted = false;
+    panningOffsetX = 0;
+    panningOffsetY = 0;
     currentProcess = "Sorting agents by score!";
     console.log("round over");
 
@@ -2253,32 +2288,37 @@ function createMaps(mapNumber) {
     let startX = 200;
     let startY = 600;
 
-    while (mapNumber == 0 || mapNumber == 3) {
-        mapNumber = Math.floor(Math.random() * 5);
-    }
+    //while (mapNumber == 0 || mapNumber == 3) {
+    //    mapNumber = Math.floor(Math.random() * 5);
+    //}
+
+    mapNumber = 7;
 
     if (mapNumber == 0) {
-        // Map starts agents in a channel with obstacles to get around, then opens up to free space
-        let channelWidth = 200;
-        let channelLength = 800;
+        // Map starts agents in a diagonal channel, facing north east, with obstacles to get around, then opens up to free space
+        let channelWidth = 300;
+        let channelLength = 1100;
 
-        // Create the two long walls along the path
+        startY -= 50;
+
+        // Create the two long walls for the channel
         createWall(startX + 150, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
         createWall(startX + 100 + channelWidth, startY - 100, 10, channelLength, Math.PI / 4); // Right wall
 
-        // Create the short wall at the bottom of the path
-        createWall(startX - 50, startY + 100, 10, channelWidth, -Math.PI / 4); // Bottom wall
+        // Create the short wall blocking the south west of the channel
+        createWall(startX - 125, startY + 175, 10, channelWidth + 50, -Math.PI / 4); // Bottom wall
 
-        // Obstacles
-        createWall(startX + 50, startY - 80, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 130 + channelWidth, startY - channelWidth, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 460, startY - 490, 10, channelWidth / 2, -Math.PI / 4);
+        // Obstacles along the channel
+        createWall(startX + 50, startY - 130, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 400, startY - 200, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 460, startY - 530, 10, channelWidth / 2, -Math.PI / 4);
 
     } else if (mapNumber == 1) {
         // Map starts agents in free space and forces them to find the channel and complete it to move further
         let channelWidth = 200;
         let channelLength = 800;
 
+        // Adjust the start position so channel is to agents north east
         startX += 400;
         startY -= 400;
 
@@ -2289,12 +2329,12 @@ function createMaps(mapNumber) {
         // Create the boundary walls to force agents through channel
         createWall(startX - 480, startY - 330, 10, 1000, -Math.PI / 4);
         createWall(startX + 380, startY + 530, 10, 1000, -Math.PI / 4);
-        createWall(startX + 150 - 1000, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
-        createWall(startX + 100 + channelWidth, startY - 100 + 1000, 10, channelLength, Math.PI / 4); // Right wall
+        createWall(startX - 850, startY - 250, 10, channelLength, Math.PI / 4); // Left wall
+        createWall(startX + 300, startY + 900, 10, channelLength, Math.PI / 4); // Right wall
 
         // Obstacles
         createWall(startX + 50, startY - 80, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 130 + channelWidth, startY - channelWidth, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 330, startY - 200, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 460, startY - 490, 10, channelWidth / 2, -Math.PI / 4);
 
     } else if (mapNumber == 2) {
@@ -2326,23 +2366,23 @@ function createMaps(mapNumber) {
 
     } else if (mapNumber == 3) {
         // Map starts agents in a channel with obstacles to get around, then opens up to free space
-        let channelWidth = 200;
-        let channelLength = 800;
+        let channelWidth = 300;
+        let channelLength = 1100;
 
         startY -= 50;
-        startX -= 50;
+        // startX -= 50;
 
         // Create the two long walls along the path
         createWall(startX + 150, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
         createWall(startX + 100 + channelWidth, startY - 100, 10, channelLength, Math.PI / 4); // Right wall
 
         // Create the short wall at the bottom of the path
-        createWall(startX - 50, startY + 100, 10, channelWidth, -Math.PI / 4); // Bottom wall
+        createWall(startX - 120, startY + 180, 10, channelWidth, -Math.PI / 4); // Bottom wall
 
         // Obstacles
-        createWall(startX + 50 + 75, startY - 80 + 75, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 130 + 75, startY - channelWidth - 50, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 460 + 75, startY - 490 + 75, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 175, startY - 80 + 75, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 245, startY - 250, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 625, startY - 490 + 75, 10, channelWidth / 2, -Math.PI / 4);
 
     } else if (mapNumber == 4) {
         // Map starts agents in free space and forces them to find the channel and complete it to move further
@@ -2359,15 +2399,89 @@ function createMaps(mapNumber) {
         // Create the boundary walls to force agents through channel
         createWall(startX - 480, startY - 330, 10, 1000, -Math.PI / 4);
         createWall(startX + 380, startY + 530, 10, 1000, -Math.PI / 4);
-        createWall(startX + 150 - 1000, startY - channelWidth - 50, 10, channelLength, Math.PI / 4); // Left wall
-        createWall(startX + 100 + channelWidth, startY - 100 + 1000, 10, channelLength, Math.PI / 4); // Right wall
+        createWall(startX + 850, startY - 250, 10, channelLength, Math.PI / 4); // Left wall
+        createWall(startX + 300, startY - 100 + 1000, 10, channelLength, Math.PI / 4); // Right wall
 
         // Obstacles
-        createWall(startX + 50 + 75, startY - 80 + 75, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 130 + 75, startY - channelWidth - 50, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 460 + 75, startY - 490 + 75, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 120, startY - 150, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 200, startY - 250, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 580, startY - 420, 10, channelWidth / 2, -Math.PI / 4);
+
+    } else if (mapNumber == 5) {
+        const numObstacles = 3000;
+        const obstacleMinSize = 10;
+        const obstacleMaxSize = 100;
+        const mapArea = { x: 100, y: 700, width: 10000, height: -10000 }; // Define the area for obstacle placement
+
+        // Define a safe zone where no obstacles will be placed
+        const safeZone = { x: 100, y: 700, width: 300, height: -300 };
+
+        for (let i = 0; i < numObstacles; i++) {
+            let obstacleWidth = Math.random() * (obstacleMaxSize - obstacleMinSize) + obstacleMinSize;
+            let obstacleHeight = Math.random() * (obstacleMaxSize - obstacleMinSize) + obstacleMinSize;
+
+            let obstacleX, obstacleY;
+
+            do {
+                obstacleX = mapArea.x + Math.random() * mapArea.width;
+                obstacleY = mapArea.y + Math.random() * mapArea.height;
+            } while (isWithinSafeZone(obstacleX, obstacleY, safeZone));
+
+            let obstacleAngle = Math.random() * Math.PI * 2; // Random angle
+
+            createWall(obstacleX, obstacleY, obstacleWidth, obstacleHeight, obstacleAngle);
+        }
+    } else if (mapNumber == 6) {
+        // Map starts agents in a diagonal channel, zigzagging east
+        let channelWidth = 300;
+        let channelLength = 400;
+
+        startY -= 50;
+
+        // Create the short wall blocking the south west of the channel
+        createWall(startX - 125, startY + 175, 10, channelWidth + 50, -Math.PI / 4); // Bottom wall
+
+        // Create the two long walls for the channel
+        createWall(startX, startY - 200, 10, channelLength + 300, Math.PI / 4); // Left wall
+        createWall(startX + 120, startY + 170, 10, channelLength, Math.PI / 4); // Right wall
+        createWall(startX + 500, startY - 200, 10, channelLength + 300, -Math.PI / 4);
+        createWall(startX + 500, startY + 260, 10, channelLength + 300, -Math.PI / 4);
+        createWall(startX + 1000, startY + 250, 10, channelLength + 300, Math.PI / 4);
+        createWall(startX + 1000, startY - 200, 10, channelLength + 300, Math.PI / 4);
+        startX += 1000;
+        createWall(startX + 500, startY - 200, 10, channelLength + 300, -Math.PI / 4);
+        createWall(startX + 500, startY + 260, 10, channelLength + 300, -Math.PI / 4);
+        createWall(startX + 1000, startY + 250, 10, channelLength + 300, Math.PI / 4);
+        createWall(startX + 1000, startY - 200, 10, channelLength + 300, Math.PI / 4);
+
+    } else if (mapNumber == 7) {
+        // Map starts agents in a diagonal channel, zigzagging east
+        let channelWidth = 300;
+        let channelLength = 400;
+
+        startY -= 50;
+
+        // Create the short wall blocking the south west of the channel
+        createWall(startX - 125, startY + 175, 10, channelWidth + 50, -Math.PI / 4); // Bottom wall
+
+        // Create the two long walls for the channel
+        createWall(startX - 120, startY - 80, 10, channelLength, Math.PI / 4); // Left wall
+        createWall(startX + 250, startY + 50, 10, channelLength + 300, Math.PI / 4); // Right wall
+        createWall(startX + 250, startY - 450, 10, channelLength + 300, -Math.PI / 4);
+        createWall(startX - 250, startY - 450, 10, channelLength + 300, -Math.PI / 4);
+        createWall(startX + 250, startY - 950, 10, channelLength + 300, Math.PI / 4);
+        createWall(startX - 250, startY - 950, 10, channelLength + 300, Math.PI / 4);
+        startY -= 1000;
+        createWall(startX + 250, startY - 450, 10, channelLength + 300, -Math.PI / 4);
+        createWall(startX - 250, startY - 450, 10, channelLength + 300, -Math.PI / 4);
+        createWall(startX + 250, startY - 950, 10, channelLength + 300, Math.PI / 4);
+        createWall(startX - 250, startY - 950, 10, channelLength + 300, Math.PI / 4);
 
     }
+
+}
+function isWithinSafeZone(x, y, zone) {
+    return x > zone.x && x < zone.x + zone.width && y > zone.y && y < zone.y + zone.height;
 }
 
 function createWall(x, y, width, height, angle = 0) {
@@ -2710,8 +2824,11 @@ function nextGenerationNEAT(p) {
     runCount = 0;
     currentProcess = "Performing Crossover, Mutation, and Selection on total population to create offspring";
 
-    if (stageProperties.randomMap) {
-        randMap = Math.floor(Math.random() * 5);
+    // Probability of changing the map
+    const mapChangeProbability = 0.3; // 30% chance to change the map
+
+    if (stageProperties.randomMap && Math.random() < mapChangeProbability) {
+        const randMap = Math.floor(Math.random() * 8);
         createMaps(randMap);
     }
 
@@ -3087,6 +3204,13 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
     let childName = parent1Name.substring(0, 3) + parent2Name.substring(parent2Name.length - 3, parent2Name.length);
     childGenome.metadata.agentName = childName;
     childGenome.metadata.agentGroup = groupId;
+    childGenome.metadata.agentIndex = agentIndex;
+    childGenome.metadata.bestScore = 0;
+    childGenome.agentHistory.lastScore = 0;
+    childGenome.agentHistory.usedAsParent = 0;
+    childGenome.agentHistory.roundsAsTopPerformer = 0;
+    childGenome.agentHistory.scoreHistory = [];
+
 
     // Once an agent is created, add to agent pool
     tempAgentGenomePool.push(childGenome);
@@ -3180,6 +3304,8 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
 
 
     let childGenome = _.cloneDeep(dominantGenome);
+
+    addMutationWithHistoryLimit(childGenome, "Child of Dominant Parent: ", dominantGenome.metadata.agentIndex, "; ", dominantGenome.metadata.agentName, " and Recessive Parent: ", subGenome.metadata.agentIndex, "; ", subGenome.metadata.agentName);
 
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
@@ -3282,6 +3408,8 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
     let dominantGenome = (TScore1 > TScore2) ? genome1 : genome2;
     let subGenome = (TScore1 < TScore2) ? genome1 : genome2;
     let childGenome = _.cloneDeep(dominantGenome);
+
+    addMutationWithHistoryLimit(childGenome, "Child of Dominant Parent: ", dominantGenome.metadata.agentIndex, "; ", dominantGenome.metadata.agentName, " and Recessive Parent: ", subGenome.metadata.agentIndex, "; ", subGenome.metadata.agentName);
 
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
@@ -3468,7 +3596,8 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
             randomLayer.biases.splice(randomNodeIndex, 0, { id: newBiasId, value: Math.random() });
             randomLayer.numberOfNeurons++;
 
-            genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + newBiasId + " mutation: add");
+            // genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + newBiasId + " mutation: add");
+            addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: node, layer: " + randomLayerIndex + " id: " + newBiasId + " mutation: add");
 
             if (randomLayerIndex === 0) {
                 // If it's the first hidden layer, link weights from input layer to the new node
@@ -3506,7 +3635,9 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
 
                 try {
                     let removedBiasId = randomLayer.biases[randomNodeIndex].id;
-                    genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + removedBiasId + " mutation: remove");
+
+                    // genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + removedBiasId + " mutation: remove");
+                    addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: node, layer: " + randomLayerIndex + " id: " + removedBiasId + " mutation: remove");
 
                     randomLayer.biases.splice(randomNodeIndex, 1);
                     randomLayer.numberOfNeurons--;
@@ -3529,8 +3660,8 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
 
                 } catch (e) {
 
-                    genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + randomNodeIndex + "Not Found, skipping mutation");
-
+                    // genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + randomNodeIndex + "Not Found, skipping mutation");
+                    addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: node, layer: " + randomLayerIndex + " id: " + randomNodeIndex + "Not Found, skipping mutation");
                 }
 
             }
@@ -3594,7 +3725,8 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
             // Loop through hidden layers and update the layerIDs to be sequential from 0
             genome.layerGenes.forEach((layer, idx) => layer.layerID = idx);
 
-            genome.agentHistory.mutations.push("type: layer, new layer after layer: " + randomLayerIndex + " mutation: add copy");
+            // genome.agentHistory.mutations.push("type: layer, new layer after layer: " + randomLayerIndex + " mutation: add copy");
+            addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: layer, new layer after layer: " + randomLayerIndex + " mutation: add copy");
 
         } else {
             // Remove a layer
@@ -3644,11 +3776,13 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
                     // Update layer IDs
                     genome.layerGenes.forEach((layer, idx) => layer.layerID = idx);
 
-                    genome.agentHistory.mutations.push("type: layer, removed layer: " + randomLayerIndex + " mutation: remove");
+                    // genome.agentHistory.mutations.push("type: layer, removed layer: " + randomLayerIndex + " mutation: remove");
+                    addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: layer, removed layer: " + randomLayerIndex + " mutation: remove");
                 }
 
             } else {
-                genome.agentHistory.mutations.push("type: layer, no layer to remove, mutation: remove");
+                // genome.agentHistory.mutations.push("type: layer, no layer to remove, mutation: remove");
+                addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: layer, no layer to remove, mutation: remove");
             }
         }
     }
@@ -3764,7 +3898,8 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                     });
                 });
 
-                childGenome.agentHistory.mutations.push("type: limb, id: " + newLimb.partID + " mutation: add, " + "Copied weights from limb: " + closestLimb.partID + " Number In Chain: " + newLimb.numberInChain);
+                // childGenome.agentHistory.mutations.push("type: limb, id: " + newLimb.partID + " mutation: add, " + "Copied weights from limb: " + closestLimb.partID + " Number In Chain: " + newLimb.numberInChain);
+                addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "type: limb, id: " + newLimb.partID + " mutation: add, " + "Copied weights from limb: " + closestLimb.partID + " Number In Chain: " + newLimb.numberInChain);
                 // console.log("type: limb, id: " + newLimb.partID + " mutation: add, " + " Copied weights from limb: " + closestLimb.partID);
             } else {
                 // If no closest limb is found, initialize with random weights (original behavior)
@@ -3782,7 +3917,8 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                         value: Math.random()
                     });
                 });
-                childGenome.agentHistory.mutations.push("type: limb, id: " + newLimb.partID + " mutation: add" + "Used random weights");
+                // childGenome.agentHistory.mutations.push("type: limb, id: " + newLimb.partID + " mutation: add" + "Used random weights");
+                addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "type: limb, id: " + newLimb.partID + " mutation: add" + "Used random weights");
                 // console.log("type: limb, id: " + newLimb.partID + " mutation: add" + "Used random weights.");
             }
 
@@ -3804,7 +3940,8 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                     removeLimbFromGenome(limbToRemove, childGenome);
 
                     // Update history
-                    childGenome.agentHistory.mutations.push(`type: ${limbToRemove.numberInChain === 1 ? 'limb' : 'sublimb'}, id: ${limbToRemove.partID}, index: ${flattenedIndex}, mutation: remove`);
+                    // childGenome.agentHistory.mutations.push(`type: ${limbToRemove.numberInChain === 1 ? 'limb' : 'sublimb'}, id: ${limbToRemove.partID}, index: ${flattenedIndex}, mutation: remove`);
+                    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, `type: ${limbToRemove.numberInChain === 1 ? 'limb' : 'sublimb'}, id: ${limbToRemove.partID}, index: ${flattenedIndex}, mutation: remove`);
 
                     updateLimbIDs(childGenome);
 
@@ -3872,6 +4009,21 @@ function flattenLimbStructure(limbs, parentLimb = null) {
     return parts;
 }
 
+function addMutationWithHistoryLimit(genome, mutationRecord) {
+
+    // Ensure the mutations array exists
+    if (!genome.agentHistory.mutations) {
+        genome.agentHistory.mutations = [];
+    }
+
+    // Add the new mutation record
+    genome.agentHistory.mutations.push(mutationRecord);
+
+    // Trim the mutations history to the last 10 records if it's longer
+    while (genome.agentHistory.mutations.length > 50) {
+        genome.agentHistory.mutations.shift(); // Remove the oldest record
+    }
+}
 
 function findClosestLimbForWeights(selectedPart, allLimbs) {
     if (selectedPart.subArms && selectedPart.subArms.length > 0) {
