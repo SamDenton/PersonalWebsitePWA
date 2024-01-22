@@ -19,7 +19,6 @@ let duplicateWalls = [];
 let fps = 0;
 let startingTickCounter = 0;
 let fpsHistory = [];
-const fpsCheckInterval = 5; // Check every 10 calls
 let fpsCheckCounter = 0;
 let panningOffsetX = 0;
 let panningOffsetY = 0;
@@ -402,19 +401,20 @@ let sketchNEAT = function (p) {
         p.push();
         p.fill(155);
         p.text(`Select a color above to filter that group, or white to clear`, 10, 260);
-        p.text(`Agents in population: ${agentGenomePool.length}`, 10, 290);
-        p.text(`Agents in simulation: ${agents.length}`, 10, 320);
+        p.text(`Agents in population: ${agentGenomePool.length + tempAgentPool.length + agents.length}`, 10, 290);
+        p.text(`Agents left to run: ${agentGenomePool.length}`, 10, 320);
+        p.text(`Agents in simulation: ${agents.length}`, 10, 350);
         p.pop();
 
         if (stabilised) {
             p.push();
             p.fill(0, 255, 0);
-            p.text(`Agents can go!`, 10, 380);
+            p.text(`Agents can go!`, 10, 410);
             p.pop();
         } else {
             p.push();
             p.fill(255, 0, 0);
-            p.text(`${currentProcess}`, 10, 380);
+            p.text(`${currentProcess}`, 10, 410);
             p.pop();
         }
 
@@ -624,9 +624,9 @@ let sketchNEAT = function (p) {
             p.push();
             p.fill(155);
             if (selectedColor === null) {
-                p.text(`Agents on screen: ${agentsToRender.size}`, 10, 350);
+                p.text(`Agents on screen: ${agentsToRender.size}`, 10, 380);
             } else {
-                p.text(`Agents on screen: ${agents.filter(agent => agent.genome.metadata.agentGroup == selectedColor).length}`, 10, 350);
+                p.text(`Agents on screen: ${agents.filter(agent => agent.genome.metadata.agentGroup == selectedColor).length}`, 10, 380);
             }
             p.pop();
 
@@ -877,24 +877,25 @@ function drawGraphKey(p, x, y, highestScoreAgent = null) {
 }
 
 function adjustPerformance(fps) {
-    fpsHistory.push(fps);
-    fpsCheckCounter++;
 
-    if (fpsCheckCounter >= fpsCheckInterval) {
+    fpsHistory.push(fps);
+
+    if (fpsHistory.length >= 10) {
         let averageFps = fpsHistory.reduce((sum, val) => sum + val, 0) / fpsHistory.length;
 
-        if (averageFps < 35) {
-            stageProperties.simSpeed = Math.max(0, stageProperties.simSpeed - 15);
+        if (averageFps < 35 && stageProperties.simSpeed > 10) {
+            stageProperties.simSpeed = Math.max(0, stageProperties.simSpeed - 10);
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
-            console.log("Decreasing simSpeed to:", stageProperties.simSpeed);
+            console.log("Decreasing simSpeed to:" + stageProperties.simSpeed + " History: " + fpsHistory);
         } else if (averageFps > 49) {
             stageProperties.simSpeed += 5;
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
-            console.log("Increasing simSpeed to:", stageProperties.simSpeed);
-        }
+            console.log("Increasing simSpeed to:", stageProperties.simSpeed + " History: " + fpsHistory);
+        } else if (stageProperties.simSpeed <= 10) {
+            console.log("Speed already as low as it can go!" + " History: " + fpsHistory)
+        } 
 
         fpsHistory = [];
-        fpsCheckCounter = 0;
     }
 }
 
@@ -1403,20 +1404,34 @@ function logGenomes() {
     console.log("agentGenomePool: ", genomes);
 }
 
-function saveGenomes() {
-    stageProperties.simulationLength = simulationLengthModified;
-    const data = {
-        genomes: agentGenomePool,
-        stageProperties: stageProperties
-    };
-    const jsonString = JSON.stringify(data);
+async function saveGenomes() {
+    try {
+        const db = await idb.openDB('EvolutionSimulationDB', 1);
+        const tx = db.transaction('states', 'readonly');
+        const storedData = await tx.store.get(1);
+        await tx.done;
 
-    // Constructing the filename
-    let filename = `EvolvedPop_Gen-${stageProperties.genCount}_TopScore-${stageProperties.topScoreEver.toFixed(2)}_Agents-${stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier}_${stageProperties.swimMethod}-SwimMethod_${stageProperties.keepAgentSymmetrical ? 'Symmetrical' : 'Asymmetrical'}-Bodies_${stageProperties.networkOutput}-NetworkOutput.json`;
+        if (storedData && storedData.data) {
+            const data = {
+                genomes: storedData.data.genomes,
+                stageProperties: storedData.data.stageProperties
+            };
+            const jsonString = JSON.stringify(data);
 
-    saveToFile(jsonString, filename);
+            // Constructing the filename
+            let filename = `EvolvedPop_Gen-${data.stageProperties.genCount}_TopScore-${data.stageProperties.topScoreEver.toFixed(2)}_Agents-${data.stageProperties.numAgents * data.stageProperties.totalNumAgentsMultiplier}_${data.stageProperties.swimMethod}-SwimMethod_${data.stageProperties.keepAgentSymmetrical ? 'Symmetrical' : 'Asymmetrical'}-Bodies_${data.stageProperties.networkOutput}-NetworkOutput.json`;
+
+            saveToFile(jsonString, filename);
+            console.log('Saved genomes from IndexedDB to file');
+        } else {
+            console.error('No data found in IndexedDB');
+        }
+
+    } catch (e) {
+        console.error('Error retrieving and saving genomes from IndexedDB:', e);
+    }
+
 }
-
 
 function saveSettings(settingsToSave) {
     const data = {
@@ -1436,10 +1451,10 @@ function saveToFile(data, filename) {
     window.URL.revokeObjectURL(url);
 }
 
-async function saveStateToIndexedDB() {
+async function saveStateToIndexedDB(genomesToSave) {
     try {
         const data = {
-            genomes: agentGenomePool,
+            genomes: genomesToSave,
             stageProperties: stageProperties,
             timestamp: new Date().toISOString()
         };
@@ -1451,7 +1466,7 @@ async function saveStateToIndexedDB() {
                 }
             }
         });
-
+        genomesToSave = null;
         const tx = db.transaction('states', 'readwrite');
         await tx.store.put({ id: 1, data: data });
         await tx.done;
@@ -1664,10 +1679,35 @@ function initializeAgentsBox2DNEAT(totalPopulationGenomes) {
     }
 
     agentGenomePool = _.cloneDeep(totalPopulationGenomes);
+    saveStateToIndexedDB(totalPopulationGenomes);
+
+    // Save population genomes to IndexedDB
+
     currentProcess = "Initializing first generation!";
 
     // let populationGenomes equal a selection of totalPopulationGenomes based on the totalPopulationGenomes[i].metadata.runGroup.  Just runGroup 0 here
-    let populationGenomes = totalPopulationGenomes.filter(genome => genome.metadata.runGroup === 0);
+    //let populationGenomes = totalPopulationGenomes.filter(genome => genome.metadata.runGroup === 0);
+
+    // Alternative method for selecting runGroup that removes agents from the pool as they are used.
+    let populationGenomes = [];
+    let index = 0;
+
+    while (index < agentGenomePool.length) {
+        // Find the index of the first genome with the desired run group
+        let genomeIndex = agentGenomePool.findIndex((genome, idx) => idx >= index && genome.metadata.runGroup === 0);
+
+        if (genomeIndex === -1) {
+            // No more genomes with the desired run group
+            break;
+        }
+
+        // Extract the genome and add it to populationGenomes
+        let [genome] = agentGenomePool.splice(genomeIndex, 1);
+        populationGenomes.push(genome);
+
+        // Adjust index to account for the removed item
+        index = genomeIndex;
+    }
 
     // Initialize agents in batches
     if (Array.isArray(populationGenomes) && populationGenomes.length === stageProperties.numAgents) {
@@ -1678,7 +1718,7 @@ function initializeAgentsBox2DNEAT(totalPopulationGenomes) {
         console.log("Issue with population genomes");
     }
 
-    waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopulationGenomes);
+    waitForFirstInitializationCompletionNEAT(populationGenomes);
 
     displayedTimeLeft = (stageProperties.simulationLength - tickCount) * (1 / stageProperties.simSpeed);
 }
@@ -1696,14 +1736,6 @@ function initializeAgentNEAT(i, genome) {
         // Using genome properties to initialize the agent.  Could add spawn angle to genome metadata
         let agent = new AgentNEAT(genome, i, false);
 
-        //let randomAngle;
-        //if (stageProperties.randomAgentStartAngle == true) {
-        //    randomAngle = -Math.random() * Math.PI / 2;
-        //} else {
-        //    // spawn angle is equal 45 degrees in radians
-        //    randomAngle = -Math.PI / 4;
-        //}
-        //agent.mainBody.setAngle(randomAngle);
         agent.genome.metadata.groupName = GROUP_COLORS_NAMES[agent.genome.metadata.agentGroup];
         agents.push(agent);
 
@@ -1713,7 +1745,7 @@ function initializeAgentNEAT(i, genome) {
     }, i * stageProperties.delay);
 }
 
-function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopulationGenomes) {
+function waitForFirstInitializationCompletionNEAT(populationGenomes) {
     // Check if agents initialized
     if (isInitializationComplete) {
         runCount++;
@@ -1736,7 +1768,6 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopula
 
         // Manual nullification of these arrays is almost certainly not necessary, but I'm doing it anyway
         populationGenomes = null;
-        totalPopulationGenomes = null;
         let tempPopulationGenomes = [];
         agents.forEach(agent => {
             // add agent's genome to the genomes array
@@ -1774,9 +1805,10 @@ function logModelWeights(agent) {
 //Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and evolving complexity based on randomness and fitness might work.
 function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
-    // Should clean up the order of initialization of these variables and group functions together
     this.genome = _.cloneDeep(agentGenome); // Deep copy of genome
     agentGenome = null;
+    this.index = this.genome.metadata.agentIndex;
+    this.currentlyLeading = false;
 
     updateLimbIDs(this.genome);
 
@@ -1841,15 +1873,10 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
     }
 
-
-    this.numLimbs = this.bodyParts.length;  // + other limb types
-    this.numBodyParts = this.numLimbs + this.numSegments + 1; // inc 1 for the main body
-
-    this.index = this.genome.metadata.agentIndex;
-    let mainBodyRadius = this.genome.mainBody.size;
-    // const locationBatchSize = 10;
+    this.numLimbs = this.bodyParts.length;
     this.startingX = stageProperties.agentStartX + (Math.floor(this.genome.metadata.runGroup) * stageProperties.agentStartSpawnGap);
     this.startingY = stageProperties.agentStartY;
+
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
     this.bodyBuffer = Array(1).fill().map(() => []);
     this.limbDisplacementBuffers = this.bodyParts.map(() => ({
@@ -1857,30 +1884,41 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         center: [],
         tip: []
     }));
+
     this.lastCalculatedForces = this.bodyParts.map(() => ({
         base: planck.Vec2(0, 0),
         center: planck.Vec2(0, 0),
         tip: planck.Vec2(0, 0)
     }));
+
+    let mainBodyRadius = this.genome.mainBody.size;
     let mainBodyDensity = this.genome.mainBody.density;
     this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, mainBodyDensity);
     this.position = this.mainBody.getPosition();
-    this.rayCastPoints = [];
-    this.currentlyLeading = false;
-    this.Score = 0;
-    this.internalMap = [];
+
+    //this.internalMap = [];
+    //this.coveredCellCount = 0;
+    //const internalMapSize = stageProperties.internalMapSize;
+    //const internalMapCellSize = stageProperties.internalMapCellSize;
+    //if ((stageProperties.explorationScoreMultiplier / 10) > 0) {
+    //    for (let i = 0; i < internalMapSize; i++) {
+    //        let row = [];
+    //        for (let n = 0; n < internalMapSize; n++) {
+    //            row.push(false);
+    //        }
+    //        this.internalMap.push(row);
+    //    }
+    //}
+
+    this.internalMap = new Set();
     this.coveredCellCount = 0;
     const internalMapSize = stageProperties.internalMapSize;
     const internalMapCellSize = stageProperties.internalMapCellSize;
-    if ((stageProperties.explorationScoreMultiplier / 10) > 0) {
-        for (let i = 0; i < internalMapSize; i++) {
-            let row = [];
-            for (let n = 0; n < internalMapSize; n++) {
-                row.push(false);
-            }
-            this.internalMap.push(row);
-        }
-    }
+
+    // Function to convert coordinates to a map key
+    this.getCoordinateKey = function (x, y) {
+        return `${x},${y}`;
+    };
 
     // this.bodySegments = [];
     // this.bodySegmentsbMass = [];
@@ -1998,6 +2036,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
     }
 
     // Score and energy stuff
+    this.Score = 0;
     this.limbMassTot = 0;
 
     if (this.limbMassTot < 10) {
@@ -2068,16 +2107,31 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         return this.totalJointMovementReward;
     };
 
-    this.getExplorationReward = function () {
+    //this.getExplorationReward = function () {
 
-        // Calculate the position relative to the map's origin (considering the granularity)
-        let gridX = Math.floor(((this.position.x - this.startingX) + 10) / internalMapCellSize) + 5;  // Start in cell 5,5 slightly offset from the origin so they can explore backwards.  The +10 is to account for the agent spawning on the boundary of a grid, so getting 4 cells explored instantly
-        let gridY = Math.floor(((this.startingY - this.position.y) + 10) / internalMapCellSize) + 5;  // Subtracting due to flipped Y-axis
+    //    // Calculate the position relative to the map's origin (considering the granularity)
+    //    let gridX = Math.floor(((this.position.x - this.startingX) + 10) / internalMapCellSize) + 5;  // Start in cell 5,5 slightly offset from the origin so they can explore backwards.  The +10 is to account for the agent spawning on the boundary of a grid, so getting 4 cells explored instantly
+    //    let gridY = Math.floor(((this.startingY - this.position.y) + 10) / internalMapCellSize) + 5;  // Subtracting due to flipped Y-axis
+
+    //    if (gridX >= 0 && gridX < internalMapSize && gridY >= 0 && gridY < internalMapSize) {
+    //        if (!this.internalMap[gridY][gridX]) { // If the cell hasn't been visited yet
+    //            this.internalMap[gridY][gridX] = true;  // Mark the cell as visited
+    //            this.coveredCellCount++;  // Increment the covered cell count
+    //        }
+    //    }
+
+    //    return this.coveredCellCount;
+    //};
+
+    this.getExplorationReward = function () {
+        let gridX = Math.floor(((this.position.x - this.startingX) + 10) / internalMapCellSize) + 5;
+        let gridY = Math.floor(((this.startingY - this.position.y) + 10) / internalMapCellSize) + 5;
+        let key = this.getCoordinateKey(gridX, gridY);
 
         if (gridX >= 0 && gridX < internalMapSize && gridY >= 0 && gridY < internalMapSize) {
-            if (!this.internalMap[gridY][gridX]) { // If the cell hasn't been visited yet
-                this.internalMap[gridY][gridX] = true;  // Mark the cell as visited
-                this.coveredCellCount++;  // Increment the covered cell count
+            if (!this.internalMap.has(key)) {
+                this.internalMap.add(key);
+                this.coveredCellCount++;
             }
         }
 
@@ -2286,6 +2340,7 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         }
     }
 
+    this.rayCastPoints = [];
     this.renderRayCasts = function (p, offsetX, offsetY) {
         p.push()
         p.stroke(255, 0, 0);  // Set the color of the rays (red in this case)
@@ -2422,7 +2477,7 @@ function getLastAgentNEAT() {
 function getHighestScoreNEAT() {
     if (agents.length === 0) return null;
 
-    agents.sort((a, b) => parseFloat(b.getScore(false)[0]) - parseFloat(a.getScore(false)[0]));
+    agents.sort((a, b) => parseFloat(b.Score) - parseFloat(a.Score));
 
     return agents[0];
 }
@@ -2476,7 +2531,7 @@ function endSimulationNEAT(p) {
 
     // loop through all agents scores and log them
     for (let i = 0; i < agents.length; i++) {
-        let thisScore = agents[i].getScore(false)[0];
+        let thisScore = agents[i].Score;
 
         agents[i].genome.agentHistory.lastScore = { score: thisScore, map: stageProperties.map, generation: stageProperties.genCount };
 
@@ -2490,7 +2545,18 @@ function endSimulationNEAT(p) {
     }
 
     // loop through agents array with a for each and add each agent to tempAgentPool
-    agents.forEach(agent => tempAgentPool.push(_.cloneDeep(agent)));
+    // agents.forEach(agent => tempAgentPool.push(_.cloneDeep(agent)));
+
+    // Loop through agents array and add a simplified object to tempAgentPool
+    agents.forEach(agent => {
+        const simplifiedAgent = {
+            genome: _.cloneDeep(agent.genome),
+            Score: agent.Score,
+            index: agent.index
+        };
+        tempAgentPool.push(simplifiedAgent);
+    });
+
 
     // Continue to the next generation once the tempAgentPool is full
     if (tempAgentPool.length >= stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
@@ -3011,7 +3077,28 @@ function nextAgentgroupNEAT(p) {
     agents = [];  // Reset the agents array
 
     // let populationGenomes equal a selection of totalPopulationGenomes based on the agentGenomePool[i].metadata.runGroup. Can use the inter generation run counter runCount for the search
-    let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
+    // let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
+
+    // New version that removes used agents from the pool to save memory
+    let populationGenomes = [];
+    let index = 0;
+
+    while (index < agentGenomePool.length) {
+        // Find the index of the first genome with the desired run group
+        let genomeIndex = agentGenomePool.findIndex((genome, idx) => idx >= index && genome.metadata.runGroup === runCount);
+
+        if (genomeIndex === -1) {
+            // No more genomes with the desired run group
+            break;
+        }
+
+        // Extract the genome and add it to populationGenomes
+        let [genome] = agentGenomePool.splice(genomeIndex, 1);
+        populationGenomes.push(genome);
+
+        // Adjust index to account for the removed item
+        index = genomeIndex;
+    }
 
     // Initialize agents in batches
     if (Array.isArray(populationGenomes) && populationGenomes.length === stageProperties.numAgents) {
@@ -3068,6 +3155,8 @@ function waitForInitializationCompletionBatchNEAT(populationGenomes) {
 
 function nextGenerationNEAT(p) {
 
+    // Clear the agentGenomePool ready for the next generation
+    agentGenomePool = [];
     usedIndices = new Set();
     runCount = 0;
     currentProcess = "Performing Crossover, Mutation, and Selection on total population to create offspring";
@@ -3150,22 +3239,25 @@ function nextGenerationNEAT(p) {
 
     agents = [];  // Reset the agents array
 
-    // Sort in descending order of score, including the bonus for being different from the average.
-    tempAgentPool.sort((a, b) => {
-        const aScore = a.getScore(true)[0];
-        const bScore = b.getScore(true)[0];
-        // Will need to create a NEAT version of distanceToAverage to handle different brain shapes
-        // const aDistance = distanceToAverage(a, averageBrain[a.genome.metadata.agentGroup]) / 100;
-        // const bDistance = distanceToAverage(b, averageBrain[b.genome.metadata.agentGroup]) / 100;
-        const aDistance = 0;
-        const bDistance = 0;
-        // Adjust the score with the distance to the average brain
-        const aTotal = aScore + aDistance ** 2 * 1;
-        const bTotal = bScore + bDistance ** 2 * 1;
+    // Sort in descending order of score. No longer including the bonus for being different from the average.
+    //tempAgentPool.sort((a, b) => {
+    //    const aScore = a.getScore(true)[0];
+    //    const bScore = b.getScore(true)[0];
+    //    // Will need to create a NEAT version of distanceToAverage to handle different brain shapes
+    //    // const aDistance = distanceToAverage(a, averageBrain[a.genome.metadata.agentGroup]) / 100;
+    //    // const bDistance = distanceToAverage(b, averageBrain[b.genome.metadata.agentGroup]) / 100;
+    //    const aDistance = 0;
+    //    const bDistance = 0;
+    //    // Adjust the score with the distance to the average brain
+    //    const aTotal = aScore + aDistance ** 2 * 1;
+    //    const bTotal = bScore + bDistance ** 2 * 1;
 
-        // Sort in descending order
-        return bTotal - aTotal;
-    });
+    //    // Sort in descending order
+    //    return bTotal - aTotal;
+    //});
+
+    // Sort in descending order of score
+    tempAgentPool.sort((a, b) => b.Score - a.Score);
 
     //console.log("Top Agents this round!");
     //for (let i = 0; i < Math.round(topPerformerNo * stageProperties.numAgents); i++) {
@@ -3255,8 +3347,6 @@ function waitForInitializationCompletionNEAT() {
     // Check if the condition is met
     if (tempAgentGenomePool.length >= stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
 
-        agentGenomePool = [];
-
         agentGenomePool = [...tempAgentGenomePool.map(agentGenome => _.cloneDeep(agentGenome))];
 
         currentProcess = "Selecting batch from offspring";
@@ -3299,7 +3389,32 @@ function waitForInitializationCompletionNEAT() {
         }
 
         // let populationGenomes equal a selection of totalPopulationGenomes based on the agentGenomePool[i].metadata.runGroup. Can use the inter generation run counter runCount for the search
-        let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
+        //let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
+
+        // Save agent genomes to IndexedDB before initializing next generation
+        let genomesToSave = _.cloneDeep(agentGenomePool);
+        saveStateToIndexedDB(genomesToSave);
+
+        // New version that removes used agents from the pool to save memory
+        let populationGenomes = [];
+        let index = 0;
+
+        while (index < agentGenomePool.length) {
+            // Find the index of the first genome with the desired run group
+            let genomeIndex = agentGenomePool.findIndex((genome, idx) => idx >= index && genome.metadata.runGroup === runCount);
+
+            if (genomeIndex === -1) {
+                // No more genomes with the desired run group
+                break;
+            }
+
+            // Extract the genome and add it to populationGenomes
+            let [genome] = agentGenomePool.splice(genomeIndex, 1);
+            populationGenomes.push(genome);
+
+            // Adjust index to account for the removed item
+            index = genomeIndex;
+        }
 
         // Initialize agents in batches
         if (Array.isArray(populationGenomes) && populationGenomes.length === stageProperties.numAgents) {
@@ -3325,31 +3440,31 @@ function waitForFinalInitializationCompletionNEAT() {
         currentProcess = "Starting next generation";
 
         // OTT manual disposal and destruction of all bodies and joints
-        for (let agent of tempAgentPool) {
-            // Destroy the joints first
-            for (let joint of agent.joints) {
-                if (joint) { // Check if joint exists and is in the world
-                    world.destroyJoint(joint);
-                }
-            }
+        //for (let agent of tempAgentPool) {
+        //    // Destroy the joints first
+        //    for (let joint of agent.joints) {
+        //        if (joint) { // Check if joint exists and is in the world
+        //            world.destroyJoint(joint);
+        //        }
+        //    }
 
-            // Destroy the limbs
-            for (let limb of agent.limbs) {
-                if (limb) { // Check if body exists and is in the world
-                    world.destroyBody(limb);
-                }
-            }
+        //    // Destroy the limbs
+        //    for (let limb of agent.limbs) {
+        //        if (limb) { // Check if body exists and is in the world
+        //            world.destroyBody(limb);
+        //        }
+        //    }
 
-            // Destroy the main body
-            if (agent.mainBody) {
-                world.destroyBody(agent.mainBody);
-            }
+        //    // Destroy the main body
+        //    if (agent.mainBody) {
+        //        world.destroyBody(agent.mainBody);
+        //    }
 
-            agent.brain.dispose();
-            agent.joints = [];
-            agent.limbs = [];
-            agent.mainBody = null;
-        }
+        //    agent.brain.dispose();
+        //    agent.joints = [];
+        //    agent.limbs = [];
+        //    agent.mainBody = null;
+        //}
 
         tempAgentGenomePool = [];
         tempAgentPool = [];
@@ -3367,8 +3482,6 @@ function waitForFinalInitializationCompletionNEAT() {
                 randomlySelectedAgents.push(newGroupAgents[randomIndex]);
             }
         }
-
-        saveStateToIndexedDB();
 
         runCount++;
         isInitializationComplete = true;
@@ -3515,7 +3628,7 @@ function selectAgentNEAT(groupAgents, allAgents, excludedAgent = null) {
     }
 
     // Return the agent with the highest score from the tournament contestants
-    return tournamentContestants.sort((a, b) => b.getScore(true)[0] - a.getScore(true)[0])[0];
+    return tournamentContestants.sort((a, b) => b.Score - a.Score)[0];
 }
 
 function selectAgentWeightedNEAT(agentsLocal, allAgents, excludedAgent = null) {
@@ -3525,7 +3638,7 @@ function selectAgentWeightedNEAT(agentsLocal, allAgents, excludedAgent = null) {
     }
 
     let normalizedScores = [];
-    let minScore = Math.min(...agentsLocal.map(agent => parseFloat(agent.getScore(true)[0])));
+    let minScore = Math.min(...agentsLocal.map(agent => parseFloat(agent.Score)));
 
     // Ensure all scores are positive
     let offsetScore = minScore < 0 ? Math.abs(minScore) : 0;
@@ -3533,7 +3646,7 @@ function selectAgentWeightedNEAT(agentsLocal, allAgents, excludedAgent = null) {
     let cumulativeSum = 0;
     for (let agent of agentsLocal) {
         if (agent != excludedAgent) {
-            let score = parseFloat(agent.getScore(true)[0]) + offsetScore;
+            let score = parseFloat(agent.Score) + offsetScore;
             cumulativeSum += score;
             normalizedScores.push(cumulativeSum);
         }
@@ -3557,10 +3670,10 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
     genome1 = agent1.genome;
     genome2 = agent2.genome;
 
-    let score1 = agent1.getScore(true);
+    let score1 = agent1.Score;
     let TScore1 = parseFloat(score1[0]);
 
-    let score2 = agent2.getScore(true);
+    let score2 = agent2.Score;
     let TScore2 = parseFloat(score2[0]);
 
     let totalScore = TScore1 + TScore2;
@@ -3578,7 +3691,7 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
 
     let childGenome = _.cloneDeep(dominantGenome);
 
-    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
+    // addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
 
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
@@ -3673,16 +3786,14 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
     genome1 = agent1.genome;
     genome2 = agent2.genome;
 
-    let score1 = agent1.getScore(true);
-    let TScore1 = parseFloat(score1[0]);
-    let score2 = agent2.getScore(true);
-    let TScore2 = parseFloat(score2[0]);
+    let TScore1 = agent1.Score;
+    let TScore2 = agent2.Score;
 
     let dominantGenome = (TScore1 > TScore2) ? genome1 : genome2;
     let subGenome = (TScore1 < TScore2) ? genome1 : genome2;
     let childGenome = _.cloneDeep(dominantGenome);
 
-    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
+    // addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
 
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
@@ -3770,10 +3881,8 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
 function biasedArithmeticLayerCrossoverNEAT(agent1, agent2) {
     let genome1 = agent1.genome;
     let genome2 = agent2.genome;
-    let score1 = agent1.getScore(true);
-    let TScore1 = parseFloat(score1[0]);
-    let score2 = agent2.getScore(true);
-    let TScore2 = parseFloat(score2[0]);
+    let TScore1 = agent1.Score;
+    let TScore2 = agent2.Score;
     let dominantGenome = (TScore1 > TScore2) ? genome1 : genome2;
     let subGenome = (TScore1 < TScore2) ? genome1 : genome2;
     let childGenome = _.cloneDeep(dominantGenome);
@@ -3800,7 +3909,7 @@ function biasedArithmeticLayerCrossoverNEAT(agent1, agent2) {
     childGenome.layerGenes[layerIndexToSwap] = _.cloneDeep(genome2.layerGenes[layerIndexToSwap]);
 
     // Log the mutation with layer ID
-    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped Layer: " + layerIndexToSwap + " from Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
+    // addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped Layer: " + layerIndexToSwap + " from Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
 
     return childGenome;
 }
@@ -3833,7 +3942,7 @@ function layerMatches(layer1, layer2) {
 function bodyPlanCrossover(childGenome, agent1, agent2) {
 
     // Determine which parent is dominant based on score
-    const isParent1Dominant = agent1.getScore(true)[0] > agent2.getScore(true)[0];
+    const isParent1Dominant = agent1.Score > agent2.Score;
     const dominantParent = isParent1Dominant ? agent1 : agent2;
     const submissiveParent = isParent1Dominant ? agent2 : agent1;
 
@@ -4350,8 +4459,8 @@ function addMutationWithHistoryLimit(mutationArray, mutationRecord) {
     // Add the new mutation record
     mutationArray.push(mutationRecord);
 
-    // Trim the mutations history to the last 10 records if it's longer
-    while (mutationArray.length > 50) {
+    // Trim the mutations history to the last x records if it's longer
+    while (mutationArray.length > 25) {
         mutationArray.shift(); // Remove the oldest record
     }
 

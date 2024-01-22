@@ -1512,7 +1512,7 @@
         public bool showNN { get; set; } = false;
         public bool showRays { get; set; } = true;
         public string agentInCentre { get; set; } = "leader";
-        public int uiRefreshRate { get; set; } = 500;
+        public int uiRefreshRate { get; set; } = 250;
         public int renderedNNLayerGap { get; set; } = 100;
         public int renderedNNNodeGap { get; set; } = 30;
 
@@ -1844,7 +1844,7 @@
         stageProperties.showNN = false;
         stageProperties.showRays = true;
         stageProperties.agentInCentre = "leader";
-        stageProperties.uiRefreshRate = 500;
+        stageProperties.uiRefreshRate = 250;
         stageProperties.renderedNNLayerGap = 100;
         stageProperties.renderedNNNodeGap = 30;
         stageProperties.showForceVectors = false;
@@ -3237,7 +3237,7 @@
                         Min = 100,
                         Max = 1000,
                         Step = 50,
-                        Details = "Adjusts the refresh rate of the on screen information and the neural network."
+                        Details = "Adjusts the refresh rate of the on screen information and the neural network.  Also how often the sim speed is adjusted if enabled."
                     },
                     new Setting
                     {
