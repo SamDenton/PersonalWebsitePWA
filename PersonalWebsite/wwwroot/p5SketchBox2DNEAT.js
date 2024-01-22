@@ -23,6 +23,7 @@ let fpsCheckCounter = 0;
 let panningOffsetX = 0;
 let panningOffsetY = 0;
 let internalTick = 1;
+let skippingToGen = 0;
 
 let stageProperties;
 
@@ -693,7 +694,116 @@ let sketchNEAT = function (p) {
     };
 
     function renderSkip(p) {
-        p.text(`Fast-Forwarding Generation: ${stageProperties.genCount + 1}`, 10, 20);
+        p.text(`Fast-Forwarding to Generation: ${skippingToGen + 1}`, 10, 20);
+        p.fill(255);  // Black color for the text
+        p.textSize(18);  // Font size
+        p.text(`FPS: ${fps}`, 10, 50);
+        p.text(`Batch Within Generation: ${runCount} of ${stageProperties.totalNumAgentsMultiplier}`, 10, 80);
+        p.text(`Generation: ${stageProperties.genCount + 1}`, 10, 110);
+        p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 140);
+        p.text(`Top Score: ${stageProperties.topScoreEver.toFixed(2)}`, 10, 170);
+
+        if (averageScore > - 10) {
+            p.text(`Average Score: ${averageScore.toFixed(2)}`, 10, 200);
+        } else {
+            p.text(`Average Score: 0`, 10, 170);
+        }
+
+        p.text(`Distinct Population groups: ${numGroups}`, 10, 230);
+        p.push();
+        p.fill(155);
+        p.text(`Agents in population: ${agentGenomePool.length + tempAgentPool.length + agents.length}`, 10, 290);
+        p.text(`Agents left to run: ${agentGenomePool.length}`, 10, 320);
+        p.text(`Agents in simulation: ${agents.length}`, 10, 350);
+        p.pop();
+
+        if (stabilised) {
+            p.push();
+            p.fill(0, 255, 0);
+            p.text(`Agents can go!`, 10, 410);
+            p.pop();
+        } else {
+            p.push();
+            p.fill(255, 0, 0);
+            p.text(`${currentProcess}`, 10, 410);
+            p.pop();
+        }
+
+        if (leadingAgent) {
+            let currentTime = p.millis();
+
+            if (currentTime - lastUIUpdateTime > stageProperties.uiRefreshRate && simulationStarted) {
+
+                fps = Number(p.frameRate().toFixed(0));
+
+                if (stageProperties.autoAdjustPerformance == true && stabilised) {
+                    adjustPerformance(fps);
+                }
+
+                topScoreAgent = getHighestScoreNEAT();
+
+                // Display the score of the leading agent
+                leadingAgentScores = leadingAgent.getScore(false);
+                leadingAgentScore = leadingAgentScores[0];
+                leadingAgentXScore = leadingAgentScores[1];
+                leadingAgentYScore = leadingAgentScores[2];
+                leadingAgentMovementScore = leadingAgentScores[4];
+                leadingAgentExplorationReward = leadingAgentScores[5];
+                leadingAgentSizeReward = leadingAgentScores[6];
+                leadingAgentEnergy = leadingAgentScores[7];
+
+                // Display the score of the trailing agent
+                trailingAgentScores = trailingAgent.getScore(false);
+                trailingAgentScore = trailingAgentScores[0];
+                trailingAgentXScore = trailingAgentScores[1];
+                trailingAgentYScore = trailingAgentScores[2];
+                trailingAgentMovementScore = trailingAgentScores[4];
+                trailingAgentExplorationReward = trailingAgentScores[5];
+                trailingAgentSizeReward = trailingAgentScores[6];
+                trailingAgentEnergy = trailingAgentScores[7];
+
+                // Display the score of the highest scoring
+                topScoreAgentScores = topScoreAgent.getScore(false);
+                topScoreAgentScore = topScoreAgentScores[0];
+                topScoreAgentXScore = topScoreAgentScores[1];
+                topScoreAgentYScore = topScoreAgentScores[2];
+                topScoreAgentMovementScore = topScoreAgentScores[4];
+                topScoreAgentExplorationReward = topScoreAgentScores[5];
+                topScoreAgentSizeReward = topScoreAgentScores[6];
+                topScoreAgentEnergy = topScoreAgentScores[7];
+
+                let totalScore = 0;
+                for (let agent of agents) {
+                    let eachScore = agent.getScore(false);
+                    totalScore += parseFloat(eachScore[0]);
+                }
+
+                averageScore = totalScore / agents.length;
+
+                displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / stageProperties.simSpeed);
+
+                // Reset the last update time
+                lastUIUpdateTime = currentTime;
+
+            }
+            if (topScoreAgentScore > - 1000 && simulationStarted) {
+                p.push();
+                p.textSize(16);
+                p.fill(GROUP_COLORS[topScoreAgent.genome.metadata.agentGroup]);
+                p.text(`Top Scoring Agent: ${topScoreAgentScore} (X Score: ${topScoreAgentXScore} + Y Score: ${topScoreAgentYScore} + Joint Movement Bonus: ${topScoreAgentMovementScore} + Exploration Bonus: ${topScoreAgentExplorationReward} + Size Bonus: ${topScoreAgentSizeReward})  Remaining Energy: ${topScoreAgentEnergy}`, 10, stageProperties.groundY + 30);  // Displaying the score just below the ground
+
+                p.fill(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]);
+                p.text(`Leading Agent Score: ${leadingAgentScore} (X Score: ${leadingAgentXScore} + Y Score: ${leadingAgentYScore} + Joint Movement Bonus: ${leadingAgentMovementScore} + Exploration Bonus: ${leadingAgentExplorationReward} + Size Bonus: ${leadingAgentSizeReward}) Remaining Energy: ${leadingAgentEnergy}`, 10, stageProperties.groundY + 50);
+
+                p.fill(GROUP_COLORS[trailingAgent.genome.metadata.agentGroup]);
+                p.text(`Trailing Agent Score: ${trailingAgentScore} (X Score: ${trailingAgentXScore} + Y Score: ${trailingAgentYScore} + Joint Movement Bonus: ${trailingAgentMovementScore} + Exploration Bonus: ${trailingAgentExplorationReward} + Size Bonus: ${trailingAgentSizeReward}) Remaining Energy: ${trailingAgentEnergy}`, 10, stageProperties.groundY + 70);
+                p.pop();
+            }
+            p.push();
+            p.fill(155);
+            p.text(`Current Sim Speed Multiplier: ${(stageProperties.simSpeed / 60).toFixed(2)}`, stageProperties.width - 300, stageProperties.height - 50);
+            p.pop();
+        }
     };
 };
 
@@ -882,12 +992,19 @@ function adjustPerformance(fps) {
 
     if (fpsHistory.length >= 10) {
         let averageFps = fpsHistory.reduce((sum, val) => sum + val, 0) / fpsHistory.length;
+        let badFps = 30;
+        let goodFps = 49;
+        if (render == false) {
+            // If rendering is disabled, allow the sim to run at lower fps
+            badFps = 15;
+            goodFps = 30;
+        }
 
-        if (averageFps < 35 && stageProperties.simSpeed > 10) {
-            stageProperties.simSpeed = Math.max(0, stageProperties.simSpeed - 10);
+        if (averageFps < badFps && stageProperties.simSpeed > 5) {
+            stageProperties.simSpeed = Math.max(0, stageProperties.simSpeed - 5);
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
             console.log("Decreasing simSpeed to:" + stageProperties.simSpeed + " History: " + fpsHistory);
-        } else if (averageFps > 49) {
+        } else if (averageFps > goodFps) {
             stageProperties.simSpeed += 5;
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
             console.log("Increasing simSpeed to:", stageProperties.simSpeed + " History: " + fpsHistory);
@@ -944,25 +1061,21 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
     return false;
 }
 
-function angleToVector(angle) {
-    return planck.Vec2(Math.cos(angle), Math.sin(angle));
-}
+//function angleToVector(angle) {
+//    return planck.Vec2(Math.cos(angle), Math.sin(angle));
+//}
 
 function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
-    let facingVector = angleToVector(agentFacingDirection);
-    let forceVector = angleToVector(forceDirection);
+    // Directly compute vector components
+    let facingX = Math.cos(agentFacingDirection);
+    let facingY = Math.sin(agentFacingDirection);
+    let forceX = Math.cos(forceDirection);
+    let forceY = Math.sin(forceDirection);
 
-    let dotProduct = facingVector.x * forceVector.x + facingVector.y * forceVector.y;
+    let dotProduct = facingX * forceX + facingY * forceY;
 
-    if (dotProduct > 0) {
-        // Aligned with facing direction - increase force
-        return defaultBias;
-    } else {
-        // Opposite to facing direction - decrease or reverse force
-        return 2 - defaultBias;
-    }
+    return dotProduct > 0 ? defaultBias : 2 - defaultBias;
 }
-
 
 function applySwimmingForceOldOld(agent) {
     for (let i = 0; i < agent.joints.length; i++) {
@@ -1146,11 +1259,17 @@ function applySwimmingForce(p, agent) {
 
     // Function to update buffer and calculate change in position
     function updateBufferAndGetDisplacement(buffer, newPosition) {
-        buffer.push(newPosition.clone());
+        buffer.push(newPosition);
         if (buffer.length > N) {
             buffer.shift();
         }
-        return buffer.length >= N ? newPosition.clone().sub(buffer[0]) : planck.Vec2(0, 0);
+        if (buffer.length < N) {
+            return planck.Vec2(0, 0);
+        }
+
+        // Calculate displacement without cloning
+        let firstPosition = buffer[0];
+        return planck.Vec2(newPosition.x - firstPosition.x, newPosition.y - firstPosition.y);
     }
 
     // Calculate and apply forces every frame
@@ -1242,19 +1361,6 @@ function visualizeForce(p, agent, position, forceVector) {
     agent.drawForceVectors(p, position.x, position.y, forceVector, forceAngle);
 }
 
-// Helper function to apply bias, orientation adjustments, and force capping
-function applyForceAdjustments(force, limbBody, agent, defaultBias) {
-    // Bias and orientation adjustment logic here
-
-    let adjustedForceVector = p.createVector(force.x, force.y);
-    if (adjustedForceVector.mag() > maxForceMagnitude) {
-        adjustedForceVector.setMag(maxForceMagnitude);
-    }
-    return planck.Vec2(adjustedForceVector.x, adjustedForceVector.y);
-}
-
-
-
 function applyJointDamping(agent) {
     const maxTorqueForDamping = stageProperties.maxTorqueForDamping;
     const threshold = (stageProperties.threasholdAngleForDamping / 100);
@@ -1313,6 +1419,7 @@ function initializeSketchBox2DNEAT(StageProperties) {
     isInitializationComplete = false;
     panningOffsetX = 0;
     panningOffsetY = 0;
+    skippingToGen = 0;
 
     currentProcess = "Initializing world!";
 
@@ -1609,13 +1716,14 @@ function showGenomes() {
 function skipGen(skipNo) {
     // Function to skip a number of generations by disabling the rendering flag and speeding up physics ticks.  Make use of the 'render' flag, the genCount, which increments automatically every generation, and the simulationSpeed which can be set to 480.  Make use of recursive function to check if genCount has increased by skipNo since the function was called.  We do not need to increment genCount, it already counts generations as they pass
     if (skipNo > 0) {
-        stageProperties.simSpeed = 480;
-        fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
+        // stageProperties.simSpeed *= 1.5;
+        // fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
         render = false;
         let currentGen = stageProperties.genCount;
+        skippingToGen = currentGen + skipNo;
         let skipGenRecursive = function () {
             if (stageProperties.genCount < currentGen + skipNo) {
-                setTimeout(skipGenRecursive, 100);
+                setTimeout(skipGenRecursive, 500);
             } else {
                 stageProperties.simSpeed = 60;
                 fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
@@ -2493,6 +2601,11 @@ function endSimulationNEAT(p) {
     currentProcess = "Sorting agents by score!";
     console.log("round over");
 
+    // Reduce the sim speed before restart to reduce the initial demand on the CPU
+    if (stageProperties.simSpeed > 15) {
+        stageProperties.simSpeed -= 15;
+    }
+
     for (let agent of agents) {
 
         // Destroy the joints first
@@ -3268,6 +3381,7 @@ function nextGenerationNEAT(p) {
         // Base case to end the recursion
         if (groupId >= numGroups) {
             console.log('All groups built.');
+            checkPopulation();
             return;
         }
 
@@ -3281,20 +3395,23 @@ function nextGenerationNEAT(p) {
 
     function buildNewAgentGroup(groupId, callback) {
 
-        let groupAgents = tempAgentPool.filter(agent => agent.genome.metadata.agentGroup === groupId);
+        let groupAgents = tempAgentPool.filter(agent => agent.genome.metadata.agentGroup === groupId).sort((a, b) => b.Score - a.Score);
 
         for (let i = 0; i < groupAgents.length; i++) {
             groupAgents[i].genome.agentHistory.rankInGroup = i + 1;
         }
-        let agentsNeeded = Math.floor((stageProperties.totalNumAgentsMultiplier * stageProperties.numAgents) / numGroups);
+        //let agentsNeeded = Math.floor((stageProperties.totalNumAgentsMultiplier * stageProperties.numAgents) / numGroups);
 
-        // Not a good way to do this, but this line checks if our rounding is going to produce an off by 1 error
-        // Could switch back to using the number of agents already present in the group to determine how many agents are needed, but this was causing inconsistencies for a while.
-        if (groupAgents.length == agentsNeeded + 1) {
-            agentsNeeded += 1;
-        }
+        //// Not a good way to do this, but this line checks if our rounding is going to produce an off by 1 error
+        //// Could switch back to using the number of agents already present in the group to determine how many agents are needed, but this was causing inconsistencies for a while.
+        //if (groupAgents.length == agentsNeeded + 1) {
+        //    agentsNeeded += 1;
+        //}
+        let agentsNeeded = groupAgents.length;
+        let topPerformersCount = Math.round(topPerformerNo * agentsNeeded);
 
-        let topPerformersCount = Math.floor(topPerformerNo * agentsNeeded);
+        // Ensure at least one top performer in small groups
+        topPerformersCount = Math.max(topPerformersCount, 1);
 
         createTopPerformersNEAT(groupAgents, topPerformersCount);
         generateOffspringNEAT(groupAgents, groupId, topPerformersCount, agentsNeeded);
@@ -3343,6 +3460,9 @@ function nextGenerationNEAT(p) {
 function waitForInitializationCompletionNEAT() {
 
     // Could add a time based overwrite so that if the population never reaches the correct length, normally due to a bug, it will generate new, random agents until the correct number is reached.
+    // Could also add a check to see if the population is too large and reduce it if so.
+    // Would need to check that each species group is equal in size and modify only the non matching groups.
+    // Since the runGroup is reset each generation, we only need to worry about the species groups.
 
     // Check if the condition is met
     if (tempAgentGenomePool.length >= stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
@@ -3388,12 +3508,16 @@ function waitForInitializationCompletionNEAT() {
             agentGenomePool[i].metadata.runGroup = i % stageProperties.totalNumAgentsMultiplier;
         }
 
+        if (agentGenomePool.length == stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
+            // Save agent genomes to IndexedDB before initializing next generation
+            let genomesToSave = _.cloneDeep(agentGenomePool);
+            saveStateToIndexedDB(genomesToSave);
+        } else {
+            console.log("Agent genome pool not the correct length, revert to previous save");
+        }
+
         // let populationGenomes equal a selection of totalPopulationGenomes based on the agentGenomePool[i].metadata.runGroup. Can use the inter generation run counter runCount for the search
         //let populationGenomes = agentGenomePool.filter(genome => genome.metadata.runGroup === runCount);
-
-        // Save agent genomes to IndexedDB before initializing next generation
-        let genomesToSave = _.cloneDeep(agentGenomePool);
-        saveStateToIndexedDB(genomesToSave);
 
         // New version that removes used agents from the pool to save memory
         let populationGenomes = [];
@@ -3496,6 +3620,55 @@ function waitForFinalInitializationCompletionNEAT() {
     }
 }
 
+// Function called after each round to check if the population is the correct size and adjust if necessary
+function checkPopulation() {
+    const totalRequiredAgents = stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier;
+    let groupAgentCounts = Array(numGroups).fill(0);
+
+    // Count agents in each group
+    tempAgentGenomePool.forEach(agentGenome => {
+        groupAgentCounts[agentGenome.metadata.agentGroup]++;
+    });
+
+    // Check if total agents are too few or too many
+    if (tempAgentGenomePool.length < totalRequiredAgents) {
+        // Add agents to groups with the fewest agents
+        while (tempAgentGenomePool.length < totalRequiredAgents) {
+            let groupIdToAdd = groupAgentCounts.indexOf(Math.min(...groupAgentCounts));
+            duplicateTopPerformer(groupIdToAdd);
+            groupAgentCounts[groupIdToAdd]++;
+        }
+    } else if (tempAgentGenomePool.length > totalRequiredAgents) {
+        // Remove agents from groups with the most agents
+        while (tempAgentGenomePool.length > totalRequiredAgents) {
+            let groupIdToRemove = groupAgentCounts.indexOf(Math.max(...groupAgentCounts));
+            removeLowestPerformer(groupIdToRemove);
+            groupAgentCounts[groupIdToRemove]--;
+        }
+    }
+}
+
+function duplicateTopPerformer(groupId) {
+    // Find the top performer in the group
+    let topPerformer = tempAgentPool
+        .filter(agent => agent.genome.metadata.agentGroup === groupId)
+        .sort((a, b) => b.Score - a.Score)[0];
+
+    console.log("Duplicating top performer:", topPerformer.genome.metadata.agentName, " In Group: ", groupId);
+    let newAgentGenome = _.cloneDeep(topPerformer.genome);
+    tempAgentGenomePool.push(newAgentGenome);
+}
+
+function removeLowestPerformer(groupId) {
+    // Find the lowest performer in the group
+    let lowestPerformerIndex = tempAgentGenomePool
+        .map((agent, index) => ({ index, agent }))
+        .filter(item => item.agent.metadata.agentGroup === groupId)
+        .sort((a, b) => a.agent.Score - b.agent.Score)[0].index;
+
+    console.log("Removing lowest performer from group: ", groupId);
+    tempAgentGenomePool.splice(lowestPerformerIndex, 1);
+}
 
 // Create top performers for the next generation
 function createTopPerformersNEAT(groupAgents, topPerformersCount) {
@@ -3534,12 +3707,12 @@ function generateOffspringNEAT(groupAgents, groupId, topPerformerCount, agentsNe
 
     } else if (agentsalreadycreated >= topPerformerCount) {
 
-        createAgentGroup(groupAgents, groupId, agentsNeeded);
+        createSingleAgentChild(groupAgents, groupId, agentsNeeded);
 
     }
 }
 
-function createAgentGroup(groupAgents, groupId, agentsNeeded) {
+function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
 
     // Select 2 parents, using different methods for varying outcomes
     let parent1 = selectAgentNEAT(groupAgents, tempAgentPool);
@@ -3600,11 +3773,12 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
 
     // Once an agent is created, add to agent pool
     tempAgentGenomePool.push(childGenome);
+
     if (tempAgentGenomePool.filter(agentGenome => agentGenome.metadata.agentGroup === groupId).length < agentsNeeded) {
         // Schedule the next agent creation after a short timeout
         setTimeout(() => {
-            createAgentGroup(groupAgents, groupId, agentsNeeded);
-        }, 10);  // Adjust the timeout value as needed
+            createSingleAgentChild(groupAgents, groupId, agentsNeeded);
+        }, 1);  // Adjust the timeout value as needed
     } else {
         return;
     }
