@@ -5,13 +5,14 @@ self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
-const offlineAssetsInclude = [/\.dll$/, /\.pdb$/, /\.wasm/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/];
+const offlineAssetsInclude = [/\.dll$/, /\.pdb$/, /\.wasm/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/, ];
 const offlineAssetsExclude = [
     /^service-worker\.js$/,
     /^_framework\/PersonalWebsite\.dll$/,
     /^_framework\/PersonalWebsite\.dll.br$/,
     /^_framework\/PersonalWebsite\.dll.bz$/,
-    /^_framework\/blazor\.boot\.json$/
+    /^_framework\/blazor\.boot\.json$/,
+    /\.js$/,
 ];
 const cacheFirstAssets = [
     // _content folder

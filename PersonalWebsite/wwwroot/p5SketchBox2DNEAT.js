@@ -1,7 +1,7 @@
 // Variables specific to NEAT version
 
 let offsetY = 0;
-let simulationLengthModified = 0;
+let simulationLengthModified = 1000;
 let render = true;
 let singleUpdateCompleted = false;
 let stabilised = false;
@@ -11,7 +11,6 @@ let agentIndexStart = 0;
 let agentGenomePool = [];
 let tempAgentGenomePool = [];
 let tempAgentPool = [];
-let randMap = 0;
 let runCount = 0;
 let fixedTimeStep = 1.0 / 60.0 * 1000;
 let cachedLeadingAgent = null;
@@ -24,6 +23,7 @@ const fpsCheckInterval = 5; // Check every 10 calls
 let fpsCheckCounter = 0;
 let panningOffsetX = 0;
 let panningOffsetY = 0;
+let internalTick = 1;
 
 let stageProperties;
 
@@ -205,7 +205,9 @@ let sketchNEAT = function (p) {
                             if (updateCountStart[agentIndexStart] < stageProperties.updatesPerAgentStart) {
 
                                 // Update the agent
-                                // agents[agentIndexStart].mainBody.setType('dynamic');
+                                if (!stageProperties.agentsRequireStablising) {
+                                    agents[agentIndexStart].mainBody.setType('dynamic');
+                                }
                                 agents[agentIndexStart].updateMusclesNEAT();
                             }
 
@@ -217,8 +219,11 @@ let sketchNEAT = function (p) {
                         agentIndexStart = (agentIndexStart + 1) % agents.length;
                     }
 
+                    // Increment tick count each frame
+                    startingTickCounter++;
+
                     // Check if we've updated each agent x times
-                    if (Object.values(updateCountStart).every(countStart => countStart >= stageProperties.updatesPerAgentStart) || !stageProperties.agentsRequireStablising) {
+                    if (Object.values(updateCountStart).every(countStart => countStart >= stageProperties.updatesPerAgentStart)) {
                         singleUpdateCompleted = true;
                         // All agents have been updated the required number of times, now check for stability
                         if (areAllAgentsStableNEAT() || stageProperties.agentsRequireStablising == false) {
@@ -230,7 +235,7 @@ let sketchNEAT = function (p) {
                 }
                 else {
                     // Check if it's time to update the next batch
-                    if (startingTickCounter >= nextBatchFrame) {
+                    if (tickCount >= nextBatchFrame) {
                         // Update muscles only for the current batch of agents
                         for (let i = currentPhysicsBatch * stageProperties.muscleBatch; i < Math.min((currentPhysicsBatch + 1) * stageProperties.muscleBatch, agents.length); i++) {
                             agents[i].mainBody.setType('dynamic');
@@ -248,15 +253,13 @@ let sketchNEAT = function (p) {
                         if (currentPhysicsBatch * stageProperties.muscleBatch >= agents.length) {
                             currentPhysicsBatch = 0;
                             // Wait for muscleUpdateFrames before updating muscles again
-                            nextBatchFrame = startingTickCounter + stageProperties.totalMuscleUpdateTime;
+                            nextBatchFrame = tickCount + stageProperties.totalMuscleUpdateTime;
                         } else {
                             // Wait for batchDelay frames before moving to the next batch
-                            nextBatchFrame = startingTickCounter + stageProperties.muscleDelay;
+                            nextBatchFrame = tickCount + stageProperties.muscleDelay;
                         }
                     }
                 }
-                // Increment tick count each frame
-                startingTickCounter++;
             }
 
             // Allow agents to swim and interactively control their joints
@@ -268,6 +271,7 @@ let sketchNEAT = function (p) {
                         applySwimmingForce(p, agent);
                     } else {
                         applySwimmingForceOld(p, agent);
+                        // applySwimmingForceOldOld(agent);
                         // Apply drag to agents to simulate a liquid environment
                         applyDrag(agent);
                     }
@@ -289,6 +293,11 @@ let sketchNEAT = function (p) {
             // If initialization is complete, increment the tick count
             if (simulationStarted && singleUpdateCompleted && stabilised) {
                 tickCount++;
+
+                if (tickCount % stageProperties.inputTickerRate === 0) {
+                    internalTick *= -1;
+                }
+
                 if (tickCount >= simulationLengthModified) {
                     endSimulationNEAT(p);
                 }
@@ -383,7 +392,7 @@ let sketchNEAT = function (p) {
                     }
                 } else {
                     if (d < circleDiameter / 2) {
-                        selectedColor = [i];
+                        selectedColor = i;
                         break;
                     }
                 }
@@ -530,36 +539,87 @@ let sketchNEAT = function (p) {
             }
 
             // Graph dimensions and positions (adjust as needed)
-            let graphX = 600;
-            let graphY = stageProperties.height - 400; // Position the graph at the bottom of the canvas
-            let graphW = stageProperties.width / 3;
-            let graphH = stageProperties.height / 3.5;
+            let graphX = 730;
+            let graphY = stageProperties.height - 600; // Position the graph at the bottom of the canvas
+            let graphW = stageProperties.width / 2.3;
+            let graphH = stageProperties.height / 1.8;
             let allScores;
             let minYValue;
             let maxYValue; 
+            let highestScoreAgent = null;
+            let totalGenerations = stageProperties.genCount - 1;
 
-            if (stageProperties.showScoreHistory || stageProperties.showAverageScoreHistory || stageProperties.showTopScoreHistory && stageProperties.scoreHistory.length > 0) {
+            if ((stageProperties.showScoreHistory || stageProperties.showAverageScoreHistory || stageProperties.showTopScoreHistory) && stageProperties.scoreHistory.length > 0 && !stageProperties.showNN) {
                 allScores = stageProperties.scoreHistory.concat(stageProperties.scoreHistoryAverage, stageProperties.scoreHistoryTop);
                 minYValue = p.min(allScores);
                 maxYValue = p.max(allScores);
-                let totalGenerations = stageProperties.scoreHistory.length;
+                if (selectedColor != null) {
+
+                    let highestScore = 0;
+                    highestScoreAgent = null;
+
+                    for (let agent of agents) {
+                        if (agent.genome.metadata.agentGroup === selectedColor) {
+                            let agentScore = agent.Score;
+                            if (agentScore > highestScore) {
+                                highestScore = agentScore;
+                                highestScoreAgent = agent;
+                            }
+                        }
+                    }
+                    if (highestScoreAgent) {
+                        // In your main function where you draw the graph
+                        let agentScoreHistory = leadingAgent.genome.agentHistory.scoreHistory;
+                        let agentScoreHistoryScores = getCompleteAgentScoreHistory(agentScoreHistory, minYValue, totalGenerations);
+
+                        if (agentScoreHistoryScores.length > 0) {
+                            drawGraph(p, agentScoreHistoryScores, graphX, graphY, graphW, graphH, p.color(GROUP_COLORS[selectedColor]), minYValue, maxYValue);
+                        }
+                        highestScoreAgent = leadingAgent;
+                    }
+
+                } else {
+                    if (leadingAgent) {
+                        // In your main function where you draw the graph
+                        let agentScoreHistory = leadingAgent.genome.agentHistory.scoreHistory;
+                        let agentScoreHistoryScores = getCompleteAgentScoreHistory(agentScoreHistory, minYValue, totalGenerations);
+
+                        if (agentScoreHistoryScores.length > 0) {
+                            drawGraph(p, agentScoreHistoryScores, graphX, graphY, graphW, graphH, p.color(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]), minYValue, maxYValue);
+                        }
+                        highestScoreAgent = leadingAgent;
+                    }
+                }
+
                 drawAxes(p, graphX, graphY, graphW, graphH, minYValue, maxYValue, totalGenerations);
             }
 
-            if (stageProperties.showScoreHistory && stageProperties.scoreHistory.length > 0) {
-                drawGraph(p, stageProperties.scoreHistory, graphX, graphY, graphW, graphH, p.color(255, 0, 0), minYValue, maxYValue);
+            if (stageProperties.showScoreHistory && stageProperties.scoreHistory.length > 0 && !stageProperties.showNN) {
+                let scoreShistory = stageProperties.scoreHistory;
+                while (scoreShistory.length < totalGenerations) {
+                    scoreShistory.unshift(minYValue);
+                }
+                drawGraph(p, scoreShistory, graphX, graphY, graphW, graphH, p.color(255, 0, 0), minYValue, maxYValue);
             }
 
-            if (stageProperties.showTopScoreHistory && stageProperties.scoreHistoryTop.length > 0) {
-                drawGraph(p, stageProperties.scoreHistoryTop, graphX, graphY, graphW, graphH, p.color(0, 255, 0), minYValue, maxYValue);
+            if (stageProperties.showTopScoreHistory && stageProperties.scoreHistoryTop.length > 0 && !stageProperties.showNN) {
+                let scoreShistory = stageProperties.scoreHistoryTop;
+                while (scoreShistory.length < totalGenerations) {
+                    scoreShistory.unshift(minYValue);
+                }
+                drawGraph(p, scoreShistory, graphX, graphY, graphW, graphH, p.color(0, 255, 0), minYValue, maxYValue);
             }
 
-            if (stageProperties.showAverageScoreHistory && stageProperties.scoreHistoryAverage.length > 0) {
-                drawGraph(p, stageProperties.scoreHistoryAverage, graphX, graphY, graphW, graphH, p.color(255, 0, 255), minYValue, maxYValue);
+            if (stageProperties.showAverageScoreHistory && stageProperties.scoreHistoryAverage.length > 0 && !stageProperties.showNN) {
+                let scoreShistory = stageProperties.scoreHistoryAverage;
+                while (scoreShistory.length < totalGenerations) {
+                    scoreShistory.unshift(minYValue);
+                }
+                drawGraph(p, scoreShistory, graphX, graphY, graphW, graphH, p.color(255, 0, 255), minYValue, maxYValue);
             }
 
             // Draw the key/legend
-            drawGraphKey(p, graphX + graphW + 20, graphY);
+            drawGraphKey(p, graphX + (graphW / 2) - 150, graphY - 170, highestScoreAgent);
 
             p.push();
             p.fill(155);
@@ -584,21 +644,26 @@ let sketchNEAT = function (p) {
                 p.pop();
             }
 
-            if (stageProperties.showNN == true && simulationStarted) {
+            if (stageProperties.showNN == true && stabilised == true) {
                 p.push();
                 if (stageProperties.agentInCentre == "trailer") {
                     p.text(`Showing Trailing Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[trailingAgent.genome.metadata.agentGroup]);
-                    trailingAgent.renderNNNEAT(p, stageProperties.width - 1000, (stageProperties.height / 2) - 40, tickCount);
+                    trailingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40, tickCount);
                 } else {
                     p.text(`Showing Leading Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]);
-                    leadingAgent.renderNNNEAT(p, stageProperties.width - 1000, (stageProperties.height / 2) - 40, tickCount);
+                    leadingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40, tickCount);
                 }
                 p.pop();
             }
+
+            p.push();
+            p.fill(155);
+            p.text(`Current Sim Speed Multiplier: ${(stageProperties.simSpeed / 60).toFixed(2)}`, stageProperties.width - 300, stageProperties.height - 50);
+            p.pop();
 
             if (agentsToRender.size > 0 && simulationStarted) {
                 if (selectedColor === null) {
@@ -628,9 +693,27 @@ let sketchNEAT = function (p) {
     };
 
     function renderSkip(p) {
-        p.text(`Fast-Forwarding Generation: ${stageProperties.genCount}`, 10, 20);
+        p.text(`Fast-Forwarding Generation: ${stageProperties.genCount + 1}`, 10, 20);
     };
 };
+
+function getCompleteAgentScoreHistory(agentHistory, minYValue, currentGeneration) {
+    let scoreHistory = [];
+    let lastKnownScore = minYValue;
+    let historyIndex = 0;
+
+    for (let gen = 0; gen <= currentGeneration; gen++) {
+        if (historyIndex < agentHistory.length && agentHistory[historyIndex].generation === gen) {
+            // Current generation score is available
+            lastKnownScore = agentHistory[historyIndex].score;
+            historyIndex++;
+        }
+        // Use last known score if current generation score is not available
+        scoreHistory.push(lastKnownScore);
+    }
+
+    return scoreHistory;
+}
 
 function drawGraph(p, data, x, y, w, h, graphColor, minYValue, maxYValue) {
     p.push();
@@ -647,16 +730,50 @@ function drawGraph(p, data, x, y, w, h, graphColor, minYValue, maxYValue) {
     }
     p.endShape();
 
+    // Calculate and draw the line of best fit
+    let { slope, yIntercept } = calculateLineOfBestFit(data);
+    drawLineOfBestFit(p, slope, yIntercept, data.length, w, h, minYValue, maxYValue, graphColor);
+
     p.pop();
 }
+
+function calculateLineOfBestFit(data) {
+    let xSum = 0, ySum = 0, xySum = 0, x2Sum = 0;
+    let n = data.length;
+
+    for (let i = 0; i < n; i++) {
+        xSum += i;
+        ySum += data[i];
+        xySum += i * data[i];
+        x2Sum += i * i;
+    }
+
+    let slope = (n * xySum - xSum * ySum) / (n * x2Sum - xSum * xSum);
+    let yIntercept = (ySum - slope * xSum) / n;
+
+    return { slope, yIntercept };
+}
+
+function drawLineOfBestFit(p, slope, yIntercept, dataLength, w, h, minYValue, maxYValue, graphColor) {
+    p.stroke(graphColor); // Light grey with some opacity
+    p.strokeWeight(0.5);
+
+    let startX = 0;
+    let endX = w;
+    let startY = p.map(slope * 0 + yIntercept, minYValue, maxYValue, h, 0);
+    let endY = p.map(slope * (dataLength - 1) + yIntercept, minYValue, maxYValue, h, 0);
+
+    p.line(startX, startY, endX, endY);
+}
+
 
 function drawAxes(p, x, y, w, h, minScore, maxScore, generations) {
     const minYValue = minScore;
     const maxYValue = maxScore;
-    const numYLabels = 4;
-    const numXLabels = 4;
+    const numYLabels = 6;
+    let numXLabels = 10;
     const yInterval = h / numYLabels;
-    const xInterval = w / numXLabels;
+    let xInterval = w / numXLabels;
 
     p.push();
     p.translate(x, y);
@@ -683,6 +800,11 @@ function drawAxes(p, x, y, w, h, minScore, maxScore, generations) {
         }
     }
 
+    if (generations < numXLabels) {
+        numXLabels = generations;
+        xInterval = w / numXLabels;
+    }
+
     // X-axis grid lines and labels
     for (let i = 0; i <= numXLabels; i++) {
         let gridXLine = xInterval * i;
@@ -695,7 +817,7 @@ function drawAxes(p, x, y, w, h, minScore, maxScore, generations) {
         if (generations > 0) {
             p.noStroke();
             p.fill(0); // Black for text
-            p.text(`Gen ${Math.floor(generations * i / numXLabels)}`, gridXLine - 15, h + 15); // Adjust label positioning as needed
+            p.text(`Gen ${Math.floor(generations * i / numXLabels) + 1}`, gridXLine - 15, h + 15); // Adjust label positioning as needed
         }
     }
 
@@ -722,28 +844,34 @@ function drawAxes(p, x, y, w, h, minScore, maxScore, generations) {
 }
 
 
-function drawGraphKey(p, x, y) {
+function drawGraphKey(p, x, y, highestScoreAgent = null) {
     const keySize = 20;
     let yOffset = 100;
     p.push();
     p.textSize(12);
     p.noStroke();
 
-    if (stageProperties.showScoreHistory && stageProperties.scoreHistory.length > 0) {
+    if (stageProperties.showScoreHistory && stageProperties.scoreHistory.length > 0 && !stageProperties.showNN) {
         p.fill(255, 0, 0);
         p.text("Top Score Ever", x + keySize + 5, y + yOffset);
         yOffset += keySize;
     }
 
-    if (stageProperties.showTopScoreHistory && stageProperties.scoreHistoryTop.length > 0) {
+    if (stageProperties.showTopScoreHistory && stageProperties.scoreHistoryTop.length > 0 && !stageProperties.showNN) {
         p.fill(0, 255, 0);
         p.text("Top Score Per Generation", x + keySize + 5, y + yOffset);
         yOffset += keySize;
     }
 
-    if (stageProperties.showAverageScoreHistory && stageProperties.scoreHistoryAverage.length > 0) {
+    if (stageProperties.showAverageScoreHistory && stageProperties.scoreHistoryAverage.length > 0 && !stageProperties.showNN) {
         p.fill(255, 0, 255);
         p.text("Average Score Per Generation", x + keySize + 5, y + yOffset);
+        yOffset += keySize;
+    }
+
+    if (highestScoreAgent != null) {
+        p.fill(GROUP_COLORS[highestScoreAgent.genome.metadata.agentGroup]);
+        p.text("Current Rendered Leader (" + highestScoreAgent.genome.metadata.groupName + ")", x + keySize + 5, y + yOffset);
     }
     p.pop();
 }
@@ -759,7 +887,7 @@ function adjustPerformance(fps) {
             stageProperties.simSpeed = Math.max(0, stageProperties.simSpeed - 15);
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
             console.log("Decreasing simSpeed to:", stageProperties.simSpeed);
-        } else if (averageFps > 60) {
+        } else if (averageFps > 49) {
             stageProperties.simSpeed += 5;
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
             console.log("Increasing simSpeed to:", stageProperties.simSpeed);
@@ -815,33 +943,33 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
     return false;
 }
 
+function angleToVector(angle) {
+    return planck.Vec2(Math.cos(angle), Math.sin(angle));
+}
+
 function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
-    // Calculate the angle difference
-    let angleDifference = forceDirection - agentFacingDirection;
+    let facingVector = angleToVector(agentFacingDirection);
+    let forceVector = angleToVector(forceDirection);
 
-    // Normalize angle to range
-    angleDifference = (angleDifference + Math.PI) % (2 * Math.PI) - Math.PI;
+    let dotProduct = facingVector.x * forceVector.x + facingVector.y * forceVector.y;
 
-    // Determine the bias based on the angle difference
-    if (Math.abs(angleDifference) < Math.PI / 2) {
+    if (dotProduct > 0) {
+        // Aligned with facing direction - increase force
         return defaultBias;
-    } else if (Math.abs(angleDifference) > Math.PI / 2) {
-        return 2 - defaultBias;
     } else {
-        return 1;  // Use the default bias (either agent's or a fixed value)
+        // Opposite to facing direction - decrease or reverse force
+        return 2 - defaultBias;
     }
 }
 
-function applySwimmingForceOld(p, agent) {
 
-    const N = stageProperties.swimForceOverNFrames;
-    const forceScalingFactor = stageProperties.swimStrength * 50;
-
-    for (let i = 0; i < agent.bodyParts.length; i++) {
-        let limbBody = agent.limbs[i];
-        let angle = agent.bodyParts[i].startingAngle;
+function applySwimmingForceOldOld(agent) {
+    for (let i = 0; i < agent.joints.length; i++) {
+        let angle = (i * 2 * Math.PI) / agent.numLimbs;
         let joint = agent.joints[i];
         let currentAngle = joint.getJointAngle();
+        let N = 5;
+        let forceScalingFactor = 1;
         let agentFacingDirection = agent.mainBody.getAngle();
         // Add the new angle to the buffer
         agent.limbBuffer[i].push(currentAngle);
@@ -858,42 +986,117 @@ function applySwimmingForceOld(p, agent) {
             // Determine the direction of the force
             let forceDirection = (currentAngle - angle) + Math.PI / 2;
 
-            let defaultBias = (!stageProperties.outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
-                ? stageProperties.swimBias
-                : agent.biases[i];
+            //let defaultBias = (!stageProperties.outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
+            //    ? stageProperties.swimBias
+            //    : agent.biases[i];
+
+            let defaultBias = stageProperties.swimBias;
 
             let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
 
             let forceMagnitude;
 
-            // Force magnitude is calculated based on; deltaTheta which is the change in angle over the last N frames, bias which is a value between 0 and 2 giving more control in the forward direction, the scaling factor which is a constant, then adjusted based on the limb's mass and length, length reduces the force, mass increases it.  Then modified by the agents remaining energy.
-            forceMagnitude = deltaTheta * forceScalingFactor * bias * (agent.limbMass[i] / stageProperties.limbMassForceDivider) * (agent.bodyParts[i].length / stageProperties.limbLengthForceDivider) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
-
-            if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
-                agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
-            }
+            forceMagnitude = deltaTheta * forceScalingFactor * bias;
 
             // Calculate the force vector
             let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
 
-            // Adjust force based on limb orientation and agent's facing direction
-            let orientationAdjustment = Math.cos(agent.mainBody.getAngle() - limbBody.getAngle());
-            let adjustedForce = force.mul(orientationAdjustment);
+            // Calculate the point on the limb to apply the force
+            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(angle) * (agent.limbLength / 1);
+            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.limbLength / 1);
 
-            // Create a p5.Vector for adjustedForce
-            let adjustedForceVector = p.createVector(adjustedForce.x, adjustedForce.y);
+            let forceApplyPoint = planck.Vec2(forceApplyPointX, forceApplyPointY);
 
-            // Apply the capped force
-            limbBody.applyForceToCenter(planck.Vec2(adjustedForceVector.x, adjustedForceVector.y));
+            agent.limbs[i].applyForce(force, forceApplyPoint, true);
+        }
+    }
+}
 
-            // Set 'forceAngle' property for visualization
-            let forceAngle = Math.atan2(adjustedForce.y, adjustedForce.x);
+function calculateDeltaTheta(buffer, currentAngle, N) {
+    buffer.push(currentAngle); // Add the current angle to the buffer
 
-            // Visualize limb force
-            let limbCenterPos = limbBody.getPosition();
-            if (agent.currentlyLeading == true) {
-                agent.drawForceVectors(p, limbCenterPos.x, limbCenterPos.y, adjustedForceVector, forceAngle);
-            }
+    if (buffer.length > N) {
+        buffer.shift(); // Remove the oldest angle if the buffer size exceeds N
+    }
+
+    if (buffer.length === N) {
+        // Calculate average of the previous angles
+        let sum = buffer.reduce((acc, angle) => acc + angle, 0);
+        let averagePreviousAngle = sum / buffer.length;
+
+        // Return the absolute difference between the current angle and the average previous angle
+        return (currentAngle - averagePreviousAngle);
+    } else {
+        return 0; // No significant movement if buffer is not full
+    }
+}
+
+
+
+function applySwimmingForceOld(p, agent) {
+
+    const N = 10;// stageProperties.swimForceOverNFrames;
+    const forceScalingFactor = stageProperties.swimStrength * 200;
+
+    for (let i = 0; i < agent.bodyParts.length; i++) {
+        let limbBody = agent.limbs[i];
+        let angle = agent.bodyParts[i].startingAngle;
+        let joint = agent.joints[i];
+        let currentAngle = joint.getJointAngle();
+        let agentFacingDirection = agent.mainBody.getAngle();
+        let limbAngle = limbBody.getAngle() + Math.PI / 2;
+
+        // In your main function
+        let deltaTheta = calculateDeltaTheta(agent.limbBuffer[i], currentAngle, N);
+
+        // Determine the direction of the force
+        let forceDirection;
+        if (angle < Math.PI * 2) {
+            forceDirection = limbAngle - Math.PI / 2;
+        } else {
+            forceDirection = limbAngle - Math.PI / 2;
+        }
+
+        //let defaultBias = (!stageProperties.outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
+        //    ? stageProperties.swimBias
+        //    : agent.biases[i];
+
+        // Force magnitude is calculated based on; deltaTheta which is the change in angle over the last N frames, bias which is a value between 0 and 2 giving more control in the forward direction, the scaling factor which is a constant, then adjusted based on the limb's mass and length, length reduces the force, mass increases it.  Then modified by the agents remaining energy.
+        let forceMagnitude = deltaTheta * forceScalingFactor * 1 * (agent.limbMass[i] / stageProperties.limbMassForceDivider) * (agent.bodyParts[i].length / stageProperties.limbLengthForceDivider) * agent.bodyParts[i].numberInChain * Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy)));
+
+        if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
+            agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
+        }
+
+        //if (p.frameCount % 10 === 0 && agent.genome.metadata.agentIndex === 5 && i == 0) {
+        //    let expectedBiasDirection = Math.abs(forceDirection - agentFacingDirection) < Math.PI / 2 ? "Aligned (Increase Force)" : "Opposite (Decrease Force)";
+        //    console.log(`Agent Index: ${agent.genome.metadata.agentIndex}, Frame: ${p.frameCount}, Bias: ${bias}, Expected: ${expectedBiasDirection}, Force Dir: ${forceDirection.toFixed(2)}, Agent Dir: ${agentFacingDirection.toFixed(2)}, Force Magnitude: ${forceMagnitude.toFixed(5)}`);
+        //}
+
+        let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
+
+        // Adjust force based on limb orientation and agent's facing direction
+        //let orientationAdjustment = Math.cos(agent.mainBody.getAngle() - limbBody.getAngle());
+        //let adjustedForce = force.mul(orientationAdjustment);
+
+        // Set 'forceAngle' property for visualization
+        let forceAngle = Math.atan2(force.y, force.x);
+
+        let defaultBias = stageProperties.swimBias / 10;
+
+        let bias = calculateBias(agentFacingDirection, forceAngle, defaultBias);
+
+        let adjustedForce = force.mul(bias);
+
+        // Create a p5.Vector for adjustedForce
+        let adjustedForceVector = p.createVector(adjustedForce.x, adjustedForce.y);
+
+        limbBody.applyForceToCenter(planck.Vec2(adjustedForceVector.x, adjustedForceVector.y));
+
+        // Visualize limb force
+        let limbCenterPos = limbBody.getPosition();
+        if (agent.currentlyLeading == true) {
+            agent.drawForceVectors(p, limbCenterPos.x, limbCenterPos.y, adjustedForceVector, forceAngle);
         }
     }
 }
@@ -928,7 +1131,7 @@ function applyDrag(agent) {
 
 function applySwimmingForce(p, agent) {
     const N = stageProperties.swimForceOverNFrames; // Use the last 5 frames for force calculation
-    const propulsionCoefficient = stageProperties.swimStrength;
+    const propulsionCoefficient = stageProperties.swimStrength * 1.5;
     const maxForceMagnitude = stageProperties.maxForceMagnitude; // Maximum force magnitude
     const displacementThreshold = 1;// stageProperties.displacementThreshold;
     const dragFactor = 0.9;
@@ -980,14 +1183,16 @@ function applySwimmingForce(p, agent) {
                 let localArea = limb.width * limb.length * { 'base': 0.1, 'center': 0.3, 'tip': 0.5 }[key];
                 let localForce = calculatePropulsiveForce(displacement, localArea);
 
-                let defaultBias = (!stageProperties.outputsBias || !simulationStarted || !agent.biases || index >= agent.biases.length || agent.biases[index] == null)
-                    ? (stageProperties.swimBias)
-                    : agent.biases[index];
+                //let defaultBias = (!stageProperties.outputsBias || !simulationStarted || !agent.biases || index >= agent.biases.length || agent.biases[index] == null)
+                //    ? (stageProperties.swimBias)
+                //    : agent.biases[index];
+
+                let defaultBias = stageProperties.swimBias / 10;
 
                 // Calculate the force direction for bias calculation
                 let forceDirection = Math.atan2(localForce.y, localForce.x);
                 let bias = calculateBias(agent.mainBody.getAngle(), forceDirection, defaultBias);
-                localForce = localForce.mul(((bias - 1) / 20) + 1);
+                localForce = localForce.mul(bias);
                 localForce = localForce.mul(Math.min(1, Math.max(0, (agent.agentEnergy / agent.startingEnergy))))
                 let adjustedForceVector = p.createVector(localForce.x, localForce.y);
                 adjustedForceVector.limit(maxForceMagnitude);
@@ -996,6 +1201,7 @@ function applySwimmingForce(p, agent) {
                 agent.lastCalculatedForces[index][key] = planck.Vec2(adjustedForceVector.x, adjustedForceVector.y);
                 limbBody.applyForce(agent.lastCalculatedForces[index][key], position, true);
 
+                // Energy reduction in this way does not actually make sense as it is also reducing agents energy due to drag forces. 
                 if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
                     agent.agentEnergy -= (Math.abs(adjustedForceVector.mag() / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[index] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
                 }
@@ -1098,7 +1304,6 @@ function initializeSketchBox2DNEAT(StageProperties) {
     selectedColor = null;
     render = true;
     stabilised = false;
-    randMap = 0;
     runCount = 0;
     cachedLeadingAgent = null;
     fps = 0;
@@ -1207,7 +1412,7 @@ function saveGenomes() {
     const jsonString = JSON.stringify(data);
 
     // Constructing the filename
-    let filename = `EvolvedPop_Gen${stageProperties.genCount}_TopScore${stageProperties.topScoreEver.toFixed(2)}_Agents${stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier}_${stageProperties.swimMethod}SwimMethod_${stageProperties.keepAgentSymmetrical ? 'Symmetrical' : 'Asymmetrical'}.json`;
+    let filename = `EvolvedPop_Gen-${stageProperties.genCount}_TopScore-${stageProperties.topScoreEver.toFixed(2)}_Agents-${stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier}_${stageProperties.swimMethod}-SwimMethod_${stageProperties.keepAgentSymmetrical ? 'Symmetrical' : 'Asymmetrical'}-Bodies_${stageProperties.networkOutput}-NetworkOutput.json`;
 
     saveToFile(jsonString, filename);
 }
@@ -1490,14 +1695,15 @@ function initializeAgentNEAT(i, genome) {
     setTimeout(() => {
         // Using genome properties to initialize the agent.  Could add spawn angle to genome metadata
         let agent = new AgentNEAT(genome, i, false);
-        let randomAngle;
-        if (stageProperties.randomAgentStartAngle == true) {
-            randomAngle = -Math.random() * Math.PI / 2;
-        } else {
-            // spawn angle is equal 45 degrees in radians
-            randomAngle = -Math.PI / 4;
-        }
-        agent.mainBody.setAngle(randomAngle);
+
+        //let randomAngle;
+        //if (stageProperties.randomAgentStartAngle == true) {
+        //    randomAngle = -Math.random() * Math.PI / 2;
+        //} else {
+        //    // spawn angle is equal 45 degrees in radians
+        //    randomAngle = -Math.PI / 4;
+        //}
+        //agent.mainBody.setAngle(randomAngle);
         agent.genome.metadata.groupName = GROUP_COLORS_NAMES[agent.genome.metadata.agentGroup];
         agents.push(agent);
 
@@ -1511,6 +1717,7 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes, totalPopula
     // Check if agents initialized
     if (isInitializationComplete) {
         runCount++;
+        // console.log("Run count: ", runCount);
         currentProcess = "Starting first round of simulation!";
         // set numGroups to the largest value in agentGenomePool.metadata.AgentGroup
         numGroups = Math.max(...agentGenomePool.map(genome => genome.metadata.agentGroup)) + 1;
@@ -1575,28 +1782,66 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
 
     this.bodyParts = flattenLimbStructure(this.genome.mainBody.arms);
 
-    // this.numSegments = this.genome.mainBody.bodySegments.length;
-    // this.bodySegmentGenes = this.genome.mainBody.bodySegments;
+    this.noFrontLimbs = 0;
 
     if (stageProperties.keepAgentSymmetrical === true && this.bodyParts.length > 0) {
+
+        this.noLimbsBeforeDupe = this.bodyParts.length;
+
+        // Find the maximum limb ID in the original set
+        const maxPartID = Math.max(...this.bodyParts.map(limb => limb.partID));
+
         // Create a copy of the original limbs to avoid modifying the array while iterating
         const originalLimbs = this.bodyParts.slice();
-
+        let insertIndex = 0;
         for (let i = 0; i < originalLimbs.length; i++) {
-            if (originalLimbs[i].startingAngle !== 0) {
-                let newLimb = _.cloneDeep(originalLimbs[i]);
-                newLimb.startingAngle = (2 * Math.PI) - originalLimbs[i].startingAngle;
+            let originalLimb = originalLimbs[i];
+            insertIndex++;
 
-                // Ensure newLimb's startingAngle is within the 0 to 2 range
-                if (newLimb.startingAngle >= 2 * Math.PI) {
-                    newLimb.startingAngle -= 2 * Math.PI;
+            const epsilon = 0.1;
+            const twoPi = 2 * Math.PI;
+            const fourPi = 4 * Math.PI;
+            //if (originalLimb.startingAngle !== 0) {
+            // Only duplicate limbs that are not within a small range of the front or back of the agent 
+            if (!(((originalLimb.startingAngle >= 0 && originalLimb.startingAngle <= epsilon) ||
+                (originalLimb.startingAngle >= twoPi - epsilon && originalLimb.startingAngle <= twoPi + epsilon) ||
+                (originalLimb.startingAngle >= fourPi - epsilon && originalLimb.startingAngle <= fourPi)) && originalLimb.numberInChain == 1)) {
+
+                if (originalLimb.partID == 1) {
+                    this.noFrontLimbs = 2;
                 }
 
-                this.bodyParts.push(newLimb);
+                let newLimb = _.cloneDeep(originalLimb);
+                newLimb.startingAngle = (4 * Math.PI) - originalLimb.startingAngle;
+
+                newLimb.constraints.minAngle = -originalLimb.constraints.maxAngle;
+                newLimb.constraints.maxAngle = -originalLimb.constraints.minAngle;
+
+                newLimb.partID = maxPartID + originalLimb.partID + 1;
+                if (originalLimb.parentPartID != 0) {
+                    let parentLimb = this.bodyParts.find(limb => limb.partID === originalLimb.parentPartID);
+                    if (((parentLimb.startingAngle >= 0 && parentLimb.startingAngle <= epsilon) ||
+                        (parentLimb.startingAngle >= twoPi - epsilon && parentLimb.startingAngle <= twoPi + epsilon) ||
+                        (parentLimb.startingAngle >= fourPi - epsilon && parentLimb.startingAngle <= fourPi)) && parentLimb.numberInChain == 1) {
+                        newLimb.parentPartID = originalLimb.parentPartID;
+                    } else {
+                        newLimb.parentPartID = maxPartID + originalLimb.parentPartID + 1;
+                    }
+                }
+
+                // Update inputs for the neural network
+                this.genome.inputLayerGenes[0].numberOfNeurons++;
+                this.genome.inputLayerGenes[0].inputs.push(this.genome.inputLayerGenes[0].inputs.length);
+
+                this.bodyParts.splice(insertIndex, 0, newLimb);
+                insertIndex++;
+            } else {
+                this.noFrontLimbs = 1;
             }
         }
-        updateLimbIDs(this.genome);
     }
+
+
     this.numLimbs = this.bodyParts.length;  // + other limb types
     this.numBodyParts = this.numLimbs + this.numSegments + 1; // inc 1 for the main body
 
@@ -1656,6 +1901,17 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         this.brainSize += this.genome.layerGenes[i].numberOfNeurons;
     }
 
+    // Determine the starting angle of the main body
+    let randomAngle;
+    if (stageProperties.randomAgentStartAngle == true) {
+        randomAngle = -Math.random() * Math.PI / 2;
+    } else {
+        randomAngle = -Math.PI / 4;  // 45 degrees in radians
+    }
+
+    // Set the main body's angle
+    this.mainBody.setAngle(randomAngle);
+
     // console.log(this.bodyParts);
     for (let part of this.bodyParts) {
         let parentLimb;this.arms
@@ -1666,15 +1922,15 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
             if (part.numberInChain === 1) {
                 parentLimb = this.mainBody;
                 parentLimbLength = mainBodyRadius;
-            } else if (part.numberInChain > 1 && part.parentLimbID != 0) {
+            } else if (part.numberInChain > 1 && part.parentPartID != 0) {
                 parentLimb = this.limbs.find(limb => limb.getUserData() === part.parentPartID);
                 parentLimbGenome = this.bodyParts.find(limb => limb.partID === part.parentPartID);
                 parentLimbLength = parentLimbGenome.length;
             } else {
-                console.log("Error in arm initialization, number in chain does not match.  Genome: " + JSON.stringify(this.genome));
+                console.log("Error in arm initialization, number in chain does not match.  BodyParts: " + JSON.stringify(this.bodyParts) + " Offending Limb: " + JSON.stringify(part));
             }
         } catch (err) {
-            console.log("Error in arm initialization, number in chain does not match.  Genome: " + JSON.stringify(this.genome));
+            console.log("'Try Error: " + err + "' Error in arm initialization, number in chain does not match.  BodyParts: " + JSON.stringify(this.bodyParts) + " Offending Limb: " + JSON.stringify(part));
         }
 
         // if (part.type == "BodySegment") {
@@ -1690,17 +1946,17 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
                 // Parent limb is main body
                 offsetFromMainLimb = mainBodyRadius + part.length / 2;
                 part.attachment = { x: mainBodyRadius * Math.cos(angle), y: -mainBodyRadius * Math.sin(angle) };
-                part.limbX = this.startingX + offsetFromMainLimb * Math.cos(angle);
-                part.limbY = this.startingY - offsetFromMainLimb * Math.sin(angle);
+                part.limbX = this.startingX + offsetFromMainLimb * Math.cos(angle - randomAngle);
+                part.limbY = this.startingY - offsetFromMainLimb * Math.sin(angle - randomAngle);
             } else if (part.numberInChain > 1) {
                 // Parent limb is another limb
                 offsetFromMainLimb = parentLimbLength / 2 + part.length / 2;
                 part.attachment = { x: 0, y: parentLimbLength / 2 };
-                part.limbX = parentLimbGenome.limbX + offsetFromMainLimb * Math.cos(angle);
-                part.limbY = parentLimbGenome.limbY - offsetFromMainLimb * Math.sin(angle);
+                part.limbX = parentLimbGenome.limbX + offsetFromMainLimb * Math.cos(angle - randomAngle);
+                part.limbY = parentLimbGenome.limbY - offsetFromMainLimb * Math.sin(angle - randomAngle);
             } 
 
-            let arm = createLimbNEAT(world, part.limbX, part.limbY, part.length, part.width, angle, part.partID);
+            let arm = createLimbNEAT(world, part.limbX, part.limbY, part.length, part.width, angle - randomAngle, part.partID);
 
             let localAnchorA;
             localAnchorA = planck.Vec2(
@@ -2096,7 +2352,6 @@ function createLimbNEAT(world, x, y, length, width, angle, limbNo) {
 }
 
 function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB, lowerAngle, upperAngle, limbTorque) {
-
     let jointDef = {
         bodyA: bodyA,
         bodyB: bodyB,
@@ -2112,6 +2367,7 @@ function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB
 
     return world.createJoint(planck.RevoluteJoint(jointDef, bodyA, bodyB));
 }
+
 
 function getLeadingAgentNEAT(frameCounter) {
 
@@ -2173,16 +2429,17 @@ function getHighestScoreNEAT() {
 
 function endSimulationNEAT(p) {
     // p.noLoop();
+    simulationStarted = false;
     stabilised = false;
     singleUpdateCompleted = false;
     isInitializationComplete = false;
-    simulationStarted = false;
     panningOffsetX = 0;
     panningOffsetY = 0;
     currentProcess = "Sorting agents by score!";
     console.log("round over");
 
     for (let agent of agents) {
+
         // Destroy the joints first
         for (let joint of agent.joints) {
             if (joint) { // Check if joint exists and is in the world
@@ -2221,12 +2478,9 @@ function endSimulationNEAT(p) {
     for (let i = 0; i < agents.length; i++) {
         let thisScore = agents[i].getScore(false)[0];
 
-        agents[i].genome.agentHistory.lastScore = { score: thisScore, map: randMap, generation: stageProperties.genCount };
+        agents[i].genome.agentHistory.lastScore = { score: thisScore, map: stageProperties.map, generation: stageProperties.genCount };
 
-        // Store the score only if the generation is a multiple of STORE_EVERY_N_GENERATIONS
-        if (stageProperties.genCount % 5 === 0) {
-            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: randMap, generation: stageProperties.genCount });
-        }
+        agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: stageProperties.map, generation: stageProperties.genCount });
 
         agents[i].genome.agentHistory.rankInPop = (i + 1);
 
@@ -2292,7 +2546,7 @@ function createMaps(mapNumber) {
     //    mapNumber = Math.floor(Math.random() * 5);
     //}
 
-    mapNumber = 7;
+    // mapNumber = 7;
 
     if (mapNumber == 0) {
         // Map starts agents in a diagonal channel, facing north east, with obstacles to get around, then opens up to free space
@@ -2399,22 +2653,22 @@ function createMaps(mapNumber) {
         // Create the boundary walls to force agents through channel
         createWall(startX - 480, startY - 330, 10, 1000, -Math.PI / 4);
         createWall(startX + 380, startY + 530, 10, 1000, -Math.PI / 4);
-        createWall(startX + 850, startY - 250, 10, channelLength, Math.PI / 4); // Left wall
+        createWall(startX - 850, startY - 350, 10, channelLength, Math.PI / 4); // Left wall
         createWall(startX + 300, startY - 100 + 1000, 10, channelLength, Math.PI / 4); // Right wall
 
         // Obstacles
-        createWall(startX + 120, startY - 150, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 120, startY + 10, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 200, startY - 250, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 580, startY - 420, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 560, startY - 400, 10, channelWidth / 2, -Math.PI / 4);
 
     } else if (mapNumber == 5) {
-        const numObstacles = 3000;
+        const numObstacles = 150;
         const obstacleMinSize = 10;
         const obstacleMaxSize = 100;
-        const mapArea = { x: 100, y: 700, width: 10000, height: -10000 }; // Define the area for obstacle placement
+        const mapArea = { x: -100, y: -1100, width: 2000, height: 2000 }; // Define the area for obstacle placement
 
         // Define a safe zone where no obstacles will be placed
-        const safeZone = { x: 100, y: 700, width: 300, height: -300 };
+        const safeZone = { x: 0, y: 400, width: 400, height: 400 };
 
         for (let i = 0; i < numObstacles; i++) {
             let obstacleWidth = Math.random() * (obstacleMaxSize - obstacleMinSize) + obstacleMinSize;
@@ -2455,7 +2709,7 @@ function createMaps(mapNumber) {
         createWall(startX + 1000, startY - 200, 10, channelLength + 300, Math.PI / 4);
 
     } else if (mapNumber == 7) {
-        // Map starts agents in a diagonal channel, zigzagging east
+        // Map starts agents in a diagonal channel, zigzagging north
         let channelWidth = 300;
         let channelLength = 400;
 
@@ -2785,7 +3039,6 @@ function nextAgentgroupNEAT(p) {
 function waitForInitializationCompletionBatchNEAT(populationGenomes) {
     // Check if the condition is met
     if (agents.length >= stageProperties.numAgents) {
-        runCount++;
         currentProcess = "Starting next round";
 
         populationGenomes = [];
@@ -2801,7 +3054,7 @@ function waitForInitializationCompletionBatchNEAT(populationGenomes) {
         }
 
         isInitializationComplete = true;
-
+        runCount++;
         console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
         console.log("Number of bodies:", world.getBodyCount());
         console.log("Number of joints:", world.getJointCount());
@@ -2815,21 +3068,30 @@ function waitForInitializationCompletionBatchNEAT(populationGenomes) {
 
 function nextGenerationNEAT(p) {
 
-    saveStateToIndexedDB();
-
     usedIndices = new Set();
-    if (stageProperties.framesPerUpdateStart > 1) {
-        stageProperties.framesPerUpdateStart--;
-    }
     runCount = 0;
     currentProcess = "Performing Crossover, Mutation, and Selection on total population to create offspring";
 
+    for (let agent of tempAgentPool) {
+        if (stageProperties.keepAgentSymmetrical === true) {
+
+            // Create a copy of the original limbs to avoid modifying the array while iterating
+            const originalLimbs = flattenLimbStructure(agent.genome.mainBody.arms);
+            for (let i = 0; i < originalLimbs.length; i++) {
+                if (originalLimbs[i].startingAngle !== 0) {
+                    agent.genome.inputLayerGenes[0].numberOfNeurons--;
+                    agent.genome.inputLayerGenes[0].inputs.pop();
+                }
+            }
+        }
+    }
+
     // Probability of changing the map
-    const mapChangeProbability = 0.3; // 30% chance to change the map
+    const mapChangeProbability = 0.333; // 30% chance to change the map
 
     if (stageProperties.randomMap && Math.random() < mapChangeProbability) {
-        const randMap = Math.floor(Math.random() * 8);
-        createMaps(randMap);
+        stageProperties.map = Math.floor(Math.random() * 8);
+        createMaps(stageProperties.map);
     }
 
     // calculate average network 'pattern'
@@ -2856,8 +3118,11 @@ function nextGenerationNEAT(p) {
         stageProperties.scoreHistoryTop.push(topScoreThisRound);
     }
 
+    // saveStateToIndexedDB();
+
     // OTT manual disposal and destruction of all bodies and joints
     for (let agent of agents) {
+
         // Destroy the joints first
         for (let joint of agent.joints) {
             if (joint) { // Check if joint exists and is in the world
@@ -2984,6 +3249,9 @@ function nextGenerationNEAT(p) {
 
 // Recursive function checking if agents have finished loading into world
 function waitForInitializationCompletionNEAT() {
+
+    // Could add a time based overwrite so that if the population never reaches the correct length, normally due to a bug, it will generate new, random agents until the correct number is reached.
+
     // Check if the condition is met
     if (tempAgentGenomePool.length >= stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
 
@@ -3099,6 +3367,9 @@ function waitForFinalInitializationCompletionNEAT() {
                 randomlySelectedAgents.push(newGroupAgents[randomIndex]);
             }
         }
+
+        saveStateToIndexedDB();
+
         runCount++;
         isInitializationComplete = true;
         console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
@@ -3166,10 +3437,12 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
 
     let childGenome;
 
-    if (Math.random() < 0.5) {
+    if (Math.random() > 0.33) {
         childGenome = biasedArithmeticCrossoverNEAT(parent1, parent2);
-    } else {
+    } else if (Math.random() > 0.66) {
         childGenome = randomSelectionCrossoverNEAT(parent1, parent2);
+    } else {
+        childGenome = biasedArithmeticLayerCrossoverNEAT(parent1, parent2);
     }
 
     // Crossover the body plan
@@ -3209,7 +3482,7 @@ function createAgentGroup(groupAgents, groupId, agentsNeeded) {
     childGenome.agentHistory.lastScore = 0;
     childGenome.agentHistory.usedAsParent = 0;
     childGenome.agentHistory.roundsAsTopPerformer = 0;
-    childGenome.agentHistory.scoreHistory = [];
+    // childGenome.agentHistory.scoreHistory = [];
 
 
     // Once an agent is created, add to agent pool
@@ -3305,7 +3578,7 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
 
     let childGenome = _.cloneDeep(dominantGenome);
 
-    addMutationWithHistoryLimit(childGenome, "Child of Dominant Parent: ", dominantGenome.metadata.agentIndex, "; ", dominantGenome.metadata.agentName, " and Recessive Parent: ", subGenome.metadata.agentIndex, "; ", subGenome.metadata.agentName);
+    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
 
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
@@ -3409,7 +3682,7 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
     let subGenome = (TScore1 < TScore2) ? genome1 : genome2;
     let childGenome = _.cloneDeep(dominantGenome);
 
-    addMutationWithHistoryLimit(childGenome, "Child of Dominant Parent: ", dominantGenome.metadata.agentIndex, "; ", dominantGenome.metadata.agentName, " and Recessive Parent: ", subGenome.metadata.agentIndex, "; ", subGenome.metadata.agentName);
+    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
 
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
@@ -3492,6 +3765,69 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
         }
     }
     return childGenome;
+}
+
+function biasedArithmeticLayerCrossoverNEAT(agent1, agent2) {
+    let genome1 = agent1.genome;
+    let genome2 = agent2.genome;
+    let score1 = agent1.getScore(true);
+    let TScore1 = parseFloat(score1[0]);
+    let score2 = agent2.getScore(true);
+    let TScore2 = parseFloat(score2[0]);
+    let dominantGenome = (TScore1 > TScore2) ? genome1 : genome2;
+    let subGenome = (TScore1 < TScore2) ? genome1 : genome2;
+    let childGenome = _.cloneDeep(dominantGenome);
+
+    // Find swappable layers
+    let swappableLayers = [];
+    for (let i = 0; i < genome1.layerGenes.length; i++) {
+        if (isLayerSwappable(genome1, genome2, i)) {
+            swappableLayers.push(i);
+            // console.log("Swappable layer found at index: " + i);
+        }
+    }
+
+    if (swappableLayers.length === 0) {
+        // No swappable layers found, return a clone of a random parent's genome
+        // console.log("No swappable layer found");
+        return dominantGenome;
+    }
+
+    // Randomly choose a swappable layer
+    let layerIndexToSwap = swappableLayers[Math.floor(Math.random() * swappableLayers.length)];
+
+    // Perform the crossover by swapping the middle layer
+    childGenome.layerGenes[layerIndexToSwap] = _.cloneDeep(genome2.layerGenes[layerIndexToSwap]);
+
+    // Log the mutation with layer ID
+    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped Layer: " + layerIndexToSwap + " from Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
+
+    return childGenome;
+}
+
+function isLayerSwappable(genome1, genome2, layerIndex) {
+    if (layerIndex === 0) {
+        // Check input layer against the first hidden layer
+        return layerMatches(genome1.inputLayerGenes[0], genome2.inputLayerGenes[0]) &&
+            layerMatches(genome1.layerGenes[0], genome2.layerGenes[0]);
+    } else if (layerIndex === genome1.layerGenes.length - 1) {
+        // Check last hidden layer against the output layer
+        return layerMatches(genome1.layerGenes[genome1.layerGenes.length - 1], genome2.layerGenes[genome2.layerGenes.length - 1]) &&
+            layerMatches(genome1.outputLayerGenes[0], genome2.outputLayerGenes[0]);
+    } else if (genome1.layerGenes[layerIndex] && genome2.layerGenes[layerIndex] && genome1.layerGenes[layerIndex + 1] && genome2.layerGenes[layerIndex + 1]) {
+        // Check regular hidden layers
+        return layerMatches(genome1.layerGenes[layerIndex - 1], genome2.layerGenes[layerIndex - 1]) &&
+            layerMatches(genome1.layerGenes[layerIndex], genome2.layerGenes[layerIndex]) &&
+            layerMatches(genome1.layerGenes[layerIndex + 1], genome2.layerGenes[layerIndex + 1]);
+    } else {
+        return false;
+    }
+}
+
+function layerMatches(layer1, layer2) {
+    // Check if the number of nodes and the first node ID are the same
+    return layer1.biases.length === layer2.biases.length &&
+        layer1.biases[0].id === layer2.biases[0].id;
 }
 
 function bodyPlanCrossover(childGenome, agent1, agent2) {
@@ -3829,7 +4165,7 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
     // Limb Number Mutation, half as often as other body mutations
     // My current setup just randomly decides to add or remove a limb, and randomly decides where.  Closer to evolution would be if I gave each limb a chance to have a number of actions occur, such as growing a new limb, altering its own properties, or removing itself.
-    if (Math.random() < bodyMutationRate) { // normally divided by 2 but increase chance for testing
+    if (Math.random() < bodyMutationRate / 2) { // normally divided by 2 but increase chance for testing
         if (Math.random() < 0.5) {
 
             let totalLimbs = countArms(childGenome.mainBody.arms);
@@ -3863,9 +4199,6 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
             let inputNodeId = generateUniqueId(childGenome.usedBiasIDs);  // Generate a unique ID for this node
             inputLayer.biases.splice(inputNodeIndex, 0, { id: inputNodeId, value: Math.random() }); // Insert at index = limb ID
             inputLayer.numberOfNeurons++;
-            if (stageProperties.keepAgentSymmetrical == true) {
-                inputLayer.numberOfNeurons++;
-            }
             childGenome.inputLayerGenes[0].inputs.push(childGenome.inputLayerGenes[0].inputs.length);
 
             // Add a new node to the output layer for the limb
@@ -3948,9 +4281,6 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                     // Remove node from the input layer
                     childGenome.inputLayerGenes[0].biases.splice(flattenedIndex, 1);
                     childGenome.inputLayerGenes[0].numberOfNeurons--;
-                    if (stageProperties.keepAgentSymmetrical == true) {
-                        inputLayer.numberOfNeurons--;
-                    }
                     childGenome.inputLayerGenes[0].inputs.splice(flattenedIndex, 1);
 
                     // Remove weights connected to the removed input node from the first hidden layer
@@ -3959,6 +4289,7 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                     // Remove node from the output layer
                     let outputLayer = childGenome.outputLayerGenes[0];
                     outputLayer.biases.pop();
+
                     outputLayer.numberOfNeurons--;
 
                     // Remove weights connected to the removed output node in the last hidden layer
@@ -4009,20 +4340,21 @@ function flattenLimbStructure(limbs, parentLimb = null) {
     return parts;
 }
 
-function addMutationWithHistoryLimit(genome, mutationRecord) {
+function addMutationWithHistoryLimit(mutationArray, mutationRecord) {
 
     // Ensure the mutations array exists
-    if (!genome.agentHistory.mutations) {
-        genome.agentHistory.mutations = [];
+    if (!mutationArray) {
+        mutationArray = [];
     }
 
     // Add the new mutation record
-    genome.agentHistory.mutations.push(mutationRecord);
+    mutationArray.push(mutationRecord);
 
     // Trim the mutations history to the last 10 records if it's longer
-    while (genome.agentHistory.mutations.length > 50) {
-        genome.agentHistory.mutations.shift(); // Remove the oldest record
+    while (mutationArray.length > 50) {
+        mutationArray.shift(); // Remove the oldest record
     }
+
 }
 
 function findClosestLimbForWeights(selectedPart, allLimbs) {
@@ -4177,9 +4509,13 @@ function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
     }
 
     if (stageProperties.inputDistanceSensors) {
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 4; i++) {
             inputLabels.push(`Sensor ${['E', 'NE', 'W', 'SE'][i]}`);
         }
+    }
+
+    if (stageProperties.inputTicker) {
+        inputLabels.push(`Tick: ${internalTick}`);
     }
 
     if (stageProperties.outputsJointSpeed) {
@@ -4194,159 +4530,174 @@ function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
         outputLabels = outputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Limb ${idx + 1}`));
     }
 
-    allWeightTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 0);
-    allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()));
+    try {
+        allWeightTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 0);
+        allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()));
 
-    allBiasesTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 1);
-    allBiases = allBiasesTensors.flatMap(tensor => Array.from(tensor.dataSync()));
+        allBiasesTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 1);
+        allBiases = allBiasesTensors.flatMap(tensor => Array.from(tensor.dataSync()));
 
-    let currentWeightIndex = 0;
-    let currentBiasIndex = 0;
+        let currentWeightIndex = 0;
+        let currentBiasIndex = 0;
 
-    let hiddenLayers = agent.genome.layerGenes.length;
-    let inputNodes = agent.genome.inputLayerGenes[0].numberOfNeurons;
-    let outputNodes = agent.genome.outputLayerGenes[0].numberOfNeurons;
+        let hiddenLayers = agent.genome.layerGenes.length;
+        let inputNodes = agent.genome.inputLayerGenes[0].numberOfNeurons;
+        let outputNodes = agent.genome.outputLayerGenes[0].numberOfNeurons;
 
-    // First, render all the connections (lines)
-    let x = offsetX;
-    for (let i = 0; i < hiddenLayers + 2; i++) {
-        let nodes = 0;
-        if (i === 0) {
-            nodes = inputNodes;
-        } else if (i === hiddenLayers + 1) {
-            nodes = outputNodes;
-        } else {
-            nodes = agent.genome.layerGenes[i - 1].numberOfNeurons;
-        }
+        // First, render all the connections (lines)
+        let x = offsetX;
+        for (let i = 0; i < hiddenLayers + 2; i++) {
+            let nodes = 0;
+            if (i === 0) {
+                nodes = inputNodes;
+            } else if (i === hiddenLayers + 1) {
+                nodes = outputNodes;
+            } else {
+                nodes = agent.genome.layerGenes[i - 1].numberOfNeurons;
+            }
 
-        let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
+            let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
 
-        let currentLayerPositions = [];
-        for (let j = 0; j < nodes; j++) {
-            let y = startY + j * nodeGap;
-            currentLayerPositions.push({ x: x, y: y });
-        }
+            let currentLayerPositions = [];
+            for (let j = 0; j < nodes; j++) {
+                let y = startY + j * nodeGap;
+                currentLayerPositions.push({ x: x, y: y });
+            }
 
-        // Draw connections
-        if (i > 0) {
-            for (let prevPos of previousLayerPositions) {
-                for (let currentPos of currentLayerPositions) {
-                    let weight = allWeights[currentWeightIndex];
-                    currentWeightIndex++;
-                    let maxWeight = Math.max(...allWeights.map(Math.abs));
-                    let strokeWeightValue = mapWeightToStroke(weight, maxWeight);
-                    p.stroke(255);
-                    p.strokeWeight(strokeWeightValue);
-                    p.line(prevPos.x, prevPos.y, currentPos.x, currentPos.y);
+            // Draw connections
+            if (i > 0) {
+                for (let prevPos of previousLayerPositions) {
+                    for (let currentPos of currentLayerPositions) {
+                        let weight = allWeights[currentWeightIndex];
+                        currentWeightIndex++;
+                        let maxWeight = Math.max(...allWeights.map(Math.abs));
+                        let strokeWeightValue = mapWeightToStroke(weight, maxWeight);
+                        p.stroke(255);
+                        p.strokeWeight(strokeWeightValue);
+                        p.line(prevPos.x, prevPos.y, currentPos.x, currentPos.y);
+                    }
                 }
             }
+
+            previousLayerPositions = currentLayerPositions;
+            x += layerGap;
         }
 
-        previousLayerPositions = currentLayerPositions;
-        x += layerGap;
-    }
+        // Then, render the nodes (on top of the lines)
+        x = offsetX;
+        for (let i = 0; i < hiddenLayers + 2; i++) {
+            let nodes = 0;
+            let labels = [];
+            if (i === 0) {
+                nodes = inputNodes;
+                labels = inputLabels;
+            } else if (i === hiddenLayers + 1) {
+                nodes = outputNodes;
+                labels = outputLabels;
+            } else {
+                nodes = agent.genome.layerGenes[i - 1].numberOfNeurons;
+            }
 
-    // Then, render the nodes (on top of the lines)
-    x = offsetX;
-    for (let i = 0; i < hiddenLayers + 2; i++) {
-        let nodes = 0;
-        let labels = [];
-        if (i === 0) {
-            nodes = inputNodes;
-            labels = inputLabels;
-        } else if (i === hiddenLayers + 1) {
-            nodes = outputNodes;
-            labels = outputLabels;
-        } else {
-            nodes = agent.genome.layerGenes[i - 1].numberOfNeurons;
-        }
+            let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
+            let outputIndex = 0;
+            for (let j = 0; j < nodes; j++) {
+                let y = startY + j * nodeGap;
+                let maxBias = Math.max(...allBiases.map(Math.abs));
+                let bias = allBiases[currentBiasIndex];
+                currentBiasIndex++;
 
-        let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
-        let outputIndex = 0;
-        for (let j = 0; j < nodes; j++) {
-            let y = startY + j * nodeGap;
-            let maxBias = Math.max(...allBiases.map(Math.abs));
-            let bias = allBiases[currentBiasIndex];
-            currentBiasIndex++;
+                //// Check if it's the output layer and set fill color accordingly
+                //if (i === nnConfig.hiddenLayers.length + 1 && j < GROUP_COLORS.length) {
+                //    p.fill(GROUP_COLORS[j]);
+                //} else {
+                p.fill(GROUP_COLORS[agent.genome.metadata.agentGroup]); // Default fill color
+                //}
 
-            //// Check if it's the output layer and set fill color accordingly
-            //if (i === nnConfig.hiddenLayers.length + 1 && j < GROUP_COLORS.length) {
-            //    p.fill(GROUP_COLORS[j]);
-            //} else {
-            p.fill(GROUP_COLORS[agent.genome.metadata.agentGroup]); // Default fill color
-            //}
+                let nodeSize = mapBiasToNodeSize(bias, maxBias);
+                p.ellipse(x, y, nodeSize, nodeSize);
+                p.stroke(0);
+                // Add labels to the side of input and output nodes
+                if (labels.length > 0) {
+                    p.textSize(12);
+                    if (i === 0) {
+                        p.text(labels[j], x - 90, y + 4);
+                    } else if (i === hiddenLayers + 1) {
+                        p.text(labels[j], x + 15, y + 4);
 
-            let nodeSize = mapBiasToNodeSize(bias, maxBias);
-            p.ellipse(x, y, nodeSize, nodeSize);
-            p.stroke(0);
-            // Add labels to the side of input and output nodes
-            if (labels.length > 0) {
-                p.textSize(12);
-                if (i === 0) {
-                    p.text(labels[j], x - 90, y + 4);
-                } else if (i === hiddenLayers + 1) {
-                    p.text(labels[j], x + 15, y + 4);
-                    if (stageProperties.outputsJointSpeed && agent.joints[j]) {
-                        p.fill(GROUP_COLORS[j]);
-                        let currentSpeed = agent.joints[j].getMotorSpeed();
-                        p.text(`Speed: ${currentSpeed.toFixed(4)}`, x + 60, y + 4);
-                        outputIndex++;
+                        if (stageProperties.outputsJointSpeed && agent.joints[j]) {
+                            p.fill(GROUP_COLORS[j]);
+                            let currentSpeed = agent.joints[j].getMotorSpeed();
+                            p.text(`Speed: ${currentSpeed.toFixed(4)}`, x + 60, y + 4);
+                            outputIndex++;
+                        }
+
+                        if (stageProperties.outputsJointTorque && agent.joints[j - outputIndex]) {
+                            p.fill(GROUP_COLORS[j - outputIndex]);
+                            p.text(`Max Torque Cant Be Polled :(`, x + 60, y + 4);
+                            outputIndex++;
+                        }
+
+                        if (stageProperties.outputsBias && agent.biases[j - outputIndex]) {
+                            p.fill(GROUP_COLORS[j - outputIndex]);
+                            let biasI = agent.biases[j - outputIndex];
+                            p.text(`Bias: ${biasI}`, x + 60, y + 4);
+                        }
+
                     }
-
-                    if (stageProperties.outputsJointTorque && agent.joints[j - outputIndex]) {
-                        p.fill(GROUP_COLORS[j - outputIndex]);
-                        p.text(`Max Torque Cant Be Polled :(`, x + 60, y + 4);
-                        outputIndex++;
-                    }
-
-                    if (stageProperties.outputsBias && agent.biases[j - outputIndex]) {
-                        p.fill(GROUP_COLORS[j - outputIndex]);
-                        let biasI = agent.biases[j - outputIndex];
-                        p.text(`Bias: ${biasI}`, x + 60, y + 4);
-                    }
-
                 }
             }
+            x += layerGap;
         }
-        x += layerGap;
+    } catch (error) {
+        if (error.message.includes('disposed')) {
+            console.error('Attempted to access weights of a disposed model.');
+            return;
+        } else {
+            throw error;
+        }
     }
     p.pop();
 }
 
 AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
     return tf.tidy(() => {
-        const output = this.brain.predict(tf.tensor([inputs])).dataSync();
-        let outputIndex = 0;
 
-        let numOriginalJoints;
+        let output = this.brain.predict(tf.tensor([inputs])).dataSync();
 
-        if (stageProperties.keepAgentSymmetrical == true) {
-            numOriginalJoints = Math.ceil(this.joints.length / 2);
-        } else {
-            numOriginalJoints = this.joints.length;
+        if (stageProperties.networkOutput === "simple") {
+            if (stageProperties.bodyPlanStart === "simple") {
+
+                let firstOutput = output[0];
+                //if (firstOutput < -0.05) firstOutput = -1;
+                //else if (firstOutput > 0.05) firstOutput = 1;
+                //else firstOutput = 0;
+
+                let remainingOutputs = output.slice(1);
+                remainingOutputs = remainingOutputs.map(x => {
+                    if (x < 0) return -1;
+                    else return 1;
+                });
+
+                output = [firstOutput, ...remainingOutputs];
+
+            } else {
+                output = output.map(x => {
+                    if (x < -0.05) return -1;
+                    else if (x > 0.05) return 1;
+                    else return 0;
+                });
+            }
         }
 
-        for (let i = 0; i < numOriginalJoints; i++) {
+        let outputIndex = 0;
+
+        for (let i = 0; i < this.joints.length; i++) {
 
             if (stageProperties.outputsJointSpeed) {
+
                 let adjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
 
-                // Apply to original joint
                 this.joints[i].setMotorSpeed(adjustment);
-
-                if (stageProperties.keepAgentSymmetrical == true) {
-                    if (stageProperties.bodyPlanStart == "simple") {
-                        if (i != 0) {
-                            let duplicateJointIndex = i + (numOriginalJoints - 1);
-                            // Apply to duplicated joint
-                            this.joints[duplicateJointIndex].setMotorSpeed(-adjustment);
-                        }
-                    } else {
-                        let duplicateJointIndex = i + numOriginalJoints;
-                        // Apply to duplicated joint
-                        this.joints[duplicateJointIndex].setMotorSpeed(-adjustment);
-                    }
-                }
 
                 outputIndex++;
             }
@@ -4367,41 +4718,72 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
     });
 };
 
-AgentNEAT.prototype.makeDecisionSimpleNEAT = function (inputs) {
+AgentNEAT.prototype.makeDecisionSymmetricalNEAT = function (inputs) {
     return tf.tidy(() => {
-        const rawOutput = this.brain.predict(tf.tensor([inputs])).dataSync();
-        const output = rawOutput.map(x => Math.sign(x)); // Apply the sign function
 
-        let numOriginalJoints;
+        let output = this.brain.predict(tf.tensor([inputs])).dataSync();
 
-        if (stageProperties.keepAgentSymmetrical == true) {
-            numOriginalJoints = Math.ceil(this.joints.length / 2);
-        } else {
-            numOriginalJoints = this.joints.length;
-        }
+        if (stageProperties.networkOutput === "simple") {
+            if (stageProperties.bodyPlanStart === "simple") {
 
-        for (let i = 0; i < numOriginalJoints; i++) {
-            if (stageProperties.outputsJointSpeed) {
-                let adjustment = output[i] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
+                let firstOutput = output[0];
+                //if (firstOutput < - 0.5) firstOutput = -1;
+                //else if (firstOutput > 0.5) firstOutput = 1;
+                //else firstOutput = 0;
 
-                // Apply to original joint
-                this.joints[i].setMotorSpeed(adjustment);
+                let remainingOutputs = output.slice(1);
+                remainingOutputs = remainingOutputs.map(x => {
+                    if (x < 0) return -1;
+                    else return 1;
+                });
 
-                if (stageProperties.keepAgentSymmetrical == true) {
-                    if (stageProperties.bodyPlanStart == "simple") {
-                        if (i != 0) {
-                            let duplicateJointIndex = i + (numOriginalJoints - 1);
-                            // Apply to duplicated joint
-                            this.joints[duplicateJointIndex].setMotorSpeed(-adjustment);
-                        }
-                    } else {
-                        let duplicateJointIndex = i + numOriginalJoints;
-                        // Apply to duplicated joint
-                        this.joints[duplicateJointIndex].setMotorSpeed(-adjustment);
-                    }
-                }
+                output = [firstOutput, ...remainingOutputs];
+
+            } else {
+                output = output.map(x => {
+                    if (x < -0.05) return -1;
+                    else if (x > 0.05) return 1;
+                    else return 0;
+                });
             }
         }
+
+        let outputIndex = 0;
+
+        // Apply first output to limb 0 and its duplicate (if exists)
+        let firstAdjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
+        this.joints[0].setMotorSpeed(firstAdjustment);
+        outputIndex++;
+
+        if (this.noFrontLimbs == 2) {
+            this.joints[1].setMotorSpeed(-firstAdjustment);
+        }
+
+        for (let i = this.noFrontLimbs; i < this.joints.length; i += 2) {
+            if (stageProperties.outputsJointSpeed) {
+                let adjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
+                this.joints[i].setMotorSpeed(adjustment);
+                this.joints[i + 1].setMotorSpeed(-adjustment);
+                outputIndex++;
+            }
+
+            if (stageProperties.outputsJointTorque) {
+                let adjustment = output[outputIndex] * stageProperties.maxTorqueMultiplier + 500000;
+                this.joints[i].setMaxMotorTorque(adjustment);
+                outputIndex++;
+            }
+
+            if (stageProperties.outputsBias) {
+                // Adjusting the bias calculation to map [-1, 1] to [1.001, 1.999]
+                let adjustment = ((output[outputIndex] + 1) * 0.499) + 1.001;
+                this.biases[i] = adjustment;
+                outputIndex++;
+            }
+        }
+        // Log the final motor speeds for all joints
+        //this.joints.forEach((joint, index) => {
+        //    console.log(`Final speed for joint ${index}: ${joint.getMotorSpeed()}`);
+        //});
     });
 };
 
@@ -4415,7 +4797,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
     const MAX_VY = stageProperties.maxVelForNormalisation;
     const MAX_SPEED = stageProperties.maxJointSpeed / 10; 
     const MAX_SCORE = stageProperties.topScoreEver;  // Max Score equaling the top score makes sense, but means the range of this input will change over the simulation.
-    const MAX_TIME = stageProperties.simulationLength / stageProperties.simSpeed;  // Maximum time in seconds
+    const MAX_TIME = stageProperties.simulationLength;
 
     if (stageProperties.inputJointAngle) {
         // 1. Joint angles normalized to [-1, 1]
@@ -4461,7 +4843,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
 
     if (stageProperties.inputTimeRemaining) {
         // 7. Time remaining normalized to [0, 1]
-        inputs.push(displayedTimeLeft / MAX_TIME);
+        inputs.push((simulationLengthModified - tickCount) / MAX_TIME);
     }
 
     if (stageProperties.inputDistanceSensors) {
@@ -4522,13 +4904,17 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
         }
     }
 
+    if (stageProperties.inputTicker) {
+        inputs.push(internalTick);
+    }
+
     return inputs;
 };
 
 AgentNEAT.prototype.updateMusclesNEAT = function () {
     let inputs = this.collectInputsNEAT();
-    if (stageProperties.networkOutput === "simple") {
-        this.makeDecisionSimpleNEAT(inputs)
+    if (stageProperties.keepAgentSymmetrical == true) {
+        this.makeDecisionSymmetricalNEAT(inputs);
     } else {
         this.makeDecisionNEAT(inputs);
     }

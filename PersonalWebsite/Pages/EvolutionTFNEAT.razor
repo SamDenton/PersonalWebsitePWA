@@ -55,6 +55,7 @@
                 <p>This simulation can be temperamental, it is prone to running out of memory, and still sometimes errors relating to tensor disposal.  Please save genomes regularly so you can continue in those cases.</p>
                 <p>I have not tested all settings in all configurations, and I have been very generous with settings ranges, so its very easy to break things!</p>
                 <p>You can also update any settings mid-run using the update button.  This works well for things like swim strength or world properties, but will break for most agent properties.  I have not tested this extensively.</p>
+                <p>If anything breaks, such as the population size, a settings update, a failed mutation etc, the first thing to try is to 'Stop' or reset, and then 'Recover Auto Save' which sorts it most of the time.  I recommend saving regularly in case this does not work.</p>
 
                 <h5>Settings To Play With</h5>
                 <p>Aside from performance settings and numbers of agents, there are many settings that effect training and starting conditions.  Some of the more interesting are:</p>
@@ -115,6 +116,10 @@
                 </ol>
 
                 <h5>Future Plans</h5>
+                <p>I want to use an OpenAI API integration to pick values for starting configurations to produce better populations over time.</p>
+                <p>I want to add the agents internal map of covered ground as an input so they know where they have already explored.  I could also include the last few generations maps for that agent so it can see where it explored in previous generations.  This will require significantly more complex brains, longer training time and reduced agents per run group, as well as possibly larger populations.</p>
+                <p>I need to re-implement the agent output selectors, and allow agents to evolve inputs and outputs list.</p>
+                <p>I would like to implement modularity in the neural network structure, so sections or modules of nodes and layers are combined to create the whole network.  These modules can then be treated individually and swapped about.</p>
                 <p>If I switch from storing the full population genome as a JS object to storing it in IndexedDB, I can achieve much greater total population numbers.  Currently, about 700 is the limit.  I can also make the agents object more efficient</p>
                 <p>There is a lot of clean up work to do on the code, the genome and the agent objects.  I have lots of duplicated values and old structures.  I am not making use of 'const' enough, and I am duplicating functions in places</p>
                 <p>I need to work on the maps.  They are too simple and not varied enough.  I want to implement some goals, like food, tied to the energy system.  A puzzle to open a door or similar could also be interesting</p>
@@ -128,7 +133,6 @@
                 <p>I have created a few different versions of my mutate and crossover functions, I would like to let the user pick which is used.  I need to get the old ones working first</p>
                 <p>Could look at implementing another idea from NEAT, where agents are given a metric based on their properties, and have a higher chance to reproduce with similar agents.  This can create species groups even within my island populations, leading to a greater variety of solutions.  This may require larger populations to work well, 100-200 agents per group, where I currently have 25 per group.</p>
                 <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge.  As a first step, creating a custom Electron implementation could help increase the available memory and give more control over resource use, but would still be very tricky to parallelize across CPU cores.  I think the easiest way would be to just have multiple instances of the program running at once, and between generations, the agent pool is transfered between the 2 and split back up.</p>
-                <p>I want to be able to pan the screen around with arrows, not just locked to the agent.  I can also position the agent better on the screen by default</p>
                 <p>Currently, my crossover methods both treat each neuron independently, it would be good to also allow groups of neurons to be transfered together so learned features are maintained.</p>
                 <p>Body plan crossover has not been re-implemented since I added limb chains.  I should be able to borrow logic from by NN crossover code.</p>
             </div>
@@ -609,6 +613,47 @@
             runGroups.Add(new Random().Next(0, stageProperties.totalNumAgentsMultiplier));
         }
 
+        // Count the number of inputs
+        int noInputs = 0;
+        if (stageProperties.inputTicker == true)
+        {
+            noInputs++;
+        }
+        if (stageProperties.inputJointAngle == true)
+        {
+            // Added at the point of layer creation
+            // noInputs++;
+        }
+        if (stageProperties.inputJointSpeed == true)
+        {
+            // Needs to be added at the point of layer creation
+            // noInputs++;
+        }
+        if (stageProperties.inputAgentPos == true)
+        {
+            noInputs += 2;
+        }
+        if (stageProperties.inputAgentV == true)
+        {
+            noInputs += 2;
+        }
+        if (stageProperties.inputScore == true)
+        {
+            noInputs++;
+        }
+        if (stageProperties.inputOrientation == true)
+        {
+            noInputs++;
+        }
+        if (stageProperties.inputTimeRemaining == true)
+        {
+            noInputs++;
+        }
+        if (stageProperties.inputDistanceSensors == true)
+        {
+            noInputs += 4;
+        }
+
         // Shuffle the list
         runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
 
@@ -631,7 +676,7 @@
                     numLimbsModified = numLimbs;
                 }
 
-                genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
+                genome.InputLayerGenes.Add(InitializeInputLayer(numLimbsModified * stageProperties.startingLimbChainLength, noInputs));
 
                 int numLayers = 3;
 
@@ -648,10 +693,10 @@
                 genome.Metadata.AgentName = agentName;
                 genome.Metadata.RunGroup = runGroups[i];
                 genome.Metadata.AgentGroup = i % numGroups;
-                genome.Hyperparameters.MutationRate = stageProperties.offspringMutationRate / 10000;
-                genome.Hyperparameters.NodeMutationRate = stageProperties.offspringNodeMutationRate / 10000;
-                genome.Hyperparameters.LayerMutationRate = stageProperties.offspringLayerMutationRate / 10000;
-                genome.Hyperparameters.LimbMutationRate = stageProperties.offspringLimbMutationRate / 10000;
+                genome.Hyperparameters.MutationRate = (double)stageProperties.offspringMutationRate / 10000;
+                genome.Hyperparameters.NodeMutationRate = (double)stageProperties.offspringNodeMutationRate / 10000;
+                genome.Hyperparameters.LayerMutationRate = (double)stageProperties.offspringLayerMutationRate / 10000;
+                genome.Hyperparameters.LimbMutationRate = (double)stageProperties.offspringLimbMutationRate / 10000;
 
                 // add ids to usedLayerIDs, 1 to numLayers
                 genome.UsedLayerIDs = Enumerable.Range(1, numLayers).ToList();
@@ -673,15 +718,16 @@
                 {
                     numLimbsModified = numLimbs / 2;
                     // Initialize genes, examples used for now, will be randomized once the constructor is complete
-                    genome.InputLayerGenes.Add(InitializeInputLayer((numLimbs - (numLimbs % 2)) * stageProperties.startingLimbChainLength));
+                    // genome.InputLayerGenes.Add(InitializeInputLayer((numLimbs - (numLimbs % 2)) * stageProperties.startingLimbChainLength));
                 }
                 else
                 {
                     numLimbsModified = numLimbs;
                     // Initialize genes, examples used for now, will be randomized once the constructor is complete
-                    genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
+                    // genome.InputLayerGenes.Add(InitializeInputLayer(numLimbs * stageProperties.startingLimbChainLength));
                 }
 
+                genome.InputLayerGenes.Add(InitializeInputLayer(numLimbsModified * stageProperties.startingLimbChainLength, noInputs));
 
                 int numLayers = random.Next(stageProperties.minNNLayers, stageProperties.maxNNLayers);
 
@@ -715,13 +761,13 @@
         }
     }
 
-    private InputLayerGene InitializeInputLayer(int numLimbs)
+    private InputLayerGene InitializeInputLayer(int numLimbs, int noInputs)
     {
         return new InputLayerGene
             {
-                NumberOfNeurons = 10 + numLimbs, 
+                NumberOfNeurons = noInputs + numLimbs,
                 ActivationType = stageProperties.inputActivationFunction,
-                Inputs = Enumerable.Range(1, 10 + numLimbs).ToList()
+                Inputs = Enumerable.Range(1, noInputs + numLimbs).ToList()
             };
     }
 
@@ -1232,6 +1278,9 @@
 
     private async Task ResetSimulation()
     {
+        await resetLists();
+        stageProperties.topScoreEver = 0;
+        stageProperties.genCount = 0;
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
@@ -1239,6 +1288,9 @@
 
     private async Task ResetSimulationSimple()
     {
+        await resetLists();
+        stageProperties.topScoreEver = 0;
+        stageProperties.genCount = 0;
         stageProperties.energyUseForceSizeMult = 0;
         stageProperties.energyUseLimbSizeMult = 0;
         stageProperties.energyUseBrainSizeMult = 0;
@@ -1249,11 +1301,12 @@
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
         stageProperties.movementScoreMultiplier = 30;
-        stageProperties.explorationScoreMultiplier = 0;
+        stageProperties.explorationScoreMultiplier = 100;
         stageProperties.sizeScoreMultiplier = 0;
-        stageProperties.offspringLayerMutationRate = 1;
-        stageProperties.offspringLimbMutationRate = 10;
+        stageProperties.offspringLayerMutationRate = 5;
+        stageProperties.offspringLimbMutationRate = 20;
         stageProperties.agentsRequireStablising = false;
+        stageProperties.randomAgentStartAngle = false;
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
@@ -1261,6 +1314,9 @@
 
     private async Task ResetSimulationSuperSimple()
     {
+        await resetLists();
+        stageProperties.topScoreEver = 0;
+        stageProperties.genCount = 0;
         stageProperties.energyUseForceSizeMult = 0;
         stageProperties.energyUseLimbSizeMult = 0;
         stageProperties.energyUseBrainSizeMult = 0;
@@ -1274,14 +1330,20 @@
         stageProperties.movementScoreMultiplier = 30;
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
+        stageProperties.offspringMutationRate = 50;
         stageProperties.offspringNodeMutationRate = 0;
         stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 5;
-        stageProperties.swimStrength = 100;
+        stageProperties.offspringLimbMutationRate = 10;
+        stageProperties.topPerformerNumber = 20;
+        stageProperties.swimStrength = 110;
         stageProperties.randomMap = false;
         stageProperties.map = 1;
         stageProperties.agentsRequireStablising = false;
         stageProperties.bodyPlanStart = "simple";
+        stageProperties.maxJointSpeed = 15;
+        stageProperties.randomAgentStartAngle = false;
+        stageProperties.chanceToIncludeTopPerformerInMutation = 1;
+        stageProperties.hiddenActivationFunction = "relu";
         await InitializePopulation(stageProperties.numAgents);
         await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
@@ -1336,7 +1398,7 @@
         public bool keepAgentSymmetrical { get; set; } = false;
         public string networkOutput { get; set; } = "complex";
         public string inputActivationFunction { get; set; } = "linear";
-        public string hiddenActivationFunction { get; set; } = "tanh";
+        public string hiddenActivationFunction { get; set; } = "selu";
         public string outputActivationFunction { get; set; } = "tanh";
         // Advanced Agent
         public int maxForceMagnitude { get; set; } = 5000;
@@ -1352,17 +1414,19 @@
         public int bodyAngularDragPower { get; set; } = 10;
         public int maxTorqueForDamping { get; set; } = 10000;
         public int threasholdAngleForDamping { get; set; } = 10;
+        public int inputTickerRate { get; set; } = 90;
+        public bool inputTicker { get; set; } = true;
         public bool inputJointAngle { get; set; } = true;
         public bool inputJointSpeed { get; set; } = false;
         public bool inputAgentPos { get; set; } = true;
         public bool inputAgentV { get; set; } = true;
         public bool inputScore { get; set; } = false;
         public bool inputOrientation { get; set; } = true;
-        public bool inputTimeRemaining { get; set; } = true;
+        public bool inputTimeRemaining { get; set; } = false;
         public bool inputDistanceSensors { get; set; } = true;
         public bool outputsJointSpeed { get; set; } = true;
-        public bool outputsJointTorque { get; set; } = false;
-        public bool outputsBias { get; set; } = false;
+        public bool outputsJointTorque { get; set; } = false; // Not implemented
+        public bool outputsBias { get; set; } = false; // Not implemented
         public bool brainDecayOverTime { get; set; } = false; // Not implemented
 
         // Score and Energy
@@ -1391,11 +1455,11 @@
         public int dynamicMassBonusDivider { get; set; } = 500;
 
         // Training and Evolution
-        public int offspringMutationRate { get; set; } = 50;
-        public int offspringNodeMutationRate { get; set; } = 10;
+        public int offspringMutationRate { get; set; } = 100;
+        public int offspringNodeMutationRate { get; set; } = 40;
         public int offspringLayerMutationRate { get; set; } = 5;
-        public int offspringLimbMutationRate { get; set; } = 10;
-        public int topPerformerNumber { get; set; } = 10;
+        public int offspringLimbMutationRate { get; set; } = 40;
+        public int topPerformerNumber { get; set; } = 15;
         public int migrationRate { get; set; } = 5;
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 25;
@@ -1407,7 +1471,7 @@
         public int angularStabilityThresholdLimb { get; set; } = 15;
         public int stabilityFrames { get; set; } = 20;
         public int stabilityCheckOverwriteFrames { get; set; } = 500;
-        public int chanceToIncludeTopPerformerInMutation { get; set; } = 10;
+        public int chanceToIncludeTopPerformerInMutation { get; set; } = 2;
         public int chanceToIncludeOffspringInMutation { get; set; } = 50;
         public int neuronMutationStandardDeviation { get; set; } = 10;
         public int bodyPlanMutationStandardDeviation { get; set; } = 10;
@@ -1426,7 +1490,7 @@
         public int GroundY { get; set; } = 700;
         public int Gravity { get; set; } = 1; // not implemented
         public double Friction { get; set; } = 0.4; // not implemented
-        public int simulationLengthIncrease { get; set; } = 25;
+        public int simulationLengthIncrease { get; set; } = 15;
         public int maxSimulationLength { get; set; } = 50000;
         public int velocityIteration { get; set; } = 4;
         public int positionIteration { get; set; } = 2;
@@ -1506,10 +1570,10 @@
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Standard Start",
-                Description = "This population started with almost default settings, using the Standard Start button.  Medium performance settings used.",
-                Filename = "EvolvedPop_Gen156_TopScore1252.91_Agents500_advancedSwimMethod_Asymmetrical.json",
-                GenCount = 156,
-                TopScore = 1252.91,
+                Description = "This population started with almost default settings, using the Standard Start button. The score function was adjusted mid way through, and agent score tracking was fixed, so the graphs look a bit odd.  I also added new maps around generation 300 so learning was interrupted a bit.  Medium performance settings used.  This population suggests that, using the full complex learning settings, it will take 1000+ generations for significant progress.  The mutation rates, migration rates and population size will also alter this though.  Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
+                Filename = "EvolvedPop_Gen646_TopScore4446.23_Agents500_advancedSwimMethod_Asymmetrical.json",
+                GenCount = 646,
+                TopScore = 4446.23,
                 NumberOfAgents = 500,
                 SwimMethod = "Advanced",
                 Symmetrical = false,
@@ -1517,8 +1581,20 @@
             });
         preTrainedAgents.Add(new AgentSet
             {
+                Name = "Straight Line",
+                Description = "This population was started with Super Simple, before I gave a small range for the front and back, non-duplicated limbs, so they only know how to move in a straight line so far.  A good starting point for playing with environment settings. Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
+                Filename = "EvolvedPop_Gen319_TopScore2661.46_Agents500_simpleSwimMethod_Symmetrical.json",
+                GenCount = 319,
+                TopScore = 2661.46,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = " Super Simple"
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
                 Name = "1 Long Arm!",
-                Description = "This population has gone through multiple settings changes that have led them to evolve 1 arm with many sub arms.  For a while, they where getting a huge score bonus for this.  High Performance settings used.  Trained before implementation so no score graphs available.",
+                Description = "This population has gone through multiple settings changes that have led them to evolve 1 arm with many sub arms.  For a while, they where getting a huge score bonus for this.  High Performance settings used.  Trained before implementation so no score graphs available. Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
                 Filename = "EvolvedPop_Gen169_TopScore4465.77_Agents500_advancedSwimMethod_Asymmetrical.json",
                 GenCount = 169,
                 TopScore = 4465.77,
@@ -1530,10 +1606,10 @@
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Super Simple Start",
-                Description = "This population started with almost default settings, using the Super Simple Start button.  Medium performance settings used.  Trained before implementation so no score graphs available.",
-                Filename = "EvolvedPop_Gen3_TopScore212.20_Agents500_simpleSwimMethod_Symmetrical.json",
-                GenCount = 3,
-                TopScore = 212.20,
+                Description = "What happens if you train a population for 3 days before realizing you set the mutation rate to 0 accidentally...",
+                Filename = "sillyPop,noMutation,gen126.json",
+                GenCount = 126,
+                TopScore = 2000,
                 NumberOfAgents = 500,
                 SwimMethod = "Simple",
                 Symmetrical = true,
@@ -1542,7 +1618,7 @@
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Simple Start",
-                Description = "This population started with almost default settings, using the Simple Start button.  Medium performance settings used.  Trained before implementation so no score graphs available.",
+                Description = "This population started with almost default settings, using the Simple Start button.  Medium performance settings used.  Trained before implementation so no score graphs available or internal ticker.",
                 Filename = "EvolvedPop_Gen76_TopScore1505.39_Agents500_simpleSwimMethod_Asymmetrical.json",
                 GenCount = 76,
                 TopScore = 1505.39,
@@ -1554,7 +1630,7 @@
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Standard Start, Small Pop",
-                Description = "This population started with almost default settings, but with only 50 agents in total.  Medium performance settings used.  Trained before implementation so no score graphs available.",
+                Description = "This population started with almost default settings, but with only 50 agents in total.  Medium performance settings used.  Trained before implementation so no score graphs available or internal ticker.",
                 Filename = "EvolvedPop_Gen57_TopScore861.09_Agents50_advancedSwimMethod_Asymmetrical.json",
                 GenCount = 57,
                 TopScore = 861.09,
@@ -1566,7 +1642,7 @@
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Super Simple, 50 Agents",
-                Description = "A quick test population since I added score graphs",
+                Description = "A quick test population since I added score graphs.  Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
                 Filename = "EvolvedPop_Gen49_TopScore212.95_Agents50_simpleSwimMethod_Symmetrical.json",
                 GenCount = 49,
                 TopScore = 212.95,
@@ -1641,6 +1717,7 @@
 
     private async Task resetSettings()
     {
+        stageProperties.topScoreEver = 0;
         stageProperties.numAgents = 25;
         stageProperties.totalNumAgentsMultiplier = 8;
         stageProperties.muscleDelay = 2;
@@ -1688,13 +1765,15 @@
         stageProperties.bodyAngularDragPower = 10;
         stageProperties.maxTorqueForDamping = 10000;
         stageProperties.threasholdAngleForDamping = 10;
+        stageProperties.inputTickerRate = 90;
+        stageProperties.inputTicker = true;
         stageProperties.inputJointAngle = true;
         stageProperties.inputJointSpeed = false;
         stageProperties.inputAgentPos = true;
         stageProperties.inputAgentV = true;
         stageProperties.inputScore = false;
         stageProperties.inputOrientation = true;
-        stageProperties.inputTimeRemaining = true;
+        stageProperties.inputTimeRemaining = false;
         stageProperties.inputDistanceSensors = true;
         stageProperties.outputsJointSpeed = true;
         stageProperties.outputsJointTorque = false;
@@ -1703,7 +1782,7 @@
         stageProperties.xScoreMultiplier = 30;
         stageProperties.yScoreMultiplier = 30;
         stageProperties.movementScoreMultiplier = 30;
-        stageProperties.explorationScoreMultiplier = 50;
+        stageProperties.explorationScoreMultiplier = 200;
         stageProperties.sizeScoreMultiplier = 20;
         stageProperties.massBonusIsDynamic = true;
         stageProperties.startingEnergyBase = 10;
@@ -1722,15 +1801,15 @@
         stageProperties.internalMapSize = 500;
         stageProperties.internalMapCellSize = 50;
         stageProperties.dynamicMassBonusDivider = 500;
-        stageProperties.offspringMutationRate = 50;
-        stageProperties.offspringNodeMutationRate = 10;
+        stageProperties.offspringMutationRate = 100;
+        stageProperties.offspringNodeMutationRate = 40;
         stageProperties.offspringLayerMutationRate = 5;
-        stageProperties.offspringLimbMutationRate = 10;
-        stageProperties.topPerformerNumber = 20;
+        stageProperties.offspringLimbMutationRate = 40;
+        stageProperties.topPerformerNumber = 15;
         stageProperties.migrationRate = 5;
         stageProperties.minPopGroupSize = 10;
         stageProperties.maxPopGroupSize = 25;
-        stageProperties.agentsRequireStablising = false;
+        stageProperties.agentsRequireStablising = true;
         stageProperties.tournamentSize = 10;
         stageProperties.linearStabilityThresholdBody = 15;
         stageProperties.angularStabilityThresholdBody = 20;
@@ -1753,7 +1832,7 @@
         stageProperties.GroundY = 700;
         stageProperties.Gravity = 1;
         stageProperties.Friction = 0.4;
-        stageProperties.simulationLengthIncrease = 25;
+        stageProperties.simulationLengthIncrease = 15;
         stageProperties.maxSimulationLength = 50000;
         stageProperties.velocityIteration = 4;
         stageProperties.positionIteration = 2;
@@ -1768,7 +1847,7 @@
         stageProperties.uiRefreshRate = 500;
         stageProperties.renderedNNLayerGap = 100;
         stageProperties.renderedNNNodeGap = 30;
-        stageProperties.showForceVectors = true;
+        stageProperties.showForceVectors = false;
         stageProperties.visualForceScale = 20;
         stageProperties.visualMaxForceLength = 300;
     }
@@ -2270,6 +2349,25 @@
                         Max = 20,
                         Step = 1,
                         Details = "Determines the threshold angle for applying damping forces to agents limbs.  Should only apply when close to the limit of a joints movement."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Ticker Rate",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.inputTickerRate,
+                        ValueChanged = val => stageProperties.inputTickerRate = val,
+                        Min = 1,
+                        Max = 240,
+                        Step = 15,
+                        Details = "Determines the tick rate of the internal sign swap input.  This input makes oscillating outputs much easier to learn."
+                    },
+                    new Setting
+                    {
+                        Name = "Input Ticker",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.inputTicker,
+                        BooleanValueChanged = val => stageProperties.inputTicker = val,
+                        Details = "Enables or disables the internal ticker that switches between 1 and -1 every 60 frames."
                     },
                     new Setting
                     {
@@ -2974,8 +3072,8 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.simulationLengthIncrease,
                         ValueChanged = val => stageProperties.simulationLengthIncrease = val,
-                        Min = 10,
-                        Max = 100,
+                        Min = 5,
+                        Max = 1000,
                         Step = 5,
                         Details = "Increases the simulation length incrementally by this amount per generation."
                     },
