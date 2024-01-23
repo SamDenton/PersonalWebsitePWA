@@ -486,6 +486,10 @@ let sketchNEAT = function (p) {
 
             if (currentTime - lastUIUpdateTime > stageProperties.uiRefreshRate && simulationStarted) {
 
+                for (let agent of agents) {
+                    agent.getScore(false);
+                }
+
                 fps = Number(p.frameRate().toFixed(0));
 
                 if (stageProperties.autoAdjustPerformance == true && stabilised) {
@@ -2547,7 +2551,7 @@ function getLeadingAgentNEAT(frameCounter) {
                 let groupAgents = agents.filter(agent => agent.genome.metadata.agentGroup === groupId);
 
                 // Select leading agent
-                let leadingAgent = groupAgents.sort((a, b) => parseFloat(b.getScore(false)[0]) - parseFloat(a.getScore(false)[0]))[0];
+                let leadingAgent = groupAgents.sort((a, b) => parseFloat(b.Score) - parseFloat(a.Score))[0];
 
                 leadingAgents.push(leadingAgent);
             }
@@ -3458,11 +3462,6 @@ function nextGenerationNEAT(p) {
 
 // Recursive function checking if agents have finished loading into world
 function waitForInitializationCompletionNEAT() {
-
-    // Could add a time based overwrite so that if the population never reaches the correct length, normally due to a bug, it will generate new, random agents until the correct number is reached.
-    // Could also add a check to see if the population is too large and reduce it if so.
-    // Would need to check that each species group is equal in size and modify only the non matching groups.
-    // Since the runGroup is reset each generation, we only need to worry about the species groups.
 
     // Check if the condition is met
     if (tempAgentGenomePool.length >= stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
