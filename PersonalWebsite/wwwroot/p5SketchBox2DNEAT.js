@@ -3778,7 +3778,7 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
         // Schedule the next agent creation after a short timeout
         setTimeout(() => {
             createSingleAgentChild(groupAgents, groupId, agentsNeeded);
-        }, 1);  // Adjust the timeout value as needed
+        }, 10);  // Adjust the timeout value as needed
     } else {
         return;
     }
