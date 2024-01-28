@@ -1301,7 +1301,7 @@
         stageProperties.networkOutput = "simple";
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 30;
+        stageProperties.movementScoreMultiplier = 15;
         stageProperties.explorationScoreMultiplier = 100;
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringLayerMutationRate = 5;
@@ -1328,7 +1328,7 @@
         stageProperties.keepAgentSymmetrical = true;
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 30;
+        stageProperties.movementScoreMultiplier = 15;
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringMutationRate = 50;
@@ -1433,7 +1433,7 @@
         // Score and Energy
         public int xScoreMultiplier { get; set; } = 30;
         public int yScoreMultiplier { get; set; } = 30;
-        public int movementScoreMultiplier { get; set; } = 60;
+        public int movementScoreMultiplier { get; set; } = 30;
         public int explorationScoreMultiplier { get; set; } = 200;
         public int sizeScoreMultiplier { get; set; } = 50;
         public bool massBonusIsDynamic { get; set; } = true;
@@ -1520,7 +1520,7 @@
         // Debugging and Diagnostics
         public bool showForceVectors { get; set; } = false;
         // Advanced Debugging and Diagnostics
-        public int visualForceScale { get; set; } = 20;
+        public int visualForceScale { get; set; } = 10;
         public int visualMaxForceLength { get; set; } = 300;
 
         // Behind the scenes
@@ -1683,30 +1683,32 @@
         stageProperties.numAgents = 50;
         stageProperties.totalNumAgentsMultiplier = 10;
         stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 5;
+        stageProperties.muscleBatch = 4;
         stageProperties.totalMuscleUpdateTime = 2;
     }
 
     private async Task setHighPresets()
     {
-        stageProperties.delay = 5;
+        stageProperties.delay = 10;
         stageProperties.BatchSize = 5;
-        stageProperties.numAgents = 75;
-        stageProperties.totalNumAgentsMultiplier = 6;
-        stageProperties.muscleDelay = 1;
+        stageProperties.numAgents = 100;
+        stageProperties.totalNumAgentsMultiplier = 10;
+        stageProperties.muscleDelay = 2;
         stageProperties.muscleBatch = 5;
         stageProperties.totalMuscleUpdateTime = 1;
+        stageProperties.maxPopGroupSize = 50;
     }
 
     private async Task setVHighPresets()
     {
-        stageProperties.delay = 1;
+        stageProperties.delay = 10;
         stageProperties.BatchSize = 10;
         stageProperties.numAgents = 150;
-        stageProperties.totalNumAgentsMultiplier = 3;
+        stageProperties.totalNumAgentsMultiplier = 10;
         stageProperties.muscleDelay = 1;
-        stageProperties.muscleBatch = 10;
+        stageProperties.muscleBatch = 5;
         stageProperties.totalMuscleUpdateTime = 1;
+        stageProperties.maxPopGroupSize = 50;
     }
 
     private async Task resetLists()
@@ -1849,7 +1851,7 @@
         stageProperties.renderedNNLayerGap = 100;
         stageProperties.renderedNNNodeGap = 30;
         stageProperties.showForceVectors = false;
-        stageProperties.visualForceScale = 20;
+        stageProperties.visualForceScale = 10;
         stageProperties.visualMaxForceLength = 300;
     }
 
@@ -1978,7 +1980,7 @@
                         ValueExpression = () => stageProperties.BatchSize,
                         ValueChanged = val => stageProperties.BatchSize = val,
                         Min = 1,
-                        Max = 20,
+                        Max = 100,
                         Step = 1,
                         Details = "Determines the size of each batch in spawn processing."
                     },
@@ -2148,8 +2150,8 @@
                     Type = SettingType.Slider,
                     ValueExpression = () => stageProperties.maxJointSpeed,
                     ValueChanged = val => stageProperties.maxJointSpeed = val,
-                    Min = 5,
-                    Max = 20,
+                    Min = 1,
+                    Max = 100,
                     Step = 1,
                     Details = "Controls the maximum speed of joint movements for agents."
                 },
@@ -2813,10 +2815,10 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.maxPopGroupSize,
                         ValueChanged = val => stageProperties.maxPopGroupSize = val,
-                        Min = 20,
-                        Max = 50,
+                        Min = 10,
+                        Max = 200,
                         Step = 1,
-                        Details = "Sets the maximum size of a population group.  The total number of agents is divided by this to get the number of species / population groups"
+                        Details = "Sets the maximum size of a population group.  The total number of agents is divided by this to get the number of species / population groups.  Maxes at 40 groups as I ran out of colours!"
                     },
                     new Setting
                     {
@@ -2824,7 +2826,7 @@
                         Type = SettingType.Checkbox,
                         BooleanValueExpression = () => stageProperties.agentsRequireStablising,
                         BooleanValueChanged = val => stageProperties.agentsRequireStablising = val,
-                        Details = "Determines if agents require stabilization before the round begins.  Using this can help performance in the first few frames, and can also encourage more robust learning in agents, as they cant just push off and glide for the first move.  It will also slow training initially as their first action is wasted."
+                        Details = "Determines if agents require stabilization before the round begins, essentially, all agents get 1 opportunity to set the motor speed of their limbs before starting the round proper, and before the main body can move.  Using this can help performance in the first few frames, and can also encourage more robust learning in agents, as they cant just push off and glide for the first move.  It will also slow training initially as their first action is wasted."
                     }
                 },
                 AdvancedSettings = new List<Setting>
@@ -2847,7 +2849,7 @@
                         ValueExpression = () => stageProperties.linearStabilityThresholdBody,
                         ValueChanged = val => stageProperties.linearStabilityThresholdBody = val,
                         Min = 1,
-                        Max = 20,
+                        Max = 50,
                         Step = 1,
                         Details = "Determines the linear stability threshold for the agent's body."
                     },
@@ -2858,7 +2860,7 @@
                         ValueExpression = () => stageProperties.angularStabilityThresholdBody,
                         ValueChanged = val => stageProperties.angularStabilityThresholdBody = val,
                         Min = 1,
-                        Max = 20,
+                        Max = 50,
                         Step = 1,
                         Details = "Determines the angular stability threshold for the agent's body."
                     },
@@ -2869,7 +2871,7 @@
                         ValueExpression = () => stageProperties.angularStabilityThresholdLimb,
                         ValueChanged = val => stageProperties.angularStabilityThresholdLimb = val,
                         Min = 0,
-                        Max = 20,
+                        Max = 50,
                         Step = 1,
                         Details = "Determines the angular stability threshold for the agent's limbs."
                     },
@@ -3010,7 +3012,7 @@
                         Min = 0,
                         Max = 100,
                         Step = 1,
-                        Details = "Adjusts the viscosity of the liquid in the world.  This number is divided by 10000 then adjusted for speed, and taken from 1 to create a drag multiple, which all agent velocities are multiplied by every frame.  This property does not give the agents pushing forces on limbs, thats handled elsewhere."
+                        Details = "Adjusts the viscosity of the liquid in the world.  A higher value means more drag / viscosity. This number is divided by 20000 then adjusted for speed, and taken from 1 to create a drag multiple, which all agent velocities are multiplied by every frame.  This property does not give the agents pushing forces on limbs, thats handled elsewhere."
                     },
                     new Setting
                     {
@@ -3288,7 +3290,7 @@
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.visualForceScale,
                         ValueChanged = val => stageProperties.visualForceScale = val,
-                        Min = 10,
+                        Min = 1,
                         Max = 100,
                         Step = 1,
                         Details = "Adjusts the scale of visual representation of forces."

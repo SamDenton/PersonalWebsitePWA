@@ -1,5 +1,5 @@
-// Variables specific to NEAT version
 
+/***   Global Variables   ***/
 let offsetY = 0;
 let simulationLengthModified = 1000;
 let render = true;
@@ -24,7 +24,6 @@ let panningOffsetX = 0;
 let panningOffsetY = 0;
 let internalTick = 1;
 let skippingToGen = 0;
-
 let stageProperties;
 
 const GROUP_COLORS_NAMES = [
@@ -34,92 +33,11 @@ const GROUP_COLORS_NAMES = [
     'Teal Green', 'Strong Blue', 'Bright Magenta', 'Yellow', 'Brown', 'Gray', 'Dark Red', 'Cool Gray', 'Golden', 'Deep Red'
 ];
 
-
-/* 
-Ideas:      
-            -I want to have the environment both configurable on startup, and for it to get more challenging over generations
-            -I want to save agents, either individuals or populations, to re-use later.  Would be good to have a property tracking agent history, its own top score, what the parameters where when it got that score, etc.
-            -I want to evolve the inputs and outputs of the network, from a selection of available
-            -Look at different limb types (wheels, single limb, jointed/double limb, wing(?), balance)
-            -Further explore options for regularization and pruning.
-            -I want to add some togglable graphs that show top score and average score over time, and maybe some other metrics
-*/
-
-// Next major change needs to be converting all variables to configurable parameters within with stage or agent properties objects.  I should also directly reference these objects throughout my code rather than making variables out of them.
-function createTreeView(container, obj) {
-    if (typeof obj === 'object' && obj !== null) {
-        Object.entries(obj).forEach(([key, value]) => {
-            const keyValuePair = document.createElement('div');
-            keyValuePair.className = 'key-value-pair';
-
-            const keyElement = document.createElement('span');
-            keyElement.className = 'key';
-            keyElement.innerText = key + ': ';
-
-            keyValuePair.appendChild(keyElement);
-
-            if (typeof value === 'object' && value !== null) {
-                const collapsible = document.createElement('button');
-                collapsible.className = 'collapsible';
-                collapsible.innerText = 'Expand';
-
-                // Apply styles directly
-                collapsible.style.backgroundColor = '#555';
-                collapsible.style.color = 'white';
-                collapsible.style.cursor = 'pointer';
-                collapsible.style.padding = '5px 10px';
-                collapsible.style.border = '1px solid #777';
-                collapsible.style.borderRadius = '4px';
-                collapsible.style.textAlign = 'center';
-                collapsible.style.fontSize = '13px';
-                collapsible.style.marginLeft = '10px';
-                collapsible.style.transition = 'background-color 0.3s';
-
-                collapsible.onmouseover = function () {
-                    this.style.backgroundColor = '#666';
-                };
-                collapsible.onmouseout = function () {
-                    this.style.backgroundColor = '#555';
-                };
-
-                keyValuePair.appendChild(collapsible);
-
-                const content = document.createElement('div');
-                content.className = 'content';
-                content.style.display = 'none';
-                keyValuePair.appendChild(content);
-
-                createTreeView(content, value);
-
-                collapsible.addEventListener('click', function () {
-                    this.classList.toggle('active');
-                    const content = this.nextElementSibling;
-                    if (content.style.display === 'block') {
-                        content.style.display = 'none';
-                        this.innerText = 'Expand';
-                    } else {
-                        content.style.display = 'block';
-                        this.innerText = 'Collapse';
-                    }
-                });
-            } else {
-                const valueElement = document.createElement('span');
-                valueElement.className = 'value';
-                valueElement.innerText = value !== null ? value.toString() : 'null';
-                keyValuePair.appendChild(valueElement);
-            }
-
-            container.appendChild(keyValuePair);
-        });
-    } else {
-        container.innerText = obj !== null ? obj.toString() : 'null';
-    }
-}
+/***   Main Simulation Loops And Functions   ***/
 
 //SketchNEAT is called once to start the simulation and it then calls draw() repeatedly.
 let sketchNEAT = function (p) {
 
-    // Variables for rendering.
     nextBatchFrame = 0;
     fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000; // 'simulationSpeed' updates per second for physics
     let accumulator = 0;
@@ -151,6 +69,7 @@ let sketchNEAT = function (p) {
 
     };
 
+    // Runs repeatedly after setup() has finished, acts as the main loop of the simulation
     p.draw = function () {
         p.background(stageProperties.backgroundRed, stageProperties.backgroundGreen, stageProperties.backgroundBlue);
 
@@ -162,8 +81,10 @@ let sketchNEAT = function (p) {
         accumulator += delta;
 
         while (accumulator >= fixedTimeStep) {
-            updatePhysics(p);
-            accumulator -= fixedTimeStep;
+            tf.tidy(() => {
+                updatePhysics(p);
+                accumulator -= fixedTimeStep;
+            });
         }
         if (render) {
             renderScene(p);
@@ -172,13 +93,12 @@ let sketchNEAT = function (p) {
         }
     };
 
+    // Function to update agents and the physics world. Should think about splitting this into multiple functions.
     function updatePhysics(p) {
         if (leadingAgent) {
 
             // If initialization is complete, update muscles 1 agent per frame for 1 update
             if (isInitializationComplete && !simulationStarted) {
-                currentProcess = "Letting Agents Settle";
-                console.log("Letting Agents Settle");
                 // Initialize updateCountStart and frameCountStart for all agents
                 for (let i = 0; i < agents.length; i++) {
                     updateCountStart[i] = 0;
@@ -203,6 +123,8 @@ let sketchNEAT = function (p) {
 
                             // Check if the agent has been updated the required number of times
                             if (updateCountStart[agentIndexStart] < stageProperties.updatesPerAgentStart) {
+
+                                currentProcess = "Letting Agents Settle";
 
                                 // Update the agent
                                 if (!stageProperties.agentsRequireStablising) {
@@ -305,6 +227,7 @@ let sketchNEAT = function (p) {
         }
     }
 
+    // Function to render the scene and agents.  Should think about splitting this into multiple functions.
     function renderScene(p) {
 
         // Camera Panning with WASD Keys
@@ -530,8 +453,7 @@ let sketchNEAT = function (p) {
 
                 let totalScore = 0;
                 for (let agent of agents) {
-                    let eachScore = agent.getScore(false);
-                    totalScore += parseFloat(eachScore[0]);
+                    totalScore += agent.Score;
                 }
 
                 averageScore = totalScore / agents.length;
@@ -572,20 +494,21 @@ let sketchNEAT = function (p) {
                             }
                         }
                     }
+
                     if (highestScoreAgent) {
-                        // In your main function where you draw the graph
-                        let agentScoreHistory = leadingAgent.genome.agentHistory.scoreHistory;
+
+                        let agentScoreHistory = highestScoreAgent.genome.agentHistory.scoreHistory;
                         let agentScoreHistoryScores = getCompleteAgentScoreHistory(agentScoreHistory, minYValue, totalGenerations);
 
                         if (agentScoreHistoryScores.length > 0) {
                             drawGraph(p, agentScoreHistoryScores, graphX, graphY, graphW, graphH, p.color(GROUP_COLORS[selectedColor]), minYValue, maxYValue);
                         }
-                        highestScoreAgent = leadingAgent;
+
                     }
 
                 } else {
                     if (leadingAgent) {
-                        // In your main function where you draw the graph
+
                         let agentScoreHistory = leadingAgent.genome.agentHistory.scoreHistory;
                         let agentScoreHistoryScores = getCompleteAgentScoreHistory(agentScoreHistory, minYValue, totalGenerations);
 
@@ -655,12 +578,12 @@ let sketchNEAT = function (p) {
                     p.text(`Showing Trailing Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[trailingAgent.genome.metadata.agentGroup]);
-                    trailingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40, tickCount);
+                    trailingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40);
                 } else {
                     p.text(`Showing Leading Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]);
-                    leadingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40, tickCount);
+                    leadingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40);
                 }
                 p.pop();
             }
@@ -697,6 +620,7 @@ let sketchNEAT = function (p) {
 
     };
 
+    // This function is called instead of the renderScene function when the simulation is being fast-forwarded
     function renderSkip(p) {
         p.text(`Fast-Forwarding to Generation: ${skippingToGen + 1}`, 10, 20);
         p.fill(255);  // Black color for the text
@@ -811,6 +735,7 @@ let sketchNEAT = function (p) {
     };
 };
 
+// Fills in missing score values for each generation
 function getCompleteAgentScoreHistory(agentHistory, minYValue, currentGeneration) {
     let scoreHistory = [];
     let lastKnownScore = minYValue;
@@ -829,6 +754,7 @@ function getCompleteAgentScoreHistory(agentHistory, minYValue, currentGeneration
     return scoreHistory;
 }
 
+// Draws a single line of the graph
 function drawGraph(p, data, x, y, w, h, graphColor, minYValue, maxYValue) {
     p.push();
     p.translate(x, y);
@@ -851,6 +777,7 @@ function drawGraph(p, data, x, y, w, h, graphColor, minYValue, maxYValue) {
     p.pop();
 }
 
+// Calculates the line of best fit for the given data
 function calculateLineOfBestFit(data) {
     let xSum = 0, ySum = 0, xySum = 0, x2Sum = 0;
     let n = data.length;
@@ -868,6 +795,7 @@ function calculateLineOfBestFit(data) {
     return { slope, yIntercept };
 }
 
+// Adds a line of best fit to each line on the graph
 function drawLineOfBestFit(p, slope, yIntercept, dataLength, w, h, minYValue, maxYValue, graphColor) {
     p.stroke(graphColor); // Light grey with some opacity
     p.strokeWeight(0.5);
@@ -880,7 +808,7 @@ function drawLineOfBestFit(p, slope, yIntercept, dataLength, w, h, minYValue, ma
     p.line(startX, startY, endX, endY);
 }
 
-
+// Draws the axes and grid lines for the graph
 function drawAxes(p, x, y, w, h, minScore, maxScore, generations) {
     const minYValue = minScore;
     const maxYValue = maxScore;
@@ -957,7 +885,7 @@ function drawAxes(p, x, y, w, h, minScore, maxScore, generations) {
     p.pop();
 }
 
-
+// Draws a key/legend for the graph
 function drawGraphKey(p, x, y, highestScoreAgent = null) {
     const keySize = 20;
     let yOffset = 100;
@@ -990,6 +918,7 @@ function drawGraphKey(p, x, y, highestScoreAgent = null) {
     p.pop();
 }
 
+// Automatically adjust the speed the simulation tries to run at based on the FPS
 function adjustPerformance(fps) {
 
     fpsHistory.push(fps);
@@ -997,15 +926,15 @@ function adjustPerformance(fps) {
     if (fpsHistory.length >= 10) {
         let averageFps = fpsHistory.reduce((sum, val) => sum + val, 0) / fpsHistory.length;
         let badFps = 30;
-        let goodFps = 49;
+        let goodFps = 45;
         if (render == false) {
             // If rendering is disabled, allow the sim to run at lower fps
-            badFps = 15;
+            badFps = 20;
             goodFps = 30;
         }
 
-        if (averageFps < badFps && stageProperties.simSpeed > 5) {
-            stageProperties.simSpeed = Math.max(0, stageProperties.simSpeed - 5);
+        if (averageFps < badFps && stageProperties.simSpeed > 10) {
+            stageProperties.simSpeed = Math.max(5, stageProperties.simSpeed - 5);
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
             console.log("Decreasing simSpeed to:" + stageProperties.simSpeed + " History: " + fpsHistory);
         } else if (averageFps > goodFps) {
@@ -1020,6 +949,7 @@ function adjustPerformance(fps) {
     }
 }
 
+// Function that checks if all agents are stationary, within a certain threshold, for at least x frames
 function areAllAgentsStableNEAT(agentsToCheck = agents) {
 
     // If agentsToCheck is not an array, make it an array.  Allows this function to be called with a single agent as an argument. Might use for energy recovery or similar
@@ -1031,7 +961,7 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
     const linearStabilityThresholdBody = stageProperties.linearStabilityThresholdBody / 100; 
     const angularStabilityThresholdBody = stageProperties.angularStabilityThresholdBody / 100;
     const angularStabilityThresholdLimb = stageProperties.angularStabilityThresholdLimb / 100;
-    const stabilityFrames = stageProperties.stabilityFrames; // 50  // Number of frames to wait before confirming stability
+    const stabilityFrames = stageProperties.stabilityFrames;  // Number of frames to wait before confirming stability
 
     let allAgentsStable = true;
 
@@ -1065,10 +995,7 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
     return false;
 }
 
-//function angleToVector(angle) {
-//    return planck.Vec2(Math.cos(angle), Math.sin(angle));
-//}
-
+// Helper function to calculate if the force provided matches the facing direction of the agent
 function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
     // Directly compute vector components
     let facingX = Math.cos(agentFacingDirection);
@@ -1081,6 +1008,8 @@ function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
     return dotProduct > 0 ? defaultBias : 2 - defaultBias;
 }
 
+// Old version of swim function. Not used anymore
+/*
 function applySwimmingForceOldOld(agent) {
     for (let i = 0; i < agent.joints.length; i++) {
         let angle = (i * 2 * Math.PI) / agent.numLimbs;
@@ -1128,8 +1057,10 @@ function applySwimmingForceOldOld(agent) {
             agent.limbs[i].applyForce(force, forceApplyPoint, true);
         }
     }
-}
+} 
+*/
 
+// Helper function to calculate the change in angle over the last N frames
 function calculateDeltaTheta(buffer, currentAngle, N) {
     buffer.push(currentAngle); // Add the current angle to the buffer
 
@@ -1150,7 +1081,7 @@ function calculateDeltaTheta(buffer, currentAngle, N) {
 }
 
 
-
+// Apply swimming force to each limb based on the change in angle over the last N frames. Could make this a function of the agent prototype for better encapsulation
 function applySwimmingForceOld(p, agent) {
 
     const N = 10;// stageProperties.swimForceOverNFrames;
@@ -1219,6 +1150,7 @@ function applySwimmingForceOld(p, agent) {
     }
 }
 
+// Apply drag to each body. Could make this a function of the agent prototype for better encapsulation
 function applyDrag(agent) {
     const dragFactor = (stageProperties.liquidViscosity / 2000);
     const speedNormalization = stageProperties.speedNormalizationForDrag; //(2500)
@@ -1247,13 +1179,15 @@ function applyDrag(agent) {
     });
 }
 
+// Apply a force to each body based on the change in position over the last N frames.  Could make this a function of the agent prototype for better encapsulation
 function applySwimmingForce(p, agent) {
     const N = stageProperties.swimForceOverNFrames; // Use the last 5 frames for force calculation
-    const propulsionCoefficient = stageProperties.swimStrength * 1.5;
+    const propulsionCoefficient = stageProperties.swimStrength * 1.75;
     const maxForceMagnitude = stageProperties.maxForceMagnitude; // Maximum force magnitude
     const displacementThreshold = 1;// stageProperties.displacementThreshold;
     const dragFactor = 0.9;
     agent.frameCounter = (agent.frameCounter || 0) + 1;
+    let defaultBias = stageProperties.swimBias / 10;
 
     // Function to calculate propulsive force based on limb displacement
     function calculatePropulsiveForce(displacement, area) {
@@ -1311,8 +1245,6 @@ function applySwimmingForce(p, agent) {
                 //    ? (stageProperties.swimBias)
                 //    : agent.biases[index];
 
-                let defaultBias = stageProperties.swimBias / 10;
-
                 // Calculate the force direction for bias calculation
                 let forceDirection = Math.atan2(localForce.y, localForce.x);
                 let bias = calculateBias(agent.mainBody.getAngle(), forceDirection, defaultBias);
@@ -1325,8 +1257,8 @@ function applySwimmingForce(p, agent) {
                 agent.lastCalculatedForces[index][key] = planck.Vec2(adjustedForceVector.x, adjustedForceVector.y);
                 limbBody.applyForce(agent.lastCalculatedForces[index][key], position, true);
 
-                // Energy reduction in this way does not actually make sense as it is also reducing agents energy due to drag forces. 
-                if (agent.agentEnergy > 0 && agent.startingEnergy > 1) {
+                // Energy reduction in this way is a bit of a hack, as it's punishing the agent for all forces applied in the facing direction.  Better than all forces, but still not ideal.
+                if (agent.agentEnergy > 0 && agent.startingEnergy > 1 && bias > 1) {
                     agent.agentEnergy -= (Math.abs(adjustedForceVector.mag() / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[index] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
                 }
 
@@ -1342,6 +1274,9 @@ function applySwimmingForce(p, agent) {
     let bodyDisplacement = updateBufferAndGetDisplacement(agent.bodyBuffer, agent.mainBody.getPosition());
     let bodyArea = Math.PI * Math.pow(agent.genome.mainBody.size / 5, 2); // Assuming circular body
     let bodyForce = calculatePropulsiveForce(bodyDisplacement, bodyArea);
+    let forceDirection = Math.atan2(bodyForce.y, bodyForce.x);
+    let bias = calculateBias(agent.mainBody.getAngle(), forceDirection, defaultBias);
+    bodyForce = bodyForce.mul(bias);
     let adjustedbodyForce = p.createVector(bodyForce.x, bodyForce.y);
     adjustedbodyForce.limit(maxForceMagnitude);
     agent.mainBody.applyForceToCenter(adjustedbodyForce);
@@ -1353,6 +1288,7 @@ function applySwimmingForce(p, agent) {
     }
 }
 
+// Helper function to calculate the position of a point on a limb
 function calculatePointPosition(limbBody, offset, angle) {
     return planck.Vec2(
         limbBody.getPosition().x + offset * Math.cos(angle),
@@ -1360,11 +1296,13 @@ function calculatePointPosition(limbBody, offset, angle) {
     );
 }
 
+// Helper function to display force vectors
 function visualizeForce(p, agent, position, forceVector) {
     let forceAngle = Math.atan2(forceVector.y, forceVector.x);
     agent.drawForceVectors(p, position.x, position.y, forceVector, forceAngle);
 }
 
+// Applied a dampening force to the joints to prevent them from hitting their limb limits too hard.  Not currently used.
 function applyJointDamping(agent) {
     const maxTorqueForDamping = stageProperties.maxTorqueForDamping;
     const threshold = (stageProperties.threasholdAngleForDamping / 100);
@@ -1390,10 +1328,13 @@ function applyJointDamping(agent) {
     }
 }
 
+// Function to start the simulation and reset all global variables
 function initializeSketchBox2DNEAT(StageProperties) {
     stageProperties = StageProperties;
     topPerformerNo = stageProperties.topPerformerNumber / 100;
-    simulationLengthModified = stageProperties.simulationLength;
+
+    // If starting with a pre-trained population, attempt to re-construct the modified simulation length based on the number of generations
+    simulationLengthModified = stageProperties.simulationLength + (stageProperties.genCount * stageProperties.simulationLengthIncrease);
 
     // Reset all global variables
     frameCountSinceLastFPS = 0;
@@ -1424,6 +1365,7 @@ function initializeSketchBox2DNEAT(StageProperties) {
     panningOffsetX = 0;
     panningOffsetY = 0;
     skippingToGen = 0;
+    numGroups = 0;
 
     currentProcess = "Initializing world!";
 
@@ -1459,6 +1401,7 @@ function initializeSketchBox2DNEAT(StageProperties) {
     p5Instance = new p5(sketchNEAT, 'canvas-container-NEAT');
 }
 
+// Function to end the simulation, triggered in the UI
 function killSim() {
     // Function to kill the simulation
     // If there are existing agents with models, dispose of them
@@ -1496,6 +1439,7 @@ function killSim() {
     tempAgentPool = [];
 }
 
+// Function to log the genomes of all agents, triggered in the UI
 function logGenomes() {
     // Function to log the genomes of all agents
     let agentsToLog = agents;
@@ -1515,6 +1459,7 @@ function logGenomes() {
     console.log("agentGenomePool: ", genomes);
 }
 
+// Function to save the current genomes and settings to a local file
 async function saveGenomes() {
     try {
         const db = await idb.openDB('EvolutionSimulationDB', 1);
@@ -1523,6 +1468,9 @@ async function saveGenomes() {
         await tx.done;
 
         if (storedData && storedData.data) {
+
+            // stageProperties.simulationLength = simulationLengthModified;
+
             const data = {
                 genomes: storedData.data.genomes,
                 stageProperties: storedData.data.stageProperties
@@ -1544,6 +1492,7 @@ async function saveGenomes() {
 
 }
 
+// Function to save the current settings to a local file
 function saveSettings(settingsToSave) {
     const data = {
         settings: settingsToSave
@@ -1552,6 +1501,7 @@ function saveSettings(settingsToSave) {
     saveToFile(jsonString, 'settings.json');
 }
 
+// Function to save the provided data to a local file
 function saveToFile(data, filename) {
     const blob = new Blob([data], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
@@ -1562,8 +1512,11 @@ function saveToFile(data, filename) {
     window.URL.revokeObjectURL(url);
 }
 
+// Function to save the state to IndexedDB, called regularly
 async function saveStateToIndexedDB(genomesToSave) {
     try {
+        // stageProperties.simulationLength = simulationLengthModified;
+
         const data = {
             genomes: genomesToSave,
             stageProperties: stageProperties,
@@ -1587,6 +1540,7 @@ async function saveStateToIndexedDB(genomesToSave) {
     }
 }
 
+// Function to recover the state from IndexedDB
 async function recoverStateFromIndexedDB() {
     return new Promise(async (resolve, reject) => {
         try {
@@ -1605,6 +1559,7 @@ async function recoverStateFromIndexedDB() {
                 resolve(uploadedstageProperties); // Resolve the promise with the recovered state
             } else {
                 console.log('No saved state found in IndexedDB.');
+                alert('No saved state found in IndexedDB.');
                 reject('No saved state found in IndexedDB.');
             }
         } catch (e) {
@@ -1614,6 +1569,7 @@ async function recoverStateFromIndexedDB() {
     });
 }
 
+// Function to load settings from a local file
 function uploadSettings() { // Function to upload settings from a JSON file
     return new Promise((resolve, reject) => {
         const input = document.createElement('input');
@@ -1646,6 +1602,7 @@ function uploadSettings() { // Function to upload settings from a JSON file
     });
 }
 
+// Function to load genomes and stage properties from a local file
 function uploadGenomes() {
     return new Promise((resolve, reject) => {
         const input = document.createElement('input');
@@ -1683,6 +1640,7 @@ function uploadGenomes() {
     });
 }
 
+// Function to load a pre-trained genome from a selector in the UI
 function loadPreTrainedGenome(filename) {
     return new Promise((resolve, reject) => {
         fetch(`./${filename}`)
@@ -1708,6 +1666,7 @@ function loadPreTrainedGenome(filename) {
     });
 }
 
+// Function to bring up the genome viewer for the leading agent
 function showGenomes() {
     const genomeViewer = document.getElementById('genomeViewer');
     // sort the 'agents' array by agents[i].Score
@@ -1716,9 +1675,8 @@ function showGenomes() {
     createTreeView(genomeViewer, leadingAgent.genome);
 }
 
-
+// Function to skip a number of generations by disabling the rendering flag and allowing the function that automatically adjusts the sim speed to target lower frame rates.
 function skipGen(skipNo) {
-    // Function to skip a number of generations by disabling the rendering flag and speeding up physics ticks.  Make use of the 'render' flag, the genCount, which increments automatically every generation, and the simulationSpeed which can be set to 480.  Make use of recursive function to check if genCount has increased by skipNo since the function was called.  We do not need to increment genCount, it already counts generations as they pass
     if (skipNo > 0) {
         // stageProperties.simSpeed *= 1.5;
         // fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
@@ -1738,6 +1696,7 @@ function skipGen(skipNo) {
     }
 }
 
+// Updates the properties of the simulation, attempting to save some settings that are used for tracking things like the top score ever.
 function updateSimulationNEAT(StageProperties) {
     let tempCurrentTopScore = stageProperties.topScoreEver;
     let tempGenCount = stageProperties.genCount;
@@ -1754,6 +1713,7 @@ function updateSimulationNEAT(StageProperties) {
     stageProperties.scoreHistoryAverage = tempScoreHistoryAverage;
 }
 
+// Function to initialize the agents, called alongside initializeSketchBox2DNEAT() to start the simulation
 function initializeAgentsBox2DNEAT(totalPopulationGenomes) {
     // Reset the agents arrays
     agents = [];  
@@ -1791,7 +1751,7 @@ function initializeAgentsBox2DNEAT(totalPopulationGenomes) {
     }
 
     agentGenomePool = _.cloneDeep(totalPopulationGenomes);
-    saveStateToIndexedDB(totalPopulationGenomes);
+    // saveStateToIndexedDB(totalPopulationGenomes);
 
     // Save population genomes to IndexedDB
 
@@ -1828,6 +1788,7 @@ function initializeAgentsBox2DNEAT(totalPopulationGenomes) {
         }
     } else {
         console.log("Issue with population genomes");
+        currentProcess = "Issue with population genomes!  Consider Restarting";
     }
 
     waitForFirstInitializationCompletionNEAT(populationGenomes);
@@ -1846,7 +1807,7 @@ function initializeAgentBatchNEAT(startIndex, endIndex, populationGenomes) {
 function initializeAgentNEAT(i, genome) {
     setTimeout(() => {
         // Using genome properties to initialize the agent.  Could add spawn angle to genome metadata
-        let agent = new AgentNEAT(genome, i, false);
+        let agent = new AgentNEAT(genome);
 
         agent.genome.metadata.groupName = GROUP_COLORS_NAMES[agent.genome.metadata.agentGroup];
         agents.push(agent);
@@ -1857,6 +1818,7 @@ function initializeAgentNEAT(i, genome) {
     }, i * stageProperties.delay);
 }
 
+// Waits for the first batch of agents to be initialized before starting the simulation
 function waitForFirstInitializationCompletionNEAT(populationGenomes) {
     // Check if agents initialized
     if (isInitializationComplete) {
@@ -1894,6 +1856,7 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes) {
     }
 }
 
+// Function that logs all the weights and biases of the agents brain.  Not in use currently.
 function logModelWeights(agent) {
 
     // Filtering tensors to get only weights (even indices)
@@ -1912,83 +1875,128 @@ function logModelWeights(agent) {
 
 }
 
-//this agent will do for now, but I intend to replace with with a dynamic body plan that can 'evolve' over time.
-//I think a JSON file defining a series of body and limb shapes, possibly with limbs connected to limbs etc
-//Starting from a random config, this would not work, as there would be little chance of initial fitness, but starting from a simple body plan and evolving complexity based on randomness and fitness might work.
-function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
+/*****     Agent Constructor     *****/
+function AgentNEAT(agentGenome, existingBrain = null) {
 
-    this.genome = _.cloneDeep(agentGenome); // Deep copy of genome
+    /***   Agents Main Properties   ***/
+
+    // Copy agents genome to agent object, removing from original array
+    this.genome = _.cloneDeep(agentGenome);
     agentGenome = null;
+
+    // Assign agents index locally for reference
     this.index = this.genome.metadata.agentIndex;
+
+    // Is this agent currently leading
     this.currentlyLeading = false;
 
-    updateLimbIDs(this.genome);
-
-    this.bodyParts = flattenLimbStructure(this.genome.mainBody.arms);
-
-    this.noFrontLimbs = 0;
-
-    if (stageProperties.keepAgentSymmetrical === true && this.bodyParts.length > 0) {
-
-        this.noLimbsBeforeDupe = this.bodyParts.length;
-
-        // Find the maximum limb ID in the original set
-        const maxPartID = Math.max(...this.bodyParts.map(limb => limb.partID));
-
-        // Create a copy of the original limbs to avoid modifying the array while iterating
-        const originalLimbs = this.bodyParts.slice();
-        let insertIndex = 0;
-        for (let i = 0; i < originalLimbs.length; i++) {
-            let originalLimb = originalLimbs[i];
-            insertIndex++;
-
-            const epsilon = 0.1;
-            const twoPi = 2 * Math.PI;
-            const fourPi = 4 * Math.PI;
-            //if (originalLimb.startingAngle !== 0) {
-            // Only duplicate limbs that are not within a small range of the front or back of the agent 
-            if (!(((originalLimb.startingAngle >= 0 && originalLimb.startingAngle <= epsilon) ||
-                (originalLimb.startingAngle >= twoPi - epsilon && originalLimb.startingAngle <= twoPi + epsilon) ||
-                (originalLimb.startingAngle >= fourPi - epsilon && originalLimb.startingAngle <= fourPi)) && originalLimb.numberInChain == 1)) {
-
-                if (originalLimb.partID == 1) {
-                    this.noFrontLimbs = 2;
-                }
-
-                let newLimb = _.cloneDeep(originalLimb);
-                newLimb.startingAngle = (4 * Math.PI) - originalLimb.startingAngle;
-
-                newLimb.constraints.minAngle = -originalLimb.constraints.maxAngle;
-                newLimb.constraints.maxAngle = -originalLimb.constraints.minAngle;
-
-                newLimb.partID = maxPartID + originalLimb.partID + 1;
-                if (originalLimb.parentPartID != 0) {
-                    let parentLimb = this.bodyParts.find(limb => limb.partID === originalLimb.parentPartID);
-                    if (((parentLimb.startingAngle >= 0 && parentLimb.startingAngle <= epsilon) ||
-                        (parentLimb.startingAngle >= twoPi - epsilon && parentLimb.startingAngle <= twoPi + epsilon) ||
-                        (parentLimb.startingAngle >= fourPi - epsilon && parentLimb.startingAngle <= fourPi)) && parentLimb.numberInChain == 1) {
-                        newLimb.parentPartID = originalLimb.parentPartID;
-                    } else {
-                        newLimb.parentPartID = maxPartID + originalLimb.parentPartID + 1;
-                    }
-                }
-
-                // Update inputs for the neural network
-                this.genome.inputLayerGenes[0].numberOfNeurons++;
-                this.genome.inputLayerGenes[0].inputs.push(this.genome.inputLayerGenes[0].inputs.length);
-
-                this.bodyParts.splice(insertIndex, 0, newLimb);
-                insertIndex++;
-            } else {
-                this.noFrontLimbs = 1;
-            }
-        }
-    }
-
-    this.numLimbs = this.bodyParts.length;
+    // The starting position of the agent in the plank simulation based on the number of agents and how spread out they should be.  The render function renders all agents in 1 spot regardless of their actual position
     this.startingX = stageProperties.agentStartX + (Math.floor(this.genome.metadata.runGroup) * stageProperties.agentStartSpawnGap);
     this.startingY = stageProperties.agentStartY;
 
+    // Create a set to store the coordinates of all covered cells, and a counter to track the number of covered cells
+    this.internalMap = new Set();
+    this.coveredCellCount = 0;
+
+    // Initialize arrays to store the limbs and joints of the agent.  May need more to hold other limb types
+    this.limbs = [];
+    this.limbMass = [];
+    this.joints = [];
+    //this.biases = [];
+
+    // Initialize biases array so agents can evolve a different bias per limb.  Not currently in use
+    //for (let i = 0; i < this.limbs; i++) {
+    //    this.biases.push(1.5);
+    //}
+
+    // The number of 'front' (or back) limbs; limbs between 0.1 radians of 0 or Pi.  These are not duplicated when symmetry is enabled
+    this.noFrontLimbs = 0;
+
+    // Give the agent a brain based on the genome.  If an existing brain is passed in, use that instead of creating a new one.
+    if (existingBrain) {
+        this.brain = existingBrain;
+    } else {
+        if (this.brain) {
+            this.brain.dispose();
+        }
+        this.brain = createNeuralNetworkNEAT(this.genome);
+    }
+
+    // Brain size is used to calculate how much energy the agent uses for movement, bigger brains use more energy.
+    this.brainSize = this.genome.inputLayerGenes[0].numberOfNeurons + this.genome.outputLayerGenes[0].numberOfNeurons;
+    for (let i = 0; i < this.genome.layerGenes.length; i++) {
+        this.brainSize += this.genome.layerGenes[i].numberOfNeurons;
+    }
+
+
+    /***   Score variables   ***/
+
+    // Initialize variables for calculating score
+    this.Score = 0;
+
+    // Initialize variables for tracking the furthest position reached
+    this.furthestXPos = this.startingX;
+    this.furthestYPos = this.startingY;
+
+    // Initialize variable tracking total joint movement score
+    this.totalJointMovementReward = 0;
+
+    // Initialize variables for tracking the score bonus for larger agents
+    this.massBonus = 0;
+
+    // Initialize variables for calculating brain weight score penalty.  Not in use currently.
+    this.weightPenaltyCache = null;
+    this.weightPenaltyCounter = 0;
+
+
+    /***   Rendering Variables   ***/
+
+    // Initialize variables for this agents position offset for rendering
+    this.offsetX;
+    this.offsetY;
+
+    // Initialize variables for rendering vision lines
+    this.rayCastPoints = [];
+
+
+    /***   Give The Agent A Body   ***/
+
+    // Set properties for the main body of the agent for reference
+    this.mainBodyRadius = this.genome.mainBody.size;
+    let mainBodyDensity = this.genome.mainBody.density;
+
+    // Call function to create the main body of the agent
+    this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, this.mainBodyRadius, mainBodyDensity);
+
+    // Track the current position of the agent for reference.  Took a bit of getting my head around this, but since mainBody is an object, getPosition() will return a reference to the position function, so it will update as the value changes.
+    this.position = this.mainBody.getPosition();
+
+    // Determine a random starting angle of the agent
+    this.randomAngle;
+    if (stageProperties.randomAgentStartAngle == true) {
+        this.randomAngle = -Math.random() * Math.PI / 2;
+    } else {
+        this.randomAngle = -Math.PI / 4;
+    }
+
+    // Set the agents spawn angle
+    this.mainBody.setAngle(this.randomAngle);
+
+    // Function call to update limb ID's since mutation can change the order of limbs
+    updateLimbIDs(this.genome);
+
+    // Function to flatten the limb structure into a single array for easier iteration
+    this.bodyParts = flattenLimbStructure(this.genome.mainBody.arms);
+
+    // Code to duplicate the limbs for symmetry if enabled.
+    if (stageProperties.keepAgentSymmetrical === true && this.bodyParts.length > 0) {
+        this.duplicateLimbsForSymmetry();
+    }
+
+    // Variable tracking the number of limbs for reference
+    this.numLimbs = this.bodyParts.length;
+
+    // Buffers for storing positions for calculating displacements and velosities in the swim function
     this.limbBuffer = Array(this.numLimbs).fill().map(() => []);
     this.bodyBuffer = Array(1).fill().map(() => []);
     this.limbDisplacementBuffers = this.bodyParts.map(() => ({
@@ -1996,167 +2004,26 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         center: [],
         tip: []
     }));
-
     this.lastCalculatedForces = this.bodyParts.map(() => ({
         base: planck.Vec2(0, 0),
         center: planck.Vec2(0, 0),
         tip: planck.Vec2(0, 0)
     }));
 
-    let mainBodyRadius = this.genome.mainBody.size;
-    let mainBodyDensity = this.genome.mainBody.density;
-    this.mainBody = createMainBodyNEAT(world, this.startingX, this.startingY, mainBodyRadius, mainBodyDensity);
-    this.position = this.mainBody.getPosition();
+    // Main loop building the agents body from the flattened limb structure array.
+    this.buildBodyFromLimbStructure();
 
-    //this.internalMap = [];
-    //this.coveredCellCount = 0;
-    //const internalMapSize = stageProperties.internalMapSize;
-    //const internalMapCellSize = stageProperties.internalMapCellSize;
-    //if ((stageProperties.explorationScoreMultiplier / 10) > 0) {
-    //    for (let i = 0; i < internalMapSize; i++) {
-    //        let row = [];
-    //        for (let n = 0; n < internalMapSize; n++) {
-    //            row.push(false);
-    //        }
-    //        this.internalMap.push(row);
-    //    }
-    //}
+    /***   Energy Variables   ***/
 
-    this.internalMap = new Set();
-    this.coveredCellCount = 0;
-    const internalMapSize = stageProperties.internalMapSize;
-    const internalMapCellSize = stageProperties.internalMapCellSize;
-
-    // Function to convert coordinates to a map key
-    this.getCoordinateKey = function (x, y) {
-        return `${x},${y}`;
-    };
-
-    // this.bodySegments = [];
-    // this.bodySegmentsbMass = [];
-    // this.wings = [];
-    // this.thrusters = [];
-    this.limbs = [];
-    this.limbMass = [];
-    this.joints = [];
-    this.biases = [];
-
-    for (let i = 0; i < this.limbs; i++) {
-        this.biases.push(1.5);
-    }
-
-    // Brain size is used to calculate how much energy the agent uses for movement, bigger brains use more energy.  Could include weight sum too
-    this.brainSize = this.genome.inputLayerGenes[0].numberOfNeurons + this.genome.outputLayerGenes[0].numberOfNeurons;
-    for (let i = 0; i < this.genome.layerGenes.length; i++) {
-        this.brainSize += this.genome.layerGenes[i].numberOfNeurons;
-    }
-
-    // Determine the starting angle of the main body
-    let randomAngle;
-    if (stageProperties.randomAgentStartAngle == true) {
-        randomAngle = -Math.random() * Math.PI / 2;
-    } else {
-        randomAngle = -Math.PI / 4;  // 45 degrees in radians
-    }
-
-    // Set the main body's angle
-    this.mainBody.setAngle(randomAngle);
-
-    // console.log(this.bodyParts);
-    for (let part of this.bodyParts) {
-        let parentLimb;this.arms
-        let parentLimbLength = 0;
-        let parentLimbGenome;
-
-        try { 
-            if (part.numberInChain === 1) {
-                parentLimb = this.mainBody;
-                parentLimbLength = mainBodyRadius;
-            } else if (part.numberInChain > 1 && part.parentPartID != 0) {
-                parentLimb = this.limbs.find(limb => limb.getUserData() === part.parentPartID);
-                parentLimbGenome = this.bodyParts.find(limb => limb.partID === part.parentPartID);
-                parentLimbLength = parentLimbGenome.length;
-            } else {
-                console.log("Error in arm initialization, number in chain does not match.  BodyParts: " + JSON.stringify(this.bodyParts) + " Offending Limb: " + JSON.stringify(part));
-            }
-        } catch (err) {
-            console.log("'Try Error: " + err + "' Error in arm initialization, number in chain does not match.  BodyParts: " + JSON.stringify(this.bodyParts) + " Offending Limb: " + JSON.stringify(part));
-        }
-
-        // if (part.type == "BodySegment") {
-        //      body segment constructor
-        //      this.bodySegments.push(bodySegment);
-        //      this.bodySegmentsbMass.push(bodySegment.getMass());
-        // else 
-        if (part.type == "Arm") {
-            const angle = part.startingAngle;
-            // Calculate the position of the limb's center
-            let offsetFromMainLimb;
-            if (part.numberInChain === 1) {
-                // Parent limb is main body
-                offsetFromMainLimb = mainBodyRadius + part.length / 2;
-                part.attachment = { x: mainBodyRadius * Math.cos(angle), y: -mainBodyRadius * Math.sin(angle) };
-                part.limbX = this.startingX + offsetFromMainLimb * Math.cos(angle - randomAngle);
-                part.limbY = this.startingY - offsetFromMainLimb * Math.sin(angle - randomAngle);
-            } else if (part.numberInChain > 1) {
-                // Parent limb is another limb
-                offsetFromMainLimb = parentLimbLength / 2 + part.length / 2;
-                part.attachment = { x: 0, y: parentLimbLength / 2 };
-                part.limbX = parentLimbGenome.limbX + offsetFromMainLimb * Math.cos(angle - randomAngle);
-                part.limbY = parentLimbGenome.limbY - offsetFromMainLimb * Math.sin(angle - randomAngle);
-            } 
-
-            let arm = createLimbNEAT(world, part.limbX, part.limbY, part.length, part.width, angle - randomAngle, part.partID);
-
-            let localAnchorA;
-            localAnchorA = planck.Vec2(
-                part.attachment.x,
-                part.attachment.y
-            );
-            
-            // Calculate the point after rotation
-            let localAnchorB = planck.Vec2(0, -part.length / 2);
-
-            let joint = createRevoluteJointNEAT(world, parentLimb, arm, localAnchorA, localAnchorB, part.constraints.minAngle, part.constraints.maxAngle, part.constraints.maxTorque);
-            this.joints.push(joint);
-
-            // body segment constructor
-            this.limbs.push(arm);
-            this.limbMass.push(arm.getMass());
-        }
-        // else if (part.type == "Wing") {
-        //      body segment constructor
-        //      this.wings.push(wing);
-        //      this.limbs.push(wing);
-        //      this.limbMass.push(wing.getMass());
-        // else if (part.type == "Thruster") {
-        // ... other constructors
-
-    }
-
-    // Use the genome to give the agent a brain!
-    if (existingBrain) {
-        this.brain = existingBrain;
-    } else if (mutatedBrain) {
-        // dispose of old brain
-        if (this.brain) {
-            this.brain.dispose();
-        }
-        this.brain = constructModelFromGenome(this.genome);
-    } else {
-        this.brain = createNeuralNetworkNEAT(this.genome);
-    }
-
-    // Score and energy stuff
-    this.Score = 0;
+    // Initialize variable calculating limb mass, used for starting energy and energy use per limb
     this.limbMassTot = 0;
-
     if (this.limbMassTot < 10) {
         for (let i = 0; i < this.limbs.length; i++) {
             this.limbMassTot += this.limbs[i].getMass();
         }
     }
 
+    // Calculate the starting energy of the agent.  I should make a 'calculate starting energy' function, and a 'calculate current energy' function
     if ((stageProperties.startingEnergyBodyMassMult / 10) > 0) {
         this.startingEnergy = stageProperties.startingEnergyBase + ((((this.mainBody.getMass() / stageProperties.bodyStartingMassEnergyReductionDivider) * (stageProperties.startingEnergyBodyMassMult / 10)) + ((this.limbMassTot / stageProperties.limbStartingMassEnergyReductionDivider) * stageProperties.startingEnergyLimbMassMult / 10)) * (stageProperties.simulationLength / 2000)) ** stageProperties.startingEnergyMassPower; // + body segments mass and maybe limbs later
         this.agentEnergy = this.startingEnergy;
@@ -2165,377 +2032,45 @@ function AgentNEAT(agentGenome, agentNo, mutatedBrain, existingBrain = null) {
         this.agentEnergy = this.startingEnergy;
     }
 
-    this.weightPenaltyCache = null;
-    this.weightPenaltyCounter = 0;
+    // Initialize previousJointAngles to starting angles, used for calculating joint movement score bonus.  Might be able to combine this with my buffer for joint angles for the swim function.
+    this.previousJointAngles = Array(this.numLimbs).fill(0).map((_, i) => this.joints[i].getJointAngle());
+}
 
-    this.getWeightPenalty = function () {
-        this.weightPenaltyCounter++;
-        // Called only at end of round as expensive
-        let allWeightTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 0);
-        let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()).map(Math.abs)); // map to absolute values
-        let averageAbsWeight = allWeights.reduce((sum, weight) => sum + weight, 0) / allWeights.length;
+/***   Old Function For Exploration Reward.  If I want the map as a NN input, I will need this   ***/
 
-        this.weightPenaltyCache = averageAbsWeight;
-
-        return this.weightPenaltyCache;
+/*
+    this.internalMap = [];
+    this.coveredCellCount = 0;
+    const internalMapSize = stageProperties.internalMapSize;
+    const internalMapCellSize = stageProperties.internalMapCellSize;
+    if ((stageProperties.explorationScoreMultiplier / 10) > 0) {
+        for (let i = 0; i < internalMapSize; i++) {
+            let row = [];
+            for (let n = 0; n < internalMapSize; n++) {
+                row.push(false);
+            }
+            this.internalMap.push(row);
+        }
     }
 
-    // Initialize previousJointAngles to starting angles
-    this.previousJointAngles = Array(this.numLimbs).fill(0).map((_, i) => this.joints[i].getJointAngle());
-
-    // Initialize totalJointMovementReward to 0
-    this.totalJointMovementReward = 0;
-
-    this.getJointMovementReward = function () {
-        let totalChange = 0;
-        for (let i = 0; i < this.joints.length; i++) {
-            let currentAngle = this.joints[i].getJointAngle();
-
-            // Now that I randomly change the agent's starting angles, we need to only increment score after round starts
-            if (stabilised || !stageProperties.agentsRequireStablising) {
-                let change = Math.abs(currentAngle - this.previousJointAngles[i]) * (this.limbs[i].getMass() / stageProperties.jointMovementRewardLimbMassDivider);
-                totalChange += change;
-            }
-
-            // Update the previous angle for next time
-            this.previousJointAngles[i] = currentAngle;
-        }
-
-        // Exponential decay for the reward. You can adjust the decay factor as needed.
-        let decayFactor = 0.90;
-
-        // Calculate the current reward, decaying it based on the total rewards given so far.
-        // Dividing totalJointMovementReward by totalChange ensures the decayFactor is applied over time.
-        let currentReward = totalChange * Math.pow(decayFactor, this.totalJointMovementReward);
-
-        // If totalChange is 0, handle it to avoid division by zero
-        if (totalChange === 0) {
-            currentReward = 0;
-        }
-
-        // Accumulate joint movement reward
-        this.totalJointMovementReward += currentReward;
-
-        return this.totalJointMovementReward;
-    };
-
-    //this.getExplorationReward = function () {
-
-    //    // Calculate the position relative to the map's origin (considering the granularity)
-    //    let gridX = Math.floor(((this.position.x - this.startingX) + 10) / internalMapCellSize) + 5;  // Start in cell 5,5 slightly offset from the origin so they can explore backwards.  The +10 is to account for the agent spawning on the boundary of a grid, so getting 4 cells explored instantly
-    //    let gridY = Math.floor(((this.startingY - this.position.y) + 10) / internalMapCellSize) + 5;  // Subtracting due to flipped Y-axis
-
-    //    if (gridX >= 0 && gridX < internalMapSize && gridY >= 0 && gridY < internalMapSize) {
-    //        if (!this.internalMap[gridY][gridX]) { // If the cell hasn't been visited yet
-    //            this.internalMap[gridY][gridX] = true;  // Mark the cell as visited
-    //            this.coveredCellCount++;  // Increment the covered cell count
-    //        }
-    //    }
-
-    //    return this.coveredCellCount;
-    //};
-
     this.getExplorationReward = function () {
-        let gridX = Math.floor(((this.position.x - this.startingX) + 10) / internalMapCellSize) + 5;
-        let gridY = Math.floor(((this.startingY - this.position.y) + 10) / internalMapCellSize) + 5;
-        let key = this.getCoordinateKey(gridX, gridY);
+
+        // Calculate the position relative to the map's origin (considering the granularity)
+        let gridX = Math.floor(((this.position.x - this.startingX) + 10) / internalMapCellSize) + 5;  // Start in cell 5,5 slightly offset from the origin so they can explore backwards.  The +10 is to account for the agent spawning on the boundary of a grid, so getting 4 cells explored instantly
+        let gridY = Math.floor(((this.startingY - this.position.y) + 10) / internalMapCellSize) + 5;  // Subtracting due to flipped Y-axis
 
         if (gridX >= 0 && gridX < internalMapSize && gridY >= 0 && gridY < internalMapSize) {
-            if (!this.internalMap.has(key)) {
-                this.internalMap.add(key);
-                this.coveredCellCount++;
+            if (!this.internalMap[gridY][gridX]) { // If the cell hasn't been visited yet
+                this.internalMap[gridY][gridX] = true;  // Mark the cell as visited
+                this.coveredCellCount++;  // Increment the covered cell count
             }
         }
 
         return this.coveredCellCount;
     };
+*/
 
-    this.furthestXPos = this.startingX;
-    this.furthestYPos = this.startingY;
-    this.massBonus = 0;
-    this.getScore = function (roundOver) {
-
-        if (this.position.x > this.furthestXPos) {
-            this.furthestXPos = this.position.x;
-        }
-        if (this.position.y < this.furthestYPos) {  // Assuming north is negative Y
-            this.furthestYPos = this.position.y;
-        }
-
-        // If the agent has made new progress in the x or y direction, update the furthest position.
-        let XPosScore = Math.floor(this.furthestXPos - this.startingX) * (stageProperties.xScoreMultiplier / 10);
-        let YPosScore = Math.floor(this.startingY - this.furthestYPos) * (stageProperties.yScoreMultiplier / 10);
-
-        let jointMovementReward = 0;
-        if ((stageProperties.movementScoreMultiplier / 10) > 0) {
-            jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * (stageProperties.movementScoreMultiplier / 10); // Adjust multiplier if needed
-        }
-
-        if (this.limbs.length > 2) {
-            jointMovementReward = jointMovementReward / (this.limbs.length - 2);
-        }
-
-        let explorationReward = 0;
-
-        if ((stageProperties.explorationScoreMultiplier / 10) > 0) {
-            explorationReward = this.getExplorationReward() * (stageProperties.explorationScoreMultiplier / 10);
-        }
-
-        let weightPenalty;
-        //if (roundOver) {
-        //    weightPenalty = this.getWeightPenalty() * 50;
-        //} else {
-            weightPenalty = 0;
-        //}
-
-        if (!roundOver && this.massBonus < 10 && (stageProperties.sizeScoreMultiplier / 100) > 0) {
-            try {
-                this.massBonus = this.mainBody.getMass() * (stageProperties.sizeScoreMultiplier / 100);
-                // loop through limbs and add their mass to the massBonus
-                for (let i = 0; i < this.limbs.length; i++) {
-                    this.massBonus += this.limbs[i].getMass() * (stageProperties.sizeScoreMultiplier / 100);
-                }
-            } catch (e) {
-                this.massBonus = 0;
-            }
-        }
-
-        if (stageProperties.massBonusIsDynamic === true) {
-            this.massBonusMultiplier = (this.massBonus / stageProperties.dynamicMassBonusDivider) * (XPosScore + YPosScore); // This makes the mass bonus scale with the distance traveled, so static, large agents don't get a huge advantage
-        } else {
-            this.massBonusMultiplier = this.massBonus; // This makes the mass bonus static, so large agents get a huge advantage
-        }
-
-        this.Score = XPosScore + YPosScore + jointMovementReward + explorationReward - weightPenalty + this.massBonusMultiplier;
-
-        if (this.Score < 1) {
-            this.Score = 1;
-        }
-
-        if (this.Score > stageProperties.topScoreEver) {
-            stageProperties.topScoreEver = this.Score;
-        }
-
-        // I will also give score bonus for how unique an agent is, both brain and body.
-        // This will mean a function to calculate the average values for things like the brain shape, number of limbs, depth of limb chains, etc.
-
-        return [
-            parseFloat(this.Score.toFixed(2)),
-            parseFloat(XPosScore.toFixed(2)),
-            parseFloat(YPosScore.toFixed(2)),
-            parseFloat(weightPenalty.toFixed(2)),
-            parseFloat(jointMovementReward.toFixed(2)),
-            parseFloat(explorationReward.toFixed(2)),
-            parseFloat(this.massBonusMultiplier.toFixed(2)),
-            parseFloat(this.agentEnergy.toFixed(2))
-        ];
-
-    };
-
-    this.offsetX;
-    this.offsetY;
-
-    this.render = function (p, offsetX, offsetY) {
-        this.offsetX = offsetX;
-        this.offsetY = offsetY;
-        // Set the fill color based on group
-        p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
-        p.stroke(0);
-        // Render the main body
-        if (this.mainBody) {
-            let mainPos = this.position;
-            let mainAngle = this.mainBody.getAngle();
-            let arrowLength = mainBodyRadius / 2; // Or any length you prefer
-            let arrowBase = mainBodyRadius / 4;   // The size of the base of the arrow triangle
-
-            p.push();
-            p.translate(mainPos.x + offsetX, mainPos.y + offsetY);  // Added offsetX
-            p.rotate(mainAngle);
-
-            // Draw the main body
-            p.ellipse(0, 0, mainBodyRadius * 2, mainBodyRadius * 2);
-
-            p.fill(0);
-            // Draw arrow stem pointing right (East)
-            p.strokeWeight(2); // Adjust thickness of the arrow as needed
-            p.line(0, 0, arrowLength, 0);
-
-            // Draw the arrowhead
-            p.triangle(arrowLength, 0,
-                arrowLength - arrowBase, arrowBase / 2,
-                arrowLength - arrowBase, -arrowBase / 2);
-
-            p.pop();
-            p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
-        }
-        //p.fill(0);
-        //p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
-
-        // Render the limbs
-        for (let i = 0; i < this.limbs.length; i++) {
-            let limb = this.limbs[i];
-            if (limb) {
-                let limbPos = limb.getPosition();
-                let limbAngle = limb.getAngle();
-                let genomeLimb = this.bodyParts.find(limbToFind => limbToFind.partID === limb.getUserData());
-
-                p.push();
-                p.translate(limbPos.x + offsetX, limbPos.y + offsetY);
-                p.rotate(limbAngle);
-                p.rect(-genomeLimb.width / 2, -genomeLimb.length / 2, genomeLimb.width, genomeLimb.length); // Using width and length from genome
-                p.pop();
-            }
-        }
-
-        // Render the joints
-        for (let i = 0; i < this.limbs.length; i++) {
-            if (this.joints[i]) {
-                let jointPos = this.joints[i].getAnchorA();
-                p.push();
-                // Check if the current joint's index is within the jointColors array length
-                if (i < GROUP_COLORS.length) {
-                    p.fill(GROUP_COLORS[i]);  // Set the fill color to the corresponding color from the jointColors array
-                } else {
-                    p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
-                }
-                p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 7, 7);  // Added offsetX
-                p.pop();
-            }
-        }
-
-        // Render second set of joint anchors for testing
-        //for (let i = 0; i < this.limbs.length; i++) {
-        //    if (this.joints[i]) {
-        //        p.push();
-        //        let jointPos = this.joints[i].getAnchorB();
-        //        // Check if the current joint's index is within the jointColors array length
-        //        p.fill(0, 255, 0); 
-        //        p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
-        //        p.pop();
-        //    }
-        //}
-        // Draw a small circle at the center of the agent (200, 600)
-        //p.push();
-        //p.fill(0);
-        //p.ellipse(this.startingX + offsetX, this.startingY + offsetY, 10, 10);
-        //p.pop();
-    };
-
-    // If this agent is part of agentsToRender, render the force vectors
-    this.drawForceVectors = function (p, forceApplyPointX, forceApplyPointY, force, forceAngle) {
-        if (this.currentlyLeading == true && stageProperties.showForceVectors == true) { // randomlySelectedAgents.includes(this) || leadingAgents.includes(this) && 
-
-            const forceScale = stageProperties.visualForceScale; // Scale factor for force vector
-            const maxForceLength = stageProperties.visualMaxForceLength; // Maximum length for visualized force vector
-
-            // Scale the force for visualization
-            let scaledForce = force;
-
-            // Cap the length of the scaled force
-            if (scaledForce.mag() > maxForceLength) {
-                scaledForce.setMag(maxForceLength);
-            }
-
-            p.push();
-            p.stroke(255);
-            p.strokeWeight(2);
-            p.line(forceApplyPointX + this.offsetX, forceApplyPointY + this.offsetY, forceApplyPointX + scaledForce.x + this.offsetX, forceApplyPointY + scaledForce.y + this.offsetY);
-            p.pop();
-
-            // Draw an arrow at the end of the line
-            p.push();
-            p.fill(255);
-            p.translate(forceApplyPointX + scaledForce.x + this.offsetX, forceApplyPointY + scaledForce.y + this.offsetY);
-            p.rotate(forceAngle);
-            p.triangle(-10, -10, 0, 0, -10, 10);
-            p.pop();
-        }
-    }
-
-    this.rayCastPoints = [];
-    this.renderRayCasts = function (p, offsetX, offsetY) {
-        p.push()
-        p.stroke(255, 0, 0);  // Set the color of the rays (red in this case)
-
-        for (let ray of this.rayCastPoints) {
-            let startX = ray.start.x + offsetX;
-            let startY = ray.start.y + offsetY;
-            let endX = ray.end.x + offsetX;
-            let endY = ray.end.y + offsetY;
-
-            p.line(startX, startY, endX, endY);
-        }
-
-        p.pop();
-    };
-
-}
-
-function createMainBodyNEAT(world, x, y, radius, mainBodyDensity) {
-    let bodyDef = {
-        type: 'static',
-        position: planck.Vec2(x, y)
-    };
-
-    let body = world.createBody(bodyDef);
-    let shape = planck.Circle(radius);
-    let fixtureDef = {
-        shape: shape,
-        density: mainBodyDensity,
-        filterCategoryBits: CATEGORY_AGENT_BODY,
-        filterMaskBits: CATEGORY_GROUND  // Only allow collision with the ground
-    };
-    body.createFixture(fixtureDef);
-    // body.setUserData("Agent " + agentNo + " Main Body");
-    return body;
-}
-
-function createLimbNEAT(world, x, y, length, width, angle, limbNo) {
-    // Check if length is greater than width and adjust angle accordingly
-    // Should maybe remove the check and always apply this.  Will see if mutations to proportions still cause floating limbs 
-    //if (length > width) {
-        angle += Math.PI / 2;
-    //}
-
-    let bodyDef = {
-        type: 'dynamic',
-        position: planck.Vec2(x, y),
-        angle: -angle
-    };
-
-    let body = world.createBody(bodyDef);
-    let shape = planck.Box(width / 2, length / 2);
-
-    let fixtureDef = {
-        shape: shape,
-        density: 0.1, // Should make this a genome property
-        filterCategoryBits: CATEGORY_AGENT_LIMB,
-        filterMaskBits: CATEGORY_GROUND,  // Only allow collision with the ground
-    };
-    body.createFixture(fixtureDef);
-    body.setUserData(limbNo); //"Agent " + agentNo + " Limb " + 
-
-    return body;
-}
-
-function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB, lowerAngle, upperAngle, limbTorque) {
-    let jointDef = {
-        bodyA: bodyA,
-        bodyB: bodyB,
-        localAnchorA: localAnchorA,
-        localAnchorB: localAnchorB,
-        lowerAngle: lowerAngle,
-        upperAngle: upperAngle,
-        enableLimit: true,
-        motorSpeed: 0.0,
-        maxMotorTorque: limbTorque,
-        enableMotor: true
-    };
-
-    return world.createJoint(planck.RevoluteJoint(jointDef, bodyA, bodyB));
-}
-
-
+// Returns the furthest forward agent and the furthest from each species group
 function getLeadingAgentNEAT(frameCounter) {
 
     if (agents.length === 0) return null;
@@ -2576,6 +2111,7 @@ function getLeadingAgentNEAT(frameCounter) {
     return cachedLeadingAgent;
 }
 
+// Returns the agent with the lowest x and y position
 function getLastAgentNEAT() {
     if (agents.length === 0) return null;
 
@@ -2585,7 +2121,7 @@ function getLastAgentNEAT() {
     );
 }
 
-
+// Returns the agent with the highest score
 function getHighestScoreNEAT() {
     if (agents.length === 0) return null;
 
@@ -2594,6 +2130,7 @@ function getHighestScoreNEAT() {
     return agents[0];
 }
 
+// Function called once the tick counter has reached the simulation length.  Ends the simulation and starts the next batch / generation
 function endSimulationNEAT(p) {
     // p.noLoop();
     simulationStarted = false;
@@ -2606,7 +2143,7 @@ function endSimulationNEAT(p) {
     console.log("round over");
 
     // Reduce the sim speed before restart to reduce the initial demand on the CPU
-    if (stageProperties.simSpeed > 15) {
+    if (stageProperties.simSpeed > 25) {
         stageProperties.simSpeed -= 15;
     }
 
@@ -2684,6 +2221,7 @@ function endSimulationNEAT(p) {
 
 }
 
+// Function called once to start the plank world.
 function setupPlanckWorldNEAT() {
     // Create the Planck.js world
     // Could use the gravity property to add a 'current' to the world, rather than creating it with forces manually.  I assume this property is fixed once the world is created though
@@ -2691,18 +2229,21 @@ function setupPlanckWorldNEAT() {
     world = planck.World(planck.Vec2(0.0, 0.0));
 
     // Adds event listener for collisions, console logged. Will need to uncomment UserData setting for each body to use
-    //world.on('begin-contact', function (contact) {
-    //    let fixtureA = contact.getFixtureA();
-    //    let fixtureB = contact.getFixtureB();
-    //    let bodyA = fixtureA.getBody();
-    //    let bodyB = fixtureB.getBody();
+    /*
+    world.on('begin-contact', function (contact) {
+        let fixtureA = contact.getFixtureA();
+        let fixtureB = contact.getFixtureB();
+        let bodyA = fixtureA.getBody();
+        let bodyB = fixtureB.getBody();
 
-    //    console.log("Collision between:", bodyA.getUserData(), "and", bodyB.getUserData());
-    //});
-
+        console.log("Collision between:", bodyA.getUserData(), "and", bodyB.getUserData());
+    });
+    */
+    
     createMaps(stageProperties.map);
 }
 
+// Build maps for the simulation
 function createMaps(mapNumber) {
 
     // I am going to need to design some new maps that allow larger agent body plans.  Maybe with different routes.  Shorter routes are narrower to give an advantage to small body plans
@@ -2917,10 +2458,13 @@ function createMaps(mapNumber) {
     }
 
 }
+
+// Helper function to check if a point is within a safe zone
 function isWithinSafeZone(x, y, zone) {
     return x > zone.x && x < zone.x + zone.width && y > zone.y && y < zone.y + zone.height;
 }
 
+// Helper function to create a wall and duplicate it for as many agent spawn locations exist
 function createWall(x, y, width, height, angle = 0) {
 
     for (let i = 0; i < Math.ceil(stageProperties.totalNumAgentsMultiplier); i++) {
@@ -2959,9 +2503,7 @@ function createWall(x, y, width, height, angle = 0) {
     }
 }
 
-
-/*            Neural Network Functions                     */
-
+// Function to build a TensorFlow model from a genome
 function createNeuralNetworkNEAT(genome) {
     const model = tf.sequential();
     let biasID = 0;  // Initialize a counter for bias IDs
@@ -3056,106 +2598,7 @@ function createNeuralNetworkNEAT(genome) {
     return model;
 }
 
-function constructModelFromGenome(genome) {
-    const model = tf.sequential();
-
-    // Extract the number of input neurons from the genome.
-    const inputNeurons = genome.inputLayerGenes[0].numberOfNeurons;
-
-    // Input layer.
-    const inputLayer = tf.layers.dense({
-        units: inputNeurons,
-        inputShape: [genome.inputLayerGenes[0].inputs.length],
-        activation: genome.inputLayerGenes[0].activationType
-    });
-    model.add(inputLayer);
-
-    // Create a mapping from bias IDs to their respective values for the first (input) layer.
-    let previousLayerBiasIDMap = {};
-    genome.inputLayerGenes[0].biases.forEach(b => previousLayerBiasIDMap[b.id] = b.value);
-
-    // Set the weights and biases for each subsequent layer based on the ID mapping.
-    genome.layerGenes.forEach(layerGene => {
-        const layer = tf.layers.dense({
-            units: layerGene.numberOfNeurons,
-            activation: layerGene.activationType
-        });
-        model.add(layer);
-
-        // Create a 2D array for the weight values initialized to 0, using the number of neurons in the previous and current layer.
-        const weightsMatrix = new Array(Object.keys(previousLayerBiasIDMap).length).fill(null).map(() => new Array(layerGene.biases.length).fill(0));
-        const biasesArray = new Array(layerGene.biases.length).fill(0);
-
-        // Populate the weight matrix using the 'fromNodeID' and 'toNodeID'.
-        layerGene.weights.forEach((weightRow, rowIndex) => {
-            weightRow.forEach(weight => {
-                const fromIndex = Object.keys(previousLayerBiasIDMap).indexOf(weight.fromNodeID.toString());
-                const toIndex = layerGene.biases.findIndex(b => b.id === weight.toNodeID);
-                if (fromIndex !== -1 && toIndex !== -1) {
-                    weightsMatrix[fromIndex][toIndex] = weight.value;
-                }
-            });
-        });
-
-        // Populate the biases array using the ID mapping.
-        layerGene.biases.forEach((b, index) => biasesArray[index] = b.value);
-
-        // Apply the weight and bias values to the model layer.
-        tf.tidy(() => {
-            layer.setWeights([
-                tf.tensor(weightsMatrix),
-                tf.tensor1d(biasesArray)
-            ]);
-        });
-
-        // Update the 'previousLayerBiasIDMap' for the next iteration.
-        previousLayerBiasIDMap = {};
-        layerGene.biases.forEach(b => previousLayerBiasIDMap[b.id] = b.value);
-    });
-
-    // Output Layer
-    const outputLayerGene = genome.outputLayerGenes[0];
-    const outputLayer = tf.layers.dense({
-        units: outputLayerGene.numberOfNeurons,
-        activation: outputLayerGene.activationType
-    });
-    model.add(outputLayer);
-
-    // Create a 2D array for the weight values initialized to 0, using the number of neurons in the previous and current layer.
-    const outputWeightsMatrix = new Array(Object.keys(previousLayerBiasIDMap).length).fill(null).map(() => new Array(outputLayerGene.biases.length).fill(0));
-    const outputBiasesArray = new Array(outputLayerGene.biases.length).fill(0);
-
-    // Populate the weight matrix using the 'fromNodeID' and 'toNodeID'.
-    outputLayerGene.weights.forEach((weightRow, rowIndex) => {
-        weightRow.forEach(weight => {
-            const fromIndex = Object.keys(previousLayerBiasIDMap).indexOf(weight.fromNodeID.toString());
-            const toIndex = outputLayerGene.biases.findIndex(b => b.id === weight.toNodeID);
-            if (fromIndex !== -1 && toIndex !== -1) {
-                outputWeightsMatrix[fromIndex][toIndex] = weight.value;
-            }
-        });
-    });
-
-    // Populate the biases array using the ID mapping.
-    outputLayerGene.biases.forEach((b, index) => outputBiasesArray[index] = b.value);
-
-    // Apply the weight and bias values to the model layer.
-    tf.tidy(() => {
-        outputLayer.setWeights([
-            tf.tensor(outputWeightsMatrix),
-            tf.tensor1d(outputBiasesArray)
-        ]);
-    });
-
-
-    return model;
-}
-
-//function activationTypeToString(type) {
-//    const types = ["relu", "sigmoid", "tanh"]; // add other types as needed
-//    return types[type];
-//}
-
+// At the end of a run, end the simulation and initialize the next batch of agents in this generation.
 function nextAgentgroupNEAT(p) {
 
     //if (stageProperties.framesPerUpdateStart > 1) {
@@ -3240,6 +2683,7 @@ function nextAgentgroupNEAT(p) {
     // p.loop();
 }
 
+// Wait for all agents to be initialized before starting the next run
 function waitForInitializationCompletionBatchNEAT(populationGenomes) {
     // Check if the condition is met
     if (agents.length >= stageProperties.numAgents) {
@@ -3270,6 +2714,7 @@ function waitForInitializationCompletionBatchNEAT(populationGenomes) {
     }
 }
 
+// After all agents have been run this generation, end the simulation, and create the next generation of agents
 function nextGenerationNEAT(p) {
 
     // Clear the agentGenomePool ready for the next generation
@@ -3460,7 +2905,7 @@ function nextGenerationNEAT(p) {
     // p.loop();
 }
 
-// Recursive function checking if agents have finished loading into world
+// Recursive function checking if the new population of agents has been built using some top performers and some offspring, then build first set of agents from the new population
 function waitForInitializationCompletionNEAT() {
 
     // Check if the condition is met
@@ -3513,6 +2958,7 @@ function waitForInitializationCompletionNEAT() {
             saveStateToIndexedDB(genomesToSave);
         } else {
             console.log("Agent genome pool not the correct length, revert to previous save");
+            currentProcess = "Agent genome pool not the correct length, revert to previous save";
         }
 
         // let populationGenomes equal a selection of totalPopulationGenomes based on the agentGenomePool[i].metadata.runGroup. Can use the inter generation run counter runCount for the search
@@ -3546,6 +2992,7 @@ function waitForInitializationCompletionNEAT() {
             }
         } else {
             console.log("Issue with population genomes");
+            currentProcess = "Issue with population genomes, consider restarting";
         }
 
         waitForFinalInitializationCompletionNEAT();
@@ -3556,38 +3003,12 @@ function waitForInitializationCompletionNEAT() {
     }
 }
 
+// Recursive function checking if agents have finished loading into world from the newly evolved population. isInitializationComplete starts the simulation.
 function waitForFinalInitializationCompletionNEAT() {
     // Check if the condition is met
     if (agents.length >= stageProperties.numAgents) {
 
         currentProcess = "Starting next generation";
-
-        // OTT manual disposal and destruction of all bodies and joints
-        //for (let agent of tempAgentPool) {
-        //    // Destroy the joints first
-        //    for (let joint of agent.joints) {
-        //        if (joint) { // Check if joint exists and is in the world
-        //            world.destroyJoint(joint);
-        //        }
-        //    }
-
-        //    // Destroy the limbs
-        //    for (let limb of agent.limbs) {
-        //        if (limb) { // Check if body exists and is in the world
-        //            world.destroyBody(limb);
-        //        }
-        //    }
-
-        //    // Destroy the main body
-        //    if (agent.mainBody) {
-        //        world.destroyBody(agent.mainBody);
-        //    }
-
-        //    agent.brain.dispose();
-        //    agent.joints = [];
-        //    agent.limbs = [];
-        //    agent.mainBody = null;
-        //}
 
         tempAgentGenomePool = [];
         tempAgentPool = [];
@@ -3647,6 +3068,7 @@ function checkPopulation() {
     }
 }
 
+// Helper function to duplicate the top performer in a group
 function duplicateTopPerformer(groupId) {
     // Find the top performer in the group
     let topPerformer = tempAgentPool
@@ -3658,6 +3080,7 @@ function duplicateTopPerformer(groupId) {
     tempAgentGenomePool.push(newAgentGenome);
 }
 
+// Helper function to remove the lowest performer in a group
 function removeLowestPerformer(groupId) {
     // Find the lowest performer in the group
     let lowestPerformerIndex = tempAgentGenomePool
@@ -3711,11 +3134,12 @@ function generateOffspringNEAT(groupAgents, groupId, topPerformerCount, agentsNe
     }
 }
 
+// Function to create a single agent child
 function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
 
     // Select 2 parents, using different methods for varying outcomes
-    let parent1 = selectAgentNEAT(groupAgents, tempAgentPool);
-    let parent2 = selectAgentWeightedNEAT(groupAgents, tempAgentPool, parent1);
+    let parent1 = selectAgentTournamentNEAT(groupAgents, tempAgentPool);
+    let parent2 = selectAgentRouletteNEAT(groupAgents, tempAgentPool, parent1);
 
     parent1.genome.agentHistory.usedAsParent++;
     parent2.genome.agentHistory.usedAsParent++;
@@ -3727,7 +3151,7 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     } else if (Math.random() > 0.66) {
         childGenome = randomSelectionCrossoverNEAT(parent1, parent2);
     } else {
-        childGenome = biasedArithmeticLayerCrossoverNEAT(parent1, parent2);
+        childGenome = layerCrossoverNEAT(parent1, parent2);
     }
 
     // Crossover the body plan
@@ -3783,7 +3207,8 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     }
 }
 
-function selectAgentNEAT(groupAgents, allAgents, excludedAgent = null) {
+// Function to select an agent using tournament selection
+function selectAgentTournamentNEAT(groupAgents, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
     if (Math.random() < (stageProperties.migrationRate / 1000)) {
         groupAgents = allAgents;
@@ -3804,7 +3229,8 @@ function selectAgentNEAT(groupAgents, allAgents, excludedAgent = null) {
     return tournamentContestants.sort((a, b) => b.Score - a.Score)[0];
 }
 
-function selectAgentWeightedNEAT(agentsLocal, allAgents, excludedAgent = null) {
+// Function to select an agent using roulette wheel selection
+function selectAgentRouletteNEAT(agentsLocal, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
     if (Math.random() < (stageProperties.migrationRate / 1000)) {
         agentsLocal = allAgents;
@@ -3838,6 +3264,7 @@ function selectAgentWeightedNEAT(agentsLocal, allAgents, excludedAgent = null) {
     return agentsLocal[0];
 }
 
+// Function to perform crossover using a weighted random selection of genes from each parent
 function biasedArithmeticCrossoverNEAT(agent1, agent2) {
 
     genome1 = agent1.genome;
@@ -3954,6 +3381,7 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
     return childGenome;
 }
 
+// Function to perform crossover using a random selection of genes from each parent
 function randomSelectionCrossoverNEAT(agent1, agent2) {
 
     genome1 = agent1.genome;
@@ -4051,7 +3479,8 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
     return childGenome;
 }
 
-function biasedArithmeticLayerCrossoverNEAT(agent1, agent2) {
+// Function to perform crossover using similar methodology to 'point-to-point' crossover, but only on whole layers.  Could alter this to allow multiple concurrent layers to be swapped.
+function layerCrossoverNEAT(agent1, agent2) {
     let genome1 = agent1.genome;
     let genome2 = agent2.genome;
     let TScore1 = agent1.Score;
@@ -4087,6 +3516,7 @@ function biasedArithmeticLayerCrossoverNEAT(agent1, agent2) {
     return childGenome;
 }
 
+// Helper function to check if two layers are swappable
 function isLayerSwappable(genome1, genome2, layerIndex) {
     if (layerIndex === 0) {
         // Check input layer against the first hidden layer
@@ -4106,12 +3536,14 @@ function isLayerSwappable(genome1, genome2, layerIndex) {
     }
 }
 
+// Helper function to check if two layers are the same shape
 function layerMatches(layer1, layer2) {
     // Check if the number of nodes and the first node ID are the same
     return layer1.biases.length === layer2.biases.length &&
         layer1.biases[0].id === layer2.biases[0].id;
 }
 
+// Crossover function for the agents body plan.
 function bodyPlanCrossover(childGenome, agent1, agent2) {
 
     // Determine which parent is dominant based on score
@@ -4156,6 +3588,7 @@ function generateUniqueId(usedIds) {
     return newId;
 }
 
+// Function to mutate the brain of an agent.  Can mutate the weights and biases of the brain, and also add or remove nodes or layers.
 function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate) {
     const stdDeviation = (stageProperties.neuronMutationStandardDeviation / 100);
 
@@ -4408,6 +3841,7 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
     return genome;
 }
 
+// Function to mutate the body plan of an agent.  Mutates each body part with a probability, and can add or remove limbs.
 function mutateBodyPlan(childGenome, bodyMutationRate) {
     // Helper function to mutate limb properties
     function mutateLimb(limb) {
@@ -4427,7 +3861,7 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
             limb.width = mutateWithinBounds(limb.width, 2, 22);
         }
         if (Math.random() < bodyMutationRate) {
-            limb.startingAngle = mutateWithinBounds(limb.startingAngle, 0, 2 * Math.PI);
+            limb.startingAngle = mutateWithinBounds(limb.startingAngle, 0, 2 * Math.PI, true);
         }
 
         // Mutate sub-limbs recursively
@@ -4588,6 +4022,7 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
     return childGenome;
 }
 
+// Helper function to count the number of limbs in a genome
 function countArms(armsToCount) {
     let totalArmNo = 0;
 
@@ -4601,6 +4036,7 @@ function countArms(armsToCount) {
     return totalArmNo;
 }
 
+// Helper function to select a random limb from the genome
 function selectRandomBodyPart(mainBody) {
     // Flatten the structure of limbs into a single array
     let allParts = flattenLimbStructure(mainBody.arms, mainBody);
@@ -4608,6 +4044,7 @@ function selectRandomBodyPart(mainBody) {
     return allParts[randomIndex];
 }
 
+// Helper function to flatten the limb structure into a single array
 function flattenLimbStructure(limbs, parentLimb = null) {
     let parts = parentLimb ? [parentLimb] : [];
 
@@ -4622,6 +4059,7 @@ function flattenLimbStructure(limbs, parentLimb = null) {
     return parts;
 }
 
+// Helper function to add a mutation to the history array, and trim the array to the last x records
 function addMutationWithHistoryLimit(mutationArray, mutationRecord) {
 
     // Ensure the mutations array exists
@@ -4639,6 +4077,7 @@ function addMutationWithHistoryLimit(mutationArray, mutationRecord) {
 
 }
 
+// Helper function to find the closest limb to the new random angle picked for a mutated limb
 function findClosestLimbForWeights(selectedPart, allLimbs) {
     if (selectedPart.subArms && selectedPart.subArms.length > 0) {
         return findClosestLimb(selectedPart.subArms, selectedPart.startingAngle, null);
@@ -4646,6 +4085,7 @@ function findClosestLimbForWeights(selectedPart, allLimbs) {
     return findClosestLimb(allLimbs, selectedPart.startingAngle, null);
 }
 
+// Helper function to find the closest limb to a given angle
 function findClosestLimb(arms, targetAngle, closestLimb) {
     for (let arm of arms) {
         let currentAngleDiff = Math.abs(arm.startingAngle - targetAngle);
@@ -4662,6 +4102,7 @@ function findClosestLimb(arms, targetAngle, closestLimb) {
     return closestLimb;
 }
 
+// Helper function to create a new limb for mutation
 function createNewLimb(angle, selectedPart, newLimbID) {
     return {
         partID: newLimbID,
@@ -4685,6 +4126,7 @@ function createNewLimb(angle, selectedPart, newLimbID) {
     };
 }
 
+// Helper function to add a limb to a body part
 function addChildLimbToPart(selectedPart, newLimb) {
     if (selectedPart.type === 'MainBody' || !selectedPart.subArms) {
         selectedPart.arms.push(newLimb);
@@ -4711,6 +4153,7 @@ function removeLimbFromGenome(limbToRemove, childGenome) {
     recursiveRemove(childGenome.mainBody.arms, limbToRemove.partID);
 }
 
+// Used to update the partID of each limb after a mutation
 function updateLimbIDs(genome) {
     // Flatten the limb structure to easily update IDs
     let flattenedLimbs = flattenLimbStructure(genome.mainBody.arms);
@@ -4726,8 +4169,8 @@ function updateLimbIDs(genome) {
     }
 }
 
-function mutateWithinBounds(original, min, max) {
-
+// Helper function to mutate a value within a range, and optionally wrap around
+function mutateWithinBounds(original, min, max, wrapAround = false) {
     const stdDeviation = (stageProperties.bodyPlanMutationStandardDeviation / 100);
     let adjustment = randomGaussian(0, stdDeviation);
 
@@ -4738,337 +4181,614 @@ function mutateWithinBounds(original, min, max) {
         return mean + sd * randStdNormal;
     }
 
-    // Mutate value.
+    // Mutate value
     let mutated = original + ((Math.random() - 0.5) * adjustment * (max - min));
-    // Ensure mutation stays within specified bounds.
-    return Math.min(max, Math.max(min, mutated));
+
+    if (wrapAround) {
+        // Wrap around logic
+        if (mutated > max) {
+            return min + (mutated - max);
+        } else if (mutated < min) {
+            return max - (min - mutated);
+        }
+    } else {
+        // Clamp to min/max
+        mutated = Math.min(max, Math.max(min, mutated));
+    }
+
+    return mutated;
 }
 
 
-function renderNeuralNetworkNEAT(p, agent, offsetX, offsetY, frameTracker) {
-    const layerGap = stageProperties.renderedNNLayerGap; // horizontal space between layers
-    const nodeGap = stageProperties.renderedNNNodeGap;   // vertical space between nodes
-    let outputLabels = [];
-    let allWeightTensors;
-    let allWeights;
-    let allBiasesTensors;
-    let allBiases;
-    p.push();
-    p.fill(GROUP_COLORS[agent.genome.metadata.agentGroup]);
+/***   Agent Prototype Functions   ***/
 
-    let inputLabels = [];
+// Helper function to convert coordinates to a map key.  Could be standalone function but I'm keeping it here for now.
+AgentNEAT.prototype.getCoordinateKey = function (x, y) {
+    return `${x},${y}`;
+};
 
-    if (stageProperties.inputJointAngle) {
-        inputLabels = inputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`));
-    }
+// Function duplicates the agents limbs conditionally based on symmetry
+AgentNEAT.prototype.duplicateLimbsForSymmetry = function () {
+    this.noLimbsBeforeDupe = this.bodyParts.length;
 
-    if (stageProperties.inputJointSpeed) {
-        inputLabels = inputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`));
-    }
+    // Find the maximum limb ID in the original set
+    const maxPartID = Math.max(...this.bodyParts.map(limb => limb.partID));
 
-    if (stageProperties.inputAgentPos) {
-        inputLabels.push("Agent's X", "Agent's Y");
-    }
+    // Create a copy of the original limbs to avoid modifying the array while iterating
+    const originalLimbs = this.bodyParts.slice();
+    let insertIndex = 0;
+    for (let i = 0; i < originalLimbs.length; i++) {
+        let originalLimb = originalLimbs[i];
+        insertIndex++;
 
-    if (stageProperties.inputAgentV) {
-        inputLabels.push("Velocity X", "Velocity Y");
-    }
+        const epsilon = 0.1;
+        const Pi = Math.PI;
+        const twoPi = 2 * Math.PI;
+        //if (originalLimb.startingAngle !== 0) {
+        // Only duplicate limbs that are not within a small range of the front or back of the agent 
+        if (!(((originalLimb.startingAngle >= 0 && originalLimb.startingAngle <= epsilon) ||
+            (originalLimb.startingAngle >= Pi - epsilon && originalLimb.startingAngle <= Pi + epsilon) ||
+            (originalLimb.startingAngle >= twoPi - epsilon && originalLimb.startingAngle <= twoPi)) && originalLimb.numberInChain == 1)) {
 
-    if (stageProperties.inputScore) {
-        inputLabels.push("Score");
-    }
-
-    if (stageProperties.inputOrientation) {
-        inputLabels.push("Orientation");
-    }
-
-    if (stageProperties.inputTimeRemaining) {
-        inputLabels.push("Time Left");
-    }
-
-    if (stageProperties.inputGroundSensors) {
-        inputLabels = inputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Ground Sensor ${idx + 1}`));
-    }
-
-    if (stageProperties.inputDistanceSensors) {
-        for (let i = 0; i < 4; i++) {
-            inputLabels.push(`Sensor ${['E', 'NE', 'W', 'SE'][i]}`);
-        }
-    }
-
-    if (stageProperties.inputTicker) {
-        inputLabels.push(`Tick: ${internalTick}`);
-    }
-
-    if (stageProperties.outputsJointSpeed) {
-        outputLabels = outputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Joint ${idx + 1}`));
-    }
-
-    if (stageProperties.outputsJointTorque) {
-        outputLabels = outputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Joint ${idx + 1}`));
-    }
-
-    if (stageProperties.outputsBias) {
-        outputLabels = outputLabels.concat(Array(agent.joints.length).fill(null).map((_, idx) => `Limb ${idx + 1}`));
-    }
-
-    try {
-        allWeightTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 0);
-        allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()));
-
-        allBiasesTensors = agent.brain.getWeights().filter((_, idx) => idx % 2 === 1);
-        allBiases = allBiasesTensors.flatMap(tensor => Array.from(tensor.dataSync()));
-
-        let currentWeightIndex = 0;
-        let currentBiasIndex = 0;
-
-        let hiddenLayers = agent.genome.layerGenes.length;
-        let inputNodes = agent.genome.inputLayerGenes[0].numberOfNeurons;
-        let outputNodes = agent.genome.outputLayerGenes[0].numberOfNeurons;
-
-        // First, render all the connections (lines)
-        let x = offsetX;
-        for (let i = 0; i < hiddenLayers + 2; i++) {
-            let nodes = 0;
-            if (i === 0) {
-                nodes = inputNodes;
-            } else if (i === hiddenLayers + 1) {
-                nodes = outputNodes;
-            } else {
-                nodes = agent.genome.layerGenes[i - 1].numberOfNeurons;
+            if (originalLimb.partID == 1) {
+                this.noFrontLimbs = 2;
             }
 
-            let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
+            let newLimb = _.cloneDeep(originalLimb);
+            newLimb.startingAngle = (4 * Math.PI) - originalLimb.startingAngle;
 
-            let currentLayerPositions = [];
-            for (let j = 0; j < nodes; j++) {
-                let y = startY + j * nodeGap;
-                currentLayerPositions.push({ x: x, y: y });
-            }
+            newLimb.constraints.minAngle = -originalLimb.constraints.maxAngle;
+            newLimb.constraints.maxAngle = -originalLimb.constraints.minAngle;
 
-            // Draw connections
-            if (i > 0) {
-                for (let prevPos of previousLayerPositions) {
-                    for (let currentPos of currentLayerPositions) {
-                        let weight = allWeights[currentWeightIndex];
-                        currentWeightIndex++;
-                        let maxWeight = Math.max(...allWeights.map(Math.abs));
-                        let strokeWeightValue = mapWeightToStroke(weight, maxWeight);
-                        p.stroke(255);
-                        p.strokeWeight(strokeWeightValue);
-                        p.line(prevPos.x, prevPos.y, currentPos.x, currentPos.y);
-                    }
+            newLimb.partID = maxPartID + originalLimb.partID + 1;
+            if (originalLimb.parentPartID != 0) {
+                let parentLimb = this.bodyParts.find(limb => limb.partID === originalLimb.parentPartID);
+                if (((parentLimb.startingAngle >= 0 && parentLimb.startingAngle <= epsilon) ||
+                    (parentLimb.startingAngle >= Pi - epsilon && parentLimb.startingAngle <= Pi + epsilon) ||
+                    (parentLimb.startingAngle >= twoPi - epsilon && parentLimb.startingAngle <= twoPi)) && parentLimb.numberInChain == 1) {
+                    newLimb.parentPartID = originalLimb.parentPartID;
+                } else {
+                    newLimb.parentPartID = maxPartID + originalLimb.parentPartID + 1;
                 }
             }
 
-            previousLayerPositions = currentLayerPositions;
-            x += layerGap;
-        }
+            // Update inputs for the neural network
+            this.genome.inputLayerGenes[0].numberOfNeurons++;
+            this.genome.inputLayerGenes[0].inputs.push(this.genome.inputLayerGenes[0].inputs.length);
 
-        // Then, render the nodes (on top of the lines)
-        x = offsetX;
-        for (let i = 0; i < hiddenLayers + 2; i++) {
-            let nodes = 0;
-            let labels = [];
-            if (i === 0) {
-                nodes = inputNodes;
-                labels = inputLabels;
-            } else if (i === hiddenLayers + 1) {
-                nodes = outputNodes;
-                labels = outputLabels;
-            } else {
-                nodes = agent.genome.layerGenes[i - 1].numberOfNeurons;
-            }
-
-            let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
-            let outputIndex = 0;
-            for (let j = 0; j < nodes; j++) {
-                let y = startY + j * nodeGap;
-                let maxBias = Math.max(...allBiases.map(Math.abs));
-                let bias = allBiases[currentBiasIndex];
-                currentBiasIndex++;
-
-                //// Check if it's the output layer and set fill color accordingly
-                //if (i === nnConfig.hiddenLayers.length + 1 && j < GROUP_COLORS.length) {
-                //    p.fill(GROUP_COLORS[j]);
-                //} else {
-                p.fill(GROUP_COLORS[agent.genome.metadata.agentGroup]); // Default fill color
-                //}
-
-                let nodeSize = mapBiasToNodeSize(bias, maxBias);
-                p.ellipse(x, y, nodeSize, nodeSize);
-                p.stroke(0);
-                // Add labels to the side of input and output nodes
-                if (labels.length > 0) {
-                    p.textSize(12);
-                    if (i === 0) {
-                        p.text(labels[j], x - 90, y + 4);
-                    } else if (i === hiddenLayers + 1) {
-                        p.text(labels[j], x + 15, y + 4);
-
-                        if (stageProperties.outputsJointSpeed && agent.joints[j]) {
-                            p.fill(GROUP_COLORS[j]);
-                            let currentSpeed = agent.joints[j].getMotorSpeed();
-                            p.text(`Speed: ${currentSpeed.toFixed(4)}`, x + 60, y + 4);
-                            outputIndex++;
-                        }
-
-                        if (stageProperties.outputsJointTorque && agent.joints[j - outputIndex]) {
-                            p.fill(GROUP_COLORS[j - outputIndex]);
-                            p.text(`Max Torque Cant Be Polled :(`, x + 60, y + 4);
-                            outputIndex++;
-                        }
-
-                        if (stageProperties.outputsBias && agent.biases[j - outputIndex]) {
-                            p.fill(GROUP_COLORS[j - outputIndex]);
-                            let biasI = agent.biases[j - outputIndex];
-                            p.text(`Bias: ${biasI}`, x + 60, y + 4);
-                        }
-
-                    }
-                }
-            }
-            x += layerGap;
-        }
-    } catch (error) {
-        if (error.message.includes('disposed')) {
-            console.error('Attempted to access weights of a disposed model.');
-            return;
+            this.bodyParts.splice(insertIndex, 0, newLimb);
+            insertIndex++;
         } else {
-            throw error;
+            this.noFrontLimbs = 1;
         }
     }
-    p.pop();
+};
+
+// Function to build the agent's body from its genome
+AgentNEAT.prototype.buildBodyFromLimbStructure = function () {
+    for (let part of this.bodyParts) {
+        let parentLimb;
+        let parentLimbLength = 0;
+        let parentLimbGenome;
+
+        try {
+            if (part.numberInChain === 1) {
+                parentLimb = this.mainBody;
+                parentLimbLength = this.mainBodyRadius;
+            } else if (part.numberInChain > 1 && part.parentPartID != 0) {
+                parentLimb = this.limbs.find(limb => limb.getUserData() === part.parentPartID);
+                parentLimbGenome = this.bodyParts.find(limb => limb.partID === part.parentPartID);
+                parentLimbLength = parentLimbGenome.length;
+            } else {
+                console.log("Error in arm initialization, number in chain does not match.  BodyParts: " + JSON.stringify(this.bodyParts) + " Offending Limb: " + JSON.stringify(part));
+            }
+        } catch (err) {
+            console.log("'Try Error: " + err + "' Error in arm initialization, number in chain does not match.  BodyParts: " + JSON.stringify(this.bodyParts) + " Offending Limb: " + JSON.stringify(part));
+        }
+
+        // This is how I can add different limb types later
+        // if (part.type == "BodySegment") {
+        //      body segment constructor
+        //      this.bodySegments.push(bodySegment);
+        //      this.bodySegmentsbMass.push(bodySegment.getMass());
+        // else 
+        if (part.type == "Arm") {
+            const angle = part.startingAngle;
+            // Calculate the position of the limb's center
+            let offsetFromMainLimb;
+            if (part.numberInChain === 1) {
+                // Parent limb is main body
+                offsetFromMainLimb = this.mainBodyRadius + part.length / 2;
+                part.attachment = { x: this.mainBodyRadius * Math.cos(angle), y: -this.mainBodyRadius * Math.sin(angle) };
+                part.limbX = this.startingX + offsetFromMainLimb * Math.cos(angle - this.randomAngle);
+                part.limbY = this.startingY - offsetFromMainLimb * Math.sin(angle - this.randomAngle);
+            } else if (part.numberInChain > 1) {
+                // Parent limb is another limb
+                offsetFromMainLimb = parentLimbLength / 2 + part.length / 2;
+                part.attachment = { x: 0, y: parentLimbLength / 2 };
+                part.limbX = parentLimbGenome.limbX + offsetFromMainLimb * Math.cos(angle - this.randomAngle);
+                part.limbY = parentLimbGenome.limbY - offsetFromMainLimb * Math.sin(angle - this.randomAngle);
+            }
+
+            let arm = createLimbNEAT(world, part.limbX, part.limbY, part.length, part.width, angle - this.randomAngle, part.partID);
+
+            let localAnchorA;
+            localAnchorA = planck.Vec2(
+                part.attachment.x,
+                part.attachment.y
+            );
+
+            // Calculate the point after rotation
+            let localAnchorB = planck.Vec2(0, -part.length / 2);
+
+            let joint = createRevoluteJointNEAT(world, parentLimb, arm, localAnchorA, localAnchorB, part.constraints.minAngle, part.constraints.maxAngle, part.constraints.maxTorque);
+            this.joints.push(joint);
+
+            // body segment constructor
+            this.limbs.push(arm);
+            this.limbMass.push(arm.getMass());
+        }
+        // else if (part.type == "Wing") {
+        //      body segment constructor
+        //      this.wings.push(wing);
+        //      this.limbs.push(wing);
+        //      this.limbMass.push(wing.getMass());
+        // else if (part.type == "Thruster") {
+        // ... other constructors
+
+    }
+};
+
+// Helper function to create the main body of the agent
+function createMainBodyNEAT(world, x, y, radius, mainBodyDensity) {
+    let bodyDef = {
+        type: 'static',
+        position: planck.Vec2(x, y)
+    };
+
+    let body = world.createBody(bodyDef);
+    let shape = planck.Circle(radius);
+    let fixtureDef = {
+        shape: shape,
+        density: mainBodyDensity,
+        filterCategoryBits: CATEGORY_AGENT_BODY,
+        filterMaskBits: CATEGORY_GROUND  // Only allow collision with the ground
+    };
+    body.createFixture(fixtureDef);
+    // body.setUserData("Agent " + agentNo + " Main Body");
+    return body;
 }
 
+// Helper function to create a limb body
+function createLimbNEAT(world, x, y, length, width, angle, limbNo) {
+    // Check if length is greater than width and adjust angle accordingly
+    // Should maybe remove the check and always apply this.  Will see if mutations to proportions still cause floating limbs 
+    //if (length > width) {
+    angle += Math.PI / 2;
+    //}
+
+    let bodyDef = {
+        type: 'dynamic',
+        position: planck.Vec2(x, y),
+        angle: -angle
+    };
+
+    let body = world.createBody(bodyDef);
+    let shape = planck.Box(width / 2, length / 2);
+
+    let fixtureDef = {
+        shape: shape,
+        density: 0.1, // Should make this a genome property
+        filterCategoryBits: CATEGORY_AGENT_LIMB,
+        filterMaskBits: CATEGORY_GROUND,  // Only allow collision with the ground
+    };
+    body.createFixture(fixtureDef);
+    body.setUserData(limbNo); //"Agent " + agentNo + " Limb " + 
+
+    return body;
+}
+
+// Helper function to create a revolute joint between two bodies.
+function createRevoluteJointNEAT(world, bodyA, bodyB, localAnchorA, localAnchorB, lowerAngle, upperAngle, limbTorque) {
+    let jointDef = {
+        bodyA: bodyA,
+        bodyB: bodyB,
+        localAnchorA: localAnchorA,
+        localAnchorB: localAnchorB,
+        lowerAngle: lowerAngle,
+        upperAngle: upperAngle,
+        enableLimit: true,
+        motorSpeed: 0.0,
+        maxMotorTorque: limbTorque,
+        enableMotor: true
+    };
+
+    return world.createJoint(planck.RevoluteJoint(jointDef, bodyA, bodyB));
+}
+
+// Function to calculate the agents score
+AgentNEAT.prototype.getScore = function (roundOver) {
+
+    if (this.position.x > this.furthestXPos) {
+        this.furthestXPos = this.position.x;
+    }
+    if (this.position.y < this.furthestYPos) {  // Assuming north is negative Y
+        this.furthestYPos = this.position.y;
+    }
+
+    // If the agent has made new progress in the x or y direction, update the furthest position.
+    let XPosScore = Math.floor(this.furthestXPos - this.startingX) * (stageProperties.xScoreMultiplier / 10);
+    let YPosScore = Math.floor(this.startingY - this.furthestYPos) * (stageProperties.yScoreMultiplier / 10);
+
+    let jointMovementReward = 0;
+    if ((stageProperties.movementScoreMultiplier / 10) > 0) {
+        jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * (stageProperties.movementScoreMultiplier / 10); // Adjust multiplier if needed
+    }
+
+    if (this.limbs.length > 2) {
+        jointMovementReward = jointMovementReward / (this.limbs.length - 2);
+    }
+
+    let explorationReward = 0;
+
+    if ((stageProperties.explorationScoreMultiplier / 10) > 0) {
+        explorationReward = this.getExplorationReward() * (stageProperties.explorationScoreMultiplier / 10);
+    }
+
+    let weightPenalty;
+    //if (roundOver) {
+    //    weightPenalty = this.getWeightPenalty() * 50;
+    //} else {
+    weightPenalty = 0;
+    //}
+
+    if (!roundOver && this.massBonus < 10 && (stageProperties.sizeScoreMultiplier / 100) > 0) {
+        try {
+            this.massBonus = this.mainBody.getMass() * (stageProperties.sizeScoreMultiplier / 100);
+            // loop through limbs and add their mass to the massBonus
+            for (let i = 0; i < this.limbs.length; i++) {
+                this.massBonus += this.limbs[i].getMass() * (stageProperties.sizeScoreMultiplier / 100);
+            }
+        } catch (e) {
+            this.massBonus = 0;
+        }
+    }
+
+    if (stageProperties.massBonusIsDynamic === true) {
+        this.massBonusMultiplier = (this.massBonus / stageProperties.dynamicMassBonusDivider) * (XPosScore + YPosScore); // This makes the mass bonus scale with the distance traveled, so static, large agents don't get a huge advantage
+    } else {
+        this.massBonusMultiplier = this.massBonus; // This makes the mass bonus static, so large agents get a huge advantage
+    }
+
+    this.Score = XPosScore + YPosScore + jointMovementReward + explorationReward - weightPenalty + this.massBonusMultiplier;
+
+    if (this.Score < 1) {
+        this.Score = 1;
+    }
+
+    if (this.Score > stageProperties.topScoreEver) {
+        stageProperties.topScoreEver = this.Score;
+    }
+
+    // I will also give score bonus for how unique an agent is, both brain and body.
+    // This will mean a function to calculate the average values for things like the brain shape, number of limbs, depth of limb chains, etc.
+
+    return [
+        parseFloat(this.Score.toFixed(2)),
+        parseFloat(XPosScore.toFixed(2)),
+        parseFloat(YPosScore.toFixed(2)),
+        parseFloat(weightPenalty.toFixed(2)),
+        parseFloat(jointMovementReward.toFixed(2)),
+        parseFloat(explorationReward.toFixed(2)),
+        parseFloat(this.massBonusMultiplier.toFixed(2)),
+        parseFloat(this.agentEnergy.toFixed(2))
+    ];
+
+};
+
+// Function to calculate the weight of an agents brain
+AgentNEAT.prototype.getWeightPenalty = function () {
+    this.weightPenaltyCounter++;
+    // Called only at end of round as expensive
+    let allWeightTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 0);
+    let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()).map(Math.abs)); // map to absolute values
+    let averageAbsWeight = allWeights.reduce((sum, weight) => sum + weight, 0) / allWeights.length;
+
+    this.weightPenaltyCache = averageAbsWeight;
+
+    return this.weightPenaltyCache;
+}
+
+// Function to calculate the agents score bonus from moving limbs
+AgentNEAT.prototype.getJointMovementReward = function () {
+    let totalChange = 0;
+    for (let i = 0; i < this.joints.length; i++) {
+        let currentAngle = this.joints[i].getJointAngle();
+
+        // Now that I randomly change the agent's starting angles, we need to only increment score after round starts
+        if (stabilised || !stageProperties.agentsRequireStablising) {
+            let change = Math.abs(currentAngle - this.previousJointAngles[i]) * (this.limbs[i].getMass() / stageProperties.jointMovementRewardLimbMassDivider);
+            totalChange += change;
+        }
+
+        // Update the previous angle for next time
+        this.previousJointAngles[i] = currentAngle;
+    }
+
+    // Exponential decay for the reward. You can adjust the decay factor as needed.
+    let decayFactor = 0.90;
+
+    // Calculate the current reward, decaying it based on the total rewards given so far.
+    // Dividing totalJointMovementReward by totalChange ensures the decayFactor is applied over time.
+    let currentReward = totalChange * Math.pow(decayFactor, this.totalJointMovementReward);
+
+    // If totalChange is 0, handle it to avoid division by zero
+    if (totalChange === 0) {
+        currentReward = 0;
+    }
+
+    // Accumulate joint movement reward
+    this.totalJointMovementReward += currentReward;
+
+    return this.totalJointMovementReward;
+};
+
+// Function to calculate the agents score bonus from exploration
+AgentNEAT.prototype.getExplorationReward = function () {
+    let gridX = Math.floor(((this.position.x - this.startingX) + 10) / stageProperties.internalMapCellSize) + 5;
+    let gridY = Math.floor(((this.startingY - this.position.y) + 10) / stageProperties.internalMapCellSize) + 5;
+    let key = this.getCoordinateKey(gridX, gridY);
+
+    if (gridX >= 0 && gridX < stageProperties.internalMapSize && gridY >= 0 && gridY < stageProperties.internalMapSize) {
+        if (!this.internalMap.has(key)) {
+            this.internalMap.add(key);
+            this.coveredCellCount++;
+        }
+    }
+
+    return this.coveredCellCount;
+};
+
+// Function to render the agent
+AgentNEAT.prototype.render = function (p, offsetX, offsetY) {
+    this.offsetX = offsetX;
+    this.offsetY = offsetY;
+    // Set the fill color based on group
+    p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
+    p.stroke(0);
+    // Render the main body
+    if (this.mainBody) {
+        let mainPos = this.position;
+        let mainAngle = this.mainBody.getAngle();
+        let arrowLength = this.mainBodyRadius / 2; // Or any length you prefer
+        let arrowBase = this.mainBodyRadius / 4;   // The size of the base of the arrow triangle
+
+        p.push();
+        p.translate(mainPos.x + offsetX, mainPos.y + offsetY);  // Added offsetX
+        p.rotate(mainAngle);
+
+        // Draw the main body
+        p.ellipse(0, 0, this.mainBodyRadius * 2, this.mainBodyRadius * 2);
+
+        p.fill(0);
+        // Draw arrow stem pointing right (East)
+        p.strokeWeight(2); // Adjust thickness of the arrow as needed
+        p.line(0, 0, arrowLength, 0);
+
+        // Draw the arrowhead
+        p.triangle(arrowLength, 0,
+            arrowLength - arrowBase, arrowBase / 2,
+            arrowLength - arrowBase, -arrowBase / 2);
+
+        p.pop();
+        p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
+    }
+    //p.fill(0);
+    //p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
+
+    // Render the limbs
+    for (let i = 0; i < this.limbs.length; i++) {
+        let limb = this.limbs[i];
+        if (limb) {
+            let limbPos = limb.getPosition();
+            let limbAngle = limb.getAngle();
+            let genomeLimb = this.bodyParts.find(limbToFind => limbToFind.partID === limb.getUserData());
+
+            p.push();
+            p.translate(limbPos.x + offsetX, limbPos.y + offsetY);
+            p.rotate(limbAngle);
+            p.rect(-genomeLimb.width / 2, -genomeLimb.length / 2, genomeLimb.width, genomeLimb.length); // Using width and length from genome
+            p.pop();
+        }
+    }
+
+    // Render the joints
+    for (let i = 0; i < this.limbs.length; i++) {
+        if (this.joints[i]) {
+            let jointPos = this.joints[i].getAnchorA();
+            p.push();
+            // Check if the current joint's index is within the jointColors array length
+            if (i < GROUP_COLORS.length) {
+                p.fill(GROUP_COLORS[i]);  // Set the fill color to the corresponding color from the jointColors array
+            } else {
+                p.fill(0, 255, 0);  // Default fill color if there isn't a corresponding color in the array
+            }
+            p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 7, 7);  // Added offsetX
+            p.pop();
+        }
+    }
+
+    // Render second set of joint anchors for testing
+    //for (let i = 0; i < this.limbs.length; i++) {
+    //    if (this.joints[i]) {
+    //        p.push();
+    //        let jointPos = this.joints[i].getAnchorB();
+    //        // Check if the current joint's index is within the jointColors array length
+    //        p.fill(0, 255, 0); 
+    //        p.ellipse(jointPos.x + offsetX, jointPos.y + offsetY, 3, 3);  // Added offsetX
+    //        p.pop();
+    //    }
+    //}
+    // Draw a small circle at the center of the agent (200, 600)
+    //p.push();
+    //p.fill(0);
+    //p.ellipse(this.startingX + offsetX, this.startingY + offsetY, 10, 10);
+    //p.pop();
+};
+
+// Function to render the forces applied to the agents if enabled
+AgentNEAT.prototype.drawForceVectors = function (p, forceApplyPointX, forceApplyPointY, force, forceAngle) {
+    if (this.currentlyLeading == true && stageProperties.showForceVectors == true) { // randomlySelectedAgents.includes(this) || leadingAgents.includes(this) && 
+
+        const forceScale = stageProperties.visualForceScale; // Scale factor for force vector
+        const maxForceLength = stageProperties.visualMaxForceLength; // Maximum length for visualized force vector
+
+        // Scale the force for visualization
+        force.setMag((force.mag() * forceScale));
+
+        // Cap the length of the scaled force
+        if (force.mag() > maxForceLength) {
+            force.setMag(maxForceLength);
+        }
+
+        p.push();
+        p.stroke(255);
+        p.strokeWeight(2);
+        p.line(forceApplyPointX + this.offsetX, forceApplyPointY + this.offsetY, forceApplyPointX + force.x + this.offsetX, forceApplyPointY + force.y + this.offsetY);
+        p.pop();
+
+        // Draw an arrow at the end of the line
+        p.push();
+        p.fill(255);
+        p.translate(forceApplyPointX + force.x + this.offsetX, forceApplyPointY + force.y + this.offsetY);
+        p.rotate(forceAngle);
+        p.triangle(-10, -10, 0, 0, -10, 10);
+        p.pop();
+    }
+}
+
+// Function to render the agents vision lines if enabled
+AgentNEAT.prototype.renderRayCasts = function (p, offsetX, offsetY) {
+    p.push()
+    p.stroke(255, 0, 0);  // Set the color of the rays (red in this case)
+
+    for (let ray of this.rayCastPoints) {
+        let startX = ray.start.x + offsetX;
+        let startY = ray.start.y + offsetY;
+        let endX = ray.end.x + offsetX;
+        let endY = ray.end.y + offsetY;
+
+        p.line(startX, startY, endX, endY);
+    }
+
+    p.pop();
+};
+
+// Helper function to fix the output of the neural network to be either -1, 0, or 1
+function alterOutputForSimplicity(output) {
+    if (stageProperties.bodyPlanStart === "simple") {
+
+        // I the simple body plan is enabled, the first output should be unmodified for control
+        let firstOutput = output[0];
+
+        let remainingOutputs = output.slice(1);
+        remainingOutputs = remainingOutputs.map(x => {
+            if (x < 0) return -1;
+            else return 1;
+        });
+
+        output = [firstOutput, ...remainingOutputs];
+
+    } else {
+        output = output.map(x => {
+            if (x < -0.05) return -1;
+            else if (x > 0.05) return 1;
+            else return 0;
+        });
+    }
+}
+
+// Function to make the agent's decision based on the neural network output
 AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
-    return tf.tidy(() => {
 
-        let output = this.brain.predict(tf.tensor([inputs])).dataSync();
+    let output = this.brain.predict(tf.tensor([inputs])).dataSync();
 
-        if (stageProperties.networkOutput === "simple") {
-            if (stageProperties.bodyPlanStart === "simple") {
+    if (stageProperties.networkOutput === "simple") {
+        alterOutputForSimplicity(output);
+    }
 
-                let firstOutput = output[0];
-                //if (firstOutput < -0.05) firstOutput = -1;
-                //else if (firstOutput > 0.05) firstOutput = 1;
-                //else firstOutput = 0;
+    let outputIndex = 0;
 
-                let remainingOutputs = output.slice(1);
-                remainingOutputs = remainingOutputs.map(x => {
-                    if (x < 0) return -1;
-                    else return 1;
-                });
+    for (let i = 0; i < this.joints.length; i++) {
 
-                output = [firstOutput, ...remainingOutputs];
+        if (stageProperties.outputsJointSpeed) {
 
-            } else {
-                output = output.map(x => {
-                    if (x < -0.05) return -1;
-                    else if (x > 0.05) return 1;
-                    else return 0;
-                });
-            }
+            let adjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
+
+            this.joints[i].setMotorSpeed(adjustment);
+
+            outputIndex++;
         }
 
-        let outputIndex = 0;
-
-        for (let i = 0; i < this.joints.length; i++) {
-
-            if (stageProperties.outputsJointSpeed) {
-
-                let adjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
-
-                this.joints[i].setMotorSpeed(adjustment);
-
-                outputIndex++;
-            }
-
-            if (stageProperties.outputsJointTorque) {
-                let adjustment = output[outputIndex] * stageProperties.maxTorqueMultiplier + 500000;
-                this.joints[i].setMaxMotorTorque(adjustment);
-                outputIndex++;
-            }
-
-            if (stageProperties.outputsBias) {
-                // Adjusting the bias calculation to map [-1, 1] to [1.001, 1.999]
-                let adjustment = ((output[outputIndex] + 1) * 0.499) + 1.001;
-                this.biases[i] = adjustment;
-                outputIndex++;
-            }
+        if (stageProperties.outputsJointTorque) {
+            let adjustment = output[outputIndex] * stageProperties.maxTorqueMultiplier + 500000;
+            this.joints[i].setMaxMotorTorque(adjustment);
+            outputIndex++;
         }
-    });
+
+        if (stageProperties.outputsBias) {
+            // Adjusting the bias calculation to map [-1, 1] to [1.001, 1.999]
+            let adjustment = ((output[outputIndex] + 1) * 0.499) + 1.001;
+            this.biases[i] = adjustment;
+            outputIndex++;
+        }
+    }
 };
 
+// Simplified version of the above function for symmetrical agents
 AgentNEAT.prototype.makeDecisionSymmetricalNEAT = function (inputs) {
-    return tf.tidy(() => {
 
-        let output = this.brain.predict(tf.tensor([inputs])).dataSync();
+    let output = this.brain.predict(tf.tensor([inputs])).dataSync();
 
-        if (stageProperties.networkOutput === "simple") {
-            if (stageProperties.bodyPlanStart === "simple") {
+    if (stageProperties.networkOutput === "simple") {
+        alterOutputForSimplicity(output);
+    }
 
-                let firstOutput = output[0];
-                //if (firstOutput < - 0.5) firstOutput = -1;
-                //else if (firstOutput > 0.5) firstOutput = 1;
-                //else firstOutput = 0;
+    let outputIndex = 0;
 
-                let remainingOutputs = output.slice(1);
-                remainingOutputs = remainingOutputs.map(x => {
-                    if (x < 0) return -1;
-                    else return 1;
-                });
+    // Apply first output to limb 0 and its duplicate (if exists)
+    let firstAdjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
+    this.joints[0].setMotorSpeed(firstAdjustment);
+    outputIndex++;
 
-                output = [firstOutput, ...remainingOutputs];
+    if (this.noFrontLimbs == 2) {
+        this.joints[1].setMotorSpeed(-firstAdjustment);
+    }
 
-            } else {
-                output = output.map(x => {
-                    if (x < -0.05) return -1;
-                    else if (x > 0.05) return 1;
-                    else return 0;
-                });
-            }
+    for (let i = this.noFrontLimbs; i < this.joints.length; i += 2) {
+        if (stageProperties.outputsJointSpeed) {
+            let adjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
+            this.joints[i].setMotorSpeed(adjustment);
+            this.joints[i + 1].setMotorSpeed(-adjustment);
+            outputIndex++;
         }
 
-        let outputIndex = 0;
-
-        // Apply first output to limb 0 and its duplicate (if exists)
-        let firstAdjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
-        this.joints[0].setMotorSpeed(firstAdjustment);
-        outputIndex++;
-
-        if (this.noFrontLimbs == 2) {
-            this.joints[1].setMotorSpeed(-firstAdjustment);
+        if (stageProperties.outputsJointTorque) {
+            let adjustment = output[outputIndex] * stageProperties.maxTorqueMultiplier + 500000;
+            this.joints[i].setMaxMotorTorque(adjustment);
+            outputIndex++;
         }
 
-        for (let i = this.noFrontLimbs; i < this.joints.length; i += 2) {
-            if (stageProperties.outputsJointSpeed) {
-                let adjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
-                this.joints[i].setMotorSpeed(adjustment);
-                this.joints[i + 1].setMotorSpeed(-adjustment);
-                outputIndex++;
-            }
-
-            if (stageProperties.outputsJointTorque) {
-                let adjustment = output[outputIndex] * stageProperties.maxTorqueMultiplier + 500000;
-                this.joints[i].setMaxMotorTorque(adjustment);
-                outputIndex++;
-            }
-
-            if (stageProperties.outputsBias) {
-                // Adjusting the bias calculation to map [-1, 1] to [1.001, 1.999]
-                let adjustment = ((output[outputIndex] + 1) * 0.499) + 1.001;
-                this.biases[i] = adjustment;
-                outputIndex++;
-            }
+        if (stageProperties.outputsBias) {
+            // Adjusting the bias calculation to map [-1, 1] to [1.001, 1.999]
+            let adjustment = ((output[outputIndex] + 1) * 0.499) + 1.001;
+            this.biases[i] = adjustment;
+            outputIndex++;
         }
-        // Log the final motor speeds for all joints
-        //this.joints.forEach((joint, index) => {
-        //    console.log(`Final speed for joint ${index}: ${joint.getMotorSpeed()}`);
-        //});
-    });
+    }
 };
 
+// Function to collect the inputs for the neural network.  Called before every call of makeDecision.
 AgentNEAT.prototype.collectInputsNEAT = function () {
     let inputs = [];
 
@@ -5193,6 +4913,7 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
     return inputs;
 };
 
+// Que calls to update the agents muscles after collecting inputs
 AgentNEAT.prototype.updateMusclesNEAT = function () {
     let inputs = this.collectInputsNEAT();
     if (stageProperties.keepAgentSymmetrical == true) {
@@ -5202,13 +4923,206 @@ AgentNEAT.prototype.updateMusclesNEAT = function () {
     }
 };
 
-AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY, frameTracker) {
-    // add an if statement to only render the NN if the agents brain is not disposed
-    if (!this.brain.isDisposedInternal) {
-        renderNeuralNetworkNEAT(p, this, offsetX, offsetY, frameTracker);
+// Function to render the agents neural network if enabled
+AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY) {
+    const layerGap = stageProperties.renderedNNLayerGap; // horizontal space between layers
+    const nodeGap = stageProperties.renderedNNNodeGap;   // vertical space between nodes
+    let outputLabels = [];
+    let allWeightTensors;
+    let allWeights;
+    let allBiasesTensors;
+    let allBiases;
+    p.push();
+    p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
+
+    let inputLabels = [];
+
+    if (stageProperties.inputJointAngle) {
+        inputLabels = inputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`));
     }
+
+    if (stageProperties.inputJointSpeed) {
+        inputLabels = inputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`));
+    }
+
+    if (stageProperties.inputAgentPos) {
+        inputLabels.push("Agent's X", "Agent's Y");
+    }
+
+    if (stageProperties.inputAgentV) {
+        inputLabels.push("Velocity X", "Velocity Y");
+    }
+
+    if (stageProperties.inputScore) {
+        inputLabels.push("Score");
+    }
+
+    if (stageProperties.inputOrientation) {
+        inputLabels.push("Orientation");
+    }
+
+    if (stageProperties.inputTimeRemaining) {
+        inputLabels.push("Time Left");
+    }
+
+    if (stageProperties.inputGroundSensors) {
+        inputLabels = inputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Ground Sensor ${idx + 1}`));
+    }
+
+    if (stageProperties.inputDistanceSensors) {
+        for (let i = 0; i < 4; i++) {
+            inputLabels.push(`Sensor ${['E', 'NE', 'W', 'SE'][i]}`);
+        }
+    }
+
+    if (stageProperties.inputTicker) {
+        inputLabels.push(`Tick: ${internalTick}`);
+    }
+
+    if (stageProperties.outputsJointSpeed) {
+        outputLabels = outputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Joint ${idx + 1}`));
+    }
+
+    if (stageProperties.outputsJointTorque) {
+        outputLabels = outputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Joint ${idx + 1}`));
+    }
+
+    if (stageProperties.outputsBias) {
+        outputLabels = outputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Limb ${idx + 1}`));
+    }
+
+    try {
+        allWeightTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 0);
+        allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()));
+
+        allBiasesTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 1);
+        allBiases = allBiasesTensors.flatMap(tensor => Array.from(tensor.dataSync()));
+
+        let currentWeightIndex = 0;
+        let currentBiasIndex = 0;
+
+        let hiddenLayers = this.genome.layerGenes.length;
+        let inputNodes = this.genome.inputLayerGenes[0].numberOfNeurons;
+        let outputNodes = this.genome.outputLayerGenes[0].numberOfNeurons;
+
+        // First, render all the connections (lines)
+        let x = offsetX;
+        for (let i = 0; i < hiddenLayers + 2; i++) {
+            let nodes = 0;
+            if (i === 0) {
+                nodes = inputNodes;
+            } else if (i === hiddenLayers + 1) {
+                nodes = outputNodes;
+            } else {
+                nodes = this.genome.layerGenes[i - 1].numberOfNeurons;
+            }
+
+            let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
+
+            let currentLayerPositions = [];
+            for (let j = 0; j < nodes; j++) {
+                let y = startY + j * nodeGap;
+                currentLayerPositions.push({ x: x, y: y });
+            }
+
+            // Draw connections
+            if (i > 0) {
+                for (let prevPos of previousLayerPositions) {
+                    for (let currentPos of currentLayerPositions) {
+                        let weight = allWeights[currentWeightIndex];
+                        currentWeightIndex++;
+                        let maxWeight = Math.max(...allWeights.map(Math.abs));
+                        let strokeWeightValue = mapWeightToStroke(weight, maxWeight);
+                        p.stroke(255);
+                        p.strokeWeight(strokeWeightValue);
+                        p.line(prevPos.x, prevPos.y, currentPos.x, currentPos.y);
+                    }
+                }
+            }
+
+            previousLayerPositions = currentLayerPositions;
+            x += layerGap;
+        }
+
+        // Then, render the nodes (on top of the lines)
+        x = offsetX;
+        for (let i = 0; i < hiddenLayers + 2; i++) {
+            let nodes = 0;
+            let labels = [];
+            if (i === 0) {
+                nodes = inputNodes;
+                labels = inputLabels;
+            } else if (i === hiddenLayers + 1) {
+                nodes = outputNodes;
+                labels = outputLabels;
+            } else {
+                nodes = this.genome.layerGenes[i - 1].numberOfNeurons;
+            }
+
+            let startY = offsetY - ((nodes - 1) * nodeGap) / 2; // to center the nodes
+            let outputIndex = 0;
+            for (let j = 0; j < nodes; j++) {
+                let y = startY + j * nodeGap;
+                let maxBias = Math.max(...allBiases.map(Math.abs));
+                let bias = allBiases[currentBiasIndex];
+                currentBiasIndex++;
+
+                //// Check if it's the output layer and set fill color accordingly
+                //if (i === nnConfig.hiddenLayers.length + 1 && j < GROUP_COLORS.length) {
+                //    p.fill(GROUP_COLORS[j]);
+                //} else {
+                p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]); // Default fill color
+                //}
+
+                let nodeSize = mapBiasToNodeSize(bias, maxBias);
+                p.ellipse(x, y, nodeSize, nodeSize);
+                p.stroke(0);
+                // Add labels to the side of input and output nodes
+                if (labels.length > 0) {
+                    p.textSize(12);
+                    if (i === 0) {
+                        p.text(labels[j], x - 90, y + 4);
+                    } else if (i === hiddenLayers + 1) {
+                        p.text(labels[j], x + 15, y + 4);
+
+                        if (stageProperties.outputsJointSpeed && this.joints[j]) {
+                            p.fill(GROUP_COLORS[j]);
+                            let currentSpeed = this.joints[j].getMotorSpeed();
+                            p.text(`Speed: ${currentSpeed.toFixed(4)}`, x + 60, y + 4);
+                            outputIndex++;
+                        }
+
+                        if (stageProperties.outputsJointTorque && this.joints[j - outputIndex]) {
+                            p.fill(GROUP_COLORS[j - outputIndex]);
+                            p.text(`Max Torque Cant Be Polled :(`, x + 60, y + 4);
+                            outputIndex++;
+                        }
+
+                        if (stageProperties.outputsBias && this.biases[j - outputIndex]) {
+                            p.fill(GROUP_COLORS[j - outputIndex]);
+                            let biasI = this.biases[j - outputIndex];
+                            p.text(`Bias: ${biasI}`, x + 60, y + 4);
+                        }
+
+                    }
+                }
+            }
+            x += layerGap;
+        }
+    } catch (error) {
+        if (error.message.includes('disposed')) {
+            console.error('Attempted to access weights of a disposed model.');
+            return;
+        } else {
+            throw error;
+        }
+    }
+    p.pop();
 };
 
+
+/***   Functions For Settings Card Effects   ***/
+// These should probably be moved to a separate file at some point for clarity
 function initializeSettingHoverEffects() {
     const settings = document.querySelectorAll('.setting');
 
@@ -5304,4 +5218,75 @@ window.initializeSettingHoverEffects = initializeSettingHoverEffects;
 window.clearAllTooltips = clearAllTooltips;
 
 
+/***   Functions For Building the Genome Viewer UI   ***/
+
+function createTreeView(container, obj) {
+    if (typeof obj === 'object' && obj !== null) {
+        Object.entries(obj).forEach(([key, value]) => {
+            const keyValuePair = document.createElement('div');
+            keyValuePair.className = 'key-value-pair';
+
+            const keyElement = document.createElement('span');
+            keyElement.className = 'key';
+            keyElement.innerText = key + ': ';
+
+            keyValuePair.appendChild(keyElement);
+
+            if (typeof value === 'object' && value !== null) {
+                const collapsible = document.createElement('button');
+                collapsible.className = 'collapsible';
+                collapsible.innerText = 'Expand';
+
+                // Apply styles directly
+                collapsible.style.backgroundColor = '#555';
+                collapsible.style.color = 'white';
+                collapsible.style.cursor = 'pointer';
+                collapsible.style.padding = '5px 10px';
+                collapsible.style.border = '1px solid #777';
+                collapsible.style.borderRadius = '4px';
+                collapsible.style.textAlign = 'center';
+                collapsible.style.fontSize = '13px';
+                collapsible.style.marginLeft = '10px';
+                collapsible.style.transition = 'background-color 0.3s';
+
+                collapsible.onmouseover = function () {
+                    this.style.backgroundColor = '#666';
+                };
+                collapsible.onmouseout = function () {
+                    this.style.backgroundColor = '#555';
+                };
+
+                keyValuePair.appendChild(collapsible);
+
+                const content = document.createElement('div');
+                content.className = 'content';
+                content.style.display = 'none';
+                keyValuePair.appendChild(content);
+
+                createTreeView(content, value);
+
+                collapsible.addEventListener('click', function () {
+                    this.classList.toggle('active');
+                    const content = this.nextElementSibling;
+                    if (content.style.display === 'block') {
+                        content.style.display = 'none';
+                        this.innerText = 'Expand';
+                    } else {
+                        content.style.display = 'block';
+                        this.innerText = 'Collapse';
+                    }
+                });
+            } else {
+                const valueElement = document.createElement('span');
+                valueElement.className = 'value';
+                valueElement.innerText = value !== null ? value.toString() : 'null';
+                keyValuePair.appendChild(valueElement);
+            }
+
+            container.appendChild(keyValuePair);
+        });
+    } else {
+        container.innerText = obj !== null ? obj.toString() : 'null';
+    }
+}
 
