@@ -1876,7 +1876,7 @@ function logModelWeights(agent) {
 }
 
 /*****     Agent Constructor     *****/
-function AgentNEAT(agentGenome, existingBrain = null) {
+function AgentNEAT(agentGenome) {
 
     /***   Agents Main Properties   ***/
 
@@ -1912,22 +1912,6 @@ function AgentNEAT(agentGenome, existingBrain = null) {
     // The number of 'front' (or back) limbs; limbs between 0.1 radians of 0 or Pi.  These are not duplicated when symmetry is enabled
     this.noFrontLimbs = 0;
 
-    // Give the agent a brain based on the genome.  If an existing brain is passed in, use that instead of creating a new one.
-    if (existingBrain) {
-        this.brain = existingBrain;
-    } else {
-        if (this.brain) {
-            this.brain.dispose();
-        }
-        this.brain = createNeuralNetworkNEAT(this.genome);
-    }
-
-    // Brain size is used to calculate how much energy the agent uses for movement, bigger brains use more energy.
-    this.brainSize = this.genome.inputLayerGenes[0].numberOfNeurons + this.genome.outputLayerGenes[0].numberOfNeurons;
-    for (let i = 0; i < this.genome.layerGenes.length; i++) {
-        this.brainSize += this.genome.layerGenes[i].numberOfNeurons;
-    }
-
 
     /***   Score variables   ***/
 
@@ -1959,7 +1943,7 @@ function AgentNEAT(agentGenome, existingBrain = null) {
     this.rayCastPoints = [];
 
 
-    /***   Give The Agent A Body   ***/
+    /***   Give The Agent A Body and Brain   ***/
 
     // Set properties for the main body of the agent for reference
     this.mainBodyRadius = this.genome.mainBody.size;
@@ -1991,6 +1975,25 @@ function AgentNEAT(agentGenome, existingBrain = null) {
     // Code to duplicate the limbs for symmetry if enabled.
     if (stageProperties.keepAgentSymmetrical === true && this.bodyParts.length > 0) {
         this.duplicateLimbsForSymmetry();
+    }
+
+    // Give the agent a brain based on the genome.  If an existing brain is passed in, use that instead of creating a new one.
+    if (stageProperties.genCount === 0) {
+        if (this.brain) {
+            this.brain.dispose();
+        }
+        this.brain = createNeuralNetworkNEAT(this.genome);
+    } else {
+        if (this.brain) {
+            this.brain.dispose();
+        }
+        this.brain = constructModelFromGenome(this.genome);
+    }
+
+    // Brain size is used to calculate how much energy the agent uses for movement, bigger brains use more energy.
+    this.brainSize = this.genome.inputLayerGenes[0].numberOfNeurons + this.genome.outputLayerGenes[0].numberOfNeurons;
+    for (let i = 0; i < this.genome.layerGenes.length; i++) {
+        this.brainSize += this.genome.layerGenes[i].numberOfNeurons;
     }
 
     // Variable tracking the number of limbs for reference
@@ -2598,6 +2601,101 @@ function createNeuralNetworkNEAT(genome) {
     return model;
 }
 
+function constructModelFromGenome(genome) {
+    const model = tf.sequential();
+
+    // Extract the number of input neurons from the genome.
+    const inputNeurons = genome.inputLayerGenes[0].numberOfNeurons;
+
+    // Input layer.
+    const inputLayer = tf.layers.dense({
+        units: inputNeurons,
+        inputShape: [genome.inputLayerGenes[0].inputs.length],
+        activation: genome.inputLayerGenes[0].activationType
+    });
+    model.add(inputLayer);
+
+    // Create a mapping from bias IDs to their respective values for the first (input) layer.
+    let previousLayerBiasIDMap = {};
+    genome.inputLayerGenes[0].biases.forEach(b => previousLayerBiasIDMap[b.id] = b.value);
+
+    // Set the weights and biases for each subsequent layer based on the ID mapping.
+    genome.layerGenes.forEach(layerGene => {
+        const layer = tf.layers.dense({
+            units: layerGene.numberOfNeurons,
+            activation: layerGene.activationType
+        });
+        model.add(layer);
+
+        // Create a 2D array for the weight values initialized to 0, using the number of neurons in the previous and current layer.
+        const weightsMatrix = new Array(Object.keys(previousLayerBiasIDMap).length).fill(null).map(() => new Array(layerGene.biases.length).fill(0));
+        const biasesArray = new Array(layerGene.biases.length).fill(0);
+
+        // Populate the weight matrix using the 'fromNodeID' and 'toNodeID'.
+        layerGene.weights.forEach((weightRow, rowIndex) => {
+            weightRow.forEach(weight => {
+                const fromIndex = Object.keys(previousLayerBiasIDMap).indexOf(weight.fromNodeID.toString());
+                const toIndex = layerGene.biases.findIndex(b => b.id === weight.toNodeID);
+                if (fromIndex !== -1 && toIndex !== -1) {
+                    weightsMatrix[fromIndex][toIndex] = weight.value;
+                }
+            });
+        });
+
+        // Populate the biases array using the ID mapping.
+        layerGene.biases.forEach((b, index) => biasesArray[index] = b.value);
+
+        // Apply the weight and bias values to the model layer.
+        tf.tidy(() => {
+            layer.setWeights([
+                tf.tensor(weightsMatrix),
+                tf.tensor1d(biasesArray)
+            ]);
+        });
+
+        // Update the 'previousLayerBiasIDMap' for the next iteration.
+        previousLayerBiasIDMap = {};
+        layerGene.biases.forEach(b => previousLayerBiasIDMap[b.id] = b.value);
+    });
+
+    // Output Layer
+    const outputLayerGene = genome.outputLayerGenes[0];
+    const outputLayer = tf.layers.dense({
+        units: outputLayerGene.numberOfNeurons,
+        activation: outputLayerGene.activationType
+    });
+    model.add(outputLayer);
+
+    // Create a 2D array for the weight values initialized to 0, using the number of neurons in the previous and current layer.
+    const outputWeightsMatrix = new Array(Object.keys(previousLayerBiasIDMap).length).fill(null).map(() => new Array(outputLayerGene.biases.length).fill(0));
+    const outputBiasesArray = new Array(outputLayerGene.biases.length).fill(0);
+
+    // Populate the weight matrix using the 'fromNodeID' and 'toNodeID'.
+    outputLayerGene.weights.forEach((weightRow, rowIndex) => {
+        weightRow.forEach(weight => {
+            const fromIndex = Object.keys(previousLayerBiasIDMap).indexOf(weight.fromNodeID.toString());
+            const toIndex = outputLayerGene.biases.findIndex(b => b.id === weight.toNodeID);
+            if (fromIndex !== -1 && toIndex !== -1) {
+                outputWeightsMatrix[fromIndex][toIndex] = weight.value;
+            }
+        });
+    });
+
+    // Populate the biases array using the ID mapping.
+    outputLayerGene.biases.forEach((b, index) => outputBiasesArray[index] = b.value);
+
+    // Apply the weight and bias values to the model layer.
+    tf.tidy(() => {
+        outputLayer.setWeights([
+            tf.tensor(outputWeightsMatrix),
+            tf.tensor1d(outputBiasesArray)
+        ]);
+    });
+
+
+    return model;
+}
+
 // At the end of a run, end the simulation and initialize the next batch of agents in this generation.
 function nextAgentgroupNEAT(p) {
 
@@ -3145,12 +3243,17 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     parent2.genome.agentHistory.usedAsParent++;
 
     let childGenome;
+    // let childGenome = _.cloneDeep(parent1.genome);
 
     if (Math.random() > 0.33) {
-        childGenome = biasedArithmeticCrossoverNEAT(parent1, parent2);
+        // childGenome = biasedArithmeticCrossoverNEAT(parent1, parent2);
+        childGenome = randomSelectionCrossoverNEAT(parent1, parent2);
     } else if (Math.random() > 0.66) {
+        // childGenome = biasedArithmeticCrossoverNEAT(parent1, parent2);
         childGenome = randomSelectionCrossoverNEAT(parent1, parent2);
     } else {
+        // childGenome = biasedArithmeticCrossoverNEAT(parent1, parent2);
+        // childGenome = randomSelectionCrossoverNEAT(parent1, parent2);
         childGenome = layerCrossoverNEAT(parent1, parent2);
     }
 
@@ -3544,9 +3647,40 @@ function layerMatches(layer1, layer2) {
 }
 
 // Crossover function for the agents body plan.
-function bodyPlanCrossover(childGenome, agent1, agent2) {
+//function bodyPlanCrossover(childGenome, agent1, agent2) {
 
-    // Determine which parent is dominant based on score
+//    // Determine which parent is dominant based on score
+//    const isParent1Dominant = agent1.Score > agent2.Score;
+//    const dominantParent = isParent1Dominant ? agent1 : agent2;
+//    const submissiveParent = isParent1Dominant ? agent2 : agent1;
+
+//    let dominantParentGenome = dominantParent.genome;
+//    let submissiveParentGenome = submissiveParent.genome;
+
+//    // Randomly select the main body size from one of the parents
+//    childGenome.mainBody.size = Math.random() < 0.5 ? dominantParentGenome.mainBody.size : submissiveParentGenome.mainBody.size;
+
+//    // Could maybe use a similar method to removing limbs, where I flatten the arms array, filter out limbs with no sub limbs, then pick some of those to swap.
+
+//    // Check for each limb in the child genome whether to keep it or swap it
+//    // Currently just checking main limbs not sub limbs, and have added a check to make sure the number of sublimbs is the same in both parents limb to swap.
+//    //childGenome.mainBody.arms.forEach((limb, idx) => {
+//    //    // If there's a corresponding limb in both parents, decide whether to swap
+//    //    // For now, check that the number of limbs in the child genome is the same as the number of limbs in the submissive parent genome
+//    //    // I will want to develop a more robust way to swap limbs when the total number differs.  Will just mean adjusting the 'number of neurons' in the input layer.
+//    //    if (Math.random() < 0.1 && dominantParentGenome.mainBody.arms[idx] && submissiveParentGenome.mainBody.arms[idx] && childGenome.inputLayerGenes.numberOfNeurons == submissiveParentGenome.inputLayerGenes.numberOfNeurons) {
+//    //        childGenome.mainBody.arms[idx] = _.cloneDeep(submissiveParentGenome.mainBody.arms[idx]);
+//    //        childGenome.agentHistory.mutations.push("type: limb, mutation: swap from parent: " + submissiveParentGenome.metadata.agentName + " With index: " + idx);
+//    //    }
+//    //});
+
+//    //updateLimbIDs(childGenome);
+
+//    return childGenome;
+//}
+
+function bodyPlanCrossover(childGenome, agent1, agent2) {
+    // Determine dominant and submissive parents based on score
     const isParent1Dominant = agent1.Score > agent2.Score;
     const dominantParent = isParent1Dominant ? agent1 : agent2;
     const submissiveParent = isParent1Dominant ? agent2 : agent1;
@@ -3557,25 +3691,86 @@ function bodyPlanCrossover(childGenome, agent1, agent2) {
     // Randomly select the main body size from one of the parents
     childGenome.mainBody.size = Math.random() < 0.5 ? dominantParentGenome.mainBody.size : submissiveParentGenome.mainBody.size;
 
-    // Disabled code to swap randomly between different limbs as its causing issues.  Need to come up with a better way to do this.
-    // Could maybe use a similar method to removing limbs, where I flatten the arms array, filter out limbs with no sub limbs, then pick some of those to swap.
+    // Flatten limb structures of both parents
+    // let dominantFlattenedLimbs = flattenLimbStructure(dominantParentGenome.mainBody.arms);
+    // let submissiveFlattenedLimbs = flattenLimbStructure(submissiveParentGenome.mainBody.arms);
 
-    // Check for each limb in the child genome whether to keep it or swap it
-    // Currently just checking main limbs not sub limbs, and have added a check to make sure the number of sublimbs is the same in both parents limb to swap.
-    //childGenome.mainBody.arms.forEach((limb, idx) => {
-    //    // If there's a corresponding limb in both parents, decide whether to swap
-    //    // Swap with probability 0.1.
-    //    // For now, check that the number of limbs in the child genome is the same as the number of limbs in the submissive parent genome
-    //    // I will want to develop a more robust way to swap limbs when the total number differs.  Will just mean adjusting the 'number of neurons' in the input layer.
-    //    if (Math.random() < 0.1 && dominantParentGenome.mainBody.arms[idx] && submissiveParentGenome.mainBody.arms[idx] && childGenome.inputLayerGenes.numberOfNeurons == submissiveParentGenome.inputLayerGenes.numberOfNeurons) {
-    //        childGenome.mainBody.arms[idx] = _.cloneDeep(submissiveParentGenome.mainBody.arms[idx]);
-    //        childGenome.agentHistory.mutations.push("type: limb, mutation: swap from parent: " + submissiveParentGenome.metadata.agentName + " With index: " + idx);
-    //    }
-    //});
+    // Randomly pick limbs from both parents to swap
+    dominantParentGenome.mainBody.arms.forEach((limb, index) => {
+        if (Math.random() < 0.5 && submissiveParentGenome.mainBody.arms.length > index && !stageProperties.keepAgentSymmetrical) {
+            // Pick a random limb from submissive parent
+            let randomSubmissiveIndex = Math.floor(Math.random() * submissiveParentGenome.mainBody.arms.length);
+            // Swap the limb along with its sub-limbs
+            childGenome.mainBody.arms[index] = _.cloneDeep(submissiveParentGenome.mainBody.arms[randomSubmissiveIndex]);
+            // Corresponding changes in neural network
+            swapNeuralNetworkNodes(childGenome, dominantParentGenome, submissiveParentGenome, index, randomSubmissiveIndex);
+        }
+    });
 
-    //updateLimbIDs(childGenome);
+    updateLimbIDs(childGenome);
 
     return childGenome;
+}
+
+function swapNeuralNetworkNodes(childGenome, dominantParentGenome, submissiveParentGenome, dominantIndex, submissiveIndex) {
+
+    // Flatten limb structures of both parents
+    let dominantFlattenedLimbs = flattenLimbStructure(dominantParentGenome.mainBody.arms);
+    let submissiveFlattenedLimbs = flattenLimbStructure(submissiveParentGenome.mainBody.arms);
+
+    let dominantLimbNodeID = dominantFlattenedLimbs[dominantIndex].partID;
+    let submissiveLimbNodeID = submissiveFlattenedLimbs[submissiveIndex].partID;
+
+    // Swap input layer node
+    let inputLayer = childGenome.inputLayerGenes[0];
+    let dominantInputNode = inputLayer.biases[dominantLimbNodeID];
+    let submissiveInputNode = submissiveParentGenome.inputLayerGenes[0].biases[submissiveLimbNodeID];
+
+    if (dominantInputNode && submissiveInputNode) {
+        dominantInputNode.value = submissiveInputNode.value;
+    } else if (dominantInputNode) {
+        console.log("Error finding input layer node in submissive layer");
+    } else if (submissiveInputNode) {
+        console.log("Error finding input layer node in dominant layer");
+    }
+
+    // Swap output layer node
+    let outputLayer = childGenome.outputLayerGenes[0];
+    let dominantOutputNode = outputLayer.biases[dominantLimbNodeID];
+    let submissiveOutputNode = submissiveParentGenome.outputLayerGenes[0].biases[submissiveLimbNodeID];
+
+    if (dominantOutputNode && submissiveOutputNode) {
+        dominantOutputNode.value = submissiveOutputNode.value;
+    } else if (dominantOutputNode) {
+        console.log("Error finding output layer node in submissive layer.");
+    } else if (submissiveOutputNode) {
+        console.log("Error finding output layer node in dominant layer");
+    }
+
+    // Swap weights in the first hidden layer and output layer
+    let firstHiddenLayer = childGenome.layerGenes[0];
+    firstHiddenLayer.weights.forEach(weightArray => {
+        weightArray.forEach(weight => {
+            if (weight.fromNodeID === dominantLimbNodeID) {
+                let submissiveWeight = submissiveParentGenome.layerGenes[0].weights.find(subWeight => subWeight.fromNodeID === submissiveLimbNodeID);
+                if (submissiveWeight) {
+                    weight.value = submissiveWeight.value;
+                }
+            }
+        });
+    });
+
+    let outputLayerNodes = childGenome.outputLayerGenes[0];
+    outputLayerNodes.weights.forEach(weightArray => {
+        weightArray.forEach(weight => {
+            if (weight.toNodeID === dominantLimbNodeID) {
+                let submissiveWeight = submissiveParentGenome.outputLayerGenes[0].weights.find(subWeight => subWeight.toNodeID === submissiveLimbNodeID);
+                if (submissiveWeight) {
+                    weight.value = submissiveWeight.value;
+                }
+            }
+        });
+    });
 }
 
 // Generate a unique ID
@@ -4235,7 +4430,7 @@ AgentNEAT.prototype.duplicateLimbsForSymmetry = function () {
             }
 
             let newLimb = _.cloneDeep(originalLimb);
-            newLimb.startingAngle = (4 * Math.PI) - originalLimb.startingAngle;
+            newLimb.startingAngle = (2 * Math.PI) - originalLimb.startingAngle;
 
             newLimb.constraints.minAngle = -originalLimb.constraints.maxAngle;
             newLimb.constraints.maxAngle = -originalLimb.constraints.minAngle;
