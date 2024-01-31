@@ -3555,6 +3555,7 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
             }
         }
     }
+
     for (const bias of childGenome.outputLayerGenes[0].biases) {
         let id = bias.id;
         try {
@@ -3567,6 +3568,7 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
             // console.log("Trying to perform crossover on non matching output nodes, continuing...");
         }
     }
+
     return childGenome;
 }
 
