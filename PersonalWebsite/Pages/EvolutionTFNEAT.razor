@@ -1467,11 +1467,11 @@
         public bool agentsRequireStablising { get; set; } = true;
         // Advanced Training and Evolution
         public int tournamentSize { get; set; } = 10;
-        public int linearStabilityThresholdBody { get; set; } = 15;
-        public int angularStabilityThresholdBody { get; set; } = 20;
-        public int angularStabilityThresholdLimb { get; set; } = 15;
-        public int stabilityFrames { get; set; } = 20;
-        public int stabilityCheckOverwriteFrames { get; set; } = 500;
+        public int linearStabilityThresholdBody { get; set; } = 20;
+        public int angularStabilityThresholdBody { get; set; } = 25;
+        public int angularStabilityThresholdLimb { get; set; } = 20;
+        public int stabilityFrames { get; set; } = 50;
+        public int stabilityCheckOverwriteFrames { get; set; } = 1000;
         public int chanceToIncludeTopPerformerInMutation { get; set; } = 2;
         public int chanceToIncludeOffspringInMutation { get; set; } = 50;
         public int neuronMutationStandardDeviation { get; set; } = 10;
