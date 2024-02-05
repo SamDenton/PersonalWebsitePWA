@@ -69,6 +69,8 @@
         transform: scale(1.05);
     }
 
+.resetSimple-button,
+.resetSuperSimple-button,
 .reset-button,
 .save-button,
 .upload-button {

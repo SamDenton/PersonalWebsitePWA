@@ -17,6 +17,8 @@
     <button class="preset-button high-button" title="Set high powered presets" @onclick="setHighPresets">High Power Settings Preset</button>
     <button class="preset-button vHigh-button" title="Set very high powered presets" @onclick="setVHighPresets">Very High Power Settings Preset</button>
     <button class="preset-button reset-button" title="Resets settings to default everything" @onclick="resetSettings">Reset All Settings</button>
+    <button class="preset-button resetSimple-button" title="Resets settings to the simple start settings without starting the simulation" @onclick="resetSettingsSimple">Simple Preset</button>
+    <button class="preset-button resetSuperSimple-button" title="Resets settings to the super simple start settings without starting the simulation" @onclick="resetSettingsSuperSimple">Super Simple Preset</button>
     <button class="preset-button save-button" title="Saves current settings to a JSON file" @onclick="saveSettings">Save Settings To File</button>
     <button class="preset-button upload-button" title="Uploaded saved settings JSON" @onclick="uploadSettings">Upload Settings File</button>
 </div>
@@ -598,8 +600,7 @@
     {
         population = new List<Genome>();
         Random random = new Random();
-        //let agentsPerGroup = Math.ceil(totalPopulationGenomes.length / numGroups);
-        // For now, set manual total population size as 10 * numAgents
+
         int totalPopulation = populationSize * stageProperties.totalNumAgentsMultiplier;
         // Calculate the number of groups
         int numGroups = Math.Max(1, (int)Math.Ceiling((double)totalPopulation / stageProperties.maxPopGroupSize));
@@ -1853,6 +1854,63 @@
         stageProperties.showForceVectors = false;
         stageProperties.visualForceScale = 10;
         stageProperties.visualMaxForceLength = 300;
+    }
+
+    private async Task resetSettingsSimple()
+    {
+        await resetSettings();
+        stageProperties.topScoreEver = 0;
+        stageProperties.genCount = 0;
+        stageProperties.energyUseForceSizeMult = 0;
+        stageProperties.energyUseLimbSizeMult = 0;
+        stageProperties.energyUseBrainSizeMult = 0;
+        stageProperties.startingEnergyMassPower = 0;
+        stageProperties.startingEnergyBase = 1;
+        stageProperties.swimMethod = "simple";
+        stageProperties.networkOutput = "simple";
+        stageProperties.startingEnergyBodyMassMult = 0;
+        stageProperties.startingEnergyLimbMassMult = 0;
+        stageProperties.movementScoreMultiplier = 15;
+        stageProperties.explorationScoreMultiplier = 100;
+        stageProperties.sizeScoreMultiplier = 0;
+        stageProperties.offspringLayerMutationRate = 5;
+        stageProperties.offspringLimbMutationRate = 20;
+        stageProperties.agentsRequireStablising = false;
+        stageProperties.randomAgentStartAngle = false;
+    }
+
+    private async Task resetSettingsSuperSimple()
+    {
+        await resetSettings();
+        stageProperties.topScoreEver = 0;
+        stageProperties.genCount = 0;
+        stageProperties.energyUseForceSizeMult = 0;
+        stageProperties.energyUseLimbSizeMult = 0;
+        stageProperties.energyUseBrainSizeMult = 0;
+        stageProperties.startingEnergyMassPower = 0;
+        stageProperties.startingEnergyBase = 1;
+        stageProperties.swimMethod = "simple";
+        stageProperties.networkOutput = "simple";
+        stageProperties.keepAgentSymmetrical = true;
+        stageProperties.startingEnergyBodyMassMult = 0;
+        stageProperties.startingEnergyLimbMassMult = 0;
+        stageProperties.movementScoreMultiplier = 15;
+        stageProperties.explorationScoreMultiplier = 0;
+        stageProperties.sizeScoreMultiplier = 0;
+        stageProperties.offspringMutationRate = 50;
+        stageProperties.offspringNodeMutationRate = 0;
+        stageProperties.offspringLayerMutationRate = 0;
+        stageProperties.offspringLimbMutationRate = 10;
+        stageProperties.topPerformerNumber = 20;
+        stageProperties.swimStrength = 110;
+        stageProperties.randomMap = false;
+        stageProperties.map = 1;
+        stageProperties.agentsRequireStablising = false;
+        stageProperties.bodyPlanStart = "simple";
+        stageProperties.maxJointSpeed = 15;
+        stageProperties.randomAgentStartAngle = false;
+        stageProperties.chanceToIncludeTopPerformerInMutation = 1;
+        stageProperties.hiddenActivationFunction = "relu";
     }
 
     private void InitializeTabs()

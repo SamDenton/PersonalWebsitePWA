@@ -1852,8 +1852,18 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes) {
         // console.log("Run count: ", runCount);
         currentProcess = "Starting first round of simulation!";
 
-        // set numGroups to the largest value in agentGenomePool.metadata.AgentGroup
-        numGroups = Math.max(...agentGenomePool.map(genome => genome.metadata.agentGroup)) + 1;
+        // Combine both arrays and map to agentGroup values
+        let combinedAgentGroupValues = agentGenomePool.map(genome => genome.metadata.agentGroup)
+            .concat(agents.map(agent => agent.genome.metadata.agentGroup));
+
+        // Check if the combined array is not empty
+        if (combinedAgentGroupValues.length > 0) {
+            // Find the highest agentGroup value from the combined array
+            numGroups = Math.max(...combinedAgentGroupValues) + 1;
+        } else {
+            // Default value if both arrays are empty
+            numGroups = 1;
+        }
 
         // Randomly select agents to render for each group
         randomlySelectedAgents = [];
@@ -2864,6 +2874,7 @@ function nextGenerationNEAT(p) {
     agentGenomePool = [];
     runCount = 0;
     currentProcess = "Performing Crossover, Mutation, and Selection on total population to create offspring";
+    usedIndices = new Set();
 
     for (let agent of tempAgentPool) {
         if (stageProperties.keepAgentSymmetrical === true) {
@@ -3004,7 +3015,7 @@ function nextGenerationNEAT(p) {
         // Ensure at least one top performer in small groups
         topPerformersCount = Math.max(topPerformersCount, 1);
 
-        createTopPerformersNEAT(groupAgents, topPerformersCount);
+        createTopPerformersNEAT(groupAgents, groupId, topPerformersCount);
         generateOffspringNEAT(groupAgents, groupId, topPerformersCount, agentsNeeded);
 
         // Check for the condition to see if the current group is completely built
@@ -3184,40 +3195,45 @@ function waitForFinalInitializationCompletionNEAT() {
 
 // Function called after each round to check if the population is the correct size and adjust if necessary
 function checkPopulation() {
-    const totalRequiredAgents = stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier;
-    let groupAgentCounts = Array(numGroups).fill(0);
-    let seenIndices = new Set();
 
-    // Count agents in each group
-    // Check for duplicate indices and reassign if necessary
-    tempAgentGenomePool.forEach(agentGenome => {
-        if (seenIndices.has(agentGenome.metadata.agentIndex)) {
-            // Duplicate found, assign a new index
-            do {
-                agentGenome.metadata.agentIndex++;
-            } while (usedIndices.has(agentGenome.metadata.agentIndex));
-            usedIndices.add(agentGenome.metadata.agentIndex); // Update the usedIndices set
-        } else {
-            seenIndices.add(agentGenome.metadata.agentIndex);
-        }
-        groupAgentCounts[agentGenome.metadata.agentGroup]++;
-    });
+    try {
+        const totalRequiredAgents = stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier;
+        let groupAgentCounts = Array(numGroups).fill(0);
+        let seenIndices = new Set();
 
-    // Check if total agents are too few or too many
-    if (tempAgentGenomePool.length < totalRequiredAgents) {
-        // Add agents to groups with the fewest agents
-        while (tempAgentGenomePool.length < totalRequiredAgents) {
-            let groupIdToAdd = groupAgentCounts.indexOf(Math.min(...groupAgentCounts));
-            duplicateTopPerformer(groupIdToAdd);
-            groupAgentCounts[groupIdToAdd]++;
+        // Count agents in each group
+        // Check for duplicate indices and reassign if necessary
+        tempAgentGenomePool.forEach(agentGenome => {
+            if (seenIndices.has(agentGenome.metadata.agentIndex)) {
+                // Duplicate found, assign a new index
+                do {
+                    agentGenome.metadata.agentIndex++;
+                } while (usedIndices.has(agentGenome.metadata.agentIndex));
+                usedIndices.add(agentGenome.metadata.agentIndex); // Update the usedIndices set
+            } else {
+                seenIndices.add(agentGenome.metadata.agentIndex);
+            }
+            groupAgentCounts[agentGenome.metadata.agentGroup]++;
+        });
+
+        // Check if total agents are too few or too many
+        if (tempAgentGenomePool.length < totalRequiredAgents) {
+            // Add agents to groups with the fewest agents
+            while (tempAgentGenomePool.length < totalRequiredAgents) {
+                let groupIdToAdd = groupAgentCounts.indexOf(Math.min(...groupAgentCounts));
+                duplicateTopPerformer(groupIdToAdd);
+                groupAgentCounts[groupIdToAdd]++;
+            }
+        } else if (tempAgentGenomePool.length > totalRequiredAgents) {
+            // Remove agents from groups with the most agents
+            while (tempAgentGenomePool.length > totalRequiredAgents) {
+                let groupIdToRemove = groupAgentCounts.indexOf(Math.max(...groupAgentCounts));
+                removeLowestPerformer(groupIdToRemove);
+                groupAgentCounts[groupIdToRemove]--;
+            }
         }
-    } else if (tempAgentGenomePool.length > totalRequiredAgents) {
-        // Remove agents from groups with the most agents
-        while (tempAgentGenomePool.length > totalRequiredAgents) {
-            let groupIdToRemove = groupAgentCounts.indexOf(Math.max(...groupAgentCounts));
-            removeLowestPerformer(groupIdToRemove);
-            groupAgentCounts[groupIdToRemove]--;
-        }
+    } catch (error) {
+        console.error("Error in checkPopulation.  numGroups: " + numGroups + " Error: " + error);
     }
 }
 
@@ -3253,17 +3269,14 @@ function removeLowestPerformer(groupId) {
 }
 
 // Create top performers for the next generation
-function createTopPerformersNEAT(groupAgents, topPerformersCount) {
+function createTopPerformersNEAT(groupAgents, groupId, topPerformersCount) {
 
-    for (let j = 0; j < topPerformersCount; j++) {
+    let agentsalreadycreated = tempAgentGenomePool.filter(agentGenome => agentGenome.metadata.agentGroup === groupId).length;
+
+    for (let j = agentsalreadycreated; j < topPerformersCount; j++) {
         let oldAgent = groupAgents[j];
 
         let newAgentGenome = _.cloneDeep(oldAgent.genome);
-        while (usedIndices.has(newAgentGenome.metadata.agentIndex)) {
-            newAgentGenome.metadata.agentIndex++;
-        }
-
-        usedIndices.add(newAgentGenome.metadata.agentIndex);
 
         newAgentGenome.metadata.agentGroup = oldAgent.genome.metadata.agentGroup;
         newAgentGenome.agentHistory.roundsAsTopPerformer++;
@@ -3277,6 +3290,11 @@ function createTopPerformersNEAT(groupAgents, topPerformersCount) {
             newAgentGenome = mutateBodyPlan(newAgentGenome, newAgentGenome.hyperparameters.limbMutationRate);
         }
 
+        while (usedIndices.has(newAgentGenome.metadata.agentIndex)) {
+            newAgentGenome.metadata.agentIndex++;
+        }
+
+        usedIndices.add(newAgentGenome.metadata.agentIndex);
         tempAgentGenomePool.push(newAgentGenome);
     }
 }
@@ -3304,6 +3322,8 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     // Select 2 parents, using different methods for varying outcomes
     let parent1 = selectAgentTournamentNEAT(groupAgents, tempAgentPool);
     let parent2;
+
+    // Loop through the roulette selection until a different parent is selected
     while (parent2 === undefined || parent2.Score === parent1.Score || parent1.genome.metadata.agentIndex === parent2.genome.metadata.agentIndex) {
         parent2 = selectAgentRouletteNEAT(groupAgents, tempAgentPool, parent1);
     }
@@ -3333,7 +3353,7 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     }
 
     if (childGenome.metadata.agentIndex === submissiveParent.genome.metadata.agentIndex) {
-        console.error("Wrong parent used as DominantParent!  Dominant score: ", dominantParent.Score, " Sub score: ", submissiveParent.Score);
+        console.error("Wrong parent used as Dominant Parent, or same agent used for both parents!  Dominant score: ", dominantParent.Score, " Sub score: ", submissiveParent.Score);
     }
 
     // Crossover the body plan
@@ -3374,7 +3394,6 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     childGenome.agentHistory.usedAsParent = 0;
     childGenome.agentHistory.roundsAsTopPerformer = 0;
     // childGenome.agentHistory.scoreHistory = [];
-
 
     // Once an agent is created, add to agent pool
     tempAgentGenomePool.push(childGenome);
@@ -4170,7 +4189,6 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
         let randomLayerIndex = Math.floor(Math.random() * genome.layerGenes.length);
         let randomLayer = genome.layerGenes[randomLayerIndex];
         let randomNodeIndex = Math.floor(Math.random() * (randomLayer.biases.length));
-
 
         // decide to add or remove a node with equal probability
         if (Math.random() < 0.5 || randomLayer.biases.length === 1) {
@@ -5719,14 +5737,14 @@ function handleMouseEnter(e) {
     document.body.appendChild(tooltip);
 
     // Adjust the bottom padding of the tab-content
-    adjustTabContentPaddingForTooltip(tooltip, tabContent, true);
+    // adjustTabContentPaddingForTooltip(tooltip, true);
 
     original.tooltip = tooltip;
 
     // Set a timer to automatically remove the tooltip
     original.tooltipTimeout = setTimeout(() => {
         if (original.tooltip) {
-            // adjustTabContentPaddingForTooltip(tooltip, tabContent, false);
+            // adjustTabContentPaddingForTooltip(tooltip, false);
             document.body.removeChild(original.tooltip);
             original.tooltip = null;
         }
@@ -5742,7 +5760,7 @@ function handleMouseLeave(e) {
         document.body.removeChild(original.tooltip);
         original.tooltip = null;
         // Adjust the bottom padding of the tab-content
-        // adjustTabContentPaddingForTooltip(tooltip, tabContent, false);
+        // adjustTabContentPaddingForTooltip(tooltip, false);
         clearTimeout(original.tooltipTimeout);
     }
 }
@@ -5753,10 +5771,12 @@ function clearAllTooltips() {
     });
 }
 
-function adjustTabContentPaddingForTooltip(tooltip, tabContent, add) {
+function adjustTabContentPaddingForTooltip(tooltip, add) {
     const tooltipRect = tooltip.getBoundingClientRect();
     const tabContentRect = tabContent.getBoundingClientRect();
     const additionalPadding = Math.max(0, (tooltipRect.height));
+    const tabContent = document.querySelector('.tab-content');
+
     if (add) {
         tabContent.style.paddingBottom = `${additionalPadding}px`;
     }
