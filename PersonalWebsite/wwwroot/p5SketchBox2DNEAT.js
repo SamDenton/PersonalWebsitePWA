@@ -3186,9 +3186,20 @@ function waitForFinalInitializationCompletionNEAT() {
 function checkPopulation() {
     const totalRequiredAgents = stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier;
     let groupAgentCounts = Array(numGroups).fill(0);
+    let seenIndices = new Set();
 
     // Count agents in each group
+    // Check for duplicate indices and reassign if necessary
     tempAgentGenomePool.forEach(agentGenome => {
+        if (seenIndices.has(agentGenome.metadata.agentIndex)) {
+            // Duplicate found, assign a new index
+            do {
+                agentGenome.metadata.agentIndex++;
+            } while (usedIndices.has(agentGenome.metadata.agentIndex));
+            usedIndices.add(agentGenome.metadata.agentIndex); // Update the usedIndices set
+        } else {
+            seenIndices.add(agentGenome.metadata.agentIndex);
+        }
         groupAgentCounts[agentGenome.metadata.agentGroup]++;
     });
 
@@ -3219,7 +3230,13 @@ function duplicateTopPerformer(groupId) {
 
     console.log("Duplicating top performer:", topPerformer.genome.metadata.agentName, " In Group: ", groupId);
     let newAgentGenome = _.cloneDeep(topPerformer.genome);
-    newAgentGenome.metadata.agentIndex = newAgentGenome.metadata.agentIndex * 2;
+
+    while (usedIndices.has(newAgentGenome.metadata.agentIndex)) {
+        newAgentGenome.metadata.agentIndex++;
+    }
+
+    usedIndices.add(newAgentGenome.metadata.agentIndex);
+
     tempAgentGenomePool.push(newAgentGenome);
 }
 
@@ -3287,7 +3304,7 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     // Select 2 parents, using different methods for varying outcomes
     let parent1 = selectAgentTournamentNEAT(groupAgents, tempAgentPool);
     let parent2;
-    while (parent2 === undefined || parent2.Score === parent1.Score) {
+    while (parent2 === undefined || parent2.Score === parent1.Score || parent1.genome.metadata.agentIndex === parent2.genome.metadata.agentIndex) {
         parent2 = selectAgentRouletteNEAT(groupAgents, tempAgentPool, parent1);
     }
 
@@ -4152,7 +4169,7 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
     if (Math.random() < nodeMutationRate) {
         let randomLayerIndex = Math.floor(Math.random() * genome.layerGenes.length);
         let randomLayer = genome.layerGenes[randomLayerIndex];
-        let randomNodeIndex = Math.floor(Math.random() * (randomLayer.biases.length + 1));
+        let randomNodeIndex = Math.floor(Math.random() * (randomLayer.biases.length));
 
 
         // decide to add or remove a node with equal probability
@@ -4231,7 +4248,7 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
                 } catch (e) {
 
                     // genome.agentHistory.mutations.push("type: node, layer: " + randomLayerIndex + " id: " + randomNodeIndex + "Not Found, skipping mutation");
-                    addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: node, layer: " + randomLayerIndex + " id: " + randomNodeIndex + "Not Found, skipping mutation");
+                    addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: node, layer: " + randomLayerIndex + " index: " + randomNodeIndex + " ID: " + removedBiasId + "Not Found, skipping mutation");
                 }
 
             }
