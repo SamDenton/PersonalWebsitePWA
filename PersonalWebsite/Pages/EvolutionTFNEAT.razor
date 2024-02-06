@@ -1293,65 +1293,14 @@
 
     private async Task ResetSimulationSimple()
     {
-        await resetLists();
-        stageProperties.topScoreEver = 0;
-        stageProperties.genCount = 0;
-        stageProperties.energyUseForceSizeMult = 0;
-        stageProperties.energyUseLimbSizeMult = 0;
-        stageProperties.energyUseBrainSizeMult = 0;
-        stageProperties.startingEnergyMassPower = 0;
-        stageProperties.startingEnergyBase = 1;
-        stageProperties.swimMethod = "simple";
-        stageProperties.networkOutput = "simple";
-        stageProperties.startingEnergyBodyMassMult = 0;
-        stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 15;
-        stageProperties.explorationScoreMultiplier = 100;
-        stageProperties.sizeScoreMultiplier = 0;
-        stageProperties.offspringLayerMutationRate = 5;
-        stageProperties.offspringLimbMutationRate = 20;
-        stageProperties.agentsRequireStablising = false;
-        stageProperties.randomAgentStartAngle = false;
-        await InitializePopulation(stageProperties.numAgents);
-        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
+        await resetSettingsSimple();
+        await ResetSimulation();
     }
 
     private async Task ResetSimulationSuperSimple()
     {
-        await resetLists();
-        stageProperties.topScoreEver = 0;
-        stageProperties.genCount = 0;
-        stageProperties.energyUseForceSizeMult = 0;
-        stageProperties.energyUseLimbSizeMult = 0;
-        stageProperties.energyUseBrainSizeMult = 0;
-        stageProperties.startingEnergyMassPower = 0;
-        stageProperties.startingEnergyBase = 1;
-        stageProperties.swimMethod = "simple";
-        stageProperties.networkOutput = "simple";
-        stageProperties.keepAgentSymmetrical = true;
-        stageProperties.startingEnergyBodyMassMult = 0;
-        stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 15;
-        stageProperties.explorationScoreMultiplier = 0;
-        stageProperties.sizeScoreMultiplier = 0;
-        stageProperties.offspringMutationRate = 50;
-        stageProperties.offspringNodeMutationRate = 0;
-        stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 10;
-        stageProperties.topPerformerNumber = 20;
-        stageProperties.swimStrength = 110;
-        stageProperties.randomMap = false;
-        stageProperties.map = 1;
-        stageProperties.agentsRequireStablising = false;
-        stageProperties.bodyPlanStart = "simple";
-        stageProperties.maxJointSpeed = 15;
-        stageProperties.randomAgentStartAngle = false;
-        stageProperties.chanceToIncludeTopPerformerInMutation = 1;
-        stageProperties.hiddenActivationFunction = "relu";
-        await InitializePopulation(stageProperties.numAgents);
-        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
-        await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
+        await resetSettingsSuperSimple();
+        await ResetSimulation();
     }
 
     private async Task killSim()
@@ -1375,7 +1324,7 @@
 
         // Performance
         public int numAgents { get; set; } = 25;
-        public int totalNumAgentsMultiplier { get; set; } = 20;
+        public int totalNumAgentsMultiplier { get; set; } = 10;
         public int muscleDelay { get; set; } = 2;
         public int muscleBatch { get; set; } = 3;
         public int simSpeed { get; set; } = 60;
@@ -1460,9 +1409,9 @@
         public int dynamicMassBonusDivider { get; set; } = 500;
 
         // Training and Evolution
-        public int offspringMutationRate { get; set; } = 100;
-        public int offspringNodeMutationRate { get; set; } = 40;
-        public int offspringLayerMutationRate { get; set; } = 5;
+        public int offspringMutationRate { get; set; } = 200;
+        public int offspringNodeMutationRate { get; set; } = 80;
+        public int offspringLayerMutationRate { get; set; } = 10;
         public int offspringLimbMutationRate { get; set; } = 40;
         public int topPerformerNumber { get; set; } = 15;
         public int migrationRate { get; set; } = 5;
@@ -1726,7 +1675,7 @@
     {
         stageProperties.topScoreEver = 0;
         stageProperties.numAgents = 25;
-        stageProperties.totalNumAgentsMultiplier = 20;
+        stageProperties.totalNumAgentsMultiplier = 10;
         stageProperties.muscleDelay = 2;
         stageProperties.muscleBatch = 3;
         stageProperties.simSpeed = 60;
@@ -1808,9 +1757,9 @@
         stageProperties.internalMapSize = 500;
         stageProperties.internalMapCellSize = 50;
         stageProperties.dynamicMassBonusDivider = 500;
-        stageProperties.offspringMutationRate = 100;
-        stageProperties.offspringNodeMutationRate = 40;
-        stageProperties.offspringLayerMutationRate = 5;
+        stageProperties.offspringMutationRate = 200;
+        stageProperties.offspringNodeMutationRate = 80;
+        stageProperties.offspringLayerMutationRate = 10;
         stageProperties.offspringLimbMutationRate = 40;
         stageProperties.topPerformerNumber = 15;
         stageProperties.migrationRate = 5;
@@ -1900,7 +1849,7 @@
         stageProperties.movementScoreMultiplier = 15;
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
-        stageProperties.offspringMutationRate = 50;
+        stageProperties.offspringMutationRate = 100;
         stageProperties.offspringNodeMutationRate = 0;
         stageProperties.offspringLayerMutationRate = 0;
         stageProperties.offspringLimbMutationRate = 10;

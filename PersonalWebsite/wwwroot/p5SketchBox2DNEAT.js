@@ -5738,8 +5738,6 @@ function handleMouseEnter(e) {
     original.tooltipActive = true; // Set flag to indicate tooltip is active
 
     const description = original.querySelector('.setting-details').innerHTML;
-    const tabContent = document.querySelector('.tab-content');
-
     const tooltip = document.createElement('div');
     tooltip.innerHTML = description;
 
@@ -5750,6 +5748,7 @@ function handleMouseEnter(e) {
     tooltip.style.width = `${rect.width}px`;
     tooltip.style.zIndex = '1000';
     tooltip.style.padding = '10px';
+    tooltip.style.paddingBottom = '50px';
     tooltip.style.backgroundColor = '#344444';
     tooltip.style.borderRadius = '8px';
     tooltip.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
@@ -5761,7 +5760,7 @@ function handleMouseEnter(e) {
     document.body.appendChild(tooltip);
 
     // Adjust the bottom padding of the tab-content
-    // adjustTabContentPaddingForTooltip(tooltip, true);
+    adjustTabContentPaddingForTooltip(tooltip, true);
 
     original.tooltip = tooltip;
 
@@ -5777,14 +5776,15 @@ function handleMouseEnter(e) {
 
 function handleMouseLeave(e) {
     const original = e.currentTarget;
-    const tabContent = document.querySelector('.tab-content');
     original.tooltipActive = false; // Reset flag when mouse leaves
 
     if (original.tooltip) {
+        adjustTabContentPaddingForTooltip(original.tooltip, false);
         document.body.removeChild(original.tooltip);
         original.tooltip = null;
         // Adjust the bottom padding of the tab-content
-        // adjustTabContentPaddingForTooltip(tooltip, false);
+        //setTimout(() => {
+        //}, 10);
         clearTimeout(original.tooltipTimeout);
     }
 }
@@ -5796,16 +5796,15 @@ function clearAllTooltips() {
 }
 
 function adjustTabContentPaddingForTooltip(tooltip, add) {
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const tabContentRect = tabContent.getBoundingClientRect();
-    const additionalPadding = Math.max(0, (tooltipRect.height));
     const tabContent = document.querySelector('.tab-content');
+    const popupRect = tooltip.getBoundingClientRect();
+    const additionalPadding = Math.max(0, (popupRect.height));
 
     if (add) {
-        tabContent.style.paddingBottom = `${additionalPadding}px`;
+        tabContent.style.paddingBottom += `${additionalPadding}px`;
     }
     else {
-        tabContent.style.paddingBottom = `${-additionalPadding}px`;
+        tabContent.style.paddingBottom -= `${-additionalPadding}px`;
     }
 }
 
