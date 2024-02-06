@@ -217,7 +217,7 @@ let sketchNEAT = function (p) {
             if (simulationStarted && singleUpdateCompleted && stabilised) {
                 tickCount++;
 
-                if (tickCount % stageProperties.inputTickerRate === 0) {
+                if (tickCount % 90 === 0) {
                     internalTick *= -1;
                 }
 
@@ -941,9 +941,9 @@ function adjustPerformance(fps) {
         } else if (averageFps > goodFps) {
             stageProperties.simSpeed += 5;
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
-            console.log("Increasing simSpeed to:", stageProperties.simSpeed + " History: " + fpsHistory);
+            // console.log("Increasing simSpeed to:", stageProperties.simSpeed + " History: " + fpsHistory);
         } else if (stageProperties.simSpeed <= 10) {
-            console.log("Speed already as low as it can go!" + " History: " + fpsHistory)
+            // console.log("Speed already as low as it can go!" + " History: " + fpsHistory)
         } 
 
         fpsHistory = [];
@@ -1926,6 +1926,10 @@ function AgentNEAT(agentGenome) {
 
     // Is this agent currently leading
     this.currentlyLeading = false;
+
+    // Give the agent a heart
+    this.Heart = -1;
+    this.heartBeatCount = 0;
 
     // The starting position of the agent in the plank simulation based on the number of agents and how spread out they should be.  The render function renders all agents in 1 spot regardless of their actual position
     this.startingX = stageProperties.agentStartX + (Math.floor(this.genome.metadata.runGroup) * stageProperties.agentStartSpawnGap);
@@ -4438,6 +4442,11 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
         childGenome.mainBody.density = mutateWithinBounds(childGenome.mainBody.density, 0.1, 0.8);
     }
 
+    // Heartbeat Mutation
+    if (Math.random() < bodyMutationRate && childGenome.hyperparameters.heartbeat) {
+        childGenome.hyperparameters.heartbeat = Math.round(mutateWithinBounds(childGenome.hyperparameters.heartbeat, 1, 20));
+    }
+
     // Limb Properties Mutation
     childGenome.mainBody.arms.forEach(mutateLimb);
 
@@ -5476,7 +5485,22 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
     }
 
     if (stageProperties.inputTicker) {
-        inputs.push(internalTick);
+
+        if (this.genome.hyperparameters.heartbeat) {
+
+            this.HeartBeatCount += 1;
+
+            if (this.HeartBeatCount % this.genome.hyperparameters.heartbeat === 0) {
+                this.Heart *= -1;
+                this.HeartBeatCount *= -1;
+            }
+
+            inputs.push(this.Heart);
+
+
+        } else {
+            inputs.push(internalTick);
+        }
     }
 
     return inputs;

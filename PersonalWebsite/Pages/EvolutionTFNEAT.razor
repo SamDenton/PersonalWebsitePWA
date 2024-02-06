@@ -695,6 +695,7 @@
                 genome.Metadata.AgentName = agentName;
                 genome.Metadata.RunGroup = runGroups[i];
                 genome.Metadata.AgentGroup = i % numGroups;
+                genome.Hyperparameters.Heartbeat = stageProperties.inputTickerRate;
                 genome.Hyperparameters.MutationRate = (double)stageProperties.offspringMutationRate / 10000;
                 genome.Hyperparameters.NodeMutationRate = (double)stageProperties.offspringNodeMutationRate / 10000;
                 genome.Hyperparameters.LayerMutationRate = (double)stageProperties.offspringLayerMutationRate / 10000;
@@ -750,6 +751,7 @@
                 genome.Metadata.AgentName = agentName;
                 genome.Metadata.RunGroup = runGroups[i];
                 genome.Metadata.AgentGroup = i % numGroups;
+                genome.Hyperparameters.Heartbeat = stageProperties.inputTickerRate;
                 genome.Hyperparameters.MutationRate = (double)stageProperties.offspringMutationRate / 10000;
                 genome.Hyperparameters.NodeMutationRate = (double)stageProperties.offspringNodeMutationRate / 10000;
                 genome.Hyperparameters.LayerMutationRate = (double)stageProperties.offspringLayerMutationRate / 10000;
@@ -1164,6 +1166,7 @@
 
     public class Hyperparameters
     {
+        public double Heartbeat { get; set; }
         public double MutationRate { get; set; }
         public double NodeMutationRate { get; set; }
         public double LayerMutationRate { get; set; }
@@ -1372,15 +1375,15 @@
 
         // Performance
         public int numAgents { get; set; } = 25;
-        public int totalNumAgentsMultiplier { get; set; } = 8;
+        public int totalNumAgentsMultiplier { get; set; } = 20;
         public int muscleDelay { get; set; } = 2;
-        public int muscleBatch { get; set; } = 5;
+        public int muscleBatch { get; set; } = 3;
         public int simSpeed { get; set; } = 60;
         public bool autoAdjustPerformance { get; set; } = true;
         // Advanced Performance
         public int totalMuscleUpdateTime { get; set; } = 2;
-        public int delay { get; set; } = 20;
-        public int BatchSize { get; set; } = 10;
+        public int delay { get; set; } = 10;
+        public int BatchSize { get; set; } = 5;
         public int updatesPerAgentStart { get; set; } = 2;
         public int framesPerUpdateStart { get; set; } = 2;
         public int agentStartSpawnGap { get; set; } = 5000;
@@ -1416,7 +1419,7 @@
         public int bodyAngularDragPower { get; set; } = 10;
         public int maxTorqueForDamping { get; set; } = 10000;
         public int threasholdAngleForDamping { get; set; } = 10;
-        public int inputTickerRate { get; set; } = 90;
+        public int inputTickerRate { get; set; } = 2;
         public bool inputTicker { get; set; } = true;
         public bool inputJointAngle { get; set; } = true;
         public bool inputJointSpeed { get; set; } = false;
@@ -1723,14 +1726,14 @@
     {
         stageProperties.topScoreEver = 0;
         stageProperties.numAgents = 25;
-        stageProperties.totalNumAgentsMultiplier = 8;
+        stageProperties.totalNumAgentsMultiplier = 20;
         stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 5;
+        stageProperties.muscleBatch = 3;
         stageProperties.simSpeed = 60;
         stageProperties.autoAdjustPerformance = true;
         stageProperties.totalMuscleUpdateTime = 2;
-        stageProperties.delay = 20;
-        stageProperties.BatchSize = 10;
+        stageProperties.delay = 10;
+        stageProperties.BatchSize = 5;
         stageProperties.updatesPerAgentStart = 1;
         stageProperties.framesPerUpdateStart = 1;
         stageProperties.renderedAgents = 1;
@@ -1769,7 +1772,7 @@
         stageProperties.bodyAngularDragPower = 10;
         stageProperties.maxTorqueForDamping = 10000;
         stageProperties.threasholdAngleForDamping = 10;
-        stageProperties.inputTickerRate = 90;
+        stageProperties.inputTickerRate = 2;
         stageProperties.inputTicker = true;
         stageProperties.inputJointAngle = true;
         stageProperties.inputJointSpeed = false;
@@ -2413,14 +2416,14 @@
                     },
                     new Setting
                     {
-                        Name = "Input Ticker Rate",
+                        Name = "Heartbeat Rate",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.inputTickerRate,
                         ValueChanged = val => stageProperties.inputTickerRate = val,
                         Min = 1,
-                        Max = 240,
-                        Step = 15,
-                        Details = "Determines the tick rate of the internal sign swap input.  This input makes oscillating outputs much easier to learn."
+                        Max = 10,
+                        Step = 1,
+                        Details = "The starting value for how quickly the agents 'heart' beats.  This value can evolve for each agent.  Value is number of joint updates per beat, with default values, about every 1 to 2 seconds."
                     },
                     new Setting
                     {
