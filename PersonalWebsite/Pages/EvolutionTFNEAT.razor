@@ -1326,7 +1326,7 @@
         public int numAgents { get; set; } = 25;
         public int totalNumAgentsMultiplier { get; set; } = 10;
         public int muscleDelay { get; set; } = 2;
-        public int muscleBatch { get; set; } = 3;
+        public int muscleBatch { get; set; } = 4;
         public int simSpeed { get; set; } = 60;
         public bool autoAdjustPerformance { get; set; } = true;
         // Advanced Performance
@@ -1368,7 +1368,7 @@
         public int bodyAngularDragPower { get; set; } = 10;
         public int maxTorqueForDamping { get; set; } = 10000;
         public int threasholdAngleForDamping { get; set; } = 10;
-        public int inputTickerRate { get; set; } = 2;
+        public int inputTickerRate { get; set; } = 4;
         public bool inputTicker { get; set; } = true;
         public bool inputJointAngle { get; set; } = true;
         public bool inputJointSpeed { get; set; } = false;
@@ -1625,7 +1625,7 @@
         stageProperties.numAgents = 25;
         stageProperties.totalNumAgentsMultiplier = 10;
         stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 3;
+        stageProperties.muscleBatch = 4;
         stageProperties.totalMuscleUpdateTime = 2;
     }
 
@@ -1636,7 +1636,7 @@
         stageProperties.numAgents = 50;
         stageProperties.totalNumAgentsMultiplier = 10;
         stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 4;
+        stageProperties.muscleBatch = 5;
         stageProperties.totalMuscleUpdateTime = 2;
     }
 
@@ -1646,8 +1646,8 @@
         stageProperties.BatchSize = 5;
         stageProperties.numAgents = 100;
         stageProperties.totalNumAgentsMultiplier = 10;
-        stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 5;
+        stageProperties.muscleDelay = 1;
+        stageProperties.muscleBatch = 3;
         stageProperties.totalMuscleUpdateTime = 1;
         stageProperties.maxPopGroupSize = 50;
     }
@@ -1677,7 +1677,7 @@
         stageProperties.numAgents = 25;
         stageProperties.totalNumAgentsMultiplier = 10;
         stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 3;
+        stageProperties.muscleBatch = 4;
         stageProperties.simSpeed = 60;
         stageProperties.autoAdjustPerformance = true;
         stageProperties.totalMuscleUpdateTime = 2;
@@ -1721,7 +1721,7 @@
         stageProperties.bodyAngularDragPower = 10;
         stageProperties.maxTorqueForDamping = 10000;
         stageProperties.threasholdAngleForDamping = 10;
-        stageProperties.inputTickerRate = 2;
+        stageProperties.inputTickerRate = 4;
         stageProperties.inputTicker = true;
         stageProperties.inputJointAngle = true;
         stageProperties.inputJointSpeed = false;
@@ -2370,7 +2370,7 @@
                         ValueExpression = () => stageProperties.inputTickerRate,
                         ValueChanged = val => stageProperties.inputTickerRate = val,
                         Min = 1,
-                        Max = 10,
+                        Max = 100,
                         Step = 1,
                         Details = "The starting value for how quickly the agents 'heart' beats.  This value can evolve for each agent.  Value is number of joint updates per beat, with default values, about every 1 to 2 seconds."
                     },

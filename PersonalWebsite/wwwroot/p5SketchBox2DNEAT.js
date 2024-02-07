@@ -45,6 +45,8 @@ let sketchNEAT = function (p) {
     let lastTime = 0;
     let leadingAgent;
     let currentPhysicsBatch = 0;
+    let agentUpdatesPer60Frames = 0;
+    let agentUpdatesPer60FramesCounter = 0;
     let particles = [];
     const PANNING_SPEED = 5; // Speed of camera panning
     let trailingAgent = agents[agents.length - 1];
@@ -151,7 +153,7 @@ let sketchNEAT = function (p) {
                         // All agents have been updated the required number of times, now check for stability
                         if (areAllAgentsStableNEAT() || stageProperties.agentsRequireStablising == false) {
                             stabilised = true;
-                            console.log("Agents Settled");
+                            // console.log("Agents Settled");
                             startingTickCounter = 0;
                         }
                     }
@@ -165,8 +167,10 @@ let sketchNEAT = function (p) {
                             agents[i].updateMusclesNEAT();
 
                             if (i == 1) {
-                                console.log("updating agent 1's muscles");
+                                // console.log("updating agent 1's muscles");
+                                agentUpdatesPer60FramesCounter++;
                             }
+
                         }
 
                         // Move to the next batch
@@ -181,6 +185,11 @@ let sketchNEAT = function (p) {
                             // Wait for batchDelay frames before moving to the next batch
                             nextBatchFrame = tickCount + stageProperties.muscleDelay;
                         }
+                    }
+
+                    if (tickCount % 300 === 0) {
+                        agentUpdatesPer60Frames = (agentUpdatesPer60FramesCounter / 5).toFixed(2);
+                        agentUpdatesPer60FramesCounter = 0;
                     }
                 }
             }
@@ -592,6 +601,7 @@ let sketchNEAT = function (p) {
             p.push();
             p.fill(155);
             p.text(`Current Sim Speed Multiplier: ${(stageProperties.simSpeed / 60).toFixed(2)}`, stageProperties.width - 300, stageProperties.height - 50);
+            p.text(`Updates Per Agent Per 60 Ticks: ${agentUpdatesPer60Frames}`, stageProperties.width - 300, stageProperties.height - 20);
             p.pop();
 
             if (agentsToRender.size > 0 && simulationStarted) {
@@ -926,18 +936,18 @@ function adjustPerformance(fps) {
 
     if (fpsHistory.length >= 10) {
         let averageFps = fpsHistory.reduce((sum, val) => sum + val, 0) / fpsHistory.length;
-        let badFps = 30;
-        let goodFps = 45;
+        let badFps = 35;
+        let goodFps = 49;
         if (render == false) {
             // If rendering is disabled, allow the sim to run at lower fps
             badFps = 20;
-            goodFps = 30;
+            goodFps = 35;
         }
 
         if (averageFps < badFps && stageProperties.simSpeed > 10) {
             stageProperties.simSpeed = Math.max(5, stageProperties.simSpeed - 5);
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
-            console.log("Decreasing simSpeed to:" + stageProperties.simSpeed + " History: " + fpsHistory);
+            // console.log("Decreasing simSpeed to:" + stageProperties.simSpeed + " History: " + fpsHistory);
         } else if (averageFps > goodFps) {
             stageProperties.simSpeed += 5;
             fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
@@ -1484,6 +1494,37 @@ function logGenomes() {
     }
 }
 
+// Function to log statistics about the current simulation
+function logStatistics() {
+    // Format number with thousands separator
+    const formatNumber = (num) => num.toLocaleString();
+
+    // Memory threshold for color coding
+    const memoryThresholds = {
+        green: 60,
+        amber: 80
+    };
+
+    console.log('Tensors:          %c' + formatNumber(tf.memory().numTensors), "color: cyan");
+    console.log('Tensor Memory:    %c' + formatNumber(tf.memory().numBytes), "color: cyan");
+    console.log("Bodies:           %c" + formatNumber(world.getBodyCount()), "color: cyan");
+    console.log("Joints:           %c" + formatNumber(world.getJointCount()), "color: cyan");
+
+    if (window.performance && performance.memory) {
+        const usedHeapPercent = (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100;
+        let memoryColor = "green";
+        if (usedHeapPercent > memoryThresholds.amber) memoryColor = "red";
+        else if (usedHeapPercent > memoryThresholds.green) memoryColor = "orange";
+
+        console.log("Max Heap (bytes): %c" + formatNumber(performance.memory.jsHeapSizeLimit), "color: cyan");
+        console.log("Used Heap:        %c" + formatNumber(performance.memory.usedJSHeapSize), "color: cyan");
+        console.log("Heap Remaining:   %c" + formatNumber(performance.memory.jsHeapSizeLimit - performance.memory.usedJSHeapSize), `color: ${memoryColor}`);
+        console.log("Used Heap %:      %c" + usedHeapPercent.toFixed(2) + "%", `color: ${memoryColor}`);
+    } else {
+        console.log("Performance memory API is not supported in this browser.");
+    }
+}
+
 // Function to save the current genomes and settings to a local file
 async function saveGenomes() {
     try {
@@ -1885,6 +1926,7 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes) {
             tempPopulationGenomes.push(agent.genome);
         });
 
+        logStatistics();
         offsetX = 0;
 
     } else {
@@ -2184,7 +2226,7 @@ function endSimulationNEAT(p) {
     panningOffsetX = 0;
     panningOffsetY = 0;
     currentProcess = "Sorting agents by score!";
-    console.log("round over");
+    // console.log("round over");
 
     // Reduce the sim speed before restart to reduce the initial demand on the CPU
     if (stageProperties.simSpeed > 25) {
@@ -2860,9 +2902,7 @@ function waitForInitializationCompletionBatchNEAT(populationGenomes) {
 
         isInitializationComplete = true;
         runCount++;
-        console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
-        console.log("Number of bodies:", world.getBodyCount());
-        console.log("Number of joints:", world.getJointCount());
+        // logStatistics();
         offsetX = 0;
 
     } else {
@@ -2986,7 +3026,7 @@ function nextGenerationNEAT(p) {
     function buildAgentGroups(groupId) {
         // Base case to end the recursion
         if (groupId >= numGroups) {
-            console.log('All groups built.');
+            // console.log('All groups built.');
             checkPopulation();
             return;
         }
@@ -3186,9 +3226,7 @@ function waitForFinalInitializationCompletionNEAT() {
 
         runCount++;
         isInitializationComplete = true;
-        console.log('Number of tensors after restart:', tf.memory().numTensors, 'Tensor Mem after restart', tf.memory().numBytes);
-        console.log("Number of bodies:", world.getBodyCount());
-        console.log("Number of joints:", world.getJointCount());
+        logStatistics();
         offsetX = 0;
 
     } else {
@@ -4444,7 +4482,7 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
     // Heartbeat Mutation
     if (Math.random() < bodyMutationRate && childGenome.hyperparameters.heartbeat) {
-        childGenome.hyperparameters.heartbeat = Math.round(mutateWithinBounds(childGenome.hyperparameters.heartbeat, 1, 20));
+        childGenome.hyperparameters.heartbeat = Math.round(mutateWithinBounds(childGenome.hyperparameters.heartbeat, 1, 100));
     }
 
     // Limb Properties Mutation
@@ -4490,9 +4528,9 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
                 // Add a new node to the output layer for the limb
                 let outputLayer = childGenome.outputLayerGenes[0];
-                let outputNodeIndex = newLimbID - 1; // ID of the node equals its index in the output layer
                 let outputNodeID = generateUniqueId(childGenome.usedBiasIDs);
-                outputLayer.biases.push({ id: outputNodeID, value: Math.random() });
+                // outputLayer.biases.push({ id: outputNodeID, value: Math.random() });
+                outputLayer.biases.splice(inputNodeIndex, 0, { id: outputNodeID, value: Math.random() });
                 outputLayer.numberOfNeurons++;
 
                 // Add new weights associated with the new nodes
@@ -4512,11 +4550,19 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                     })));
 
                     lastHiddenLayer.biases.forEach((bias, idx) => {
-                        outputLayer.weights[idx].splice(outputNodeIndex, 0, {
-                            value: closestLimbOutputWeights[idx].value,
-                            toNodeID: outputNodeID,
-                            fromNodeID: bias.id
-                        });
+                        try {
+                            outputLayer.weights[idx].splice(inputNodeIndex, 0, {
+                                value: closestLimbOutputWeights[idx].value,
+                                toNodeID: outputNodeID,
+                                fromNodeID: bias.id
+                            });
+                        } catch (e) {
+                            console.log("Error adding weights to output layer.  outputLayer: ", outputLayer);
+                            console.log("Output Node Index: ", inputNodeIndex, "lastHiddenLayer bias idx", idx);
+                            console.log("closestLimbOutputWeights", closestLimbOutputWeights);
+                            console.log("Error: ", e);
+                            throw e;
+                        }
                     });
 
                     // childGenome.agentHistory.mutations.push("type: limb, id: " + newLimb.partID + " mutation: add, " + "Copied weights from limb: " + closestLimb.partID + " Number In Chain: " + newLimb.numberInChain);
@@ -4543,7 +4589,8 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                     // console.log("type: limb, id: " + newLimb.partID + " mutation: add" + "Used random weights.");
                 }
             } catch (e) {
-                console.log("Error adding limb.  genome: " + childGenome + " : " + e);
+                console.log("Error adding limb.  genome: ", childGenome);
+                console.log("Error : ", e);
             }
 
         } else {
@@ -4568,29 +4615,34 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
                         updateLimbIDs(childGenome);
 
-                        // Remove node from the input layer
-                        childGenome.inputLayerGenes[0].biases.splice(flattenedIndex, 1);
-                        childGenome.inputLayerGenes[0].numberOfNeurons--;
-                        childGenome.inputLayerGenes[0].inputs.splice(flattenedIndex, 1);
+                        try {
+                            // Remove node from the input layer
+                            let nodeToRemoveID = childGenome.inputLayerGenes[0].biases[flattenedIndex].id;
+                            childGenome.inputLayerGenes[0].biases.splice(flattenedIndex, 1);
+                            childGenome.inputLayerGenes[0].numberOfNeurons--;
+                            childGenome.inputLayerGenes[0].inputs.splice(flattenedIndex, 1);
 
-                        // Remove weights connected to the removed input node from the first hidden layer
-                        let nodeToRemove = childGenome.inputLayerGenes[0].biases[flattenedIndex];
-                        childGenome.layerGenes[0].weights = childGenome.layerGenes[0].weights.filter(weightArray => weightArray[0].toNodeID !== nodeToRemove.id);
+                            // Remove weights connected to the removed input node from the first hidden layer
+                            childGenome.layerGenes[0].weights = childGenome.layerGenes[0].weights.filter(weightArray => weightArray[0].fromNodeID !== nodeToRemoveID);
 
-                        // Remove node from the output layer
-                        let outputLayer = childGenome.outputLayerGenes[0];
-                        outputLayer.biases.splice(flattenedIndex, 1);
+                            // Remove node from the output layer
+                            let outputNodeToRemoveID = childGenome.outputLayerGenes[0].biases[flattenedIndex].id;
+                            childGenome.outputLayerGenes[0].biases.splice(flattenedIndex, 1);
+                            childGenome.outputLayerGenes[0].numberOfNeurons--;
 
-                        outputLayer.numberOfNeurons--;
-                        let outputNodeToRemove = outputLayer.biases[flattenedIndex];
-                        // Remove weights connected to the removed output node
-                        outputLayer.weights.forEach(weightArray => {
-                            // weightArray.splice(flattenedIndex, 1);
-                            weightArray = weightArray.filter(weight => weight.toNodeID !== outputNodeToRemove.id);
-                        });
+                            // Remove weights connected to the removed output node
+                            for (let i = 0; i < childGenome.outputLayerGenes[0].weights.length; i++) {
+                                childGenome.outputLayerGenes[0].weights[i] = childGenome.outputLayerGenes[0].weights[i].filter(weight => weight.toNodeID !== outputNodeToRemoveID);
+                            }
+                        } catch (e) {
+                            console.log("Error removing node.  flattenedIndex: ", flattenedIndex);
+                            console.log("Output Layer: ", childGenome.outputLayerGenes[0]);
+                            throw e;
+                        }
                     }
                 } catch (e) {
                     console.log("Error removing limb.  genome: ", childGenome);
+                    console.log("Error: ", e);
                 }
             }
         }
