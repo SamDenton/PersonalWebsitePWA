@@ -1413,6 +1413,7 @@
         public int offspringNodeMutationRate { get; set; } = 80;
         public int offspringLayerMutationRate { get; set; } = 10;
         public int offspringLimbMutationRate { get; set; } = 40;
+        public bool dynamicMutationRate { get; set; } = true;
         public int topPerformerNumber { get; set; } = 15;
         public int migrationRate { get; set; } = 5;
         public int minPopGroupSize { get; set; } = 10;
@@ -1420,9 +1421,9 @@
         public bool agentsRequireStablising { get; set; } = true;
         // Advanced Training and Evolution
         public int tournamentSize { get; set; } = 10;
-        public int linearStabilityThresholdBody { get; set; } = 20;
-        public int angularStabilityThresholdBody { get; set; } = 25;
-        public int angularStabilityThresholdLimb { get; set; } = 20;
+        // public int linearStabilityThresholdBody { get; set; } = 20;
+        // public int angularStabilityThresholdBody { get; set; } = 25;
+        public int angularStabilityThresholdLimb { get; set; } = 25;
         public int stabilityFrames { get; set; } = 50;
         public int stabilityCheckOverwriteFrames { get; set; } = 1000;
         public int chanceToIncludeTopPerformerInMutation { get; set; } = 2;
@@ -1757,6 +1758,7 @@
         stageProperties.internalMapSize = 500;
         stageProperties.internalMapCellSize = 50;
         stageProperties.dynamicMassBonusDivider = 500;
+        stageProperties.dynamicMutationRate = true;
         stageProperties.offspringMutationRate = 200;
         stageProperties.offspringNodeMutationRate = 80;
         stageProperties.offspringLayerMutationRate = 10;
@@ -1767,9 +1769,9 @@
         stageProperties.maxPopGroupSize = 25;
         stageProperties.agentsRequireStablising = true;
         stageProperties.tournamentSize = 10;
-        stageProperties.linearStabilityThresholdBody = 15;
-        stageProperties.angularStabilityThresholdBody = 20;
-        stageProperties.angularStabilityThresholdLimb = 15;
+        // stageProperties.linearStabilityThresholdBody = 15;
+        // stageProperties.angularStabilityThresholdBody = 20;
+        stageProperties.angularStabilityThresholdLimb = 25;
         stageProperties.stabilityFrames = 20;
         stageProperties.stabilityCheckOverwriteFrames = 500;
         stageProperties.chanceToIncludeTopPerformerInMutation = 10;
@@ -1849,6 +1851,7 @@
         stageProperties.movementScoreMultiplier = 15;
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
+        stageProperties.dynamicMutationRate = false;
         stageProperties.offspringMutationRate = 100;
         stageProperties.offspringNodeMutationRate = 0;
         stageProperties.offspringLayerMutationRate = 0;
@@ -2744,6 +2747,14 @@
                 {
                     new Setting
                     {
+                        Name = "Dynamic Mutation Rates",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.dynamicMutationRate,
+                        BooleanValueChanged = val => stageProperties.dynamicMutationRate = val,
+                        Details = "Toggles whether to change the mutation rates of each agent based on things like its similarity to the rest of the population, how close the average score it to the top score, and other statistics."
+                    },
+                    new Setting
+                    {
                         Name = "Offspring Mutation Rate",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.offspringMutationRate,
@@ -2852,28 +2863,28 @@
                         Step = 1,
                         Details = "Sets the number of agents randomly picked for tournament selection within tournament parent selector."
                     },
-                    new Setting
-                    {
-                        Name = "Linear Stability Threshold for Body",
-                        Type = SettingType.Slider,
-                        ValueExpression = () => stageProperties.linearStabilityThresholdBody,
-                        ValueChanged = val => stageProperties.linearStabilityThresholdBody = val,
-                        Min = 1,
-                        Max = 50,
-                        Step = 1,
-                        Details = "Determines the linear stability threshold for the agent's body."
-                    },
-                    new Setting
-                    {
-                        Name = "Angular Stability Threshold for Body",
-                        Type = SettingType.Slider,
-                        ValueExpression = () => stageProperties.angularStabilityThresholdBody,
-                        ValueChanged = val => stageProperties.angularStabilityThresholdBody = val,
-                        Min = 1,
-                        Max = 50,
-                        Step = 1,
-                        Details = "Determines the angular stability threshold for the agent's body."
-                    },
+                    // new Setting
+                    // {
+                    //     Name = "Linear Stability Threshold for Body",
+                    //     Type = SettingType.Slider,
+                    //     ValueExpression = () => stageProperties.linearStabilityThresholdBody,
+                    //     ValueChanged = val => stageProperties.linearStabilityThresholdBody = val,
+                    //     Min = 1,
+                    //     Max = 50,
+                    //     Step = 1,
+                    //     Details = "Determines the linear stability threshold for the agent's body."
+                    // },
+                    // new Setting
+                    // {
+                    //     Name = "Angular Stability Threshold for Body",
+                    //     Type = SettingType.Slider,
+                    //     ValueExpression = () => stageProperties.angularStabilityThresholdBody,
+                    //     ValueChanged = val => stageProperties.angularStabilityThresholdBody = val,
+                    //     Min = 1,
+                    //     Max = 50,
+                    //     Step = 1,
+                    //     Details = "Determines the angular stability threshold for the agent's body."
+                    // },
                     new Setting
                     {
                         Name = "Angular Stability Threshold for Limb",
@@ -2883,7 +2894,7 @@
                         Min = 0,
                         Max = 50,
                         Step = 1,
-                        Details = "Determines the angular stability threshold for the agent's limbs."
+                        Details = "Determines the stability threshold for the agent's limbs before the round can start, if enabled."
                     },
                     new Setting
                     {
