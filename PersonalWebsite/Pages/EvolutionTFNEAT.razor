@@ -1414,6 +1414,7 @@
         public int offspringLayerMutationRate { get; set; } = 10;
         public int offspringLimbMutationRate { get; set; } = 40;
         public bool dynamicMutationRate { get; set; } = true;
+        public bool dynamicMigrationRate { get; set; } = true;
         public int topPerformerNumber { get; set; } = 15;
         public int migrationRate { get; set; } = 5;
         public int minPopGroupSize { get; set; } = 10;
@@ -1759,6 +1760,7 @@
         stageProperties.internalMapCellSize = 50;
         stageProperties.dynamicMassBonusDivider = 500;
         stageProperties.dynamicMutationRate = true;
+        stageProperties.dynamicMigrationRate = true;
         stageProperties.offspringMutationRate = 200;
         stageProperties.offspringNodeMutationRate = 80;
         stageProperties.offspringLayerMutationRate = 10;
@@ -2807,6 +2809,14 @@
                         Max = 100,
                         Step = 1,
                         Details = "Sets the percentage of top performers to keep per group.  Top performers have a small chance to mutate but otherwise are kept unchanged.  A higher value will see faster learning, but less diverse as agents quickly converge."
+                    },
+                    new Setting
+                    {
+                        Name = "Dynamic Migration Rate",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.dynamicMigrationRate,
+                        BooleanValueChanged = val => stageProperties.dynamicMigrationRate = val,
+                        Details = "Toggles whether to change the migration rate between groups based on how similar populations are getting."
                     },
                     new Setting
                     {

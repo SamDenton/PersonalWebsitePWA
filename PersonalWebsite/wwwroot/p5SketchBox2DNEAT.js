@@ -1477,6 +1477,7 @@ function logGenomes() {
 
     // Log all agents in either agents or agentGenomePool, ordered by the length of genome.agentHistory.mutations per agent.
     let allAgents = agentGenomePool.concat(agents.map(agent => agent.genome));
+    allAgents = allAgents.concat(tempAgentPool.map(agent => agent.genome));
     allAgents.sort((a, b) => parseFloat(b.agentHistory.mutations.length) - parseFloat(a.agentHistory.mutations.length));
     console.log("All Agents Sorted by Mutation Count: ", allAgents);
 
@@ -1497,6 +1498,8 @@ function logGenomes() {
     } else {
         console.log("No Bad Agents Found.");
     }
+
+    console.log("Stage Properties: ", stageProperties);
 }
 
 // Function to log statistics about the current simulation
@@ -1742,8 +1745,9 @@ function showGenomes() {
     const genomeViewer = document.getElementById('genomeViewer');
     // sort the 'agents' array by agents[i].Score
     let leadingAgent = getLeadingAgentNEAT(0);
-
-    createTreeView(genomeViewer, leadingAgent.genome);
+    if (leadingAgent) {
+        createTreeView(genomeViewer, leadingAgent.genome);
+    }
 }
 
 // Function to skip a number of generations by disabling the rendering flag and allowing the function that automatically adjusts the sim speed to target lower frame rates.
@@ -1774,6 +1778,7 @@ function updateSimulationNEAT(StageProperties) {
     let tempTopScore = stageProperties.scoreHistoryTop;
     let tempScoreHistory = stageProperties.scoreHistory;
     let tempScoreHistoryAverage = stageProperties.scoreHistoryAverage;
+    let tempMigrationRate = stageProperties.migrationRate;
 
     // Update values in stageProperties
     stageProperties = StageProperties;
@@ -1782,6 +1787,7 @@ function updateSimulationNEAT(StageProperties) {
     stageProperties.scoreHistoryTop = tempTopScore;
     stageProperties.scoreHistory = tempScoreHistory;
     stageProperties.scoreHistoryAverage = tempScoreHistoryAverage;
+    stageProperties.migrationRate = tempMigrationRate;
 }
 
 // Function to initialize the agents, called alongside initializeSketchBox2DNEAT() to start the simulation
@@ -2924,6 +2930,11 @@ function nextGenerationNEAT(p) {
     runCount = 0;
     currentProcess = "Performing Crossover, Mutation, and Selection on total population to create offspring";
     usedIndices = new Set();
+    averageGroupScores = [];
+    averageGroupBrain = [];
+    averageGroupBrainLayers = [];
+    averageGroupBrainNodes = [];
+    averageGroupBody = [];
 
     for (let agent of tempAgentPool) {
         if (stageProperties.keepAgentSymmetrical === true) {
@@ -2970,8 +2981,6 @@ function nextGenerationNEAT(p) {
         stageProperties.scoreHistoryAverage.push(averageScoreThisRound);
         stageProperties.scoreHistoryTop.push(topScoreThisRound);
     }
-
-    // saveStateToIndexedDB();
 
     // OTT manual disposal and destruction of all bodies and joints
     for (let agent of agents) {
@@ -3047,11 +3056,7 @@ function nextGenerationNEAT(p) {
     function buildNewAgentGroup(groupId, callback) {
 
         let groupAgents = tempAgentPool.filter(agent => agent.genome.metadata.agentGroup === groupId).sort((a, b) => b.Score - a.Score);
-        averageGroupScores[groupId] = 0;
-        averageGroupBrain[groupId] = 0;
-        averageGroupBrainLayers[groupId] = 0;
-        averageGroupBrainNodes[groupId] = 0;
-        averageGroupBody[groupId] = 0;
+
         getAverageBody(groupAgents);
         getAverageBrain(groupAgents);
         getAverageScore(groupAgents);
@@ -3120,6 +3125,11 @@ function waitForInitializationCompletionNEAT() {
 
     // Check if the condition is met
     if (tempAgentGenomePool.length >= stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
+
+        // Adjust the migration rate based on the difference between the different groups average properties
+        if (stageProperties.dynamicMigrationRate) {
+            adjustMigrationRateBasedOnGroupDifferences();
+        }
 
         agentGenomePool = [...tempAgentGenomePool.map(agentGenome => _.cloneDeep(agentGenome))];
 
@@ -3409,6 +3419,8 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
         childGenome = layerCrossoverNEAT(dominantParent, submissiveParent);
     }
 
+    childGenome.metadata.agentGroup = groupId;
+
     if (childGenome.metadata.agentIndex === submissiveParent.genome.metadata.agentIndex) {
         console.error("Wrong parent used as Dominant Parent, or same agent used for both parents!  Dominant score: ", dominantParent.Score, " Sub score: ", submissiveParent.Score);
     }
@@ -3416,13 +3428,18 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     // Crossover the body plan
     childGenome = bodyPlanCrossover(childGenome, dominantParent, submissiveParent);
 
-    // Code to update mutation rate commented for now as highly inefficient. It was adding 10 seconds + to the start of each round.
+    // Update the mutation rates of agents based on similarity to the average agent.
     if (stageProperties.dynamicMutationRate) {
         childGenome.hyperparameters = updateMutationRates(childGenome);
     }
 
     if (Math.random() < (stageProperties.chanceToIncludeOffspringInMutation / 100)) {
-        childGenome = mutateGenome(childGenome, childGenome.hyperparameters.mutationRate, childGenome.hyperparameters.nodeMutationRate, childGenome.hyperparameters.layerMutationRate);
+        try {
+            childGenome = mutateGenome(childGenome, childGenome.hyperparameters.mutationRate, childGenome.hyperparameters.nodeMutationRate, childGenome.hyperparameters.layerMutationRate);
+        } catch (error) {
+            console.error("Error mutating genome: ", error);
+            console.log("Child genome: ", childGenome);
+        }
     }
 
     if (Math.random() < (stageProperties.chanceToIncludeOffspringInMutation / 100)) {
@@ -3465,7 +3482,7 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
         // Schedule the next agent creation after a short timeout
         setTimeout(() => {
             createSingleAgentChild(groupAgents, groupId, agentsNeeded);
-        }, 10);  // Adjust the timeout value as needed
+        }, 20);  // Adjust the timeout value as needed
     } else {
         return;
     }
@@ -4182,80 +4199,264 @@ function addNeuralNetworkElements(childGenome, limbToAdd, submissiveParentGenome
 
 function updateMutationRates(genome) {
     let hyperparams = genome.hyperparameters;
+    let initialRates = { ...hyperparams }; // Store initial rates for comparison
+    let changes = []; // Array to store changes for logging
 
-    // Increase mutation rate if agents body plan is too similar to others
-    if (isBodySimilarToOthers(genome)) {
-        hyperparams.limbMutationRate *= 1.05; // Increase by 5%
+    // Helper function to round mutation rates
+    const roundRate = (rate) => Number(rate.toFixed(5));
+
+    // Adjust mutation rates based on different criteria
+    hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.05 : hyperparams.limbMutationRate * 0.95);
+    hyperparams.mutationRate = roundRate(isBrainSimilarToOthers(genome) ? hyperparams.mutationRate * 1.05 : hyperparams.mutationRate * 0.95);
+    hyperparams.layerMutationRate = roundRate(isBrainLayersSimilarToOthers(genome) ? hyperparams.layerMutationRate * 1.05 : hyperparams.layerMutationRate * 0.95);
+    hyperparams.nodeMutationRate = roundRate(isBrainNodesSimilarToOthers(genome) ? hyperparams.nodeMutationRate * 1.05 : hyperparams.nodeMutationRate * 0.95);
+    hyperparams.mutationRate = roundRate(isScoreCloseToAverage(genome) ? hyperparams.mutationRate * 1.05 : hyperparams.mutationRate * 0.95);
+
+    // Check for changes and add to the changes array
+    for (let rate in hyperparams) {
+        if (hyperparams[rate] !== initialRates[rate]) {
+            changes.push(`${rate}: ${initialRates[rate].toFixed(10)} -> ${hyperparams[rate].toFixed(5)}`);
+        }
     }
 
-    // Increase mutation rate if agents brain is too similar to others
-    if (isBrainSimilarToOthers(genome)) {
-        hyperparams.mutationRate *= 1.05; // Increase by 5%
-    }
+    // Logging changes in mutation rates if any
+    // if (changes.length > 0) {
+        // console.log(`Agent ${genome.metadata.agentIndex} mutation rate changes: [${changes.join(', ')}]`);
+    // }
 
-    // Increase mutation rate if agents brain has similar number of layers in brain to others
-    if (isBrainLayersSimilarToOthers(genome)) {
-        hyperparams.layerMutationRate *= 1.05; // Increase by 5%
-    }
-
-    // Increase mutation rate if agents brain has similar number of nodes in brain to others
-    if (isBrainNodesSimilarToOthers(genome)) {
-        hyperparams.nodeMutationRate *= 1.05; // Increase by 5%
-    }
-
-    // Adjust if agents score is close to the average score of the group
-    if (isScoreCloseToAverage(genome)) {
-        hyperparams.mutationRate *= 1.05; // Increase by 5%
-    } else {
-        hyperparams.mutationRate *= 0.95; // Decrease by 5%
-    }
+    return hyperparams;
 }
 
+// Function to find the average body plan of the group to update the body mutation rate
 function getAverageBody(agents) {
-    let mainBodySize;
-    let flattenedLimbs;
-    let numberOfLimbs;
-    // let averageLimbSize;
-    agents.forEach(agent, idx => {
-        mainBodySize[idx] = agent.genome.mainBody.size;
-        flattenedLimbs = flattenLimbStructure(agent.genome.mainBody);
-        numberOfLimbs[idx] = flattenedLimbs.length;
-        // averageLimbSize = flattenedLimbs.reduce((acc, limb) => acc + limb.width * limb.length, 0) / numberOfLimbs;
+    let mainBodySize = [];
+    let totalLimbs = 0;
+    let totalLimbSize = 0;
+
+    agents.forEach(agent => {
+        mainBodySize.push(agent.genome.mainBody.size);
+
+        let flattenedLimbs = flattenLimbStructure(agent.genome.mainBody.arms);
+        totalLimbs += flattenedLimbs.length;
+        flattenedLimbs.forEach(limb => {
+            totalLimbSize += limb.width * limb.length;
+        });
     });
 
-    averageGroupBody = {
+    let groupIndex = agents[0].genome.metadata.agentGroup;
+    averageGroupBody[groupIndex] = {
         mainBodySize: mainBodySize.reduce((acc, size) => acc + size, 0) / mainBodySize.length,
-        numberOfLimbs: numberOfLimbs.reduce((acc, num) => acc + num, 0) / numberOfLimbs.length,
-        // averageLimbSize: averageLimbSize
+        averageNumberOfLimbs: totalLimbs / agents.length,
+        averageLimbSize: totalLimbSize / totalLimbs
     };
 }
 
+// Function to find the average brain of the group to update the brain mutation rate.
 function getAverageBrain(agents) {
+    let totalBrainNodes = 0;
+    let totalBrainLayers = 0;
+    let totalWeights = [];
+    let totalBiases = [];
 
+    agents.forEach(agent => {
+        let brainNodes = agent.genome.inputLayerGenes[0].numberOfNeurons + agent.genome.outputLayerGenes[0].numberOfNeurons;
+        agent.genome.layerGenes.forEach(layer => {
+            brainNodes += layer.numberOfNeurons;
+            totalBrainLayers++;
+
+            layer.weights.forEach(weightRow => {
+                weightRow.forEach(weight => {
+                    totalWeights.push(weight.value);
+                });
+            });
+
+            layer.biases.forEach(bias => {
+                totalBiases.push(bias.value);
+            });
+        });
+
+        totalBrainNodes += brainNodes;
+    });
+
+    let groupIndex = agents[0].genome.metadata.agentGroup;
+    averageGroupBrainLayers[groupIndex] = totalBrainLayers / agents.length;
+    averageGroupBrainNodes[groupIndex] = totalBrainNodes / agents.length;
+
+    // Calculate average weights and biases
+    let averageWeight = totalWeights.reduce((acc, val) => acc + val, 0) / totalWeights.length;
+    let averageBias = totalBiases.reduce((acc, val) => acc + val, 0) / totalBiases.length;
+
+    // Calculate average absolute deviation from the mean
+    let averageWeightDeviation = totalWeights.map(val => Math.abs(val - averageWeight)).reduce((acc, val) => acc + val, 0) / totalWeights.length;
+    let averageBiasDeviation = totalBiases.map(val => Math.abs(val - averageBias)).reduce((acc, val) => acc + val, 0) / totalBiases.length;
+
+    averageGroupBrain[groupIndex] = {
+        averageWeight: averageWeight,
+        averageBias: averageBias,
+        averageWeightDeviation: averageWeightDeviation,
+        averageBiasDeviation: averageBiasDeviation
+    };
 }
 
+// Calculate the average score of the group to update the mutation rate
 function getAverageScore(agents) {
-
+    let groupIndex = agents[0].genome.metadata.agentGroup;
+    averageGroupScores[groupIndex] = agents.reduce((acc, agent) => acc + agent.Score, 0) / agents.length;
 }
+
 
 function isBodySimilarToOthers(genome) {
+    let group = genome.metadata.agentGroup;
+    let averageBody = averageGroupBody[group];
 
+    let flattenedLimbs = flattenLimbStructure(genome.mainBody.arms);
+    let numberOfLimbs = flattenedLimbs.length;
+    let totalLimbSize = flattenedLimbs.reduce((acc, limb) => acc + limb.width * limb.length, 0);
+    let averageLimbSize = numberOfLimbs > 0 ? totalLimbSize / numberOfLimbs : 0;
+
+    // Define similarity thresholds
+    const sizeThreshold = 0.1; // 10% similarity threshold for main body size
+    const limbCountThreshold = 1; // 1 limb difference threshold
+    const limbSizeThreshold = 0.1; // 10% similarity threshold for limb size
+
+    let isMainBodySizeSimilar, isLimbCountSimilar, isLimbSizeSimilar;
+    try {
+        // Check if the genome's body plan is within the similarity thresholds
+        isMainBodySizeSimilar = Math.abs(genome.mainBody.size - averageBody.mainBodySize) / averageBody.mainBodySize <= sizeThreshold;
+        isLimbCountSimilar = Math.abs(numberOfLimbs - averageBody.averageNumberOfLimbs) <= limbCountThreshold;
+        isLimbSizeSimilar = averageLimbSize > 0 && Math.abs(averageLimbSize - averageBody.averageLimbSize) / averageBody.averageLimbSize <= limbSizeThreshold;
+    } catch (e) {
+        console.log("Error in body similarity check. genome: ", genome);
+        console.log("Average Body: ", averageBody);
+        console.log("Flattened Limbs: ", flattenedLimbs);
+        console.log("Number of Limbs: ", numberOfLimbs);
+        console.log("Total Limb Size: ", totalLimbSize);
+        console.log("Average Limb Size: ", averageLimbSize);
+    }
+    return isMainBodySizeSimilar && isLimbCountSimilar && isLimbSizeSimilar;
 }
 
 function isBrainSimilarToOthers(genome) {
+    const group = genome.metadata.agentGroup;
+    const average = averageGroupBrain[group];
 
+    let totalDeviation = 0;
+    let count = 0;
+
+    try {
+        // Calculate deviation for weights
+        genome.layerGenes.forEach(layer => {
+            layer.weights.forEach(weightRow => {
+                weightRow.forEach(weight => {
+                    totalDeviation += Math.abs(weight.value - average.averageWeight);
+                    count++;
+                });
+            });
+        });
+
+        // Calculate deviation for biases
+        [genome.inputLayerGenes[0], ...genome.layerGenes, genome.outputLayerGenes[0]].forEach(layer => {
+            layer.biases.forEach(bias => {
+                totalDeviation += Math.abs(bias.value - average.averageBias);
+                count++;
+            });
+        });
+
+        const averageDeviation = totalDeviation / count;
+        return averageDeviation < (average.averageWeightDeviation + average.averageBiasDeviation) / 2;
+    } catch (e) {
+        console.log("Error in brain similarity check. genome: ", genome);
+        console.log("Group: ", group);
+        console.log("Average Brain: ", average);
+        console.log("averageGroupBrain: ", averageGroupBrain);
+
+        return false;
+    }
 }
+
 
 function isBrainLayersSimilarToOthers(genome) {
+    const group = genome.metadata.agentGroup;
+    const averageLayers = averageGroupBrainLayers[group];
+    const agentLayers = genome.layerGenes.length;
 
+    // Check if the number of layers in the agent's brain is close to the group average
+    return Math.abs(agentLayers - averageLayers) <= 1;  // Assuming a tolerance of 1 layer
 }
+
 
 function isBrainNodesSimilarToOthers(genome) {
+    const group = genome.metadata.agentGroup;
+    const averageNodes = averageGroupBrainNodes[group];
+    let agentNodes = genome.inputLayerGenes[0].numberOfNeurons + genome.outputLayerGenes[0].numberOfNeurons;
 
+    genome.layerGenes.forEach(layer => {
+        agentNodes += layer.numberOfNeurons;
+    });
+
+    // Check if the number of nodes in the agent's brain is close to the group average
+    return Math.abs(agentNodes - averageNodes) <= 10;  // Assuming a tolerance of 10 nodes
 }
 
-function isScoreCloseToAverage(genome) {
 
+function isScoreCloseToAverage(genome) {
+    const groupIndex = genome.metadata.agentGroup;
+    const agentScore = genome.Score;
+    const averageScore = averageGroupScores[groupIndex];
+    const thresholdPercentage = 0.1; // 10% threshold, can be adjusted
+
+    // Calculate the absolute difference between the agent's score and the average score
+    const scoreDifference = Math.abs(agentScore - averageScore);
+
+    // Check if the difference is within the threshold percentage of the average score
+    return scoreDifference <= (averageScore * thresholdPercentage);
+}
+
+// Function to update the migration rate based on group differences
+function adjustMigrationRateBasedOnGroupDifferences() {
+    let numberOfGroups = stageProperties.numberOfGroups;
+    if (numberOfGroups <= 1) return; // No adjustment needed for a single group
+
+    let similarityThreshold = 1; // Define a threshold for similarity
+    let divergenceThreshold = 25; // Define a threshold for divergence
+
+    // Calculate average differences between groups
+    let differences = calculateGroupDifferences();
+
+    // Assess if groups are becoming too similar or too divergent
+    //let areGroupsSimilar = differences.every(diff => diff < similarityThreshold);
+    //let areGroupsDivergent = differences.some(diff => diff > divergenceThreshold);
+    let areGroupsSimilar = differences.length > 0 && differences.reduce((acc, diff) => acc + diff, 0) / differences.length < similarityThreshold;
+    let areGroupsDivergent = differences.length > 0 && differences.reduce((acc, diff) => acc + diff, 0) / differences.length > divergenceThreshold;
+
+    // Adjust migration rate accordingly
+    if (areGroupsSimilar && stageProperties.migrationRate > 1 && differences.length > 0) {
+        stageProperties.migrationRate -= 1; // Decrease by a small amount
+        console.log("Migration rate decreased to ", stageProperties.migrationRate);
+        console.log("Differences: ", differences);
+    } else if (areGroupsDivergent && stageProperties.migrationRate < 10 && differences.length > 0) {
+        stageProperties.migrationRate += 1; // Increase by a small amount
+        console.log("Migration rate increased to ", stageProperties.migrationRate);
+        console.log("Differences: ", differences);
+    } else {
+        console.log("Migration rate unchanged at ", stageProperties.migrationRate);
+        console.log("Differences: ", differences);
+    }
+}
+
+// Helper function to calculate differences between groups
+function calculateGroupDifferences() {
+    let differences = [];
+    for (let i = 0; i < averageGroupScores.length - 1; i++) {
+        for (let j = i + 1; j < averageGroupScores.length; j++) {
+            let diffScore = Math.abs(averageGroupScores[i] - averageGroupScores[j]);
+            let diffBrain = Math.abs(averageGroupBrainNodes[i] - averageGroupBrainNodes[j]);
+            let diffBody = Math.abs(averageGroupBody[i].averageNumberOfLimbs - averageGroupBody[j].averageNumberOfLimbs);
+            let totalDiff = (diffScore + diffBrain + diffBody) / 3; // Average difference across score, brain, and body
+            differences.push(totalDiff);
+        }
+    }
+    return differences;
 }
 
 
