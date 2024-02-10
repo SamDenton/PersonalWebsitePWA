@@ -605,8 +605,9 @@ let sketchNEAT = function (p) {
 
             p.push();
             p.fill(155);
-            p.text(`Current Sim Speed Multiplier: ${(stageProperties.simSpeed / 60).toFixed(2)}`, stageProperties.width - 300, stageProperties.height - 50);
-            p.text(`Updates Per Agent Per 60 Ticks: ${agentUpdatesPer60Frames}`, stageProperties.width - 300, stageProperties.height - 20);
+            p.text("Use WASD to pan the camera", stageProperties.width - 280, 20);
+            p.text(`Current Sim Speed Multiplier: ${(stageProperties.simSpeed / 60).toFixed(2)}`, stageProperties.width - 310, stageProperties.height - 50);
+            p.text(`Updates Per Agent Per 60 Ticks: ${agentUpdatesPer60Frames}`, stageProperties.width - 310, stageProperties.height - 20);
             p.pop();
 
             if (agentsToRender.size > 0 && simulationStarted) {
@@ -3942,7 +3943,7 @@ function layerMatches(layer1, layer2) {
 //    });
 //}
 
-// Generate a unique ID
+// Crosses over the body plan of two parents to create a child genome
 
 function bodyPlanCrossover(childGenome, domAgent, subAgent) {
 
@@ -3953,59 +3954,77 @@ function bodyPlanCrossover(childGenome, domAgent, subAgent) {
     childGenome.mainBody.size = Math.random() < 0.33 ? submissiveParentGenome.mainBody.size : dominantParentGenome.mainBody.size;
 
     // Randomly pick limbs from both parents to swap
-    dominantParentGenome.mainBody.arms.forEach((limb, index) => {
+    for (let i = 0; i < childGenome.mainBody.arms.length; i++) {
+        let randomIndex = Math.floor(childGenome.mainBody.arms.length * Math.random());
+        let limb = childGenome.mainBody.arms[randomIndex];
 
-        if (Math.random() < 0.33 && submissiveParentGenome.mainBody.arms.length > index && !stageProperties.keepAgentSymmetrical) {
+        if (Math.random() < 0.33 && !stageProperties.keepAgentSymmetrical) {
 
             let submissiveLimbIndex = Math.floor(Math.random() * submissiveParentGenome.mainBody.arms.length);
             let submissiveLimb = submissiveParentGenome.mainBody.arms[submissiveLimbIndex];
             let childFlattenedLimbs = flattenLimbStructure(childGenome.mainBody.arms);
 
+            addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped child limb chain starting from limb ID: " + limb.partID + " With limb chain starting from limb ID: " + submissiveLimb.partID);
+
             // Remove the limbs, nodes, weights, and biases associated with the dominant limb to be replaced
-            // removeLimbChain(childGenome, limb.partID, childFlattenedLimbs);
+            removeLimbChain(childGenome, limb.partID, childFlattenedLimbs);
 
             // Add the limbs, nodes, weights, and biases from the submissive limb
-            // addLimbChain(childGenome, submissiveLimb, submissiveParentGenome);
+            addLimbChain(childGenome, submissiveLimb, submissiveParentGenome, randomIndex);
 
+            updateLimbIDs(childGenome);
+            resetNeuralNetworkIDs(childGenome);
         }
-    });
+    }
 
-    updateLimbIDs(childGenome);
 
     return childGenome;
 }
 
+// Helper function to remove a limb chain from the genome
 function removeLimbChain(childGenome, limbID, flattenedLimbs) {
-
     // Find and remove the limb with the given partID
     let limbIndex = flattenedLimbs.findIndex(limb => limb.partID === limbID);
     if (limbIndex !== -1) {
         let limbToRemove = flattenedLimbs[limbIndex];
 
+        // Collect node IDs for the limb and its sub-limbs
+        let nodeIDsToRemove = collectNodeIDs(limbToRemove, childGenome);
+
         if (limbToRemove.numberInChain === 1) {
-            // Remove the limb from the main body arms.  Only need to remove the first limb, sub limbs will be removed automatically
+            // Remove the limb from the main body arms (sub-limbs will be removed automatically)
             removeLimbFromBody(childGenome.mainBody.arms, limbToRemove);
         }
 
-        // Find nodeID for the limb
-        let inputNodeId = childGenome.inputLayerGenes[0].biases[limbIndex].id;
-        let outputNodeId = childGenome.outputLayerGenes[0].biases[limbIndex].id;
-
-        // Remove associated bias and weights
-        removeNeuralNetworkElements(childGenome, inputNodeId, outputNodeId);
-
-        // Handle sub-limbs recursively
-        if (limbToRemove.subArms) {
-            limbToRemove.subArms.forEach(subLimb => {
-                removeLimbChain(childGenome, subLimb.partID, flattenedLimbs);
-            });
-        }
+        // Remove associated biases and weights using collected node IDs
+        removeNeuralNetworkElements(childGenome, nodeIDsToRemove);
     } else {
         console.log("Error: Limb with partID " + limbID + " not found in flattened limb structure");
-        console.log("Flattened Limbs: ", flattenedLimbs);
     }
 }
 
+// Helper function to collect the node IDs for a limb and its sub-limbs
+function collectNodeIDs(limb, genome) {
+    let nodeIDs = [];
+    let limbIndex = flattenLimbStructure(genome.mainBody.arms).findIndex(l => l.partID === limb.partID);
+
+    if (limbIndex !== -1) {
+        // Add node IDs for the limb
+        let inputNodeID = genome.inputLayerGenes[0].biases[limbIndex]?.id;
+        let outputNodeID = genome.outputLayerGenes[0].biases[limbIndex]?.id;
+        if (inputNodeID) nodeIDs.push(inputNodeID);
+        if (outputNodeID) nodeIDs.push(outputNodeID);
+
+        // Recursively add node IDs for sub-limbs
+        limb.subArms?.forEach(subLimb => {
+            nodeIDs = nodeIDs.concat(collectNodeIDs(subLimb, genome));
+        });
+    }
+
+    return nodeIDs;
+}
+
+// Helper function to remove a limb from the body
 function removeLimbFromBody(arms, limbToRemove) {
     for (let i = 0; i < arms.length; i++) {
         if (arms[i].partID === limbToRemove.partID) {
@@ -4019,175 +4038,105 @@ function removeLimbFromBody(arms, limbToRemove) {
     }
 }
 
-function removeNeuralNetworkElements(genome, inputNodeId, outputNodeId) {
-    // Remove bias from input layer
-    genome.inputLayerGenes[0].biases = genome.inputLayerGenes[0].biases.filter(bias => bias.id !== inputNodeId);
-    genome.inputLayerGenes[0].numberOfNeurons--;
-
-    // Remove bias from output layer
-    genome.outputLayerGenes[0].biases = genome.outputLayerGenes[0].biases.filter(bias => bias.id !== outputNodeId);
-    genome.outputLayerGenes[0].numberOfNeurons--;
-
-    // Remove weights associated with this node from the first hidden layer and output layer
-    genome.layerGenes[0].weights.forEach(weightsArray => {
-        weightsArray = weightsArray.filter(weight => weight.fromNodeID !== inputNodeId);
+// Helper function to remove neural network elements associated with the removed limb
+function removeNeuralNetworkElements(genome, nodeIDsToRemove) {
+    // Remove biases from input and output layers and adjust numberOfNeurons
+    genome.inputLayerGenes[0].biases = genome.inputLayerGenes[0].biases.filter(bias => {
+        if (nodeIDsToRemove.includes(bias.id)) {
+            genome.inputLayerGenes[0].numberOfNeurons--;
+            return false;
+        }
+        return true;
     });
 
-    genome.outputLayerGenes[0].weights.forEach(weightsArray => {
-        weightsArray = weightsArray.filter(weight => weight.toNodeID !== outputNodeId);
+    genome.outputLayerGenes[0].biases = genome.outputLayerGenes[0].biases.filter(bias => {
+        if (nodeIDsToRemove.includes(bias.id)) {
+            genome.outputLayerGenes[0].numberOfNeurons--;
+            return false;
+        }
+        return true;
     });
+
+    // Remove the entire weight array from the first hidden layer if its 'fromNodeID' is in 'nodeIDsToRemove'
+    genome.layerGenes[0].weights = genome.layerGenes[0].weights.filter(weightsArray =>
+        !nodeIDsToRemove.includes(weightsArray[0].fromNodeID)
+    );
+
+    // Remove weights associated with the collected node IDs from the output layer
+    genome.outputLayerGenes[0].weights = genome.outputLayerGenes[0].weights.map(weightsArray => 
+        weightsArray.filter(weight => !nodeIDsToRemove.includes(weight.toNodeID))
+    );
 }
 
-function addLimbChain(childGenome, submissiveLimb, submissiveParentGenome) {
-
-    // Add the limb and its sub-limbs to the child genome
-    childGenome.mainBody.arms.push(_.cloneDeep(submissiveLimb));
+// Helper function to add a limb chain to the genome
+function addLimbChain(childGenome, submissiveLimb, submissiveParentGenome, childLimbIndex) {
 
     // Update the limbIDs to ensure uniqueness
-    addChildLimbToGenome(childGenome.mainBody.arms, submissiveLimb);
+    addChildLimbToGenome(childGenome.mainBody.arms, submissiveLimb, childLimbIndex);
 
     // Add corresponding neural network elements
     addNeuralNetworkElements(childGenome, submissiveLimb, submissiveParentGenome);
 }
 
-function addChildLimbToGenome(arms, limbToAdd) {
-    //arms.push(_.cloneDeep(limbToAdd));
+// Helper function to add a limb to the genome and increment its partID and sub-limbs' partIDs
+function addChildLimbToGenome(arms, limbToAdd, childLimbIndex) {
+    // Create a deep copy of the limb to add
+    let newLimb = _.cloneDeep(limbToAdd);
 
-    // add 100 to the partID to insure uniqueness
-    let newArm = arms.find(arm => arm.partID === limbToAdd.partID);
-    newArm.partID += 100;
+    // Increment the partID of the new limb and its sub-limbs
+    incrementPartIDs(newLimb, 100);
 
-    if (newArm.subArms) {
-        newArm.subArms.forEach(subLimb => {
-            addChildLimbToGenome(newArm, subLimb);
+    // Add the updated limb to the arms array
+    arms.splice(childLimbIndex, 0, newLimb);
+}
+
+// Helper function to increment the partID of a limb and its sub-limbs
+function incrementPartIDs(limb, increment) {
+    limb.partID += increment;
+
+    // Recursively increment partID for sub-limbs
+    if (limb.subArms && limb.subArms.length > 0) {
+        limb.subArms.forEach(subLimb => {
+            incrementPartIDs(subLimb, increment);
         });
     }
 }
 
+// Helper function to add neural network elements for the new limb
 function addNeuralNetworkElements(childGenome, limbToAdd, submissiveParentGenome) {
-    // Find the limb in the submissive parent's flattened limb structure
+    // Flatten both the submissive parent's and child's limb structures
     let submissiveFlattenedLimbs = flattenLimbStructure(submissiveParentGenome.mainBody.arms);
-    let limbIndex = submissiveFlattenedLimbs.findIndex(limb => limb.partID === limbToAdd.partID);
     let newChildFlattenedLimbs = flattenLimbStructure(childGenome.mainBody.arms);
-    let limbIndexInChild = newChildFlattenedLimbs.findIndex(limb => limb.partID - 100 === limbToAdd.partID) - 1;
-    let submissiveInputNode, submissiveOutputNode;
 
-    // Add bias to input layer
-    try {
-        submissiveInputNode = submissiveParentGenome.inputLayerGenes[0].biases[limbIndex];
+    // Find the index of the limb to add in the submissive parent's flattened structure
+    let limbIndex = submissiveFlattenedLimbs.findIndex(limb => limb.partID === limbToAdd.partID);
+
+    // Find the index in the child where the limb (with updated ID) is located
+    let limbIndexInChild = newChildFlattenedLimbs.findIndex(limb => limb.partID === limbToAdd.partID + 100);
+
+    // Add corresponding biases to input and output layers at the appropriate index
+    let submissiveInputNode = submissiveParentGenome.inputLayerGenes[0].biases[limbIndex];
+    let submissiveOutputNode = submissiveParentGenome.outputLayerGenes[0].biases[limbIndex];
+
+    let newInputNodeId;
+    let newOutputNodeId;
+
+    if (limbIndexInChild !== -1) {
+        newInputNodeId = generateUniqueId(childGenome.usedBiasIDs);
+        newOutputNodeId = generateUniqueId(childGenome.usedBiasIDs);
+
         childGenome.inputLayerGenes[0].biases.splice(limbIndexInChild, 0, _.cloneDeep(submissiveInputNode));
+        childGenome.inputLayerGenes[0].biases[limbIndexInChild].id = newInputNodeId;
         childGenome.inputLayerGenes[0].numberOfNeurons++;
-        childGenome.inputLayerGenes[0].biases[limbIndexInChild].id = childGenome.inputLayerGenes[0].biases[limbIndexInChild].id + 100;
-    } catch (e) {
-        console.error("Error: ", e)
-        console.log("Error in body crossover adding input layer bias. genome: ", childGenome);
-        console.log("Limb Index: ", limbIndex);
-        console.log("LimbToAdd: ", limbToAdd);
-        console.log("limbIndexInChild: ", limbIndexInChild);
-        console.log("SubmissiveFlattenedLimbs: ", submissiveFlattenedLimbs);
-        console.log("NewChildFlattenedLimbs: ", newChildFlattenedLimbs);
-        console.log("SubmissiveParentGenome: ", submissiveParentGenome);
-        console.log("SubmissiveInputNode: ", submissiveInputNode);
-    }
 
-    // Add bias to output layer
-    try {
-        submissiveOutputNode = submissiveParentGenome.outputLayerGenes[0].biases[limbIndex];
         childGenome.outputLayerGenes[0].biases.splice(limbIndexInChild, 0, _.cloneDeep(submissiveOutputNode));
+        childGenome.outputLayerGenes[0].biases[limbIndexInChild].id = newOutputNodeId;
         childGenome.outputLayerGenes[0].numberOfNeurons++;
-        childGenome.outputLayerGenes[0].biases[limbIndexInChild].id = childGenome.outputLayerGenes[0].biases[limbIndexInChild].id + 100;
-    } catch (e) {
-        console.error("Error: " + e);
-        console.log("Error in body crossover adding output layer bias. genome: ", childGenome);
-        console.log("Limb Index: ", limbIndex);
-        console.log("LimbToAdd: ", limbToAdd);
-        console.log("limbIndexInChild: ", limbIndexInChild);
-        console.log("SubmissiveFlattenedLimbs: ", submissiveFlattenedLimbs);
-        console.log("NewChildFlattenedLimbs: ", newChildFlattenedLimbs);
-        console.log("SubmissiveParentGenome: ", submissiveParentGenome);
-        console.log("SubmissiveOutputNode: ", submissiveOutputNode);
     }
 
-    try {
-        // Add weights associated with the new input node to the first hidden layer
-        let newInputNodeId = submissiveInputNode.id;
-        let firstHiddenLayer = childGenome.layerGenes[0];
-        let submissiveWeightsArray = submissiveParentGenome.layerGenes[0].weights.find(weightArray => weightArray[0].fromNodeID === newInputNodeId);
-
-        // Clone and add the entire weight array for the new input node
-        if (submissiveWeightsArray) {
-            let clonedWeightsArray = submissiveWeightsArray.map(weight => _.cloneDeep(weight));
-            // Filter out weights that do not have a matching toNodeID in the first hidden layer of the child genome
-            clonedWeightsArray = clonedWeightsArray.filter(weight => childGenome.layerGenes[0].biases.some(bias => bias.id === weight.toNodeID));
-
-            // Update the fromNodeID for the newly added weights
-            clonedWeightsArray.forEach(weight => {
-                weight.fromNodeID = newInputNodeId + 100; // Update fromNodeID
-            });
-            firstHiddenLayer.weights.push(clonedWeightsArray);
-        }
-
-        // Adjust weights in the first hidden layer
-        let expectedToNodeIDs = firstHiddenLayer.biases.map(bias => bias.id); // Expected toNodeIDs
-
-        firstHiddenLayer.weights.forEach(weightArray => {
-            // Filter out weights that do not have a matching toNodeID in the expectedToNodeIDs
-            weightArray = weightArray.filter(weight => expectedToNodeIDs.includes(weight.toNodeID));
-
-            // Add new weights if necessary
-            expectedToNodeIDs.forEach(toNodeID => {
-                if (!weightArray.some(weight => weight.toNodeID === toNodeID)) {
-                    let newWeight = {
-                        fromNodeID: weightArray[0].fromNodeID, // Use fromNodeID of existing weights
-                        toNodeID: toNodeID,
-                        value: Math.random() // Random weight value
-                    };
-                    weightArray.push(newWeight);
-                }
-            });
-
-            // Ensure the weights array is sorted by toNodeID for consistency
-            weightArray.sort((a, b) => a.toNodeID - b.toNodeID);
-        });
-
-    } catch (e) {
-        console.error("Error: ", e);
-        console.log("Error in body crossover adding weights to first hidden layer. genome: ", childGenome);
-        console.log("Limb Index: ", limbIndex);
-        console.log("limbIndexInChild: ", limbIndexInChild);
-        console.log("SubmissiveFlattenedLimbs: ", submissiveFlattenedLimbs);
-        console.log("NewChildFlattenedLimbs: ", newChildFlattenedLimbs);
-        console.log("SubmissiveParentGenome: ", submissiveParentGenome);
-        console.log("SubmissiveInputNode: ", submissiveInputNode);
-    }
-
-    try {
-        // Add weights associated with the new output node in the output layer
-        let newOutputNodeId = submissiveOutputNode.id;
-        let outputLayer = childGenome.outputLayerGenes[0];
-
-        // Iterate over each weight array in the output layer of the child genome
-        for (let i = 0; i < submissiveParentGenome.outputLayerGenes[0].weights.length; i++) {
-            let submissiveWeightArray = submissiveParentGenome.outputLayerGenes[0].weights[i];
-            let weightToAdd = submissiveWeightArray.find(weight => weight.toNodeID === newOutputNodeId);
-
-            if (weightToAdd) {
-                // Clone and update the toNodeID of the weight before adding it
-                let clonedWeight = _.cloneDeep(weightToAdd);
-                clonedWeight.toNodeID = newOutputNodeId + 100; // Update toNodeID
-                outputLayer.weights[i].push(clonedWeight);
-            }
-        }
-    } catch (e) {
-        console.error("Error: ", e);
-        console.log("Error in body crossover adding weights to output layer. genome: ", childGenome);
-        console.log("Limb Index: ", limbIndex);
-        console.log("limbIndexInChild: ", limbIndexInChild);
-        console.log("SubmissiveFlattenedLimbs: ", submissiveFlattenedLimbs);
-        console.log("NewChildFlattenedLimbs: ", newChildFlattenedLimbs);
-        console.log("SubmissiveParentGenome: ", submissiveParentGenome);
-        console.log("SubmissiveOutputNode: ", submissiveOutputNode);
-    }
+    // Add weights associated with the new nodes
+    addWeightsForNewNode(childGenome, submissiveParentGenome, submissiveInputNode.id, newInputNodeId, limbIndexInChild, true); // true for input layer
+    addWeightsForNewNode(childGenome, submissiveParentGenome, submissiveOutputNode.id, newOutputNodeId, limbIndexInChild, false); // false for output layer
 
     // Handle sub-limbs recursively
     if (limbToAdd.subArms) {
@@ -4197,13 +4146,118 @@ function addNeuralNetworkElements(childGenome, limbToAdd, submissiveParentGenome
     }
 }
 
+// Helper function to add weights for the new node
+function addWeightsForNewNode(childGenome, parentGenome, oldNodeId, newNodeId, limbIndexInChild, isInputLayer) {
+    try {
+        let parentLayer = isInputLayer ? parentGenome.layerGenes[0] : parentGenome.outputLayerGenes[0];
+        let childLayer = isInputLayer ? childGenome.layerGenes[0] : childGenome.outputLayerGenes[0];
+
+        // Prepare a list of existing node IDs for the layer
+        let existingNodeIds = isInputLayer ? childGenome.layerGenes[0].biases.map(bias => bias.id)
+            : childGenome.layerGenes[childGenome.layerGenes.length - 1].biases.map(bias => bias.id);
+
+        if (isInputLayer) {
+            let weightsToAdd = parentLayer.weights.filter(weightArray => weightArray.some(weight => weight.fromNodeID === oldNodeId));
+            if (weightsToAdd.length > 0) {
+                let clonedWeights = weightsToAdd.map(weightArray =>
+                    weightArray.map(weight => ({
+                        ...weight,
+                        fromNodeID: newNodeId,
+                        toNodeID: existingNodeIds[weightArray.indexOf(weight)]
+                    }))
+                );
+                let weightsToAddAdjusted = adjustWeightsLength(clonedWeights.flat(), existingNodeIds, true);
+                childLayer.weights.splice(limbIndexInChild, 0, weightsToAddAdjusted);
+            } else {
+                console.log("Parent Layer: ", parentLayer);
+                throw new Error("Error: Weights to add not found for input layer");
+            }
+        } else { // Output layer
+            let weightsToAdd = [];
+            parentLayer.weights.forEach((weightArray, idx) => {
+                let weight = weightArray.find(weight => weight.toNodeID === oldNodeId);
+                if (weight) {
+                    weightsToAdd.push({ ...weight, toNodeID: newNodeId, fromNodeID: existingNodeIds[idx] });
+                }
+            });
+
+            let weightsToAddAdjusted = adjustWeightsLength(weightsToAdd, existingNodeIds, false);
+
+            try {
+                childLayer.weights.forEach((weightArray, index) => {
+                    weight = weightsToAddAdjusted[index];
+                    weightArray.splice(limbIndexInChild, 0, weight);
+                });
+            } catch (e) {
+                console.log("Child Layer: ", childLayer);
+                console.log("Parent Layer: ", parentLayer);
+                console.log("weightsToAdd: ", weightsToAdd);
+                console.log("weightsToAddAdjusted: ", weightsToAddAdjusted);
+                throw e;
+            }
+        }
+    } catch (e) {
+        console.error("Error in addWeightsForNewNode: ", e);
+        console.log("Child Genome: ", childGenome);
+        console.log("Parent Genome: ", parentGenome);
+        console.log("Old Node ID: ", oldNodeId);
+        console.log("New Node ID: ", newNodeId);
+        console.log("Limb Index in Child: ", limbIndexInChild);
+        console.log("Is Input Layer: ", isInputLayer);
+    }
+}
+
+// Helper function to correct the length of weights array
+function adjustWeightsLength(weightsArray, existingNodeIds, isInputScenario) {
+
+    let filteredWeightsArray;
+
+    // Filter out extra weights
+    if (isInputScenario) {
+        filteredWeightsArray = weightsArray.filter(weight => existingNodeIds.includes(weight.toNodeID));
+    } else {
+        filteredWeightsArray = weightsArray.filter(weight => existingNodeIds.includes(weight.fromNodeID));
+    }
+
+    try {
+        // Add new weights to match target length
+        while (filteredWeightsArray.length < existingNodeIds.length) {
+            if (isInputScenario) {
+                let toNodeID = existingNodeIds.find(id => !filteredWeightsArray.some(weight => weight.toNodeID === id));
+                filteredWeightsArray.push({
+                    fromNodeID: filteredWeightsArray[0].fromNodeID,
+                    toNodeID: toNodeID,
+                    value: Math.random()
+                });
+            } else {
+                let fromNodeID = existingNodeIds.find(id => !filteredWeightsArray.some(weight => weight.fromNodeID === id));
+                filteredWeightsArray.push({
+                    fromNodeID: fromNodeID,
+                    toNodeID: filteredWeightsArray[0].toNodeID,
+                    value: Math.random()
+                });
+            }
+        }
+
+        return filteredWeightsArray;
+    } catch (e) {
+        console.error("Error in adjustWeightsLength: ", e);
+        console.log("Weights Array: ", weightsArray);
+        console.log("Filtered Weights Array: ", filteredWeightsArray);
+        console.log("Existing Node IDs: ", existingNodeIds);
+
+        return weightsArray;
+    }
+}
+
+
 function updateMutationRates(genome) {
     let hyperparams = genome.hyperparameters;
     let initialRates = { ...hyperparams }; // Store initial rates for comparison
     let changes = []; // Array to store changes for logging
 
-    // Helper function to round mutation rates
-    const roundRate = (rate) => Number(rate.toFixed(5));
+    // Helper function to round mutation rates and clamp between 0 and 0.5
+    const roundRate = (rate) => Math.min(0.5, Math.max(0, rate.toFixed(5)));
 
     // Adjust mutation rates based on different criteria
     hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.05 : hyperparams.limbMutationRate * 0.95);
@@ -4228,37 +4282,41 @@ function updateMutationRates(genome) {
 }
 
 // Function to find the average body plan of the group to update the body mutation rate
-function getAverageBody(agents) {
+function getAverageBody(groupAgentsForAverage) {
     let mainBodySize = [];
     let totalLimbs = 0;
     let totalLimbSize = 0;
+    let totalLimbDepth = 0;
 
-    agents.forEach(agent => {
+    groupAgentsForAverage.forEach(agent => {
         mainBodySize.push(agent.genome.mainBody.size);
 
         let flattenedLimbs = flattenLimbStructure(agent.genome.mainBody.arms);
         totalLimbs += flattenedLimbs.length;
         flattenedLimbs.forEach(limb => {
             totalLimbSize += limb.width * limb.length;
+            totalLimbDepth += limb.numberInChain;
         });
     });
 
-    let groupIndex = agents[0].genome.metadata.agentGroup;
+    let groupIndex = groupAgentsForAverage[0].genome.metadata.agentGroup;
     averageGroupBody[groupIndex] = {
         mainBodySize: mainBodySize.reduce((acc, size) => acc + size, 0) / mainBodySize.length,
-        averageNumberOfLimbs: totalLimbs / agents.length,
-        averageLimbSize: totalLimbSize / totalLimbs
+        averageNumberOfLimbs: totalLimbs / groupAgentsForAverage.length,
+        averageLimbSize: totalLimbSize / totalLimbs,
+        averageLimbDepth: totalLimbDepth / totalLimbs
     };
 }
 
+
 // Function to find the average brain of the group to update the brain mutation rate.
-function getAverageBrain(agents) {
+function getAverageBrain(groupAgentsForAverage) {
     let totalBrainNodes = 0;
     let totalBrainLayers = 0;
     let totalWeights = [];
     let totalBiases = [];
 
-    agents.forEach(agent => {
+    groupAgentsForAverage.forEach(agent => {
         let brainNodes = agent.genome.inputLayerGenes[0].numberOfNeurons + agent.genome.outputLayerGenes[0].numberOfNeurons;
         agent.genome.layerGenes.forEach(layer => {
             brainNodes += layer.numberOfNeurons;
@@ -4278,9 +4336,9 @@ function getAverageBrain(agents) {
         totalBrainNodes += brainNodes;
     });
 
-    let groupIndex = agents[0].genome.metadata.agentGroup;
-    averageGroupBrainLayers[groupIndex] = totalBrainLayers / agents.length;
-    averageGroupBrainNodes[groupIndex] = totalBrainNodes / agents.length;
+    let groupIndex = groupAgentsForAverage[0].genome.metadata.agentGroup;
+    averageGroupBrainLayers[groupIndex] = totalBrainLayers / groupAgentsForAverage.length;
+    averageGroupBrainNodes[groupIndex] = totalBrainNodes / groupAgentsForAverage.length;
 
     // Calculate average weights and biases
     let averageWeight = totalWeights.reduce((acc, val) => acc + val, 0) / totalWeights.length;
@@ -4299,9 +4357,9 @@ function getAverageBrain(agents) {
 }
 
 // Calculate the average score of the group to update the mutation rate
-function getAverageScore(agents) {
-    let groupIndex = agents[0].genome.metadata.agentGroup;
-    averageGroupScores[groupIndex] = agents.reduce((acc, agent) => acc + agent.Score, 0) / agents.length;
+function getAverageScore(groupAgentsForAverage) {
+    let groupIndex = groupAgentsForAverage[0].genome.metadata.agentGroup;
+    averageGroupScores[groupIndex] = groupAgentsForAverage.reduce((acc, agent) => acc + agent.Score, 0) / groupAgentsForAverage.length;
 }
 
 
@@ -4312,29 +4370,31 @@ function isBodySimilarToOthers(genome) {
     let flattenedLimbs = flattenLimbStructure(genome.mainBody.arms);
     let numberOfLimbs = flattenedLimbs.length;
     let totalLimbSize = flattenedLimbs.reduce((acc, limb) => acc + limb.width * limb.length, 0);
+    let totalLimbDepth = flattenedLimbs.reduce((acc, limb) => acc + limb.numberInChain, 0);
+
     let averageLimbSize = numberOfLimbs > 0 ? totalLimbSize / numberOfLimbs : 0;
+    let averageLimbDepth = numberOfLimbs > 0 ? totalLimbDepth / numberOfLimbs : 0;
 
     // Define similarity thresholds
-    const sizeThreshold = 0.1; // 10% similarity threshold for main body size
-    const limbCountThreshold = 1; // 1 limb difference threshold
-    const limbSizeThreshold = 0.1; // 10% similarity threshold for limb size
+    const sizeThreshold = 0.1;
+    const limbCountThreshold = 0.5;
+    const limbSizeThreshold = 0.1;
+    const limbDepthThreshold = 0.5;
 
-    let isMainBodySizeSimilar, isLimbCountSimilar, isLimbSizeSimilar;
+    let isMainBodySizeSimilar, isLimbCountSimilar, isLimbSizeSimilar, isLimbAngleSimilar, isLimbDepthSimilar;
     try {
-        // Check if the genome's body plan is within the similarity thresholds
         isMainBodySizeSimilar = Math.abs(genome.mainBody.size - averageBody.mainBodySize) / averageBody.mainBodySize <= sizeThreshold;
         isLimbCountSimilar = Math.abs(numberOfLimbs - averageBody.averageNumberOfLimbs) <= limbCountThreshold;
         isLimbSizeSimilar = averageLimbSize > 0 && Math.abs(averageLimbSize - averageBody.averageLimbSize) / averageBody.averageLimbSize <= limbSizeThreshold;
+        isLimbDepthSimilar = Math.abs(averageLimbDepth - averageBody.averageLimbDepth) <= limbDepthThreshold;
     } catch (e) {
         console.log("Error in body similarity check. genome: ", genome);
-        console.log("Average Body: ", averageBody);
-        console.log("Flattened Limbs: ", flattenedLimbs);
-        console.log("Number of Limbs: ", numberOfLimbs);
-        console.log("Total Limb Size: ", totalLimbSize);
-        console.log("Average Limb Size: ", averageLimbSize);
+        // Additional logging here
     }
-    return isMainBodySizeSimilar && isLimbCountSimilar && isLimbSizeSimilar;
+
+    return isMainBodySizeSimilar && isLimbCountSimilar && isLimbSizeSimilar && isLimbAngleSimilar && isLimbDepthSimilar;
 }
+
 
 function isBrainSimilarToOthers(genome) {
     const group = genome.metadata.agentGroup;
@@ -4363,7 +4423,7 @@ function isBrainSimilarToOthers(genome) {
         });
 
         const averageDeviation = totalDeviation / count;
-        return averageDeviation < (average.averageWeightDeviation + average.averageBiasDeviation) / 2;
+        return averageDeviation < (average.averageWeightDeviation + average.averageBiasDeviation) / 3;
     } catch (e) {
         console.log("Error in brain similarity check. genome: ", genome);
         console.log("Group: ", group);
@@ -4381,7 +4441,7 @@ function isBrainLayersSimilarToOthers(genome) {
     const agentLayers = genome.layerGenes.length;
 
     // Check if the number of layers in the agent's brain is close to the group average
-    return Math.abs(agentLayers - averageLayers) <= 1;  // Assuming a tolerance of 1 layer
+    return Math.abs(agentLayers - averageLayers) <= 0.5;
 }
 
 
@@ -4395,7 +4455,7 @@ function isBrainNodesSimilarToOthers(genome) {
     });
 
     // Check if the number of nodes in the agent's brain is close to the group average
-    return Math.abs(agentNodes - averageNodes) <= 10;  // Assuming a tolerance of 10 nodes
+    return Math.abs(agentNodes - averageNodes) <= 1;  // Assuming a tolerance of 10 nodes
 }
 
 
@@ -4414,11 +4474,11 @@ function isScoreCloseToAverage(genome) {
 
 // Function to update the migration rate based on group differences
 function adjustMigrationRateBasedOnGroupDifferences() {
-    let numberOfGroups = stageProperties.numberOfGroups;
-    if (numberOfGroups <= 1) return; // No adjustment needed for a single group
 
-    let similarityThreshold = 1; // Define a threshold for similarity
-    let divergenceThreshold = 25; // Define a threshold for divergence
+    if (numGroups <= 1) return; // No adjustment needed for a single group
+
+    let similarityThreshold = 10;
+    let divergenceThreshold = 25;
 
     // Calculate average differences between groups
     let differences = calculateGroupDifferences();
@@ -4447,8 +4507,8 @@ function adjustMigrationRateBasedOnGroupDifferences() {
 // Helper function to calculate differences between groups
 function calculateGroupDifferences() {
     let differences = [];
-    for (let i = 0; i < averageGroupScores.length - 1; i++) {
-        for (let j = i + 1; j < averageGroupScores.length; j++) {
+    for (let i = 0; i < numGroups - 1; i++) {
+        for (let j = i + 1; j < numGroups; j++) {
             let diffScore = Math.abs(averageGroupScores[i] - averageGroupScores[j]);
             let diffBrain = Math.abs(averageGroupBrainNodes[i] - averageGroupBrainNodes[j]);
             let diffBody = Math.abs(averageGroupBody[i].averageNumberOfLimbs - averageGroupBody[j].averageNumberOfLimbs);
@@ -4966,50 +5026,72 @@ function resetNeuralNetworkIDs(genome) {
         }
     }
 
-    // Process for input layer
-    genome.inputLayerGenes[0].biases.forEach(bias => {
-        idMapping[bias.id] = currentID;
-        if (bias.id !== currentID) {
-            logIdRemapping(bias.id, currentID);
-        }
-        bias.id = currentID++;
-    });
+    try {
 
-    // Process for hidden layers
-    genome.layerGenes.forEach(layer => {
-        layer.biases.forEach(bias => {
-            idMapping[bias.id] = currentID;
-            if (bias.id !== currentID) {
-                logIdRemapping(bias.id, currentID);
-            }
-            bias.id = currentID++;
-        });
-
-        layer.weights.forEach(weightRow => {
-            weightRow.forEach(weight => {
-                weight.fromNodeID = idMapping[weight.fromNodeID];
-                weight.toNodeID = idMapping[weight.toNodeID];
+        try {
+            // Process for input layer
+            genome.inputLayerGenes[0].biases.forEach(bias => {
+                idMapping[bias.id] = currentID;
+                if (bias.id !== currentID) {
+                    logIdRemapping(bias.id, currentID);
+                }
+                bias.id = currentID++;
             });
-        });
-    });
-
-    // Process for output layer
-    let outputLayer = genome.outputLayerGenes[0];
-    outputLayer.biases.forEach(bias => {
-        idMapping[bias.id] = currentID;
-        if (bias.id !== currentID) {
-            logIdRemapping(bias.id, currentID);
+        } catch (e) {
+            console.log("Error updating input layer.  Current ID: ", currentID);
+            throw e;
         }
-        bias.id = currentID++;
-    });
 
-    // Update fromNodeID for the weights in the output layer
-    outputLayer.weights.forEach(weightRow => {
-        weightRow.forEach(weight => {
-            weight.fromNodeID = idMapping[weight.fromNodeID];
-            weight.toNodeID = idMapping[weight.toNodeID];
-        });
-    });
+        try {
+            // Process for hidden layers
+            genome.layerGenes.forEach(layer => {
+                layer.biases.forEach(bias => {
+                    idMapping[bias.id] = currentID;
+                    if (bias.id !== currentID) {
+                        logIdRemapping(bias.id, currentID);
+                    }
+                    bias.id = currentID++;
+                });
+
+                layer.weights.forEach(weightRow => {
+                    weightRow.forEach(weight => {
+                        weight.fromNodeID = idMapping[weight.fromNodeID];
+                        weight.toNodeID = idMapping[weight.toNodeID];
+                    });
+                });
+            });
+        } catch (e) {
+            console.log("Error updating weights in hidden layers.  Current ID: ", currentID);
+            throw e;
+        }
+
+        try {
+            // Process for output layer
+            let outputLayer = genome.outputLayerGenes[0];
+            outputLayer.biases.forEach(bias => {
+                idMapping[bias.id] = currentID;
+                if (bias.id !== currentID) {
+                    logIdRemapping(bias.id, currentID);
+                }
+                bias.id = currentID++;
+            });
+
+            // Update fromNodeID for the weights in the output layer
+            outputLayer.weights.forEach(weightRow => {
+                weightRow.forEach(weight => {
+                    weight.fromNodeID = idMapping[weight.fromNodeID];
+                    weight.toNodeID = idMapping[weight.toNodeID];
+                });
+            });
+        } catch (e) {
+            console.log("Error updating weights in output layer.   Current ID: ", currentID);
+            throw e;
+        }
+
+    } catch (e) {
+        console.log("Genome: ", genome);
+        console.error("Error resetting neural network IDs.  Error: ", e);
+    }
 }
 
 
@@ -5059,10 +5141,10 @@ function addMutationWithHistoryLimit(mutationArray, mutationRecord) {
     }
 
     // Add the new mutation record
-    mutationArray.push(mutationRecord);
+    mutationArray.push(mutationRecord + " Gen Count: " + stageProperties.genCount);
 
     // Trim the mutations history to the last x records if it's longer
-    while (mutationArray.length > 25) {
+    while (mutationArray.length > 50) {
         mutationArray.shift(); // Remove the oldest record
     }
 
