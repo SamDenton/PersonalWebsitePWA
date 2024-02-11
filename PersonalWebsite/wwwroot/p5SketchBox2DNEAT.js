@@ -4154,7 +4154,7 @@ function updateMutationRates(genome) {
 
     // Adjust mutation rates based on different criteria
     hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.01 : hyperparams.limbMutationRate * 0.99);
-    hyperparams.mutationRate = roundRate(isBrainSimilarToOthers(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
+    // hyperparams.mutationRate = roundRate(isBrainSimilarToOthers(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
     hyperparams.layerMutationRate = roundRate(isBrainLayersSimilarToOthers(genome) ? hyperparams.layerMutationRate * 1.01 : hyperparams.layerMutationRate * 0.99);
     hyperparams.nodeMutationRate = roundRate(isBrainNodesSimilarToOthers(genome) ? hyperparams.nodeMutationRate * 1.01 : hyperparams.nodeMutationRate * 0.99);
     hyperparams.mutationRate = roundRate(isScoreCloseToAverage(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
@@ -4362,7 +4362,7 @@ function adjustMigrationRateBasedOnGroupDifferences() {
 
     if (numGroups <= 1) return; // No adjustment needed for a single group
 
-    let similarityThreshold = 10;
+    let similarityThreshold = 15;
     let divergenceThreshold = 25;
 
     // Calculate average differences between groups
@@ -4378,14 +4378,14 @@ function adjustMigrationRateBasedOnGroupDifferences() {
     if (areGroupsSimilar && stageProperties.migrationRate > 1 && differences.length > 0) {
         stageProperties.migrationRate -= 1; // Decrease by a small amount
         console.log("Migration rate decreased to ", stageProperties.migrationRate);
-        console.log("Differences: ", differences);
+        console.log("Average differences: ", differences.reduce((acc, diff) => acc + diff, 0) / differences.length);
     } else if (areGroupsDivergent && stageProperties.migrationRate < 10 && differences.length > 0) {
         stageProperties.migrationRate += 1; // Increase by a small amount
         console.log("Migration rate increased to ", stageProperties.migrationRate);
-        console.log("Differences: ", differences);
+        console.log("Average differences: ", differences.reduce((acc, diff) => acc + diff, 0) / differences.length);
     } else {
         console.log("Migration rate unchanged at ", stageProperties.migrationRate);
-        console.log("Differences: ", differences);
+        console.log("Average differences: ", differences.reduce((acc, diff) => acc + diff, 0) / differences.length);
     }
 }
 
@@ -4395,7 +4395,7 @@ function calculateGroupDifferences() {
     for (let i = 0; i < numGroups - 1; i++) {
         for (let j = i + 1; j < numGroups; j++) {
             let diffScore = Math.abs(averageGroupScores[i] - averageGroupScores[j]);
-            let diffBrain = Math.abs(averageGroupBrainNodes[i] - averageGroupBrainNodes[j]);
+            let diffBrain = Math.abs(averageGroupBrainLayers[i] - averageGroupBrainLayers[j]);
             let diffBody = Math.abs(averageGroupBody[i].averageNumberOfLimbs - averageGroupBody[j].averageNumberOfLimbs);
             let totalDiff = (diffScore + diffBrain + diffBody) / 3; // Average difference across score, brain, and body
             differences.push(totalDiff);
