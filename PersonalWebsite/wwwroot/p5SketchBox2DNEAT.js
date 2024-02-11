@@ -593,12 +593,16 @@ let sketchNEAT = function (p) {
                     p.text(`Showing Trailing Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[trailingAgent.genome.metadata.agentGroup]);
-                    trailingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40);
+                    tf.tidy(() => {
+                        trailingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40);
+                    });
                 } else {
                     p.text(`Showing Leading Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]);
-                    leadingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40);
+                    tf.tidy(() => {
+                        leadingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40);
+                    });
                 }
                 p.pop();
             }
@@ -3427,9 +3431,9 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     }
 
     // Crossover the body plan
-    childGenome = bodyPlanCrossover(childGenome, dominantParent, submissiveParent);
+    childGenome = bodyPlanCrossover(childGenome, submissiveParent);
 
-    // Update the mutation rates of agents based on similarity to the average agent.
+    // Update the mutation rates of agents based on similarity to the average agent.  Need to think about when this is called, as the average are calculated before crossover.
     if (stageProperties.dynamicMutationRate) {
         childGenome.hyperparameters = updateMutationRates(childGenome);
     }
@@ -3812,174 +3816,43 @@ function layerMatches(layer1, layer2) {
     return layer1.biases.length === layer2.biases.length && layer1.biases[0].id === layer2.biases[0].id;
 }
 
-// Crossover function for the agents body plan.
-//function bodyPlanCrossover(childGenome, agent1, agent2) {
-
-//    // Determine which parent is dominant based on score
-//    const isParent1Dominant = agent1.Score > agent2.Score;
-//    const dominantParent = isParent1Dominant ? agent1 : agent2;
-//    const submissiveParent = isParent1Dominant ? agent2 : agent1;
-
-//    let dominantParentGenome = dominantParent.genome;
-//    let submissiveParentGenome = submissiveParent.genome;
-
-//    // Randomly select the main body size from one of the parents
-//    childGenome.mainBody.size = Math.random() < 0.5 ? dominantParentGenome.mainBody.size : submissiveParentGenome.mainBody.size;
-
-//    // Could maybe use a similar method to removing limbs, where I flatten the arms array, filter out limbs with no sub limbs, then pick some of those to swap.
-
-//    // Check for each limb in the child genome whether to keep it or swap it
-//    // Currently just checking main limbs not sub limbs, and have added a check to make sure the number of sublimbs is the same in both parents limb to swap.
-//    //childGenome.mainBody.arms.forEach((limb, idx) => {
-//    //    // If there's a corresponding limb in both parents, decide whether to swap
-//    //    // For now, check that the number of limbs in the child genome is the same as the number of limbs in the submissive parent genome
-//    //    // I will want to develop a more robust way to swap limbs when the total number differs.  Will just mean adjusting the 'number of neurons' in the input layer.
-//    //    if (Math.random() < 0.1 && dominantParentGenome.mainBody.arms[idx] && submissiveParentGenome.mainBody.arms[idx] && childGenome.inputLayerGenes.numberOfNeurons == submissiveParentGenome.inputLayerGenes.numberOfNeurons) {
-//    //        childGenome.mainBody.arms[idx] = _.cloneDeep(submissiveParentGenome.mainBody.arms[idx]);
-//    //        childGenome.agentHistory.mutations.push("type: limb, mutation: swap from parent: " + submissiveParentGenome.metadata.agentName + " With index: " + idx);
-//    //    }
-//    //});
-
-//    //updateLimbIDs(childGenome);
-
-//    return childGenome;
-//}
-
-//function bodyPlanCrossover(childGenome, agent1, agent2) {
-//    // Determine dominant and submissive parents based on score
-//    const isParent1Dominant = agent1.Score > agent2.Score;
-//    const dominantParent = isParent1Dominant ? agent1 : agent2;
-//    const submissiveParent = isParent1Dominant ? agent2 : agent1;
-
-//    let dominantParentGenome = dominantParent.genome;
-//    let submissiveParentGenome = submissiveParent.genome;
-
-//    // Randomly select the main body size from one of the parents
-//    childGenome.mainBody.size = Math.random() < 0.5 ? dominantParentGenome.mainBody.size : submissiveParentGenome.mainBody.size;
-
-//    // Flatten limb structures of both parents
-//    // let dominantFlattenedLimbs = flattenLimbStructure(dominantParentGenome.mainBody.arms);
-//    // let submissiveFlattenedLimbs = flattenLimbStructure(submissiveParentGenome.mainBody.arms);
-
-//    // Randomly pick limbs from both parents to swap
-//    dominantParentGenome.mainBody.arms.forEach((limb, index) => {
-//        if (Math.random() < 0.5 && submissiveParentGenome.mainBody.arms.length > index && !stageProperties.keepAgentSymmetrical) {
-//            // Pick a random limb from submissive parent
-//            let randomSubmissiveIndex = Math.floor(Math.random() * submissiveParentGenome.mainBody.arms.length);
-//            // Swap the limb along with its sub-limbs
-//            childGenome.mainBody.arms[index] = _.cloneDeep(submissiveParentGenome.mainBody.arms[randomSubmissiveIndex]);
-
-//            let dominantLimbToSwapID = dominantParentGenome.mainBody.arms[index].partID;
-//            let submissiveLimbToSwapID = submissiveParentGenome.mainBody.arms[randomSubmissiveIndex].partID;
-
-//            // Corresponding changes in neural network
-//            swapNeuralNetworkNodes(childGenome, dominantParentGenome, submissiveParentGenome, dominantLimbToSwapID, submissiveLimbToSwapID);
-//        }
-//    });
-
-//    updateLimbIDs(childGenome);
-
-//    return childGenome;
-//}
-
-//function swapNeuralNetworkNodes(childGenome, dominantParentGenome, submissiveParentGenome, dominantLimbNodeID, submissiveLimbNodeID) {
-
-//    // Flatten limb structures of both parents
-//    let dominantFlattenedLimbs = flattenLimbStructure(dominantParentGenome.mainBody.arms);
-//    let submissiveFlattenedLimbs = flattenLimbStructure(submissiveParentGenome.mainBody.arms);
-
-//    let dominantIndex = dominantFlattenedLimbs.findIndex(limb => limb.partID === dominantLimbNodeID);
-//    let submissiveIndex = submissiveFlattenedLimbs.findIndex(limb => limb.partID === submissiveLimbNodeID);
-
-//    // Swap input layer node
-//    let inputLayer = childGenome.inputLayerGenes[0];
-//    let dominantInputNode = inputLayer.biases[dominantIndex];
-//    let submissiveInputNode = submissiveParentGenome.inputLayerGenes[0].biases[submissiveIndex];
-
-//    if (dominantInputNode && submissiveInputNode) {
-//        dominantInputNode.value = submissiveInputNode.value;
-//    } else if (dominantInputNode) {
-//        console.log("Error finding input layer node in submissive parent.  Index : " + submissiveIndex + "Limb ID: " + submissiveLimbNodeID + " Node ID: " + submissiveInputNode.id);
-//    } else if (submissiveInputNode) {
-//        console.log("Error finding input layer node in dominant parent.  Index : " + dominantIndex + "Limb ID: " + dominantLimbNodeID + " Node ID: "+ dominantInputNode.id);
-//    }
-
-//    // Swap output layer node
-//    let outputLayer = childGenome.outputLayerGenes[0];
-//    let dominantOutputNode = outputLayer.biases[dominantIndex];
-//    let submissiveOutputNode = submissiveParentGenome.outputLayerGenes[0].biases[submissiveIndex];
-
-//    if (dominantOutputNode && submissiveOutputNode) {
-//        dominantOutputNode.value = submissiveOutputNode.value;
-//    } else if (dominantOutputNode) {
-//        console.log("Error finding output layer node in submissive parent.  Index : " + submissiveIndex + "Limb ID: " + submissiveLimbNodeID + " Node ID: " + submissiveInputNode.id);
-//    } else if (submissiveOutputNode) {
-//        console.log("Error finding output layer node in dominant parent.  Index : " + dominantIndex + "Limb ID: " + dominantLimbNodeID + " Node ID: " + dominantInputNode.id);
-//    }
-
-//    // Swap weights in the first hidden layer and output layer
-//    let firstHiddenLayer = childGenome.layerGenes[0];
-//    firstHiddenLayer.weights.forEach(weightArray => {
-//        weightArray.forEach(weight => {
-//            if (weight.fromNodeID === dominantInputNode.id) {
-//                let submissiveWeight = submissiveParentGenome.layerGenes[0].weights.find(subWeight => subWeight.fromNodeID === submissiveInputNode.id);
-//                if (submissiveWeight) {
-//                    weight.value = submissiveWeight.value;
-//                }
-//            }
-//        });
-//    });
-
-//    let outputLayerNodes = childGenome.outputLayerGenes[0];
-//    outputLayerNodes.weights.forEach(weightArray => {
-//        weightArray.forEach(weight => {
-//            if (weight.toNodeID === dominantOutputNode.id) {
-//                let submissiveWeight = submissiveParentGenome.outputLayerGenes[0].weights.find(subWeight => subWeight.toNodeID === submissiveOutputNode.id);
-//                if (submissiveWeight) {
-//                    weight.value = submissiveWeight.value;
-//                }
-//            }
-//        });
-//    });
-//}
-
 // Crosses over the body plan of two parents to create a child genome
 
-function bodyPlanCrossover(childGenome, domAgent, subAgent) {
-
-    let dominantParentGenome = domAgent.genome;
+function bodyPlanCrossover(childGenome, subAgent) {
     let submissiveParentGenome = subAgent.genome;
 
     // Randomly select the main body size from one of the parents
-    childGenome.mainBody.size = Math.random() < 0.33 ? submissiveParentGenome.mainBody.size : dominantParentGenome.mainBody.size;
+    childGenome.mainBody.size = Math.random() < 0.33 ? submissiveParentGenome.mainBody.size : childGenome.mainBody.size;
 
     // Randomly pick limbs from both parents to swap
     for (let i = 0; i < childGenome.mainBody.arms.length; i++) {
-        let randomIndex = Math.floor(childGenome.mainBody.arms.length * Math.random());
-        let limb = childGenome.mainBody.arms[randomIndex];
+        let limb = childGenome.mainBody.arms[i];
 
-        if (Math.random() < 0.33 && !stageProperties.keepAgentSymmetrical) {
+        if (Math.random() < 0.25 && !stageProperties.keepAgentSymmetrical && submissiveParentGenome.mainBody.arms[i]) {
+            // Find a limb in the submissive parent that is closest in starting angle to the limb in the child
+            // let closestLimb = findClosestLimbForWeights(submissiveParentGenome.mainBody.arms, limb.startingAngle);
 
-            let submissiveLimbIndex = Math.floor(Math.random() * submissiveParentGenome.mainBody.arms.length);
-            let submissiveLimb = submissiveParentGenome.mainBody.arms[submissiveLimbIndex];
+            // That was causing a bug where the same limb was being selected multiple times, so I'm just going to pick the limb at the same index for now.
+            let subLimb = submissiveParentGenome.mainBody.arms[i];
+
             let childFlattenedLimbs = flattenLimbStructure(childGenome.mainBody.arms);
 
-            addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped child limb chain starting from limb ID: " + limb.partID + " With limb chain starting from limb ID: " + submissiveLimb.partID);
+            addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped child limb chain starting from limb ID: " + limb.partID + " With closest limb chain starting from limb ID: " + subLimb.partID);
 
             // Remove the limbs, nodes, weights, and biases associated with the dominant limb to be replaced
             removeLimbChain(childGenome, limb.partID, childFlattenedLimbs);
 
-            // Add the limbs, nodes, weights, and biases from the submissive limb
-            addLimbChain(childGenome, submissiveLimb, submissiveParentGenome, randomIndex);
+            // Add the limbs, nodes, weights, and biases from the closest limb in the submissive parent
+            addLimbChain(childGenome, subLimb, submissiveParentGenome, i);
 
             updateLimbIDs(childGenome);
             resetNeuralNetworkIDs(childGenome);
         }
     }
 
-
     return childGenome;
 }
+
 
 // Helper function to remove a limb chain from the genome
 function removeLimbChain(childGenome, limbID, flattenedLimbs) {
@@ -3988,8 +3861,10 @@ function removeLimbChain(childGenome, limbID, flattenedLimbs) {
     if (limbIndex !== -1) {
         let limbToRemove = flattenedLimbs[limbIndex];
 
+        let nodeIDsToRemove = [];
+
         // Collect node IDs for the limb and its sub-limbs
-        let nodeIDsToRemove = collectNodeIDs(limbToRemove, childGenome);
+        nodeIDsToRemove = collectNodeIDs(limbToRemove, childGenome, flattenedLimbs, nodeIDsToRemove);
 
         if (limbToRemove.numberInChain === 1) {
             // Remove the limb from the main body arms (sub-limbs will be removed automatically)
@@ -4004,21 +3879,34 @@ function removeLimbChain(childGenome, limbID, flattenedLimbs) {
 }
 
 // Helper function to collect the node IDs for a limb and its sub-limbs
-function collectNodeIDs(limb, genome) {
-    let nodeIDs = [];
-    let limbIndex = flattenLimbStructure(genome.mainBody.arms).findIndex(l => l.partID === limb.partID);
+function collectNodeIDs(limb, genome, flattenedLimbs, nodeIDs) {
+    let limbIndex = flattenedLimbs.findIndex(l => l.partID === limb.partID);
 
     if (limbIndex !== -1) {
         // Add node IDs for the limb
-        let inputNodeID = genome.inputLayerGenes[0].biases[limbIndex]?.id;
-        let outputNodeID = genome.outputLayerGenes[0].biases[limbIndex]?.id;
-        if (inputNodeID) nodeIDs.push(inputNodeID);
-        if (outputNodeID) nodeIDs.push(outputNodeID);
+        let inputNodeID = genome.inputLayerGenes[0].biases[limbIndex].id;
+        let outputNodeID = genome.outputLayerGenes[0].biases[limbIndex].id;
+        if (inputNodeID) {
+            nodeIDs.push(inputNodeID);
+        } else {
+            // No idea whats causing this, but it seems to be working fine without it.
+            // console.log("Error: Input node ID not found for limb with partID.  Using limbIndex as a backup. " + limb.partID);
+            // console.log("Limb Index: ", limbIndex);
+            // console.log("Genome: ", genome);
+            nodeIDs.push(limbIndex);
+        }
+        if (outputNodeID) {
+            nodeIDs.push(outputNodeID);
+        } else {
+            console.error("Error: Output node ID not found for limb with partID " + limb.partID);
+        }
 
-        // Recursively add node IDs for sub-limbs
-        limb.subArms?.forEach(subLimb => {
-            nodeIDs = nodeIDs.concat(collectNodeIDs(subLimb, genome));
-        });
+        if (limb.subArms.length > 0) {
+            // Recursively add node IDs for sub-limbs
+            limb.subArms.forEach(subLimb => {
+                nodeIDs = collectNodeIDs(subLimb, genome, flattenedLimbs, nodeIDs);
+            });
+        }
     }
 
     return nodeIDs;
@@ -4044,6 +3932,7 @@ function removeNeuralNetworkElements(genome, nodeIDsToRemove) {
     genome.inputLayerGenes[0].biases = genome.inputLayerGenes[0].biases.filter(bias => {
         if (nodeIDsToRemove.includes(bias.id)) {
             genome.inputLayerGenes[0].numberOfNeurons--;
+            genome.inputLayerGenes[0].inputs.pop();
             return false;
         }
         return true;
@@ -4121,17 +4010,24 @@ function addNeuralNetworkElements(childGenome, limbToAdd, submissiveParentGenome
     let newInputNodeId;
     let newOutputNodeId;
 
-    if (limbIndexInChild !== -1) {
+    if (limbIndexInChild !== -1 && submissiveInputNode && submissiveOutputNode) {
         newInputNodeId = generateUniqueId(childGenome.usedBiasIDs);
         newOutputNodeId = generateUniqueId(childGenome.usedBiasIDs);
 
         childGenome.inputLayerGenes[0].biases.splice(limbIndexInChild, 0, _.cloneDeep(submissiveInputNode));
         childGenome.inputLayerGenes[0].biases[limbIndexInChild].id = newInputNodeId;
         childGenome.inputLayerGenes[0].numberOfNeurons++;
+        childGenome.inputLayerGenes[0].inputs.push(childGenome.inputLayerGenes[0].inputs.length);
 
         childGenome.outputLayerGenes[0].biases.splice(limbIndexInChild, 0, _.cloneDeep(submissiveOutputNode));
         childGenome.outputLayerGenes[0].biases[limbIndexInChild].id = newOutputNodeId;
         childGenome.outputLayerGenes[0].numberOfNeurons++;
+    } else {
+        console.error("Error: Limb with partID " + limbToAdd.partID + " + 100");
+        console.log("Flattened limb structure: ", newChildFlattenedLimbs);
+        console.log("Limb Index in Child: ", limbIndexInChild);
+        console.log("Submissive Input Node: ", submissiveInputNode);
+        console.log("Submissive Output Node: ", submissiveOutputNode);
     }
 
     // Add weights associated with the new nodes
@@ -4139,7 +4035,7 @@ function addNeuralNetworkElements(childGenome, limbToAdd, submissiveParentGenome
     addWeightsForNewNode(childGenome, submissiveParentGenome, submissiveOutputNode.id, newOutputNodeId, limbIndexInChild, false); // false for output layer
 
     // Handle sub-limbs recursively
-    if (limbToAdd.subArms) {
+    if (limbToAdd.subArms.length > 0) {
         limbToAdd.subArms.forEach(subLimb => {
             addNeuralNetworkElements(childGenome, subLimb, submissiveParentGenome);
         });
@@ -4250,33 +4146,18 @@ function adjustWeightsLength(weightsArray, existingNodeIds, isInputScenario) {
     }
 }
 
-
 function updateMutationRates(genome) {
     let hyperparams = genome.hyperparameters;
-    let initialRates = { ...hyperparams }; // Store initial rates for comparison
-    let changes = []; // Array to store changes for logging
 
     // Helper function to round mutation rates and clamp between 0 and 0.5
     const roundRate = (rate) => Math.min(0.5, Math.max(0, rate.toFixed(5)));
 
     // Adjust mutation rates based on different criteria
-    hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.05 : hyperparams.limbMutationRate * 0.95);
-    hyperparams.mutationRate = roundRate(isBrainSimilarToOthers(genome) ? hyperparams.mutationRate * 1.05 : hyperparams.mutationRate * 0.95);
-    hyperparams.layerMutationRate = roundRate(isBrainLayersSimilarToOthers(genome) ? hyperparams.layerMutationRate * 1.05 : hyperparams.layerMutationRate * 0.95);
-    hyperparams.nodeMutationRate = roundRate(isBrainNodesSimilarToOthers(genome) ? hyperparams.nodeMutationRate * 1.05 : hyperparams.nodeMutationRate * 0.95);
-    hyperparams.mutationRate = roundRate(isScoreCloseToAverage(genome) ? hyperparams.mutationRate * 1.05 : hyperparams.mutationRate * 0.95);
-
-    // Check for changes and add to the changes array
-    for (let rate in hyperparams) {
-        if (hyperparams[rate] !== initialRates[rate]) {
-            changes.push(`${rate}: ${initialRates[rate].toFixed(10)} -> ${hyperparams[rate].toFixed(5)}`);
-        }
-    }
-
-    // Logging changes in mutation rates if any
-    // if (changes.length > 0) {
-        // console.log(`Agent ${genome.metadata.agentIndex} mutation rate changes: [${changes.join(', ')}]`);
-    // }
+    hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.01 : hyperparams.limbMutationRate * 0.99);
+    hyperparams.mutationRate = roundRate(isBrainSimilarToOthers(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
+    hyperparams.layerMutationRate = roundRate(isBrainLayersSimilarToOthers(genome) ? hyperparams.layerMutationRate * 1.01 : hyperparams.layerMutationRate * 0.99);
+    hyperparams.nodeMutationRate = roundRate(isBrainNodesSimilarToOthers(genome) ? hyperparams.nodeMutationRate * 1.01 : hyperparams.nodeMutationRate * 0.99);
+    hyperparams.mutationRate = roundRate(isScoreCloseToAverage(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
 
     return hyperparams;
 }
@@ -4375,7 +4256,6 @@ function isBodySimilarToOthers(genome) {
     let averageLimbSize = numberOfLimbs > 0 ? totalLimbSize / numberOfLimbs : 0;
     let averageLimbDepth = numberOfLimbs > 0 ? totalLimbDepth / numberOfLimbs : 0;
 
-    // Define similarity thresholds
     const sizeThreshold = 0.1;
     const limbCountThreshold = 0.5;
     const limbSizeThreshold = 0.1;
@@ -4389,10 +4269,15 @@ function isBodySimilarToOthers(genome) {
         isLimbDepthSimilar = Math.abs(averageLimbDepth - averageBody.averageLimbDepth) <= limbDepthThreshold;
     } catch (e) {
         console.log("Error in body similarity check. genome: ", genome);
-        // Additional logging here
     }
 
-    return isMainBodySizeSimilar && isLimbCountSimilar && isLimbSizeSimilar && isLimbAngleSimilar && isLimbDepthSimilar;
+    let similarityCount = (isMainBodySizeSimilar ? 1 : 0) +
+        (isLimbCountSimilar ? 1 : 0) +
+        (isLimbSizeSimilar ? 1 : 0) +
+        (isLimbAngleSimilar ? 1 : 0) +
+        (isLimbDepthSimilar ? 1 : 0);
+
+    return similarityCount >= 3;
 }
 
 
@@ -4423,7 +4308,7 @@ function isBrainSimilarToOthers(genome) {
         });
 
         const averageDeviation = totalDeviation / count;
-        return averageDeviation < (average.averageWeightDeviation + average.averageBiasDeviation) / 3;
+        return averageDeviation < (average.averageWeightDeviation + average.averageBiasDeviation) / 5;
     } catch (e) {
         console.log("Error in brain similarity check. genome: ", genome);
         console.log("Group: ", group);
@@ -4441,7 +4326,7 @@ function isBrainLayersSimilarToOthers(genome) {
     const agentLayers = genome.layerGenes.length;
 
     // Check if the number of layers in the agent's brain is close to the group average
-    return Math.abs(agentLayers - averageLayers) <= 0.5;
+    return Math.abs(agentLayers - averageLayers) <= 0.25;
 }
 
 
@@ -4455,7 +4340,7 @@ function isBrainNodesSimilarToOthers(genome) {
     });
 
     // Check if the number of nodes in the agent's brain is close to the group average
-    return Math.abs(agentNodes - averageNodes) <= 1;  // Assuming a tolerance of 10 nodes
+    return Math.abs(agentNodes - averageNodes) <= 1;
 }
 
 
@@ -4463,7 +4348,7 @@ function isScoreCloseToAverage(genome) {
     const groupIndex = genome.metadata.agentGroup;
     const agentScore = genome.Score;
     const averageScore = averageGroupScores[groupIndex];
-    const thresholdPercentage = 0.1; // 10% threshold, can be adjusted
+    const thresholdPercentage = 0.15;
 
     // Calculate the absolute difference between the agent's score and the average score
     const scoreDifference = Math.abs(agentScore - averageScore);
@@ -4872,8 +4757,10 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
                 addChildLimbToPart(selectedPart, newLimb);
 
+                let newFlattenedLimbs = flattenLimbStructure(childGenome.mainBody.arms);
+
                 // let inputNodeIndex;
-                let inputNodeIndex = flattenedLimbs.findIndex(part => part.partID === newLimbID);
+                let inputNodeIndex = newFlattenedLimbs.findIndex(part => part.partID === newLimbID);
                 let closestLimbInputNodeIdx = flattenedLimbs.findIndex(part => part.partID === closestLimb.partID);
                 let closestLimbInputNodeID = childGenome.inputLayerGenes[0].biases[closestLimbInputNodeIdx].id;
 
@@ -5802,7 +5689,14 @@ function alterOutputForSimplicity(output) {
 // Function to make the agent's decision based on the neural network output
 AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
 
-    let output = this.brain.predict(tf.tensor([inputs])).dataSync();
+    let output;
+    try {
+        output = this.brain.predict(tf.tensor([inputs])).dataSync();
+    } catch (e) {
+        console.error("Error in makeDecisionNEAT: " + e);
+        console.log("Inputs: " + inputs);
+        console.log("Genome: ", this.genome)
+    }
 
     if (stageProperties.networkOutput === "simple") {
         alterOutputForSimplicity(output);
@@ -6033,6 +5927,7 @@ AgentNEAT.prototype.updateMusclesNEAT = function () {
 AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY) {
     const layerGap = stageProperties.renderedNNLayerGap; // horizontal space between layers
     const nodeGap = stageProperties.renderedNNNodeGap;   // vertical space between nodes
+    let inputLabels = [];
     let outputLabels = [];
     let allWeightTensors;
     let allWeights;
@@ -6041,7 +5936,6 @@ AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY) {
     p.push();
     p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
 
-    let inputLabels = [];
 
     if (stageProperties.inputJointAngle) {
         inputLabels = inputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`));
@@ -6215,6 +6109,7 @@ AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY) {
             }
             x += layerGap;
         }
+
     } catch (error) {
         if (error.message.includes('disposed')) {
             console.error('Attempted to access weights of a disposed model.');
