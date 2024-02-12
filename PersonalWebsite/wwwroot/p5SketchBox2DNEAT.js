@@ -3392,12 +3392,17 @@ function generateOffspringNEAT(groupAgents, groupId, topPerformerCount, agentsNe
 function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
 
     // Select 2 parents, using different methods for varying outcomes
-    let parent1 = selectAgentTournamentNEAT(groupAgents, tempAgentPool);
+    let parent1;
     let parent2;
-
-    // Loop through the roulette selection until a different parent is selected
-    while (parent2 === undefined || parent2.Score === parent1.Score || parent1.genome.metadata.agentIndex === parent2.genome.metadata.agentIndex) {
-        parent2 = selectAgentRouletteNEAT(groupAgents, tempAgentPool, parent1);
+    try {
+        parent1 = selectAgentTournamentNEAT(groupAgents, tempAgentPool);
+        // Loop through the roulette selection until a different parent is selected
+        while (parent2 === undefined || parent2.Score === parent1.Score || parent1.genome.metadata.agentIndex === parent2.genome.metadata.agentIndex) {
+            parent2 = selectAgentRouletteNEAT(groupAgents, tempAgentPool, parent1);
+        }
+    } catch (error) {
+        console.error("Error selecting parents: ", error);
+        console.log("Group Agents: ", groupAgents);
     }
 
     parent1.genome.agentHistory.usedAsParent++;
@@ -3416,12 +3421,24 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     let childGenome;
     // let childGenome = _.cloneDeep(parent1.genome);
 
-    if (Math.random() < 0.33) {
-        childGenome = biasedArithmeticCrossoverNEAT(dominantParent, submissiveParent);
-    } else if (Math.random() < 0.66) {
-        childGenome = randomSelectionCrossoverNEAT(dominantParent, submissiveParent);
-    } else {
-        childGenome = layerCrossoverNEAT(dominantParent, submissiveParent);
+    try {
+
+        // Create a child genome using crossover
+        if (Math.random() < 0.33) {
+            childGenome = biasedArithmeticCrossoverNEAT(dominantParent, submissiveParent);
+        } else if (Math.random() < 0.66) {
+            childGenome = randomSelectionCrossoverNEAT(dominantParent, submissiveParent);
+        } else {
+            childGenome = layerCrossoverNEAT(dominantParent, submissiveParent);
+        }
+
+        // Crossover the body plan
+        childGenome = bodyPlanCrossover(childGenome, submissiveParent);
+
+    } catch (error) {
+        console.error("Error in crossover: ", error);
+        console.log("Dominant Parent: ", dominantParent);
+        console.log("Submissive Parent: ", submissiveParent);
     }
 
     childGenome.metadata.agentGroup = groupId;
@@ -3430,12 +3447,14 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
         console.error("Wrong parent used as Dominant Parent, or same agent used for both parents!  Dominant score: ", dominantParent.Score, " Sub score: ", submissiveParent.Score);
     }
 
-    // Crossover the body plan
-    childGenome = bodyPlanCrossover(childGenome, submissiveParent);
-
     // Update the mutation rates of agents based on similarity to the average agent.  Need to think about when this is called, as the average are calculated before crossover.
     if (stageProperties.dynamicMutationRate) {
-        childGenome.hyperparameters = updateMutationRates(childGenome);
+        try {
+            childGenome.hyperparameters = updateMutationRates(childGenome);
+        } catch (error) {
+            console.error("Error updating mutation rates: ", error);
+            console.log("Child genome: ", childGenome);
+        }
     }
 
     if (Math.random() < (stageProperties.chanceToIncludeOffspringInMutation / 100)) {
@@ -3448,7 +3467,12 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     }
 
     if (Math.random() < (stageProperties.chanceToIncludeOffspringInMutation / 100)) {
-        childGenome = mutateBodyPlan(childGenome, childGenome.hyperparameters.limbMutationRate);
+        try {
+            childGenome = mutateBodyPlan(childGenome, childGenome.hyperparameters.limbMutationRate);
+        } catch (error) {
+            console.error("Error mutating body plan: ", error);
+            console.log("Child genome: ", childGenome);
+        }
     }
 
     // Reset any bias ids that are no longer sequential, logging the change.
@@ -3817,7 +3841,6 @@ function layerMatches(layer1, layer2) {
 }
 
 // Crosses over the body plan of two parents to create a child genome
-
 function bodyPlanCrossover(childGenome, subAgent) {
     let submissiveParentGenome = subAgent.genome;
 
@@ -4340,7 +4363,7 @@ function isBrainNodesSimilarToOthers(genome) {
     });
 
     // Check if the number of nodes in the agent's brain is close to the group average
-    return Math.abs(agentNodes - averageNodes) <= 1;
+    return Math.abs(agentNodes - averageNodes) < 0.5;
 }
 
 
@@ -4348,7 +4371,7 @@ function isScoreCloseToAverage(genome) {
     const groupIndex = genome.metadata.agentGroup;
     const agentScore = genome.Score;
     const averageScore = averageGroupScores[groupIndex];
-    const thresholdPercentage = 0.15;
+    const thresholdPercentage = 0.20;
 
     // Calculate the absolute difference between the agent's score and the average score
     const scoreDifference = Math.abs(agentScore - averageScore);
@@ -4727,7 +4750,18 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
 
     // Heartbeat Mutation
     if (Math.random() < bodyMutationRate && childGenome.hyperparameters.heartbeat) {
-        childGenome.hyperparameters.heartbeat = Math.round(mutateWithinBounds(childGenome.hyperparameters.heartbeat, 1, 100));
+        let originalHeartbeat = childGenome.hyperparameters.heartbeat;
+        let mutatedHeartbeat = Math.round(mutateWithinBounds(originalHeartbeat, 1, 100));
+
+        // Check if mutation resulted in a change, if not, step by 1 in the direction of mutation
+        if (mutatedHeartbeat === originalHeartbeat) {
+            if (originalHeartbeat > 1 && originalHeartbeat < 100) {
+                // Adjust by 1 towards the direction of the mutation
+                let adjustmentDirection = Math.sign(mutatedHeartbeat - originalHeartbeat);
+                mutatedHeartbeat += adjustmentDirection;
+            }
+        }
+        childGenome.hyperparameters.heartbeat = mutatedHeartbeat;
     }
 
     // Limb Properties Mutation
