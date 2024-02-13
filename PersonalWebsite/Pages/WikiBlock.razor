@@ -340,6 +340,7 @@
 	}
 	private async Task Edit(int globalSectionNo)
 	{
+		StateHasChanged();
 		Console.WriteLine($"IsEditing size: {contentState.Value.IsEditing.Count}, updating index: {globalSectionNo}");
 		Dispatcher.Dispatch(new UpdateIsEditingAction(globalSectionNo, true));
 	}

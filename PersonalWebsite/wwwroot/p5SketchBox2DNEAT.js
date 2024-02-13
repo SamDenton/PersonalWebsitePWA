@@ -4751,17 +4751,13 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
     // Heartbeat Mutation
     if (Math.random() < bodyMutationRate && childGenome.hyperparameters.heartbeat) {
         let originalHeartbeat = childGenome.hyperparameters.heartbeat;
-        let mutatedHeartbeat = Math.round(mutateWithinBounds(originalHeartbeat, 1, 100));
+        let mutatedHeartbeat = mutateWithinBounds(originalHeartbeat, 1, 100);
 
-        // Check if mutation resulted in a change, if not, step by 1 in the direction of mutation
-        if (mutatedHeartbeat === originalHeartbeat) {
-            if (originalHeartbeat > 1 && originalHeartbeat < 100) {
-                // Adjust by 1 towards the direction of the mutation
-                let adjustmentDirection = Math.sign(mutatedHeartbeat - originalHeartbeat);
-                mutatedHeartbeat += adjustmentDirection;
-            }
+        // If mutated value is different, adjust by 1 towards the direction of the mutation
+        if (mutatedHeartbeat !== originalHeartbeat) {
+            let adjustmentDirection = Math.sign(mutatedHeartbeat - originalHeartbeat);
+            childGenome.hyperparameters.heartbeat += adjustmentDirection;
         }
-        childGenome.hyperparameters.heartbeat = mutatedHeartbeat;
     }
 
     // Limb Properties Mutation
@@ -4943,7 +4939,7 @@ function resetNeuralNetworkIDs(genome) {
     // Function to add mutation history with specific format, only if significant change.  Trying to avoid logging the sequential resultant changes after the first value is updated.
     function logIdRemapping(oldID, newID) {
         if (Math.abs(oldID - newID) > ID_CHANGE_THRESHOLD) {
-            addMutationWithHistoryLimit(genome.agentHistory.mutations, "Genome cleanup remapped bias id: " + oldID + " To new id: " + newID);
+            // addMutationWithHistoryLimit(genome.agentHistory.mutations, "Genome cleanup remapped bias id: " + oldID + " To new id: " + newID);
         }
     }
 
@@ -5159,7 +5155,7 @@ function updateLimbIDs(genome) {
     // Function to log significant ID changes
     function logLimbIdChange(oldID, newID) {
         if (Math.abs(oldID - newID) > ID_CHANGE_THRESHOLD) {
-            addMutationWithHistoryLimit(genome.agentHistory.mutations, "Limb ID updated from: " + oldID + " to: " + newID);
+            // addMutationWithHistoryLimit(genome.agentHistory.mutations, "Limb ID updated from: " + oldID + " to: " + newID);
         }
     }
 

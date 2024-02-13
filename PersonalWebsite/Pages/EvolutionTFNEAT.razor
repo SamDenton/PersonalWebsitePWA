@@ -47,9 +47,9 @@
                 <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
                 <p>You can also use one of my pre-trained genome pools to skip the first generations, but you are then restricted to my settings.</p>
                 <p>The current agent pool is auto-saved to browser storage every generation, so if you have a crash, or close without saving, hit the amber button to attempt to recover.</p>
-                <p>Start/Reset will respect all configurations, while Simplified Start will remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
-                <p>Simplified Start should see much faster learning, with agents completing the maps with 100 generations or so; using full configurations will result in much more interesting behavior, but will take 100+ generations to see much progress</p>
-                <p>Super Simplified Start will also give agents a small, fixed brain and pre-set body plan, and will see agents complete the maps in 50-100 generations</p>
+                <p>Start/Reset will respect all configurations, while Simplified Start will simplify the neural network output, remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
+                <p>Simplified Start should see much faster learning, with agents completing the maps within 100 generations or so; using full configurations will result in much more interesting behavior, but will take 1000+ generations to see much progress</p>
+                <p>Super Simplified Start will also give agents a small, fixed brain and pre-set body plan, as well as forcing symmetry in the agents body, and will see agents complete the maps in 50-100 generations</p>
                 <p>Use 'WASD' to pan the camera around.</p>
                 <p>Use the button bank in the top right to toggle rendering of the leading agents brain/neural network, their vision lines/ray casts, switch between the leading agent and training agent or fast-forward generations (only about twice as fast as normal currently)</p>
                 <p>You can also save the current set of agents genomes locally so you can continue training later.  This saves the current settings alongside the agents Genomes so they continue with the same setup.</p>
@@ -63,12 +63,13 @@
                 <h5>Settings To Play With</h5>
                 <p>Aside from performance settings and numbers of agents, there are many settings that effect training and starting conditions.  Some of the more interesting are:</p>
                 <ol>
-                    <li>Min and Max number of starting limbs.  Agents can evolve past this.</li>
+                    <li>Min and Max number of starting limbs.</li>
                     <li>Swim Strength, Joint Speed and Liquid Viscosity.  Together effect agents movement.  Swim Bias gives a bias to forces parallel to the agents facing direction</li>
-                    <li>Starting Limb Chain Length, which means agents start with either 1 set of limbs, 2 or 3, where subsequent sets are attached to the ends of the previous.  Agents can evolve beyond this.</li>
-                    <li>Maximum and Minimum starting neural network layers.  Agents can evolve past this.</li>
+                    <li>Starting Limb Chain Length, which means agents start with either 1 set of limbs, 2 or 3, where subsequent sets are attached to the ends of the previous.</li>
+                    <li>Maximum and Minimum starting neural network layers.</li>
                     <li>Different score and energy configurations.</li>
                     <li>Different training settings, like migration rate, top performers to keep and mutation rates.</li>
+                    <li>Using simple network output will significantly aid learning, at the cost of more direct control.</li>
                 </ol>
                 
                 <h5>Some Explanation:</h5>
@@ -136,8 +137,7 @@
                 <p>I have created a few different versions of my mutate and crossover functions, I would like to let the user pick which is used.  I need to get the old ones working first</p>
                 <p>Could look at implementing another idea from NEAT, where agents are given a metric based on their properties, and have a higher chance to reproduce with similar agents.  This can create species groups even within my island populations, leading to a greater variety of solutions.  This may require larger populations to work well, 100-200 agents per group, where I currently have 25 per group.</p>
                 <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge.  As a first step, creating a custom Electron implementation could help increase the available memory and give more control over resource use, but would still be very tricky to parallelize across CPU cores.  I think the easiest way would be to just have multiple instances of the program running at once, and between generations, the agent pool is transfered between the 2 and split back up.</p>
-                <p>Currently, my crossover methods both treat each neuron independently, it would be good to also allow groups of neurons to be transfered together so learned features are maintained.</p>
-                <p>Body plan crossover has not been re-implemented since I added limb chains.  I should be able to borrow logic from by NN crossover code.</p>
+                <p>Currently, my crossover methods both treat each neuron independently, it would be good to also allow groups of neurons to be transfered together so learned features are maintained.  I have implemented a basic version of this with my layer swapping function.</p>
             </div>
         }
         else if (activeTab.Title == "Favourites")

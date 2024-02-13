@@ -129,9 +129,9 @@
                                             subSections="@subSections"
                                             TinyAPIKey="@TinyAPIKey"
                                             count="@count"
-                                            localCount=localCount
                                             indexParsed="@indexParsed"
                                             username="@username" />
+                                            @* localCount=localCount *@
                                         <p>Search Score: @item.searchResult.Score</p>
                                         @* Increment global count *@
                                         count++;
@@ -358,7 +358,7 @@
                         <table class="table rounded table-dark @(inline == true ? "border-bottom" : "table-borderless table-striped")">
                             @* @(inline == true ? "" : "") *@
                             <tbody>
-                                @* Pragmatically populate the table using my customer object array *@
+                                @* Pragmatically populate the table using my custom object array *@
                                 @if (type == "Search")
                                 {
                                     foreach (var item in searchResults
@@ -376,8 +376,8 @@
                                             sections="@sections"
                                             subSections="@subSections"
                                             count="@count"
-                                            localCount=localCount
                                             indexParsed="@indexParsed" />
+                                            @* localCount=localCount *@
                                         <p>Search Score: @item.searchResult.Score</p>
                                         @* Increment global count *@
                                         count++;
@@ -900,6 +900,7 @@
         }
         return results.OrderByDescending(r => r.Score).ToList();
     }
+
     @* Calculate score for each item in contentState.Value.Contents.  Might need to play with the given scores for each match type *@
     public int CalculateMatchScore(string searchTerm, contentHolder content)
     {
