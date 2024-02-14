@@ -3860,7 +3860,7 @@ function bodyPlanCrossover(childGenome, subAgent) {
 
             let childFlattenedLimbs = flattenLimbStructure(childGenome.mainBody.arms);
 
-            addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped child limb chain starting from limb ID: " + limb.partID + " With closest limb chain starting from limb ID: " + subLimb.partID);
+            addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped child limb chain starting from limb ID: " + limb.partID);
 
             // Remove the limbs, nodes, weights, and biases associated with the dominant limb to be replaced
             removeLimbChain(childGenome, limb.partID, childFlattenedLimbs);
@@ -4178,9 +4178,11 @@ function updateMutationRates(genome) {
     // Adjust mutation rates based on different criteria
     hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.01 : hyperparams.limbMutationRate * 0.99);
     // hyperparams.mutationRate = roundRate(isBrainSimilarToOthers(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
+    hyperparams.mutationRate = roundRate(isScorePlateauing(stageProperties.scoreHistoryAverage) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
+    hyperparams.mutationRate = roundRate(isScorePlateauing(genome.agentHistory.scoreHistory, true) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
     hyperparams.layerMutationRate = roundRate(isBrainLayersSimilarToOthers(genome) ? hyperparams.layerMutationRate * 1.01 : hyperparams.layerMutationRate * 0.99);
     hyperparams.nodeMutationRate = roundRate(isBrainNodesSimilarToOthers(genome) ? hyperparams.nodeMutationRate * 1.01 : hyperparams.nodeMutationRate * 0.99);
-    hyperparams.mutationRate = roundRate(isScoreCloseToAverage(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
+    // hyperparams.mutationRate = roundRate(isScoreCloseToAverage(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
 
     return hyperparams;
 }
@@ -4371,7 +4373,7 @@ function isScoreCloseToAverage(genome) {
     const groupIndex = genome.metadata.agentGroup;
     const agentScore = genome.Score;
     const averageScore = averageGroupScores[groupIndex];
-    const thresholdPercentage = 0.20;
+    const thresholdPercentage = 0.25;
 
     // Calculate the absolute difference between the agent's score and the average score
     const scoreDifference = Math.abs(agentScore - averageScore);
@@ -4379,6 +4381,36 @@ function isScoreCloseToAverage(genome) {
     // Check if the difference is within the threshold percentage of the average score
     return scoreDifference <= (averageScore * thresholdPercentage);
 }
+
+function linearRegression(y, x) {
+    let n = y.length;
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (let i = 0; i < y.length; i++) {
+        sumX += x[i];
+        sumY += y[i];
+        sumXY += (x[i] * y[i]);
+        sumXX += (x[i] * x[i]);
+    }
+    let slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    let intercept = (sumY - slope * sumX) / n;
+
+    return { slope, intercept };
+}
+
+function isScorePlateauing(scoreHistory, isAgent = false) {
+    if (scoreHistory.length < 2) return false; // Need at least 2 points to define a trend
+
+    // Choose the appropriate mapping based on whether it's agent history or overall population history
+    let y = isAgent ? scoreHistory.map(entry => entry.score) : scoreHistory;
+    let x = scoreHistory.map((_, index) => index);
+
+    let { slope, intercept } = linearRegression(y, x);
+    let lastPoint = y[y.length - 1];
+    let predictedLastPoint = slope * (x.length - 1) + intercept;
+
+    return lastPoint < predictedLastPoint; // True if the actual score is below the predicted score
+}
+
 
 // Function to update the migration rate based on group differences
 function adjustMigrationRateBasedOnGroupDifferences() {
