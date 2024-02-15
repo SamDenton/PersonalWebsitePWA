@@ -17,8 +17,8 @@
     <button class="preset-button high-button" title="Set high powered presets" @onclick="setHighPresets">High Power Settings Preset</button>
     <button class="preset-button vHigh-button" title="Set very high powered presets" @onclick="setVHighPresets">Very High Power Settings Preset</button>
     <button class="preset-button reset-button" title="Resets settings to default everything" @onclick="resetSettings">Reset All Settings</button>
-    <button class="preset-button resetSimple-button" title="Resets settings to the simple start settings without starting the simulation" @onclick="resetSettingsSimple">Simple Preset</button>
-    <button class="preset-button resetSuperSimple-button" title="Resets settings to the super simple start settings without starting the simulation" @onclick="resetSettingsSuperSimple">Super Simple Preset</button>
+    <button class="preset-button resetSimple-button" title="Resets settings to the simple start settings without starting the simulation" @onclick="() => resetSettingsSimple(true)">Simple Preset</button>
+    <button class="preset-button resetSuperSimple-button" title="Resets settings to the super simple start settings without starting the simulation" @onclick="() => resetSettingsSuperSimple(true)">Super Simple Preset</button>
     <button class="preset-button save-button" title="Saves current settings to a JSON file" @onclick="saveSettings">Save Settings To File</button>
     <button class="preset-button upload-button" title="Uploaded saved settings JSON" @onclick="uploadSettings">Upload Settings File</button>
 </div>
@@ -1293,13 +1293,13 @@
 
     private async Task ResetSimulationSimple()
     {
-        await resetSettingsSimple();
+        await resetSettingsSimple(false);
         await ResetSimulation();
     }
 
     private async Task ResetSimulationSuperSimple()
     {
-        await resetSettingsSuperSimple();
+        await resetSettingsSuperSimple(false);
         await ResetSimulation();
     }
 
@@ -1416,7 +1416,7 @@
         public bool dynamicMutationRate { get; set; } = true;
         public bool dynamicMigrationRate { get; set; } = true;
         public int topPerformerNumber { get; set; } = 15;
-        public int migrationRate { get; set; } = 5;
+        public int migrationRate { get; set; } = 50;
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 25;
         public bool agentsRequireStablising { get; set; } = true;
@@ -1766,7 +1766,7 @@
         stageProperties.offspringLayerMutationRate = 10;
         stageProperties.offspringLimbMutationRate = 40;
         stageProperties.topPerformerNumber = 15;
-        stageProperties.migrationRate = 5;
+        stageProperties.migrationRate = 50;
         stageProperties.minPopGroupSize = 10;
         stageProperties.maxPopGroupSize = 25;
         stageProperties.agentsRequireStablising = true;
@@ -1812,9 +1812,12 @@
         stageProperties.visualMaxForceLength = 300;
     }
 
-    private async Task resetSettingsSimple()
+    private async Task resetSettingsSimple(bool reset)
     {
-        await resetSettings();
+        if (reset)
+        {
+            await resetSettings();
+        }
         stageProperties.topScoreEver = 0;
         stageProperties.genCount = 0;
         stageProperties.energyUseForceSizeMult = 0;
@@ -1835,9 +1838,12 @@
         stageProperties.randomAgentStartAngle = false;
     }
 
-    private async Task resetSettingsSuperSimple()
+    private async Task resetSettingsSuperSimple(bool reset)
     {
-        await resetSettings();
+        if (reset)
+        {
+            await resetSettings();
+        }
         stageProperties.topScoreEver = 0;
         stageProperties.genCount = 0;
         stageProperties.energyUseForceSizeMult = 0;
@@ -2825,7 +2831,7 @@
                         ValueExpression = () => stageProperties.migrationRate,
                         ValueChanged = val => stageProperties.migrationRate = val,
                         Min = 0,
-                        Max = 1000,
+                        Max = 10000,
                         Step = 1,
                         Details = "Determines the rate of migration between species or population groups.  A lower number will mean more diverse agents between groups, but it's less common for useful traits to be shared between groups."
                     },

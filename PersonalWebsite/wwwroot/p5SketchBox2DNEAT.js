@@ -2941,19 +2941,25 @@ function nextGenerationNEAT(p) {
     averageGroupBrainNodes = [];
     averageGroupBody = [];
 
-    for (let agent of tempAgentPool) {
-        if (stageProperties.keepAgentSymmetrical === true) {
+    //for (let agent of tempAgentPool) {
+    //    if (stageProperties.keepAgentSymmetrical === true) {
 
-            // Create a copy of the original limbs to avoid modifying the array while iterating
-            const originalLimbs = flattenLimbStructure(agent.genome.mainBody.arms);
-            for (let i = 0; i < originalLimbs.length; i++) {
-                if (originalLimbs[i].startingAngle !== 0) {
-                    agent.genome.inputLayerGenes[0].numberOfNeurons--;
-                    agent.genome.inputLayerGenes[0].inputs.pop();
-                }
-            }
-        }
-    }
+    //        // Remove the additional input numberOfNeurons to keep logic consistent
+    //        const originalLimbs = flattenLimbStructure(agent.genome.mainBody.arms);
+    //        for (let i = 0; i < originalLimbs.length; i++) {
+    //            const epsilon = 0.1;
+    //            const Pi = Math.PI;
+    //            const twoPi = 2 * Math.PI;
+    //            // Only duplicate limbs that are not within a small range of the front or back of the agent 
+    //            if (!(((originalLimbs[i].startingAngle >= 0 && originalLimbs[i].startingAngle <= epsilon) ||
+    //                (originalLimbs[i].startingAngle >= Pi - epsilon && originalLimbs[i].startingAngle <= Pi + epsilon) ||
+    //                (originalLimbs[i].startingAngle >= twoPi - epsilon && originalLimbs[i].startingAngle <= twoPi)) && originalLimbs[i].numberInChain == 1)) {
+    //                agent.genome.inputLayerGenes[0].numberOfNeurons--;
+    //                agent.genome.inputLayerGenes[0].inputs.pop();
+    //            }
+    //        }
+    //    }
+    //}
 
     // Probability of changing the map
     const mapChangeProbability = 0.333; // 30% chance to change the map
@@ -3520,7 +3526,7 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
 // Function to select an agent using tournament selection
 function selectAgentTournamentNEAT(groupAgents, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
-    if (Math.random() < (stageProperties.migrationRate / 1000)) {
+    if (Math.random() < (stageProperties.migrationRate / 10000)) {
         groupAgents = allAgents;
     }
 
@@ -3542,7 +3548,7 @@ function selectAgentTournamentNEAT(groupAgents, allAgents, excludedAgent = null)
 // Function to select an agent using roulette wheel selection
 function selectAgentRouletteNEAT(agentsLocal, allAgents, excludedAgent = null) {
     // Occasionally pick from the entire population
-    if (Math.random() < (stageProperties.migrationRate / 1000)) {
+    if (Math.random() < (stageProperties.migrationRate / 10000)) {
         agentsLocal = allAgents;
     }
 
@@ -4217,7 +4223,7 @@ function getAverageBody(groupAgentsForAverage) {
 
 // Function to find the average brain of the group to update the brain mutation rate.
 function getAverageBrain(groupAgentsForAverage) {
-    let totalBrainNodes = 0;
+    let totalAverageBrainNodesPerLayer = 0;
     let totalBrainLayers = 0;
     let totalWeights = [];
     let totalBiases = [];
@@ -4239,12 +4245,13 @@ function getAverageBrain(groupAgentsForAverage) {
             });
         });
 
-        totalBrainNodes += brainNodes;
+        averageBrainNodesPerLayer = brainNodes / agent.genome.layerGenes.length + 2;
+        totalAverageBrainNodesPerLayer += averageBrainNodesPerLayer;
     });
 
     let groupIndex = groupAgentsForAverage[0].genome.metadata.agentGroup;
     averageGroupBrainLayers[groupIndex] = totalBrainLayers / groupAgentsForAverage.length;
-    averageGroupBrainNodes[groupIndex] = totalBrainNodes / groupAgentsForAverage.length;
+    averageGroupBrainNodes[groupIndex] = totalAverageBrainNodesPerLayer / groupAgentsForAverage.length;
 
     // Calculate average weights and biases
     let averageWeight = totalWeights.reduce((acc, val) => acc + val, 0) / totalWeights.length;
@@ -4364,8 +4371,10 @@ function isBrainNodesSimilarToOthers(genome) {
         agentNodes += layer.numberOfNeurons;
     });
 
+    averageNodesPerLayer = agentNodes / genome.layerGenes.length + 2;
+
     // Check if the number of nodes in the agent's brain is close to the group average
-    return Math.abs(agentNodes - averageNodes) < 0.5;
+    return Math.abs(averageNodesPerLayer - averageNodes) < 0.5;
 }
 
 
@@ -4434,7 +4443,7 @@ function adjustMigrationRateBasedOnGroupDifferences() {
         stageProperties.migrationRate -= 1; // Decrease by a small amount
         console.log("Migration rate decreased to ", stageProperties.migrationRate);
         console.log("Average differences: ", differences.reduce((acc, diff) => acc + diff, 0) / differences.length);
-    } else if (areGroupsDivergent && stageProperties.migrationRate < 10 && differences.length > 0) {
+    } else if (areGroupsDivergent && stageProperties.migrationRate < 1000 && differences.length > 0) {
         stageProperties.migrationRate += 1; // Increase by a small amount
         console.log("Migration rate increased to ", stageProperties.migrationRate);
         console.log("Average differences: ", differences.reduce((acc, diff) => acc + diff, 0) / differences.length);
@@ -4452,7 +4461,12 @@ function calculateGroupDifferences() {
             let diffScore = Math.abs(averageGroupScores[i] - averageGroupScores[j]);
             let diffBrain = Math.abs(averageGroupBrainLayers[i] - averageGroupBrainLayers[j]);
             let diffBody = Math.abs(averageGroupBody[i].averageNumberOfLimbs - averageGroupBody[j].averageNumberOfLimbs);
-            let totalDiff = (diffScore + diffBrain + diffBody) / 3; // Average difference across score, brain, and body
+            let totalDiff
+            if (stageProperties.offspringLayerMutationRate !== 0) {
+                totalDiff = (diffScore + diffBrain + diffBody) / 3; // Average difference across score, brain, and body
+            } else {
+                totalDiff = (diffScore + diffBody) / 2; // Average difference across score and body
+            }
             differences.push(totalDiff);
         }
     }
@@ -4808,17 +4822,19 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                 let selectedPart = selectRandomBodyPart(childGenome.mainBody);
                 let closestLimb = findClosestLimbForWeights(flattenedLimbs, angle);
 
+                let newLimb = createNewLimb(angle, selectedPart, newLimbID);
+
                 if (closestLimb == null) {
                     closestLimb = childGenome.mainBody.arms[0];
                     console.error("No closest limb found for new limb, correcting with limb 0. Genome: ", childGenome);
                     console.error("Selected Part: ", selectedPart);
                     console.error("Angle : ", angle);
+                    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "type: limb, id: " + newLimb.partID + " mutation: add, " + "Closest limb not found, using idx 0, ID: " + closestLimb.partID + " Number In Chain: " + newLimb.numberInChain);
+                } else {
+                    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "type: limb, id: " + newLimb.partID + " mutation: add, " + "Copied weights from limb: " + closestLimb.partID + " Number In Chain: " + newLimb.numberInChain);
                 }
 
-                let newLimb = createNewLimb(angle, selectedPart, newLimbID);
-
                 addChildLimbToPart(selectedPart, newLimb);
-
                 let newFlattenedLimbs = flattenLimbStructure(childGenome.mainBody.arms);
 
                 // let inputNodeIndex;
@@ -4888,8 +4904,6 @@ function mutateBodyPlan(childGenome, bodyMutationRate) {
                             throw e;
                         }
                     });
-
-                    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "type: limb, id: " + newLimb.partID + " mutation: add, " + "Copied weights from limb: " + closestLimb.partID + " Number In Chain: " + newLimb.numberInChain);
 
                 } else {
                     throw new Error("No closest limb found for new limb");
@@ -5280,6 +5294,8 @@ AgentNEAT.prototype.duplicateLimbsForSymmetry = function () {
             newLimb.constraints.minAngle = -originalLimb.constraints.maxAngle;
             newLimb.constraints.maxAngle = -originalLimb.constraints.minAngle;
 
+            newLimb.duplicate = true;
+
             newLimb.partID = maxPartID + originalLimb.partID + 1;
             if (originalLimb.parentPartID != 0) {
                 let parentLimb = this.bodyParts.find(limb => limb.partID === originalLimb.parentPartID);
@@ -5293,8 +5309,8 @@ AgentNEAT.prototype.duplicateLimbsForSymmetry = function () {
             }
 
             // Update inputs for the neural network
-            this.genome.inputLayerGenes[0].numberOfNeurons++;
-            this.genome.inputLayerGenes[0].inputs.push(this.genome.inputLayerGenes[0].inputs.length);
+            // this.genome.inputLayerGenes[0].numberOfNeurons++;
+            // this.genome.inputLayerGenes[0].inputs.push(this.genome.inputLayerGenes[0].inputs.length);
 
             this.bodyParts.splice(insertIndex, 0, newLimb);
             insertIndex++;
@@ -5362,6 +5378,11 @@ AgentNEAT.prototype.buildBodyFromLimbStructure = function () {
             let localAnchorB = planck.Vec2(0, -part.length / 2);
 
             let joint = createRevoluteJointNEAT(world, parentLimb, arm, localAnchorA, localAnchorB, part.constraints.minAngle, part.constraints.maxAngle, part.constraints.maxTorque);
+
+            if (part.duplicate) {
+                joint.duplicate = true;
+            }
+
             this.joints.push(joint);
 
             // body segment constructor
@@ -5728,7 +5749,7 @@ AgentNEAT.prototype.renderRayCasts = function (p, offsetX, offsetY) {
 function alterOutputForSimplicity(output) {
     if (stageProperties.bodyPlanStart === "simple") {
 
-        // I the simple body plan is enabled, the first output should be unmodified for control
+        // If the simple body plan is enabled, the first output should be unmodified for control
         let firstOutput = output[0];
 
         let remainingOutputs = output.slice(1);
@@ -5736,9 +5757,7 @@ function alterOutputForSimplicity(output) {
             if (x < 0) return -1;
             else return 1;
         });
-
         output = [firstOutput, ...remainingOutputs];
-
     } else {
         output = output.map(x => {
             if (x < -0.05) return -1;
@@ -5746,6 +5765,8 @@ function alterOutputForSimplicity(output) {
             else return 0;
         });
     }
+
+    return output;
 }
 
 // Function to make the agent's decision based on the neural network output
@@ -5761,7 +5782,7 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
     }
 
     if (stageProperties.networkOutput === "simple") {
-        alterOutputForSimplicity(output);
+        output = alterOutputForSimplicity(output);
     }
 
     let outputIndex = 0;
@@ -5798,7 +5819,7 @@ AgentNEAT.prototype.makeDecisionSymmetricalNEAT = function (inputs) {
     let output = this.brain.predict(tf.tensor([inputs])).dataSync();
 
     if (stageProperties.networkOutput === "simple") {
-        alterOutputForSimplicity(output);
+        output = alterOutputForSimplicity(output);
     }
 
     let outputIndex = 0;
@@ -5851,8 +5872,10 @@ AgentNEAT.prototype.collectInputsNEAT = function () {
     if (stageProperties.inputJointAngle) {
         // 1. Joint angles normalized to [-1, 1]
         for (let joint of this.joints) {
-            let jointAngle = joint.getJointAngle() / Math.PI;
-            inputs.push(jointAngle);
+            if (!joint.duplicate) {
+                let jointAngle = joint.getJointAngle() / Math.PI;
+                inputs.push(jointAngle);
+            }
         }
     }
 
@@ -6000,11 +6023,19 @@ AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY) {
 
 
     if (stageProperties.inputJointAngle) {
-        inputLabels = inputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Joint Angle ${idx + 1}`));
+        inputLabels = inputLabels.concat(
+            this.joints
+                .filter(joint => !joint.duplicate)
+                .map((_, idx) => `Joint Angle ${idx + 1}`)
+        );
     }
 
     if (stageProperties.inputJointSpeed) {
-        inputLabels = inputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Joint Speed ${idx + 1}`));
+        inputLabels = inputLabels.concat(
+            this.joints
+                .filter(joint => !joint.duplicate)
+                .map((_, idx) => `Joint Speed ${idx + 1}`)
+        );
     }
 
     if (stageProperties.inputAgentPos) {
@@ -6199,6 +6230,7 @@ function initializeSettingHoverEffects() {
     });
 }
 
+// Function to handle mouse enter event, creating the tooltip
 function handleMouseEnter(e) {
     const original = e.currentTarget;
     if (original.tooltipActive) {
@@ -6244,6 +6276,7 @@ function handleMouseEnter(e) {
     }, 5000); // 3 seconds timeout or as needed
 }
 
+// Function to handle mouse leave event, removing the tooltip
 function handleMouseLeave(e) {
     const original = e.currentTarget;
     original.tooltipActive = false; // Reset flag when mouse leaves
@@ -6265,6 +6298,7 @@ function clearAllTooltips() {
     });
 }
 
+// Helper function to adjust the padding of the tab-content to accommodate the tooltip
 function adjustTabContentPaddingForTooltip(tooltip, add) {
     const tabContent = document.querySelector('.tab-content');
     const popupRect = tooltip.getBoundingClientRect();
@@ -6283,7 +6317,7 @@ window.clearAllTooltips = clearAllTooltips;
 
 
 /***   Functions For Building the Genome Viewer UI   ***/
-
+// This function is called when the user clicks on the "View Genome" button
 function createTreeView(container, obj) {
     if (typeof obj === 'object' && obj !== null) {
         Object.entries(obj).forEach(([key, value]) => {
