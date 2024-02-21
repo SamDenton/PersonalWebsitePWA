@@ -4288,10 +4288,10 @@ function isBodySimilarToOthers(genome) {
     let averageLimbSize = numberOfLimbs > 0 ? totalLimbSize / numberOfLimbs : 0;
     let averageLimbDepth = numberOfLimbs > 0 ? totalLimbDepth / numberOfLimbs : 0;
 
-    const sizeThreshold = 0.1;
-    const limbCountThreshold = 0.5;
-    const limbSizeThreshold = 0.1;
-    const limbDepthThreshold = 0.5;
+    const sizeThreshold = 0.05;
+    const limbCountThreshold = 0.25;
+    const limbSizeThreshold = 0.05;
+    const limbDepthThreshold = 0.25;
 
     let isMainBodySizeSimilar, isLimbCountSimilar, isLimbSizeSimilar, isLimbAngleSimilar, isLimbDepthSimilar;
     try {
