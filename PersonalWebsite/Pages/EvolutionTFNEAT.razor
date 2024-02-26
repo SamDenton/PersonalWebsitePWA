@@ -1525,32 +1525,56 @@
     {
         preTrainedAgents.Add(new AgentSet
             {
-                Name = "Standard Start",
-                Description = "This population started with almost default settings, using the Standard Start button. The score function was adjusted mid way through, and agent score tracking was fixed, so the graphs look a bit odd.  I also added new maps around generation 300 so learning was interrupted a bit.  Medium performance settings used.  This population suggests that, using the full complex learning settings, it will take 1000+ generations for significant progress.  The mutation rates, migration rates and population size will also alter this though.  Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
+                Name = "Grabby Boys",
+                Description = "Super Simple pop with small group to test new crossover and mutation functions",
+                Filename = "EvolvedPop_Gen-400_TopScore-4067.41_Agents-150_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 400,
+                TopScore = 4067.41,
+                NumberOfAgents = 150,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple"
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Slow but Complex",
+                Description = "The oldest, full setting population since fixing crossover and mutation functions.",
+                Filename = "EvolvedPop_Gen-303_TopScore-1996.55_Agents-1000_advanced-SwimMethod_Asymmetrical-Bodies_complex-NetworkOutput (1).json",
+                GenCount = 303,
+                TopScore = 1996.55,
+                NumberOfAgents = 1000,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple"
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Buggy - Standard Start",
+                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population started with almost default settings, using the Standard Start button. The score function was adjusted mid way through, and agent score tracking was fixed, so the graphs look a bit odd.  I also added new maps around generation 300 so learning was interrupted a bit.  Medium performance settings used.  This population suggests that, using the full complex learning settings, it will take 1000+ generations for significant progress.  The mutation rates, migration rates and population size will also alter this though.  Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
                 Filename = "EvolvedPop_Gen646_TopScore4446.23_Agents500_advancedSwimMethod_Asymmetrical.json",
                 GenCount = 646,
                 TopScore = 4446.23,
                 NumberOfAgents = 500,
                 SwimMethod = "Advanced",
                 Symmetrical = false,
-                StartMethod = " Standard"
+                StartMethod = "Standard"
             });
         preTrainedAgents.Add(new AgentSet
             {
-                Name = "Straight Line",
-                Description = "This population was started with Super Simple, before I gave a small range for the front and back, non-duplicated limbs, so they only know how to move in a straight line so far.  A good starting point for playing with environment settings. Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
+                Name = "Broken - Straight Line",
+                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population was started with Super Simple, before I gave a small range for the front and back, non-duplicated limbs, so they only know how to move in a straight line so far.  A good starting point for playing with environment settings. Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
                 Filename = "EvolvedPop_Gen319_TopScore2661.46_Agents500_simpleSwimMethod_Symmetrical.json",
                 GenCount = 319,
                 TopScore = 2661.46,
                 NumberOfAgents = 500,
                 SwimMethod = "Simple",
                 Symmetrical = true,
-                StartMethod = " Super Simple"
+                StartMethod = "Super Simple"
             });
         preTrainedAgents.Add(new AgentSet
             {
-                Name = "1 Long Arm!",
-                Description = "This population has gone through multiple settings changes that have led them to evolve 1 arm with many sub arms.  For a while, they where getting a huge score bonus for this.  High Performance settings used.  Trained before implementation so no score graphs available. Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
+                Name = "Buggy - 1 Long Arm!",
+                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population has gone through multiple settings changes that have led them to evolve 1 arm with many sub arms.  For a while, they where getting a huge score bonus for this.  High Performance settings used.  Trained before implementation so no score graphs available. Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
                 Filename = "EvolvedPop_Gen169_TopScore4465.77_Agents500_advancedSwimMethod_Asymmetrical.json",
                 GenCount = 169,
                 TopScore = 4465.77,
@@ -1561,8 +1585,8 @@
             });
         preTrainedAgents.Add(new AgentSet
             {
-                Name = "Super Simple Start",
-                Description = "What happens if you train a population for 3 days before realizing you set the mutation rate to 0 accidentally...",
+                Name = "Buggy - Super Simple Start",
+                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  What happens if you train a population for 3 days before realizing you set the mutation rate to 0 accidentally...",
                 Filename = "sillyPop,noMutation,gen126.json",
                 GenCount = 126,
                 TopScore = 2000,
@@ -1573,8 +1597,8 @@
             });
         preTrainedAgents.Add(new AgentSet
             {
-                Name = "Simple Start",
-                Description = "This population started with almost default settings, using the Simple Start button.  Medium performance settings used.  Trained before implementation so no score graphs available or internal ticker.",
+                Name = "Buggy - Simple Start",
+                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population started with almost default settings, using the Simple Start button.  Medium performance settings used.  Trained before implementation so no score graphs available or internal ticker.",
                 Filename = "EvolvedPop_Gen76_TopScore1505.39_Agents500_simpleSwimMethod_Asymmetrical.json",
                 GenCount = 76,
                 TopScore = 1505.39,
@@ -1585,8 +1609,8 @@
             });
         preTrainedAgents.Add(new AgentSet
             {
-                Name = "Standard Start, Small Pop",
-                Description = "This population started with almost default settings, but with only 50 agents in total.  Medium performance settings used.  Trained before implementation so no score graphs available or internal ticker.",
+                Name = "Buggy - Standard Start, Small Pop",
+                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population started with almost default settings, but with only 50 agents in total.  Medium performance settings used.  Trained before implementation so no score graphs available or internal ticker.",
                 Filename = "EvolvedPop_Gen57_TopScore861.09_Agents50_advancedSwimMethod_Asymmetrical.json",
                 GenCount = 57,
                 TopScore = 861.09,
@@ -1597,8 +1621,8 @@
             });
         preTrainedAgents.Add(new AgentSet
             {
-                Name = "Super Simple, 50 Agents",
-                Description = "A quick test population since I added score graphs.  Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
+                Name = "Buggy - Super Simple, 50 Agents",
+                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  A quick test population since I added score graphs.  Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
                 Filename = "EvolvedPop_Gen49_TopScore212.95_Agents50_simpleSwimMethod_Symmetrical.json",
                 GenCount = 49,
                 TopScore = 212.95,
