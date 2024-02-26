@@ -4175,20 +4175,36 @@ function adjustWeightsLength(weightsArray, existingNodeIds, isInputScenario) {
     }
 }
 
+// Function to update dynamic mutation rates based on the agent's performance and similarity to others
 function updateMutationRates(genome) {
     let hyperparams = genome.hyperparameters;
 
     // Helper function to round mutation rates and clamp between 0 and 0.5
     const roundRate = (rate) => Math.min(0.5, Math.max(0, rate.toFixed(5)));
 
+    // Check if the score is plateauing
+    const scorePlateauingAgent = isScorePlateauing(genome.agentHistory.scoreHistory, true);
+    const scorePlateauingPopulation = isScorePlateauing(stageProperties.scoreHistoryAverage);
+
+    // Function to adjust mutation rates based on plateauing
+    const adjustForPlateauing = (rate, increasingFactor, decreasingFactor) => {
+        if (scorePlateauingAgent || scorePlateauingPopulation) {
+            return roundRate(rate * increasingFactor);
+        } else {
+            return roundRate(rate * decreasingFactor);
+        }
+    };
+
     // Adjust mutation rates based on different criteria
+    hyperparams.limbMutationRate = adjustForPlateauing(hyperparams.limbMutationRate, 1.01, 0.99);
+    hyperparams.mutationRate = adjustForPlateauing(hyperparams.mutationRate, 1.01, 0.99);
+    hyperparams.layerMutationRate = adjustForPlateauing(hyperparams.layerMutationRate, 1.01, 0.99);
+    hyperparams.nodeMutationRate = adjustForPlateauing(hyperparams.nodeMutationRate, 1.01, 0.99);
+
+    // Other adjustments based on similarity to others
     hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.01 : hyperparams.limbMutationRate * 0.99);
-    // hyperparams.mutationRate = roundRate(isBrainSimilarToOthers(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
-    hyperparams.mutationRate = roundRate(isScorePlateauing(stageProperties.scoreHistoryAverage) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
-    hyperparams.mutationRate = roundRate(isScorePlateauing(genome.agentHistory.scoreHistory, true) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
     hyperparams.layerMutationRate = roundRate(isBrainLayersSimilarToOthers(genome) ? hyperparams.layerMutationRate * 1.01 : hyperparams.layerMutationRate * 0.99);
     hyperparams.nodeMutationRate = roundRate(isBrainNodesSimilarToOthers(genome) ? hyperparams.nodeMutationRate * 1.01 : hyperparams.nodeMutationRate * 0.99);
-    // hyperparams.mutationRate = roundRate(isScoreCloseToAverage(genome) ? hyperparams.mutationRate * 1.01 : hyperparams.mutationRate * 0.99);
 
     return hyperparams;
 }
@@ -4201,7 +4217,7 @@ function getAverageBody(groupAgentsForAverage) {
     let totalLimbDepth = 0;
 
     groupAgentsForAverage.forEach(agent => {
-        mainBodySize.push(agent.genome.mainBody.size);
+        mainBodySize.push(agent.genome.mainBody.size * agent.genome.mainBody.density);
 
         let flattenedLimbs = flattenLimbStructure(agent.genome.mainBody.arms);
         totalLimbs += flattenedLimbs.length;
@@ -4275,7 +4291,7 @@ function getAverageScore(groupAgentsForAverage) {
     averageGroupScores[groupIndex] = groupAgentsForAverage.reduce((acc, agent) => acc + agent.Score, 0) / groupAgentsForAverage.length;
 }
 
-
+// Calculate how similar the different population groups are and update the migration rate to maintain diversity
 function isBodySimilarToOthers(genome) {
     let group = genome.metadata.agentGroup;
     let averageBody = averageGroupBody[group];
@@ -4288,14 +4304,14 @@ function isBodySimilarToOthers(genome) {
     let averageLimbSize = numberOfLimbs > 0 ? totalLimbSize / numberOfLimbs : 0;
     let averageLimbDepth = numberOfLimbs > 0 ? totalLimbDepth / numberOfLimbs : 0;
 
-    const sizeThreshold = 0.05;
+    const sizeThreshold = 0.05; // Size is actually now mass
     const limbCountThreshold = 0.25;
     const limbSizeThreshold = 0.05;
-    const limbDepthThreshold = 0.25;
+    const limbDepthThreshold = 0.1;
 
     let isMainBodySizeSimilar, isLimbCountSimilar, isLimbSizeSimilar, isLimbAngleSimilar, isLimbDepthSimilar;
     try {
-        isMainBodySizeSimilar = Math.abs(genome.mainBody.size - averageBody.mainBodySize) / averageBody.mainBodySize <= sizeThreshold;
+        isMainBodySizeSimilar = Math.abs((genome.mainBody.size * genome.mainBody.density) - averageBody.mainBodySize) / averageBody.mainBodySize <= sizeThreshold;
         isLimbCountSimilar = Math.abs(numberOfLimbs - averageBody.averageNumberOfLimbs) <= limbCountThreshold;
         isLimbSizeSimilar = averageLimbSize > 0 && Math.abs(averageLimbSize - averageBody.averageLimbSize) / averageBody.averageLimbSize <= limbSizeThreshold;
         isLimbDepthSimilar = Math.abs(averageLimbDepth - averageBody.averageLimbDepth) <= limbDepthThreshold;
@@ -4433,8 +4449,6 @@ function adjustMigrationRateBasedOnGroupDifferences() {
     let differences = calculateGroupDifferences();
 
     // Assess if groups are becoming too similar or too divergent
-    //let areGroupsSimilar = differences.every(diff => diff < similarityThreshold);
-    //let areGroupsDivergent = differences.some(diff => diff > divergenceThreshold);
     let areGroupsSimilar = differences.length > 0 && differences.reduce((acc, diff) => acc + diff, 0) / differences.length < similarityThreshold;
     let areGroupsDivergent = differences.length > 0 && differences.reduce((acc, diff) => acc + diff, 0) / differences.length > divergenceThreshold;
 
@@ -5749,8 +5763,11 @@ AgentNEAT.prototype.renderRayCasts = function (p, offsetX, offsetY) {
 function alterOutputForSimplicity(output) {
     if (stageProperties.bodyPlanStart === "simple") {
 
-        // If the simple body plan is enabled, the first output should be unmodified for control
+        // If the simple body plan is enabled, the first output should be unmodified for control, with a small dead-zone to allow no steering
         let firstOutput = output[0];
+        if (firstOutput > -0.25 && firstOutput < 0.25) {
+            firstOutput = 0;
+        }
 
         let remainingOutputs = output.slice(1);
         remainingOutputs = remainingOutputs.map(x => {
@@ -6072,8 +6089,12 @@ AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY) {
         inputLabels.push(`Tick: ${internalTick}`);
     }
 
+
     if (stageProperties.outputsJointSpeed) {
-        outputLabels = outputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Joint ${idx + 1}`));
+        outputLabels = outputLabels.concat(
+            this.joints
+                .filter(joint => !joint.duplicate)
+                .map((_, idx) => `Joint ${idx + 1}`));
     }
 
     if (stageProperties.outputsJointTorque) {
@@ -6177,6 +6198,10 @@ AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY) {
                         p.text(labels[j], x - 90, y + 4);
                     } else if (i === hiddenLayers + 1) {
                         p.text(labels[j], x + 15, y + 4);
+
+                        while (this.joints[j].duplicate && this.joints[j + 1]) {
+                            j++;
+                        }
 
                         if (stageProperties.outputsJointSpeed && this.joints[j]) {
                             p.fill(GROUP_COLORS[j]);
