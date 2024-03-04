@@ -17,8 +17,8 @@
     <button class="preset-button high-button" title="Set high powered presets" @onclick="setHighPresets">High Power Settings Preset</button>
     <button class="preset-button vHigh-button" title="Set very high powered presets" @onclick="setVHighPresets">Very High Power Settings Preset</button>
     <button class="preset-button reset-button" title="Resets settings to default everything" @onclick="resetSettings">Reset All Settings</button>
-    <button class="preset-button resetSimple-button" title="Resets settings to the simple start settings without starting the simulation" @onclick="() => resetSettingsSimple(true)">Simple Preset</button>
-    <button class="preset-button resetSuperSimple-button" title="Resets settings to the super simple start settings without starting the simulation" @onclick="() => resetSettingsSuperSimple(true)">Super Simple Preset</button>
+    <button class="preset-button resetSimple-button" title="Resets settings to the simple start settings without starting the simulation" @onclick="() => resetSettingsSimple(false)">Simple Preset</button>
+    <button class="preset-button resetSuperSimple-button" title="Resets settings to the super simple start settings without starting the simulation" @onclick="() => resetSettingsSuperSimple(false)">Super Simple Preset</button>
     <button class="preset-button save-button" title="Saves current settings to a JSON file" @onclick="saveSettings">Save Settings To File</button>
     <button class="preset-button upload-button" title="Uploaded saved settings JSON" @onclick="uploadSettings">Upload Settings File</button>
 </div>
@@ -682,8 +682,8 @@
 
                 int numLayers = 3;
 
-                genome.LayerGenes.Add(InitializeLayer(0, 18));
-                genome.LayerGenes.Add(InitializeLayer(1, 10));
+                genome.LayerGenes.Add(InitializeLayer(0, 12));
+                genome.LayerGenes.Add(InitializeLayer(1, 7));
 
                 genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbsModified * stageProperties.startingLimbChainLength));
                 genome.MainBody = InitializeBodyPlanSimple(numLimbs);
@@ -1373,7 +1373,7 @@
         public bool inputJointAngle { get; set; } = true;
         public bool inputJointSpeed { get; set; } = false;
         public bool inputAgentPos { get; set; } = true;
-        public bool inputAgentV { get; set; } = true;
+        public bool inputAgentV { get; set; } = false;
         public bool inputScore { get; set; } = false;
         public bool inputOrientation { get; set; } = true;
         public bool inputTimeRemaining { get; set; } = false;
@@ -1409,13 +1409,13 @@
         public int dynamicMassBonusDivider { get; set; } = 500;
 
         // Training and Evolution
-        public int offspringMutationRate { get; set; } = 200;
+        public int offspringMutationRate { get; set; } = 1000;
         public int offspringNodeMutationRate { get; set; } = 80;
         public int offspringLayerMutationRate { get; set; } = 10;
         public int offspringLimbMutationRate { get; set; } = 40;
         public bool dynamicMutationRate { get; set; } = true;
         public bool dynamicMigrationRate { get; set; } = true;
-        public int topPerformerNumber { get; set; } = 15;
+        public int topPerformerNumber { get; set; } = 20;
         public int migrationRate { get; set; } = 50;
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 25;
@@ -1446,7 +1446,7 @@
         public int GroundY { get; set; } = 700;
         public int Gravity { get; set; } = 1; // not implemented
         public double Friction { get; set; } = 0.4; // not implemented
-        public int simulationLengthIncrease { get; set; } = 15;
+        public int simulationLengthIncrease { get; set; } = 30;
         public int maxSimulationLength { get; set; } = 50000;
         public int velocityIteration { get; set; } = 4;
         public int positionIteration { get; set; } = 2;
@@ -1752,7 +1752,7 @@
         stageProperties.inputJointAngle = true;
         stageProperties.inputJointSpeed = false;
         stageProperties.inputAgentPos = true;
-        stageProperties.inputAgentV = true;
+        stageProperties.inputAgentV = false;
         stageProperties.inputScore = false;
         stageProperties.inputOrientation = true;
         stageProperties.inputTimeRemaining = false;
@@ -1785,11 +1785,11 @@
         stageProperties.dynamicMassBonusDivider = 500;
         stageProperties.dynamicMutationRate = true;
         stageProperties.dynamicMigrationRate = true;
-        stageProperties.offspringMutationRate = 200;
+        stageProperties.offspringMutationRate = 1000;
         stageProperties.offspringNodeMutationRate = 80;
         stageProperties.offspringLayerMutationRate = 10;
         stageProperties.offspringLimbMutationRate = 40;
-        stageProperties.topPerformerNumber = 15;
+        stageProperties.topPerformerNumber = 20;
         stageProperties.migrationRate = 50;
         stageProperties.minPopGroupSize = 10;
         stageProperties.maxPopGroupSize = 25;
@@ -1816,7 +1816,7 @@
         stageProperties.GroundY = 700;
         stageProperties.Gravity = 1;
         stageProperties.Friction = 0.4;
-        stageProperties.simulationLengthIncrease = 15;
+        stageProperties.simulationLengthIncrease = 30;
         stageProperties.maxSimulationLength = 50000;
         stageProperties.velocityIteration = 4;
         stageProperties.positionIteration = 2;
@@ -1880,14 +1880,14 @@
         stageProperties.keepAgentSymmetrical = true;
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 5;
+        stageProperties.movementScoreMultiplier = 0;
         stageProperties.explorationScoreMultiplier = 0;
         stageProperties.sizeScoreMultiplier = 0;
         // stageProperties.dynamicMutationRate = false;
-        stageProperties.offspringMutationRate = 100;
+        // stageProperties.offspringMutationRate = 1000;
         stageProperties.offspringNodeMutationRate = 0;
         stageProperties.offspringLayerMutationRate = 0;
-        stageProperties.offspringLimbMutationRate = 10;
+        stageProperties.offspringLimbMutationRate = 1;
         stageProperties.topPerformerNumber = 20;
         stageProperties.swimStrength = 110;
         stageProperties.randomMap = false;
@@ -1898,6 +1898,7 @@
         stageProperties.randomAgentStartAngle = false;
         stageProperties.chanceToIncludeTopPerformerInMutation = 1;
         stageProperties.hiddenActivationFunction = "relu";
+        stageProperties.simulationLengthIncrease = 100;
     }
 
     private void InitializeTabs()
