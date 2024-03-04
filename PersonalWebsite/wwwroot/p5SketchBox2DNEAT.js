@@ -943,7 +943,7 @@ function drawGraphKey(p, x, y, highestScoreAgent = null) {
 // Automatically adjust the speed the simulation tries to run at based on the FPS
 function adjustPerformance(fps) {
     const standardHistorySize = 10;
-    const extendedHistorySize = 100;
+    const extendedHistorySize = 500;
     const dropThreshold = 15; 
     let badFps = 35;
     let goodFps = 49;

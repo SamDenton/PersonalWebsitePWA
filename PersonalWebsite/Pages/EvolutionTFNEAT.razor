@@ -1642,6 +1642,7 @@
         stageProperties.muscleDelay = 5;
         stageProperties.muscleBatch = 1;
         stageProperties.totalMuscleUpdateTime = 1;
+        stageProperties.maxPopGroupSize = 25;
     }
 
     private async Task setLowPresets()
@@ -1653,6 +1654,7 @@
         stageProperties.muscleDelay = 2;
         stageProperties.muscleBatch = 4;
         stageProperties.totalMuscleUpdateTime = 2;
+        stageProperties.maxPopGroupSize = 50;
     }
 
     private async Task setMidPresets()
@@ -1664,6 +1666,7 @@
         stageProperties.muscleDelay = 2;
         stageProperties.muscleBatch = 5;
         stageProperties.totalMuscleUpdateTime = 2;
+        stageProperties.maxPopGroupSize = 50;
     }
 
     private async Task setHighPresets()
@@ -1675,7 +1678,7 @@
         stageProperties.muscleDelay = 1;
         stageProperties.muscleBatch = 3;
         stageProperties.totalMuscleUpdateTime = 1;
-        stageProperties.maxPopGroupSize = 50;
+        stageProperties.maxPopGroupSize = 100;
     }
 
     private async Task setVHighPresets()
@@ -1687,7 +1690,7 @@
         stageProperties.muscleDelay = 1;
         stageProperties.muscleBatch = 5;
         stageProperties.totalMuscleUpdateTime = 1;
-        stageProperties.maxPopGroupSize = 50;
+        stageProperties.maxPopGroupSize = 100;
     }
 
     private async Task resetLists()
