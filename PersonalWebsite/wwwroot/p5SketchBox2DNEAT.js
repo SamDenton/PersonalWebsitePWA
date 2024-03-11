@@ -991,8 +991,6 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
     }
 
     // Define small thresholds for stability
-    // const linearStabilityThresholdBody = stageProperties.linearStabilityThresholdBody / 100; 
-    // const angularStabilityThresholdBody = stageProperties.angularStabilityThresholdBody / 100;
     const angularStabilityThresholdLimb = stageProperties.angularStabilityThresholdLimb / 100;
     const stabilityFrames = stageProperties.stabilityFrames;  // Number of frames to wait before confirming stability
 
@@ -1007,11 +1005,6 @@ function areAllAgentsStableNEAT(agentsToCheck = agents) {
                     break;
                 }
             }
-
-            //if (Math.abs(agent.mainBody.getAngularVelocity()) > angularStabilityThresholdBody || Math.abs(agent.mainBody.getLinearVelocity()) > linearStabilityThresholdBody) {
-            //    allAgentsStable = false;
-            //    break;
-            //}
         }
     }
 
@@ -1041,58 +1034,6 @@ function calculateBias(agentFacingDirection, forceDirection, defaultBias) {
     return dotProduct > 0 ? defaultBias : 2 - defaultBias;
 }
 
-// Old version of swim function. Not used anymore
-/*
-function applySwimmingForceOldOld(agent) {
-    for (let i = 0; i < agent.joints.length; i++) {
-        let angle = (i * 2 * Math.PI) / agent.numLimbs;
-        let joint = agent.joints[i];
-        let currentAngle = joint.getJointAngle();
-        let N = 5;
-        let forceScalingFactor = 1;
-        let agentFacingDirection = agent.mainBody.getAngle();
-        // Add the new angle to the buffer
-        agent.limbBuffer[i].push(currentAngle);
-
-        // Check if buffer has reached N length
-        if (agent.limbBuffer[i].length >= N) {
-
-            // Calculate the average delta angle over the last N frames
-            let deltaTheta = (currentAngle - agent.limbBuffer[i][0]) / N;
-
-            // Remove the oldest angle from the buffer to maintain its size
-            agent.limbBuffer[i].shift();
-
-            // Determine the direction of the force
-            let forceDirection = (currentAngle - angle) + Math.PI / 2;
-
-            //let defaultBias = (!stageProperties.outputsBias || !simulationStarted || !agent.biases || i >= agent.biases.length || agent.biases[i] == null)
-            //    ? stageProperties.swimBias
-            //    : agent.biases[i];
-
-            let defaultBias = stageProperties.swimBias;
-
-            let bias = calculateBias(agentFacingDirection, forceDirection, defaultBias);
-
-            let forceMagnitude;
-
-            forceMagnitude = deltaTheta * forceScalingFactor * bias;
-
-            // Calculate the force vector
-            let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
-
-            // Calculate the point on the limb to apply the force
-            let forceApplyPointX = agent.limbs[i].getPosition().x + Math.cos(angle) * (agent.limbLength / 1);
-            let forceApplyPointY = agent.limbs[i].getPosition().y + Math.sin(angle) * (agent.limbLength / 1);
-
-            let forceApplyPoint = planck.Vec2(forceApplyPointX, forceApplyPointY);
-
-            agent.limbs[i].applyForce(force, forceApplyPoint, true);
-        }
-    }
-} 
-*/
-
 // Helper function to calculate the change in angle over the last N frames
 function calculateDeltaTheta(buffer, currentAngle, N) {
     buffer.push(currentAngle); // Add the current angle to the buffer
@@ -1119,6 +1060,7 @@ function applySwimmingForceOld(p, agent) {
 
     const N = 10;// stageProperties.swimForceOverNFrames;
     const forceScalingFactor = stageProperties.swimStrength * 200;
+    const maxForceMagnitude = stageProperties.maxForceMagnitude; // Maximum force magnitude
 
     for (let i = 0; i < agent.bodyParts.length; i++) {
         let limbBody = agent.limbs[i];
@@ -1128,7 +1070,7 @@ function applySwimmingForceOld(p, agent) {
         let agentFacingDirection = agent.mainBody.getAngle();
         let limbAngle = limbBody.getAngle() + Math.PI / 2;
 
-        // In your main function
+        // Calculate the change in angle over the last N frames
         let deltaTheta = calculateDeltaTheta(agent.limbBuffer[i], currentAngle, N);
 
         // Determine the direction of the force
@@ -1150,16 +1092,7 @@ function applySwimmingForceOld(p, agent) {
             agent.agentEnergy -= (Math.abs(forceMagnitude / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[i] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
         }
 
-        //if (p.frameCount % 10 === 0 && agent.genome.metadata.agentIndex === 5 && i == 0) {
-        //    let expectedBiasDirection = Math.abs(forceDirection - agentFacingDirection) < Math.PI / 2 ? "Aligned (Increase Force)" : "Opposite (Decrease Force)";
-        //    console.log(`Agent Index: ${agent.genome.metadata.agentIndex}, Frame: ${p.frameCount}, Bias: ${bias}, Expected: ${expectedBiasDirection}, Force Dir: ${forceDirection.toFixed(2)}, Agent Dir: ${agentFacingDirection.toFixed(2)}, Force Magnitude: ${forceMagnitude.toFixed(5)}`);
-        //}
-
         let force = planck.Vec2(Math.cos(forceDirection) * forceMagnitude, Math.sin(forceDirection) * forceMagnitude);
-
-        // Adjust force based on limb orientation and agent's facing direction
-        //let orientationAdjustment = Math.cos(agent.mainBody.getAngle() - limbBody.getAngle());
-        //let adjustedForce = force.mul(orientationAdjustment);
 
         // Set 'forceAngle' property for visualization
         let forceAngle = Math.atan2(force.y, force.x);
@@ -1172,6 +1105,9 @@ function applySwimmingForceOld(p, agent) {
 
         // Create a p5.Vector for adjustedForce
         let adjustedForceVector = p.createVector(adjustedForce.x, adjustedForce.y);
+
+        // Check if the magnitude of the vector exceeds the maxForceMagnitude
+        adjustedForceVector.limit(maxForceMagnitude);
 
         limbBody.applyForceToCenter(planck.Vec2(adjustedForceVector.x, adjustedForceVector.y));
 
@@ -1291,6 +1227,7 @@ function applySwimmingForce(p, agent) {
                 limbBody.applyForce(agent.lastCalculatedForces[index][key], position, true);
 
                 // Energy reduction in this way is a bit of a hack, as it's punishing the agent for all forces applied in the facing direction.  Better than all forces, but still not ideal.
+                // The correct way to do it would be to reduce the agents energy based on intentional movements, ie updates from the brain.
                 if (agent.agentEnergy > 0 && agent.startingEnergy > 1 && bias > 1) {
                     agent.agentEnergy -= (Math.abs(adjustedForceVector.mag() / stageProperties.forceMagnitudeEnergyReductionDivider) * (stageProperties.energyUseForceSizeMult / 10)) * ((agent.limbMass[index] / stageProperties.limbMassEnergyReductionDivider) * (stageProperties.energyUseLimbSizeMult / 10)) * ((agent.brainSize / stageProperties.brainSizeEnergyReductionDivider) * (stageProperties.energyUseBrainSizeMult / 10));
                 }
