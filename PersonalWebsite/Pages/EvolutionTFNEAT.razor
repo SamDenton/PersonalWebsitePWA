@@ -415,6 +415,7 @@
         public string SwimMethod { get; set; }
         public bool Symmetrical { get; set; }
         public string StartMethod { get; set; }
+        public int Status { get; set; }
     }
 
 
@@ -1525,111 +1526,211 @@
     {
         preTrainedAgents.Add(new AgentSet
             {
+                Name = "Good Starting Point",
+                Description = "A good starting point using the super simple pre-set, skipping 77 generations.",
+                Filename = "Populations/EvolvedPop_Gen-77_TopScore-5187.00_Agents-1000_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 77,
+                TopScore = 5187.00,
+                NumberOfAgents = 1000,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Good Starting Point",
+                Description = "A good starting point using the super simple pre-set, skipping 22 generations.  I recommend adjusting some settings (and click update), such as the round length.",
+                Filename = "Populations/GreatStartingPoint_Gen-22_TopScore-1077.00_Agents-1000_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 22,
+                TopScore = 1077.00,
+                NumberOfAgents = 1000,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Big Feet",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/SlowLearningBigFeet_Gen-339_TopScore-2835.00_Agents-500_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 339,
+                TopScore = 2835.00,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Hat Bois",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/HatBois_Gen-29_TopScore-931.27_Agents-500_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 29,
+                TopScore = 931.27,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Testing New Physics",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/SlowLearnersPlayingWithNewRankings_Gen-184_TopScore-2343.00_Agents-500_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 184,
+                TopScore = 2343.00,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Testing New Physics",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/Gen-210_TopScore-2636.28_Agents-500_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 210,
+                TopScore = 2636.28,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Testing New Physics",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/SimplePopLearningWell_Gen-125_TopScore-2751.21_Agents-500_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 125,
+                TopScore = 2751.21,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Testing New Simple Preset",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/EvolvedPop_Gen-44_TopScore-3558.46_Agents-500_simple-SwimMethod_Asymmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 44,
+                TopScore = 3558.46,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = false,
+                StartMethod = "Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Testing New Super Simple Preset",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/EvolvedPop_Gen-14_TopScore-1018.87_Agents-250_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 14,
+                TopScore = 1018.87,
+                NumberOfAgents = 250,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Testing New Physics",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/EvolvedPop_Gen-14_TopScore-2174.05_Agents-250_simple-SwimMethod_Asymmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 14,
+                TopScore = 2174.05,
+                NumberOfAgents = 250,
+                SwimMethod = "Simple",
+                Symmetrical = false,
+                StartMethod = "Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Testing New Physics",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/EvolvedPop_Gen-45_TopScore-1278.32_Agents-500_advanced-SwimMethod_Asymmetrical-Bodies_complex-NetworkOutput.json",
+                GenCount = 45,
+                TopScore = 1278.32,
+                NumberOfAgents = 500,
+                SwimMethod = "Advanced",
+                Symmetrical = false,
+                StartMethod = "Standard",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Testing New Physics",
+                Description = "A population created while configuring new presets after changes to the physics functions.",
+                Filename = "Populations/EvolvedPop_Gen-477_TopScore-4410.46_Agents-150_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 477,
+                TopScore = 4410.46,
+                NumberOfAgents = 150,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
                 Name = "Grabby Boys",
                 Description = "Super Simple pop with small group to test new crossover and mutation functions",
-                Filename = "EvolvedPop_Gen-400_TopScore-4067.41_Agents-150_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                Filename = "Populations/EvolvedPop_Gen-400_TopScore-4067.41_Agents-150_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
                 GenCount = 400,
                 TopScore = 4067.41,
                 NumberOfAgents = 150,
                 SwimMethod = "Simple",
                 Symmetrical = true,
-                StartMethod = "Super Simple"
+                StartMethod = "Super Simple",
+                Status = 2
             });
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Slow but Complex",
                 Description = "The oldest, full setting population since fixing crossover and mutation functions.",
-                Filename = "EvolvedPop_Gen-303_TopScore-1996.55_Agents-1000_advanced-SwimMethod_Asymmetrical-Bodies_complex-NetworkOutput (1).json",
+                Filename = "Populations/EvolvedPop_Gen-303_TopScore-1996.55_Agents-1000_advanced-SwimMethod_Asymmetrical-Bodies_complex-NetworkOutput.json",
                 GenCount = 303,
                 TopScore = 1996.55,
                 NumberOfAgents = 1000,
-                SwimMethod = "Simple",
-                Symmetrical = true,
-                StartMethod = "Super Simple"
+                SwimMethod = "Advanced",
+                Symmetrical = false,
+                StartMethod = "Standard",
+                Status = 2
             });
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Buggy - Standard Start",
                 Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population started with almost default settings, using the Standard Start button. The score function was adjusted mid way through, and agent score tracking was fixed, so the graphs look a bit odd.  I also added new maps around generation 300 so learning was interrupted a bit.  Medium performance settings used.  This population suggests that, using the full complex learning settings, it will take 1000+ generations for significant progress.  The mutation rates, migration rates and population size will also alter this though.  Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
-                Filename = "EvolvedPop_Gen646_TopScore4446.23_Agents500_advancedSwimMethod_Asymmetrical.json",
+                Filename = "Populations/EvolvedPop_Gen646_TopScore4446.23_Agents500_advancedSwimMethod_Asymmetrical.json",
                 GenCount = 646,
                 TopScore = 4446.23,
                 NumberOfAgents = 500,
                 SwimMethod = "Advanced",
                 Symmetrical = false,
-                StartMethod = "Standard"
-            });
-        preTrainedAgents.Add(new AgentSet
-            {
-                Name = "Broken - Straight Line",
-                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population was started with Super Simple, before I gave a small range for the front and back, non-duplicated limbs, so they only know how to move in a straight line so far.  A good starting point for playing with environment settings. Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
-                Filename = "EvolvedPop_Gen319_TopScore2661.46_Agents500_simpleSwimMethod_Symmetrical.json",
-                GenCount = 319,
-                TopScore = 2661.46,
-                NumberOfAgents = 500,
-                SwimMethod = "Simple",
-                Symmetrical = true,
-                StartMethod = "Super Simple"
+                StartMethod = "Standard",
+                Status = 2
             });
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Buggy - 1 Long Arm!",
                 Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population has gone through multiple settings changes that have led them to evolve 1 arm with many sub arms.  For a while, they where getting a huge score bonus for this.  High Performance settings used.  Trained before implementation so no score graphs available. Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
-                Filename = "EvolvedPop_Gen169_TopScore4465.77_Agents500_advancedSwimMethod_Asymmetrical.json",
+                Filename = "Populations/EvolvedPop_Gen169_TopScore4465.77_Agents500_advancedSwimMethod_Asymmetrical.json",
                 GenCount = 169,
                 TopScore = 4465.77,
                 NumberOfAgents = 500,
                 SwimMethod = "Advanced",
                 Symmetrical = false,
-                StartMethod = "Standard"
-            });
-        preTrainedAgents.Add(new AgentSet
-            {
-                Name = "Buggy - Super Simple Start",
-                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  What happens if you train a population for 3 days before realizing you set the mutation rate to 0 accidentally...",
-                Filename = "sillyPop,noMutation,gen126.json",
-                GenCount = 126,
-                TopScore = 2000,
-                NumberOfAgents = 500,
-                SwimMethod = "Simple",
-                Symmetrical = true,
-                StartMethod = " Super Simple"
-            });
-        preTrainedAgents.Add(new AgentSet
-            {
-                Name = "Buggy - Simple Start",
-                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population started with almost default settings, using the Simple Start button.  Medium performance settings used.  Trained before implementation so no score graphs available or internal ticker.",
-                Filename = "EvolvedPop_Gen76_TopScore1505.39_Agents500_simpleSwimMethod_Asymmetrical.json",
-                GenCount = 76,
-                TopScore = 1505.39,
-                NumberOfAgents = 500,
-                SwimMethod = "Simple",
-                Symmetrical = false,
-                StartMethod = "Simple"
-            });
-        preTrainedAgents.Add(new AgentSet
-            {
-                Name = "Buggy - Standard Start, Small Pop",
-                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  This population started with almost default settings, but with only 50 agents in total.  Medium performance settings used.  Trained before implementation so no score graphs available or internal ticker.",
-                Filename = "EvolvedPop_Gen57_TopScore861.09_Agents50_advancedSwimMethod_Asymmetrical.json",
-                GenCount = 57,
-                TopScore = 861.09,
-                NumberOfAgents = 50,
-                SwimMethod = "Advanced",
-                Symmetrical = false,
-                StartMethod = "Standard"
-            });
-        preTrainedAgents.Add(new AgentSet
-            {
-                Name = "Buggy - Super Simple, 50 Agents",
-                Description = "Started Training When Bugs Where Still Present, showing NN will break it.  A quick test population since I added score graphs.  Trained before implementing an internal sign switch ticker which does seem to help speed up learning.",
-                Filename = "EvolvedPop_Gen49_TopScore212.95_Agents50_simpleSwimMethod_Symmetrical.json",
-                GenCount = 49,
-                TopScore = 212.95,
-                NumberOfAgents = 50,
-                SwimMethod = "Simple",
-                Symmetrical = true,
-                StartMethod = "SuperSimple"
+                StartMethod = "Standard",
+                Status = 3
             });
     }
 

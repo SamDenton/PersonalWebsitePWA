@@ -343,7 +343,9 @@ input:checked + .slider:before {
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     width: 60%;
-    max-width: 600px; /* Adjust as needed */
+    max-width: 600px;
+    max-height: 80%;
+    overflow: scroll;
 }
 
 .popup-header {
@@ -393,7 +395,7 @@ input:checked + .slider:before {
     .agent-set:hover {
         box-shadow: 0 6px 12px rgba(0,0,0,0.3);
         /*width: calc(50% - 8px);*/
-        transform: scale(1.5);
+        transform: scale(1.4);
         background-color: #344444;
         z-index: 1002;
         transition: box-shadow 0.3s, transform 0.3s, width 0.3s;
@@ -403,7 +405,11 @@ input:checked + .slider:before {
             max-height: 500px;
             transition: max-height 0.3s ease 0.15s;
         }
-    
+/*
+        .agent-set:hover ~ .popup-window {
+            overflow: visible;
+        }*/
+
     .agent-set h4 {
         font-weight: bold;
         margin-bottom: 4px;
