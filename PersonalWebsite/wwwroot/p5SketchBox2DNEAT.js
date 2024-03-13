@@ -2196,6 +2196,7 @@ function endSimulationNEAT(p) {
     // Reduce the sim speed before restart to reduce the initial demand on the CPU
     if (stageProperties.simSpeed > 25) {
         stageProperties.simSpeed -= 15;
+        fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
     }
 
     for (let agent of agents) {
