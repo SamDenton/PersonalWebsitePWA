@@ -3467,31 +3467,43 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     let TScore2 = parent2.Score;
 
     // Function to create a mock agent from a genome and its top score
-    function createMockAgentFromGenome(genome) {
+    function createMockAgentFromGenome(genome, submissiveParent) {
         if (!genome || !genome.agentHistory || !genome.agentHistory.scoreHistory || genome.agentHistory.scoreHistory.length === 0) {
             return null;
         }
 
-        // Find the highest score in the history
-        let topScoreEntry = genome.agentHistory.scoreHistory.reduce((prev, current) => (prev.score > current.score) ? prev : current);
         let mockAgent = {
             genome: genome,
-            Score: topScoreEntry.score
+            Score: 0 // Default score, to be updated
         };
+
+        // Find the highest score in the history of topAgentEver
+        let topScoreEntry = genome.agentHistory.scoreHistory.reduce((prev, current) => (prev.score > current.score) ? prev : current);
+        mockAgent.Score = topScoreEntry.score;
+
+        // Combine the score history of topAgentEver with that of the submissive parent so offspring have a complete history
+        let missingHistoryLength = submissiveParent.genome.agentHistory.scoreHistory.length - genome.agentHistory.scoreHistory.length;
+        if (missingHistoryLength > 0) {
+            let additionalHistory = submissiveParent.genome.agentHistory.scoreHistory.slice(-missingHistoryLength);
+            mockAgent.genome.agentHistory.scoreHistory = [...genome.agentHistory.scoreHistory, ...additionalHistory];
+        } else {
+            mockAgent.genome.agentHistory.scoreHistory = [...genome.agentHistory.scoreHistory];
+        }
 
         return mockAgent;
     }
 
     let dominantParent = (TScore1 > TScore2) ? parent1 : parent2;
+    let submissiveParent = (TScore1 < TScore2) ? parent1 : parent2
     let chanceForTopAgentToBeDominant = (stageProperties.chanceForTopAgentToBeDominant) ? stageProperties.chanceForTopAgentToBeDominant : 1;
 
     // Small chance for the dominant parent to be the topAgentEver
     if (Math.random() < chanceForTopAgentToBeDominant / 1000) {
-        let mockTopAgentEver = createMockAgentFromGenome(topAgentEver);
+        let mockTopAgentEver = createMockAgentFromGenome(topAgentEver, submissiveParent);
         dominantParent = mockTopAgentEver ? mockTopAgentEver : dominantParent;
+        
     }
 
-    let submissiveParent = (TScore1 < TScore2) ? parent1 : parent2
 
     if (dominantParent.genome.metadata.agentIndex === submissiveParent.genome.metadata.agentIndex || dominantParent.Score == submissiveParent.Score) {
         console.error("Dominant and submissive parents are the same! Dominant score: ", dominantParent.Score, " Sub score: ", submissiveParent.Score);
@@ -4299,7 +4311,7 @@ function updateMutationRates(genome) {
     let hyperparams = genome.hyperparameters;
 
     // Helper function to round mutation rates and clamp between 0 and 0.5
-    const roundRate = (rate) => Math.min(0.5, Math.max(0, rate.toFixed(5)));
+    const roundRate = (rate) => Math.min(0.5, Math.max(0, rate.toFixed(8)));
 
     // Check if the score is plateauing
     const scorePlateauingAgent = isScorePlateauing(genome.agentHistory.scoreHistory, true);

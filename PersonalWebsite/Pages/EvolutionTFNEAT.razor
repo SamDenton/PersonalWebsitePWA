@@ -42,6 +42,7 @@
                 <p class="tagline">Read on to get started!</p>
 
                 <h5>Quick Start Guide:</h5>
+                <p>I recommended refreshing without cache (CTRL + SHIFT + R) before getting started to ensure you have the latest version.  Blazor tends to cache JavaScript very aggressively.</p>
                 <p>Please select a pre-configuration from the top to get a good starting point.</p>
                 <p>You can then use the settings tabs to alter specific settings.  You can save your current settings locally and re-upload them for later use.  This includes which settings are favourited.  A lot of the example numbers below will be slightly off, as I am constantly updating the default values.</p>
                 <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
@@ -1428,7 +1429,7 @@
         public int percentageOffspringFromBiasedCrossover { get; set; } = 25;
         public int percentageOffspringFromRandomCrossover { get; set; } = 25;
         public int percentageOffspringFromLayerCrossover { get; set; } = 25;
-        public int chanceForTopAgentToBeDominant { get; set; } = 10;
+        public int chanceForTopAgentToBeDominant { get; set; } = 1;
         // Advanced Training and Evolution
         public int tournamentSize { get; set; } = 10;
         public int angularStabilityThresholdLimb { get; set; } = 25;
@@ -1913,7 +1914,7 @@
         stageProperties.percentageOffspringFromBiasedCrossover = 25;
         stageProperties.percentageOffspringFromRandomCrossover = 25;
         stageProperties.percentageOffspringFromLayerCrossover = 25;
-        stageProperties.chanceForTopAgentToBeDominant = 10;
+        stageProperties.chanceForTopAgentToBeDominant = 1;
         stageProperties.tournamentSize = 10;
         // stageProperties.linearStabilityThresholdBody = 15;
         // stageProperties.angularStabilityThresholdBody = 20;
@@ -3096,9 +3097,9 @@
                         ValueExpression = () => stageProperties.chanceForTopAgentToBeDominant,
                         ValueChanged = val => stageProperties.chanceForTopAgentToBeDominant = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 1000,
                         Step = 1,
-                        Details = "Sets the % chance a child's dominant parent will be the top scoring agent ever."
+                        Details = "Sets the % chance a child's dominant parent will be the top scoring agent ever.  Value divided by 10 is the %"
                     }
                 },
                 AdvancedSettings = new List<Setting>
@@ -3114,28 +3115,6 @@
                         Step = 1,
                         Details = "Sets the number of agents randomly picked for tournament selection within tournament parent selector."
                     },
-                    // new Setting
-                    // {
-                    //     Name = "Linear Stability Threshold for Body",
-                    //     Type = SettingType.Slider,
-                    //     ValueExpression = () => stageProperties.linearStabilityThresholdBody,
-                    //     ValueChanged = val => stageProperties.linearStabilityThresholdBody = val,
-                    //     Min = 1,
-                    //     Max = 50,
-                    //     Step = 1,
-                    //     Details = "Determines the linear stability threshold for the agent's body."
-                    // },
-                    // new Setting
-                    // {
-                    //     Name = "Angular Stability Threshold for Body",
-                    //     Type = SettingType.Slider,
-                    //     ValueExpression = () => stageProperties.angularStabilityThresholdBody,
-                    //     ValueChanged = val => stageProperties.angularStabilityThresholdBody = val,
-                    //     Min = 1,
-                    //     Max = 50,
-                    //     Step = 1,
-                    //     Details = "Determines the angular stability threshold for the agent's body."
-                    // },
                     new Setting
                     {
                         Name = "Angular Stability Threshold for Limb",
