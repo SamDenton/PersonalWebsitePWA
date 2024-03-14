@@ -1393,6 +1393,10 @@
         public bool massBonusIsDynamic { get; set; } = true;
         public int startingEnergyBase { get; set; } = 10;
         public int startingEnergyMassPower { get; set; } = 2;
+        public int scoreHistoryWeight { get; set; } = 75;
+        public int scoreVarianceWeight { get; set; } = 10;
+        public int ageWeight { get; set; } = 5;
+        public int environmentalAdaptationWeight { get; set; } = 10;
         // Advanced Score and Energy
         public int startingEnergyBodyMassMult { get; set; } = 10;
         public int startingEnergyLimbMassMult { get; set; } = 10;
@@ -1421,15 +1425,19 @@
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 25;
         public bool agentsRequireStablising { get; set; } = true;
+        public int percentageOffspringFromBiasedCrossover { get; set; } = 25;
+        public int percentageOffspringFromRandomCrossover { get; set; } = 25;
+        public int percentageOffspringFromLayerCrossover { get; set; } = 25;
+        public int chanceForTopAgentToBeDominant { get; set; } = 10;
         // Advanced Training and Evolution
         public int tournamentSize { get; set; } = 10;
-        // public int linearStabilityThresholdBody { get; set; } = 20;
-        // public int angularStabilityThresholdBody { get; set; } = 25;
         public int angularStabilityThresholdLimb { get; set; } = 25;
         public int stabilityFrames { get; set; } = 50;
         public int stabilityCheckOverwriteFrames { get; set; } = 1000;
         public int chanceToIncludeTopPerformerInMutation { get; set; } = 1;
         public int chanceToIncludeOffspringInMutation { get; set; } = 50;
+        public int chanceToIncludeOffspringInBodyMutation { get; set; } = 50;
+        public int chanceToIncludeOffspringInBodyCrossover { get; set; } = 50;
         public int neuronMutationStandardDeviation { get; set; } = 10;
         public int bodyPlanMutationStandardDeviation { get; set; } = 10;
         public int maxPosForNormalisation { get; set; } = 5000;
@@ -1873,6 +1881,10 @@
         stageProperties.massBonusIsDynamic = true;
         stageProperties.startingEnergyBase = 10;
         stageProperties.startingEnergyMassPower = 2;
+        stageProperties.scoreHistoryWeight = 75;
+        stageProperties.scoreVarianceWeight = 10;
+        stageProperties.ageWeight = 5;
+        stageProperties.environmentalAdaptationWeight = 10;
         stageProperties.startingEnergyBodyMassMult = 10;
         stageProperties.startingEnergyLimbMassMult = 10;
         stageProperties.energyUseForceSizeMult = 10;
@@ -1898,6 +1910,10 @@
         stageProperties.minPopGroupSize = 10;
         stageProperties.maxPopGroupSize = 25;
         stageProperties.agentsRequireStablising = true;
+        stageProperties.percentageOffspringFromBiasedCrossover = 25;
+        stageProperties.percentageOffspringFromRandomCrossover = 25;
+        stageProperties.percentageOffspringFromLayerCrossover = 25;
+        stageProperties.chanceForTopAgentToBeDominant = 10;
         stageProperties.tournamentSize = 10;
         // stageProperties.linearStabilityThresholdBody = 15;
         // stageProperties.angularStabilityThresholdBody = 20;
@@ -1906,6 +1922,8 @@
         stageProperties.stabilityCheckOverwriteFrames = 500;
         stageProperties.chanceToIncludeTopPerformerInMutation = 10;
         stageProperties.chanceToIncludeOffspringInMutation = 50;
+        stageProperties.chanceToIncludeOffspringInBodyMutation = 50;
+        stageProperties.chanceToIncludeOffspringInBodyCrossover = 50;
         stageProperties.neuronMutationStandardDeviation = 10;
         stageProperties.bodyPlanMutationStandardDeviation = 10;
         stageProperties.maxPosForNormalisation = 5000;
@@ -2704,7 +2722,51 @@
                         Max = 10,
                         Step = 1,
                         Details = "Determines the exponent used for calculating agent starting energy based on mass"
-                    }
+                    },
+                    new Setting
+                    {
+                        Name = "Score History Weight",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.scoreHistoryWeight,
+                        ValueChanged = val => stageProperties.scoreHistoryWeight = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "After each generation, agents are ranked based on a few factors, this value is how important the score is in that ranking.  It looks at the last 10 scores achieved, with greater weight for the latest scores."
+                    },
+                    new Setting
+                    {
+                        Name = "Score Variation Weight",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.scoreVarianceWeight,
+                        ValueChanged = val => stageProperties.scoreVarianceWeight = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "After each generation, agents are ranked based on a few factors, this value gives a bonus if an agents scores are consistent over the last 10 rounds."
+                    },
+                    new Setting
+                    {
+                        Name = "Scoring Agent Age Weight",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.ageWeight,
+                        ValueChanged = val => stageProperties.ageWeight = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "After each generation, agents are ranked based on a few factors, this value gives a penalty for agents that have not mutated or been crossed-over for a few rounds."
+                    },
+                    new Setting
+                    {
+                        Name = "Score Environmental Variation Weight",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.environmentalAdaptationWeight,
+                        ValueChanged = val => stageProperties.environmentalAdaptationWeight = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "After each generation, agents are ranked based on a few factors, this value gives a bonus to agents with consistent scores across different maps."
+                    } 
                 },
                 AdvancedSettings = new List<Setting>
                 {
@@ -2993,6 +3055,50 @@
                         BooleanValueExpression = () => stageProperties.agentsRequireStablising,
                         BooleanValueChanged = val => stageProperties.agentsRequireStablising = val,
                         Details = "Determines if agents require stabilization before the round begins, essentially, all agents get 1 opportunity to set the motor speed of their limbs before starting the round proper, and before the main body can move.  Using this can help performance in the first few frames, and can also encourage more robust learning in agents, as they cant just push off and glide for the first move.  It will also slow training initially as their first action is wasted."
+                    },
+                    new Setting
+                    {
+                        Name = "Percentage Offspring From Biased Crossover",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.percentageOffspringFromBiasedCrossover,
+                        ValueChanged = val => stageProperties.percentageOffspringFromBiasedCrossover = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Sets the % of child agents built using the biased crossover method, that randomly swaps values based on the scores of the 2 parents.  Any amount from this setting and the other Crossover % settings left from 100% will be direct clones of the dominant parent."
+                    },
+                    new Setting
+                    {
+                        Name = "Percentage Offspring From Random Crossover",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.percentageOffspringFromRandomCrossover,
+                        ValueChanged = val => stageProperties.percentageOffspringFromRandomCrossover = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Sets the % of child agents built using the random crossover method, that randomly swaps values between parents.  Any amount from this setting and the other Crossover % settings left from 100% will be direct clones of the dominant parent."
+                    },
+                    new Setting
+                    {
+                        Name = "Percentage Offspring From Layer Crossover",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.percentageOffspringFromLayerCrossover,
+                        ValueChanged = val => stageProperties.percentageOffspringFromLayerCrossover = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Sets the % of child agents built using the layer crossover method, similar to 'point to point' crossover, it randomly swaps whole layers between parents.  Any amount from this setting and the other Crossover % settings left from 100% will be direct clones of the dominant parent."
+                    },
+                    new Setting
+                    {
+                        Name = "Percentage Chance Top Agent is Dominant",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.chanceForTopAgentToBeDominant,
+                        ValueChanged = val => stageProperties.chanceForTopAgentToBeDominant = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Sets the % chance a child's dominant parent will be the top scoring agent ever."
                     }
                 },
                 AdvancedSettings = new List<Setting>
@@ -3084,6 +3190,28 @@
                         Max = 100,
                         Step = 5,
                         Details = "The probability of including offspring in mutation processes."
+                    },
+                    new Setting
+                    {
+                        Name = "Include Offspring in Body Mutation",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.chanceToIncludeOffspringInBodyMutation,
+                        ValueChanged = val => stageProperties.chanceToIncludeOffspringInBodyMutation = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 5,
+                        Details = "The probability of including offspring in body plan mutation processes."
+                    },
+                    new Setting
+                    {
+                        Name = "Include Offspring in Body Crossover",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.chanceToIncludeOffspringInBodyCrossover,
+                        ValueChanged = val => stageProperties.chanceToIncludeOffspringInBodyCrossover = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 5,
+                        Details = "The probability of including offspring in body plan crossover processes.  Agents not included will be clones of the dominant parent."
                     },
                     new Setting
                     {

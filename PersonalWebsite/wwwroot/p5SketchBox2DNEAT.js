@@ -32,6 +32,7 @@ let averageGroupBrainLayers = [];
 let averageGroupBrainNodes = [];
 let averageGroupBody = [];
 let usedIndices = new Set();
+let topAgentEver;
 
 const GROUP_COLORS_NAMES = [
     'Traffic purple', 'Grass green', 'Yellow orange', 'Maize yellow', 'Quartz grey', 'Salmon range', 'Pearl black berry', 'Golden yellow', 'Pearl light grey', 'Red lilac',
@@ -943,7 +944,7 @@ function drawGraphKey(p, x, y, highestScoreAgent = null) {
 // Automatically adjust the speed the simulation tries to run at based on the FPS
 function adjustPerformance(fps) {
     const standardHistorySize = 10;
-    const extendedHistorySize = 500;
+    const extendedHistorySize = Math.round(500 / stageProperties.simSpeed);
     const dropThreshold = 15; 
     let badFps = 35;
     let goodFps = 49;
@@ -1501,7 +1502,8 @@ async function saveGenomes() {
 
             const data = {
                 genomes: storedData.data.genomes,
-                stageProperties: storedData.data.stageProperties
+                stageProperties: storedData.data.stageProperties,
+                topAgent: topAgentEver,
             };
             const jsonString = JSON.stringify(data);
 
@@ -1548,6 +1550,7 @@ async function saveStateToIndexedDB(genomesToSave) {
         const data = {
             genomes: genomesToSave,
             stageProperties: stageProperties,
+            topAgent: topAgentEver,
             timestamp: new Date().toISOString()
         };
 
@@ -1579,12 +1582,23 @@ async function recoverStateFromIndexedDB() {
             if (storedData) {
                 const data = storedData.data;
                 let uploadedAgentGenomePool = data.genomes;
-                let uploadedstageProperties = data.stageProperties;
+                let uploadedStageProperties = data.stageProperties;
+                try {
+                    let uploadedTopAgent = data.topAgent;
+                    let topScoreFromHistory = Math.max(...uploadedTopAgent.agentHistory.scoreHistory.map(score => score.score));
 
-                initializeSketchBox2DNEAT(uploadedstageProperties);
+                    if (topScoreFromHistory > uploadedStageProperties.topScoreEver) {
+                        uploadedStageProperties.topScoreEver = topScoreFromHistory;
+                        topAgentEver = uploadedTopAgent;
+                    }
+                } catch (e) {
+                    console.error('Error finding top agent ever:', e);
+                }
+
+                initializeSketchBox2DNEAT(uploadedStageProperties);
                 initializeAgentsBox2DNEAT(uploadedAgentGenomePool);
                 console.log(`Recovered state from ${data.timestamp}`);
-                resolve(uploadedstageProperties); // Resolve the promise with the recovered state
+                resolve(uploadedStageProperties); // Resolve the promise with the recovered state
             } else {
                 console.log('No saved state found in IndexedDB.');
                 alert('No saved state found in IndexedDB.');
@@ -1650,6 +1664,17 @@ function uploadGenomes() {
                     const data = JSON.parse(event.target.result);
                     let uploadedAgentGenomePool = data.genomes;
                     let uploadedstageProperties = data.stageProperties;
+                    try {
+                        let uploadedTopAgent = data.topAgent;
+                        let topScoreFromHistory = Math.max(...uploadedTopAgent.agentHistory.scoreHistory.map(score => score.score));
+
+                        if (topScoreFromHistory > uploadedStageProperties.topScoreEver) {
+                            uploadedStageProperties.topScoreEver = topScoreFromHistory;
+                            topAgentEver = uploadedTopAgent;
+                        }
+                    } catch (e) {
+                        console.error('Error finding top agent ever:', e);
+                    }
 
                     // Initialize or update your simulation with the new data
                     initializeSketchBox2DNEAT(uploadedstageProperties);
@@ -1681,7 +1706,17 @@ function loadPreTrainedGenome(filename) {
             .then(data => {
                 let uploadedAgentGenomePool = data.genomes;
                 let uploadedstageProperties = data.stageProperties;
+                try {
+                    let uploadedTopAgent = data.topAgent;
+                    let topScoreFromHistory = Math.max(...uploadedTopAgent.agentHistory.scoreHistory.map(score => score.score));
 
+                    if (topScoreFromHistory > uploadedStageProperties.topScoreEver) {
+                        uploadedStageProperties.topScoreEver = topScoreFromHistory;
+                        topAgentEver = uploadedTopAgent;
+                    }
+                } catch (e) {
+                    console.error('Error finding top agent ever:', e);
+                }
                 initializeSketchBox2DNEAT(uploadedstageProperties);
                 initializeAgentsBox2DNEAT(uploadedAgentGenomePool);
 
@@ -3298,10 +3333,10 @@ function rankAgents(groupAgents) {
 
 function calculateCompositeScore(agent) {
     const weights = {
-        scoreHistoryWeight: 0.75,
-        scoreVarianceWeight: 0.1,
-        ageWeight: 0.05,
-        environmentalAdaptationWeight: 0.1
+        scoreHistoryWeight: stageProperties.scoreHistoryWeight / 100,
+        scoreVarianceWeight: stageProperties.scoreVarianceWeight / 100,
+        ageWeight: stageProperties.ageWeight / 100,
+        environmentalAdaptationWeight: stageProperties.environmentalAdaptationWeight / 100
     };
 
     let history = agent.genome.agentHistory.scoreHistory;
@@ -3431,8 +3466,32 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     let TScore1 = parent1.Score;
     let TScore2 = parent2.Score;
 
+    // Function to create a mock agent from a genome and its top score
+    function createMockAgentFromGenome(genome) {
+        if (!genome || !genome.agentHistory || !genome.agentHistory.scoreHistory || genome.agentHistory.scoreHistory.length === 0) {
+            return null;
+        }
+
+        // Find the highest score in the history
+        let topScoreEntry = genome.agentHistory.scoreHistory.reduce((prev, current) => (prev.score > current.score) ? prev : current);
+        let mockAgent = {
+            genome: genome,
+            Score: topScoreEntry.score
+        };
+
+        return mockAgent;
+    }
+
     let dominantParent = (TScore1 > TScore2) ? parent1 : parent2;
-    let submissiveParent = (TScore1 < TScore2) ? parent1 : parent2;
+    let chanceForTopAgentToBeDominant = (stageProperties.chanceForTopAgentToBeDominant) ? stageProperties.chanceForTopAgentToBeDominant : 1;
+
+    // Small chance for the dominant parent to be the topAgentEver
+    if (Math.random() < chanceForTopAgentToBeDominant / 1000) {
+        let mockTopAgentEver = createMockAgentFromGenome(topAgentEver);
+        dominantParent = mockTopAgentEver ? mockTopAgentEver : dominantParent;
+    }
+
+    let submissiveParent = (TScore1 < TScore2) ? parent1 : parent2
 
     if (dominantParent.genome.metadata.agentIndex === submissiveParent.genome.metadata.agentIndex || dominantParent.Score == submissiveParent.Score) {
         console.error("Dominant and submissive parents are the same! Dominant score: ", dominantParent.Score, " Sub score: ", submissiveParent.Score);
@@ -3444,18 +3503,18 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     try {
 
         // Create a child genome using crossover
-        if (Math.random() < 0.25) {
+        if (Math.random() < stageProperties.persentageOffspringFromBiasedCrossover / 100) {
             childGenome = biasedArithmeticCrossoverNEAT(dominantParent, submissiveParent);
-        } else if (Math.random() < 0.5) {
+        } else if (Math.random() < ((stageProperties.persentageOffspringFromBiasedCrossover / 100) + (stageProperties.persentageOffspringFromRandomCrossover / 100))) {
             childGenome = randomSelectionCrossoverNEAT(dominantParent, submissiveParent);
-        } else if (Math.random() < 0.75) {
+        } else if (Math.random() < ((stageProperties.persentageOffspringFromBiasedCrossover / 100) + (stageProperties.persentageOffspringFromRandomCrossover / 100) + (stageProperties.persentageOffspringFromLayerCrossover / 100))) {
             childGenome = layerCrossoverNEAT(dominantParent, submissiveParent);
         } else {
             childGenome = _.cloneDeep(dominantParent.genome); 
         }
 
         // Crossover the body plan
-        if (Math.random() < 0.5) {
+        if (Math.random() < stageProperties.chanceToIncludeOffspringInBodyCrossover / 100) {
             childGenome = bodyPlanCrossover(childGenome, submissiveParent);
         }
 
@@ -3490,7 +3549,7 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
         }
     }
 
-    if (Math.random() < (stageProperties.chanceToIncludeOffspringInMutation / 100)) {
+    if (Math.random() < (stageProperties.chanceToIncludeOffspringInBodyMutation / 100)) {
         try {
             childGenome = mutateBodyPlan(childGenome, childGenome.hyperparameters.limbMutationRate);
         } catch (error) {
@@ -3514,11 +3573,53 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
         agentIndex++;
     }
 
-    usedIndices.add(agentIndex);  // Mark this index as used
-    // set childAgent.genome.metadata.agentName to combination of parent names, first 3 letters from dominant parent, last 3 from recessive
-    let parent1Name = parent1.genome.metadata.agentName;
-    let parent2Name = parent2.genome.metadata.agentName;
-    let childName = parent1Name.substring(0, 3) + parent2Name.substring(parent2Name.length - 3, parent2Name.length);
+    // Mark this index as used
+    usedIndices.add(agentIndex);  
+
+    let dominantName = dominantParent.genome.metadata.agentName;
+    let submissiveName = submissiveParent.genome.metadata.agentName;
+
+    // Create a new name for the child agent based partly of the parents names, and partly a new random string
+    // Function to mutate a portion of the name.  name here will be consonant + vowel + consonant
+    function mutateName(name) {
+        let mutationIndex = Math.floor(Math.random() * 3);
+        let consonants = 'bcdfghjklmnpqrstvwxyz';
+        let vowels = 'aeiou';
+
+        if (mutationIndex === 1) {
+            // Mutate vowel (middle character)
+            let randomVowel = vowels.charAt(Math.floor(Math.random() * vowels.length));
+            return name.substring(0, 1) + randomVowel + name.substring(2);
+        } else {
+            // Mutate consonant (either first or last character)
+            let randomConsonant = consonants.charAt(Math.floor(Math.random() * consonants.length));
+            if (mutationIndex === 0) {
+                // Mutate first character
+                return randomConsonant + name.substring(1);
+            } else {
+                // Mutate last character
+                return name.substring(0, 2) + randomConsonant;
+            }
+        }
+    }
+
+    // Create a new name for the child agent
+    let dominantPart = dominantName.substring(0, 3); // First part from dominant parent
+    let submissivePart = submissiveName.substring(submissiveName.length - 3); // Second part from submissive parent
+
+    // Apply mutation to the submissive part
+    let mutationProbability = 0.25;
+    if (Math.random() < mutationProbability) {
+        submissivePart = mutateName(submissivePart);
+    }
+
+    // Apply mutation to the dominant part
+    let dominantPartMutationProbability = 0.1;
+    if (Math.random() < dominantPartMutationProbability) {
+        dominantPart = mutateName(dominantPart);
+    }
+
+    let childName = dominantPart + submissivePart;
     childGenome.metadata.agentName = childName;
     childGenome.metadata.agentGroup = groupId;
     childGenome.metadata.agentIndex = agentIndex;
@@ -3608,7 +3709,7 @@ function biasedArithmeticCrossoverNEAT(agent1, agent2) {
     let subGenome = agent2.genome;
     let childGenome = _.cloneDeep(dominantGenome);
 
-    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Biased Arithmetic Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
+    // addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Biased Arithmetic Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
 
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
@@ -3708,7 +3809,7 @@ function randomSelectionCrossoverNEAT(agent1, agent2) {
     let subGenome = agent2.genome;
     let childGenome = _.cloneDeep(dominantGenome);
 
-    addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Random Selection Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
+    // addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Random Selection Child of Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
 
     // Input Layer
     for (const bias of childGenome.inputLayerGenes[0].biases) {
@@ -5012,9 +5113,8 @@ function resetNeuralNetworkIDs(genome) {
     let currentID = 0;
     let idMapping = {};
 
-    const ID_CHANGE_THRESHOLD = 3; // Adjust this threshold based on your simulation's normal ID range.  Too low, for example '2', would mean that if there a 2 node or limb mutations in the child creation process, this will end up logging that every single bias has been updated sequentially.  Too high and we will miss mutations where the generated temporary id is close to the normal range.
-
     // Function to add mutation history with specific format, only if significant change.  Trying to avoid logging the sequential resultant changes after the first value is updated.
+    const ID_CHANGE_THRESHOLD = 3; 
     function logIdRemapping(oldID, newID) {
         if (Math.abs(oldID - newID) > ID_CHANGE_THRESHOLD) {
             // addMutationWithHistoryLimit(genome.agentHistory.mutations, "Genome cleanup remapped bias id: " + oldID + " To new id: " + newID);
@@ -5228,9 +5328,8 @@ function updateLimbIDs(genome) {
     // Flatten the limb structure to easily update IDs
     let flattenedLimbs = flattenLimbStructure(genome.mainBody.arms);
 
-    const ID_CHANGE_THRESHOLD = 3; // Adjust this threshold based on your simulation's normal limb ID range
-
     // Function to log significant ID changes
+    const ID_CHANGE_THRESHOLD = 3;
     function logLimbIdChange(oldID, newID) {
         if (Math.abs(oldID - newID) > ID_CHANGE_THRESHOLD) {
             // addMutationWithHistoryLimit(genome.agentHistory.mutations, "Limb ID updated from: " + oldID + " to: " + newID);
@@ -5300,7 +5399,7 @@ AgentNEAT.prototype.duplicateLimbsForSymmetry = function () {
     // Find the maximum limb ID in the original set
     const maxPartID = Math.max(...this.bodyParts.map(limb => limb.partID));
 
-    // Create a copy of the original limbs to avoid modifying the array while iterating
+    // Create a copy of the original limbs to avoid modifying the array while iterating.  This is working but some parts need a review, such as the noFrontLimbs value.
     const originalLimbs = this.bodyParts.slice();
     let insertIndex = 0;
     for (let i = 0; i < originalLimbs.length; i++) {
@@ -5310,7 +5409,7 @@ AgentNEAT.prototype.duplicateLimbsForSymmetry = function () {
         const epsilon = 0.1;
         const Pi = Math.PI;
         const twoPi = 2 * Math.PI;
-        //if (originalLimb.startingAngle !== 0) {
+
         // Only duplicate limbs that are not within a small range of the front or back of the agent 
         if (!(((originalLimb.startingAngle >= 0 && originalLimb.startingAngle <= epsilon) ||
             (originalLimb.startingAngle >= Pi - epsilon && originalLimb.startingAngle <= Pi + epsilon) ||
@@ -5454,11 +5553,8 @@ function createMainBodyNEAT(world, x, y, radius, mainBodyDensity) {
 
 // Helper function to create a limb body
 function createLimbNEAT(world, x, y, length, width, angle, limbNo) {
-    // Check if length is greater than width and adjust angle accordingly
-    // Should maybe remove the check and always apply this.  Will see if mutations to proportions still cause floating limbs 
-    //if (length > width) {
+
     angle += Math.PI / 2;
-    //}
 
     let bodyDef = {
         type: 'dynamic',
@@ -5505,7 +5601,7 @@ AgentNEAT.prototype.getScore = function (roundOver) {
     if (this.position.x > this.furthestXPos) {
         this.furthestXPos = this.position.x;
     }
-    if (this.position.y < this.furthestYPos) {  // Assuming north is negative Y
+    if (this.position.y < this.furthestYPos) {  // North is negative Y
         this.furthestYPos = this.position.y;
     }
 
@@ -5528,6 +5624,7 @@ AgentNEAT.prototype.getScore = function (roundOver) {
         explorationReward = this.getExplorationReward() * (stageProperties.explorationScoreMultiplier / 10);
     }
 
+    // This gives a score penalty for the weight of the agents brain.  It can help with over-fitting and encourage smaller brains, but needs some tuning to not just destroy brains over time.
     let weightPenalty;
     //if (roundOver) {
     //    weightPenalty = this.getWeightPenalty() * 50;
@@ -5561,6 +5658,7 @@ AgentNEAT.prototype.getScore = function (roundOver) {
 
     if (this.Score > stageProperties.topScoreEver) {
         stageProperties.topScoreEver = this.Score;
+        topAgentEver = this.genome;
     }
 
     // I will also give score bonus for how unique an agent is, both brain and body.
