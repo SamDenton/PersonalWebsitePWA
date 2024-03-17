@@ -46,7 +46,7 @@
                 <p>Please select a pre-configuration from the top to get a good starting point.</p>
                 <p>You can then use the settings tabs to alter specific settings.  You can save your current settings locally and re-upload them for later use.  This includes which settings are favourited.  A lot of the example numbers below will be slightly off, as I am constantly updating the default values.</p>
                 <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
-                <p>You can also use one of my pre-trained genome pools to skip the first generations, but you are then restricted to my settings.</p>
+                <p>You can also use one of my pre-trained genome pools to skip the first generations, but you are then restricted to my settings.  The older the population, the more likely it is to have bugs</p>
                 <p>The current agent pool is auto-saved to browser storage every generation, so if you have a crash, or close without saving, hit the amber button to attempt to recover.</p>
                 <p>Start/Reset will respect all configurations, while Simplified Start will simplify the neural network output, remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
                 <p>Simplified Start should see much faster learning, with agents completing the maps within 100 generations or so; using full configurations will result in much more interesting behavior, but will take 1000+ generations to see much progress</p>
@@ -343,8 +343,8 @@
     <button class="floating-button logGenomes-button leftColumn" title="Post all agent genomes to console" @onclick="LogGenomes">Log Genomes</button>
     <button class="floating-button retrieveGenomes-button rightColumn" title="Save current agent genome pool to continue training later" @onclick="RetrieveGenomes">Save Genomes</button>
     <button class="floating-button uploadGenomes-button leftColumn" title="Upload agent genome pool to continue training" @onclick="UploadGenomes">Upload Genomes / Start</button>
-    <button class="floating-button skip10Gen-button rightColumn" title="Skips 10 generations by disabling rendering and increasing physics speed.  This will still take a few minutes" @onclick="Skip10Gen">Skip 10 Generations</button>
-    <button class="floating-button skip100Gen-button leftColumn" title="Skips 1 generation by disabling rendering and increasing physics speed. This will still take a few minutes" @onclick="Skip100Gen">Skip 1 Generations</button>
+    <button class="floating-button skip10Gen-button rightColumn" title="Fast-forward 10 generations by disabling rendering and increasing physics speed.  This will still take a few minutes.  Click again to cancel." @onclick="Skip10Gen">Fast-forward 10 Gens</button>
+    <button class="floating-button skip100Gen-button leftColumn" title="Fast-forward 1 generation by disabling rendering and increasing physics speed. This will still take a few minutes.  Click again to cancel" @onclick="Skip100Gen">Fast-forward 1 Gens</button>
     <button class="floating-button selectPretrained-button leftColumn" title="Allows pre-trained groups of agents to be selected to begin" @onclick="TogglePopup">Select Pre-trained Agents</button>
     <button class="floating-button recoverGenome-button rightColumn" title="Attempts to recover auto-saved genome." @onclick="RecoverAutoSave">Recover Auto-Save</button>
     <button class="floating-button killSim-button leftColumn" title="Attempts to stop the simulation." @onclick="killSim">Stop</button>
@@ -364,6 +364,8 @@
     private bool showAdvancedSettings = true;
     public List<Genome> population = new List<Genome>();
     public List<Genome> evolvedPopulation = new List<Genome>();
+    private int currentAgentIndex = 0;
+    private readonly string[] agentModes = new string[] { "leader", "trailer", "average", "topScorer" };
 
     protected override void OnInitialized()
     {
@@ -538,15 +540,13 @@
 
     private async Task toggleLeader()
     {
-        if (stageProperties.agentInCentre == "leader")
-        {
-            stageProperties.agentInCentre = "trailer";
-        }
-        else
-        {
-            stageProperties.agentInCentre = "leader";
-        }
+        // Move to the next agent mode
+        currentAgentIndex = (currentAgentIndex + 1) % agentModes.Length;
 
+        // Update the agentInCentre with the new mode
+        stageProperties.agentInCentre = agentModes[currentAgentIndex];
+
+        // Update the simulation
         await UpdateSimulation();
     }
 
@@ -1431,6 +1431,7 @@
         public int percentageOffspringFromLayerCrossover { get; set; } = 25;
         public int chanceForTopAgentToBeDominant { get; set; } = 1;
         // Advanced Training and Evolution
+        public int bestAgentsEverLength { get; set; } = 10;
         public int tournamentSize { get; set; } = 10;
         public int angularStabilityThresholdLimb { get; set; } = 25;
         public int stabilityFrames { get; set; } = 50;
@@ -1822,8 +1823,8 @@
         stageProperties.totalMuscleUpdateTime = 2;
         stageProperties.delay = 10;
         stageProperties.BatchSize = 5;
-        stageProperties.updatesPerAgentStart = 1;
-        stageProperties.framesPerUpdateStart = 1;
+        stageProperties.updatesPerAgentStart = 2;
+        stageProperties.framesPerUpdateStart = 2;
         stageProperties.renderedAgents = 1;
         stageProperties.showGroupLeaders = true;
         stageProperties.showLeadingAgent = true;
@@ -1915,6 +1916,7 @@
         stageProperties.percentageOffspringFromRandomCrossover = 25;
         stageProperties.percentageOffspringFromLayerCrossover = 25;
         stageProperties.chanceForTopAgentToBeDominant = 1;
+        stageProperties.bestAgentsEverLength = 10;
         stageProperties.tournamentSize = 10;
         // stageProperties.linearStabilityThresholdBody = 15;
         // stageProperties.angularStabilityThresholdBody = 20;
@@ -3104,6 +3106,17 @@
                 },
                 AdvancedSettings = new List<Setting>
                 {
+                    new Setting
+                    {
+                        Name = "Number Of Best Agents To Store",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.bestAgentsEverLength,
+                        ValueChanged = val => stageProperties.bestAgentsEverLength = val,
+                        Min = 1,
+                        Max = 1000,
+                        Step = 1,
+                        Details = "Sets the number of agents stored permanently as the best performers ever. There is a small chance for one of the top performers to be used as a parent, and they can all be run together using the 'Run Top Agents Ever After Batch' button."
+                    },
                     new Setting
                     {
                         Name = "Tournament Size",

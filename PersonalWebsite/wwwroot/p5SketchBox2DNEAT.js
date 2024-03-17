@@ -32,7 +32,15 @@ let averageGroupBrainLayers = [];
 let averageGroupBrainNodes = [];
 let averageGroupBody = [];
 let usedIndices = new Set();
-let topAgentEver;
+let topAgentsEver = [];
+let specialRun = false;
+let specialRunStarted = false;
+let temporaryAgentsForSpecialRun = [];
+let targetUpdatesPerAgent = 0;
+let tempMuscleBatch = 0;
+let tempMuscleDelay = 0;
+let tempSimSpeed = 0;
+let tempFramesPerUpdateStart = 0;
 
 const GROUP_COLORS_NAMES = [
     'Traffic purple', 'Grass green', 'Yellow orange', 'Maize yellow', 'Quartz grey', 'Salmon range', 'Pearl black berry', 'Golden yellow', 'Pearl light grey', 'Red lilac',
@@ -88,6 +96,7 @@ let sketchNEAT = function (p) {
         lastTime = currentTime;
         leadingAgent = getLeadingAgentNEAT(p.frameCount);
         trailingAgent = getLastAgentNEAT();
+        topScoreAgent = getHighestScoreNEAT();
         accumulator += delta;
 
         while (accumulator >= fixedTimeStep) {
@@ -157,6 +166,7 @@ let sketchNEAT = function (p) {
                     // Check if we've updated each agent x times
                     if (Object.values(updateCountStart).every(countStart => countStart >= stageProperties.updatesPerAgentStart)) {
                         singleUpdateCompleted = true;
+                        updateCountStart = [];
                         // All agents have been updated the required number of times, now check for stability
                         if (areAllAgentsStableNEAT() || stageProperties.agentsRequireStablising == false) {
                             stabilised = true;
@@ -173,8 +183,8 @@ let sketchNEAT = function (p) {
                             agents[i].mainBody.setType('dynamic');
                             agents[i].updateMusclesNEAT();
 
-                            if (i == 1) {
-                                // console.log("updating agent 1's muscles");
+                            if (i == 0) {
+                                // console.log("updating agent 0's muscles");
                                 agentUpdatesPer60FramesCounter++;
                             }
 
@@ -196,10 +206,22 @@ let sketchNEAT = function (p) {
 
                     if (tickCount % 300 === 0) {
                         agentUpdatesPer60Frames = (agentUpdatesPer60FramesCounter / 5).toFixed(2);
+
+                        // Code block to adjust stageProperties.muscleDelay when specialRunStarted is true, so that agentUpdatesPer60Frames matches targetUpdatesPerAgent
+                        if (specialRunStarted == true) {
+                            if (agentUpdatesPer60Frames > targetUpdatesPerAgent + 0.5 && stageProperties.muscleDelay < 10) {
+                                stageProperties.muscleDelay++;
+                            } else if (agentUpdatesPer60Frames < targetUpdatesPerAgent - 0.5 && stageProperties.muscleDelay > 0) {
+                                stageProperties.muscleDelay--;
+                            }
+                        }
+
                         agentUpdatesPer60FramesCounter = 0;
                     }
+
                 }
             }
+
 
             // Allow agents to swim and interactively control their joints
             for (let agent of agents) {
@@ -294,8 +316,12 @@ let sketchNEAT = function (p) {
         p.fill(255);  // Black color for the text
         p.textSize(18);  // Font size
         p.text(`FPS: ${fps}`, 10, 20);
-        p.text(`Batch Within Generation: ${runCount} of ${stageProperties.totalNumAgentsMultiplier}`, 10, 50);
-        p.text(`Generation: ${stageProperties.genCount + 1}`, 10, 80);
+        if (specialRunStarted == true) {
+            p.text(`Special Run`, 10, 50);
+        } else {
+            p.text(`Batch Within Generation: ${runCount} of ${stageProperties.totalNumAgentsMultiplier}`, 10, 50);
+            p.text(`Generation: ${stageProperties.genCount + 1}`, 10, 80);
+        }
         p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 110);
         p.text(`Top Score: ${stageProperties.topScoreEver.toFixed(2)}`, 10, 140);
 
@@ -305,22 +331,46 @@ let sketchNEAT = function (p) {
             p.text(`Average Score: 0`, 10, 170);
         }
 
-        p.text(`Distinct Population groups: ${numGroups}`, 10, 200);
+        const buttonX = stageProperties.width - 320;
+        const buttonY = stageProperties.height - 115;
+        const buttonWidth = 300;
+        const buttonHeight = 35;
         const circleDiameter = 20;
-        // Render click-able circles for each group
-        for (let i = 0; i < numGroups + 1; i++) {
-            p.push();
-            if (i == numGroups) {
-                p.fill(255);
-                p.ellipse(40 + i * (circleDiameter + 10), 225, circleDiameter);
-            } else {
-                p.fill(GROUP_COLORS[i]);
-                p.ellipse(40 + i * (circleDiameter + 10), 225, circleDiameter);
-            }
-            p.pop();
+
+        p.push();
+        if (specialRun == true) {
+            p.fill(0, 255, 0);
+        } else {
+            p.fill(255, 0, 0);
         }
-        // Check for clicks on the circles to select a color
+
+        p.stroke(0);
+        p.strokeWeight(3);
+        p.rect(buttonX, buttonY, buttonWidth, buttonHeight, 10); // Draw a rounded rectangle button
+
+        if (specialRun == true) {
+            p.fill(0);
+        } else {
+            p.fill(255);
+        }
+
+        p.textSize(20);
+        p.noStroke();
+        p.textAlign(p.CENTER, p.CENTER);
+        p.text('Run Top Agents Ever After Batch', buttonX + 149, buttonY + 18);
+        p.pop();
+
         p.mousePressed = function () {
+
+            // Check if the special run button is clicked
+            if (p.mouseX >= buttonX && p.mouseX <= buttonX + buttonWidth &&
+                p.mouseY >= buttonY && p.mouseY <= buttonY + buttonHeight) {
+                specialRun = true;
+                targetUpdatesPerAgent = agentUpdatesPer60Frames;
+                return;
+            }
+
+            // Existing code for selecting colors
             for (let i = 0; i < numGroups + 1; i++) {
                 let x = 40 + i * (circleDiameter + 10);
                 let y = 225;
@@ -340,10 +390,26 @@ let sketchNEAT = function (p) {
         };
 
         p.push();
-        p.fill(155);
-        p.text(`Select a color above to filter that group, or white to clear`, 10, 260);
-        p.text(`Agents in population: ${agentGenomePool.length + tempAgentPool.length + agents.length}`, 10, 290);
-        p.text(`Agents left to run: ${agentGenomePool.length}`, 10, 320);
+        if (specialRunStarted == false) {
+            p.text(`Distinct Population groups: ${numGroups}`, 10, 200);
+            // Render click-able circles for each group
+            for (let i = 0; i < numGroups + 1; i++) {
+                p.push();
+                if (i == numGroups) {
+                    p.fill(255);
+                    p.ellipse(40 + i * (circleDiameter + 10), 225, circleDiameter);
+                } else {
+                    p.fill(GROUP_COLORS[i]);
+                    p.ellipse(40 + i * (circleDiameter + 10), 225, circleDiameter);
+                }
+                p.pop();
+            }
+
+            p.fill(155);
+            p.text(`Select a color above to filter that group, or white to clear`, 10, 260);
+            p.text(`Agents in population: ${agentGenomePool.length + tempAgentPool.length + agents.length}`, 10, 290);
+            p.text(`Agents left to run: ${agentGenomePool.length}`, 10, 320);
+        }
         p.text(`Agents in simulation: ${agents.length}`, 10, 350);
         p.pop();
 
@@ -360,7 +426,8 @@ let sketchNEAT = function (p) {
         }
 
         if (leadingAgent) {
-
+            p.push();
+            p.fill(255);
             if (stageProperties.agentInCentre == "leader") {
                 offsetX = p.width / 6 - leadingAgent.position.x + leadingAgent.startingX;  // Center the leading agent on the canvas, just to the left
                 offsetY = p.height * 4 / 6 - leadingAgent.position.y + leadingAgent.startingY;
@@ -371,6 +438,7 @@ let sketchNEAT = function (p) {
                     let agentOffsetY = offsetY - leadingAgent.startingY;
                     leadingAgent.renderRayCasts(p, agentOffsetX, agentOffsetY);
                 }
+                p.text(`Showing Leading Agent`, 370, 40);
             } else if (stageProperties.agentInCentre == "trailer") {
                 offsetX = p.width / 6 - trailingAgent.position.x + trailingAgent.startingX;
                 offsetY = p.width * 4 / 6 - trailingAgent.position.y + trailingAgent.startingY - 500;
@@ -381,6 +449,7 @@ let sketchNEAT = function (p) {
                     let agentOffsetY = offsetY - trailingAgent.startingY;
                     trailingAgent.renderRayCasts(p, agentOffsetX, agentOffsetY);
                 }
+                p.text(`Showing Trailing Agent`, 370, 40);
             } else if (stageProperties.agentInCentre == "average") {
 
                 let totalXScore = 0;
@@ -403,8 +472,20 @@ let sketchNEAT = function (p) {
                 offsetY = (p.height * 4 / 6) + averageYScore;
                 offsetX += panningOffsetX;
                 offsetY += panningOffsetY;
+                p.text(`Showing Average Agent Position`, 370, 40);
+            } else if (stageProperties.agentInCentre == "topScorer") {
+                offsetX = p.width / 6 - topScoreAgent.position.x + topScoreAgent.startingX;  // Center the leading agent on the canvas, just to the left
+                offsetY = p.height * 4 / 6 - topScoreAgent.position.y + topScoreAgent.startingY;
+                offsetX += panningOffsetX;
+                offsetY += panningOffsetY;
+                if (stageProperties.showRays) {
+                    let agentOffsetX = offsetX - topScoreAgent.startingX;
+                    let agentOffsetY = offsetY - topScoreAgent.startingY;
+                    topScoreAgent.renderRayCasts(p, agentOffsetX, agentOffsetY);
+                }
+                p.text(`Showing Top Scoring Agent`, 370, 40);
             }
-
+            p.pop();
             let agentsToRender = new Set(randomlySelectedAgents);  // Use a Set to ensure uniqueness
 
             // Ensure trailingAgent and leadingAgent are the last elements in the set
@@ -435,8 +516,6 @@ let sketchNEAT = function (p) {
                 if (stageProperties.autoAdjustPerformance == true && stabilised) {
                     adjustPerformance(fps);
                 }
-
-                topScoreAgent = getHighestScoreNEAT();
 
                 // Display the score of the leading agent
                 leadingAgentScores = leadingAgent.getScore(false);
@@ -568,10 +647,14 @@ let sketchNEAT = function (p) {
 
             p.push();
             p.fill(155);
-            if (selectedColor === null) {
-                p.text(`Agents on screen: ${agentsToRender.size}`, 10, 380);
+            if (specialRunStarted == true) {
+                p.text(`Agents on screen: ${agents.length}`, 10, 380);
             } else {
-                p.text(`Agents on screen: ${agents.filter(agent => agent.genome.metadata.agentGroup == selectedColor).length}`, 10, 380);
+                if (selectedColor === null) {
+                    p.text(`Agents on screen: ${agentsToRender.size}`, 10, 380);
+                } else {
+                    p.text(`Agents on screen: ${agents.filter(agent => agent.genome.metadata.agentGroup == selectedColor).length}`, 10, 380);
+                }
             }
             p.pop();
 
@@ -598,12 +681,19 @@ let sketchNEAT = function (p) {
                     tf.tidy(() => {
                         trailingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40);
                     });
-                } else {
+                } else if (stageProperties.agentInCentre == "leader") {
                     p.text(`Showing Leading Agents Brain`, 370, 20);
                     // Render NN for leading agent
                     p.fill(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]);
                     tf.tidy(() => {
                         leadingAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40);
+                    });
+                } else if (stageProperties.agentInCentre == "topScorer") {
+                    p.text(`Showing Top Scoring Agents Brain`, 370, 20);
+                    // Render NN for top scoring agent
+                    p.fill(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]);
+                    tf.tidy(() => {
+                        topScoreAgent.renderNNNEAT(p, stageProperties.width - 800, (stageProperties.height / 2) - 40);
                     });
                 }
                 p.pop();
@@ -611,29 +701,40 @@ let sketchNEAT = function (p) {
 
             p.push();
             p.fill(155);
-            p.text("Use WASD to pan the camera", stageProperties.width - 280, 20);
+            p.text("Use WASD to pan the camera", stageProperties.width - 270, 40);
             p.text(`Current Sim Speed Multiplier: ${(stageProperties.simSpeed / 60).toFixed(2)}`, stageProperties.width - 310, stageProperties.height - 50);
             p.text(`Updates Per Agent Per 60 Ticks: ${agentUpdatesPer60Frames}`, stageProperties.width - 310, stageProperties.height - 20);
             p.pop();
 
             if (agentsToRender.size > 0 && simulationStarted) {
-                if (selectedColor === null) {
-                    for (let agent of agentsToRender) {
+                if (specialRunStarted == true) {
+                    for (let agent of agents) {
                         if (agent) {
-                            // Only render agents from agentsToRender list
+                            // Render all agents
                             let agentOffsetX = offsetX - agent.startingX;
                             let agentOffsetY = offsetY - agent.startingY;
                             agent.render(p, agentOffsetX, agentOffsetY);
                         }
                     }
                 } else {
-                    for (let agent of agents) {
-                        if (agent) {
-                            // Only render agents belonging to the selected color
-                            if (agent.genome.metadata.agentGroup == selectedColor) {
+                    if (selectedColor === null) {
+                        for (let agent of agentsToRender) {
+                            if (agent) {
+                                // Only render agents from agentsToRender list
                                 let agentOffsetX = offsetX - agent.startingX;
                                 let agentOffsetY = offsetY - agent.startingY;
                                 agent.render(p, agentOffsetX, agentOffsetY);
+                            }
+                        }
+                    } else {
+                        for (let agent of agents) {
+                            if (agent) {
+                                // Only render agents belonging to the selected color
+                                if (agent.genome.metadata.agentGroup == selectedColor) {
+                                    let agentOffsetX = offsetX - agent.startingX;
+                                    let agentOffsetY = offsetY - agent.startingY;
+                                    agent.render(p, agentOffsetX, agentOffsetY);
+                                }
                             }
                         }
                     }
@@ -945,13 +1046,20 @@ function drawGraphKey(p, x, y, highestScoreAgent = null) {
 function adjustPerformance(fps) {
     const standardHistorySize = 10;
     const extendedHistorySize = Math.round(500 / stageProperties.simSpeed);
-    const dropThreshold = 15; 
+    let dropThreshold = 15; 
     let badFps = 35;
     let goodFps = 49;
+
     if (render == false) {
         // If rendering is disabled, allow the sim to run at lower fps
         badFps = 20;
         goodFps = 35;
+    }
+
+    if (specialRunStarted == true) {
+        badFps = 40;
+        goodFps = 49;
+        dropThreshold = 20
     }
 
     fpsHistory.push(fps);
@@ -1338,6 +1446,14 @@ function initializeSketchBox2DNEAT(StageProperties) {
     skippingToGen = 0;
     numGroups = 0;
     usedIndices = new Set();
+    specialRun = false;
+    specialRunStarted = false;
+    temporaryAgentsForSpecialRun = [];
+    targetUpdatesPerAgent = 0;
+    tempMuscleBatch = 0;
+    tempMuscleDelay = 0;
+    tempSimSpeed = 0;
+    tempFramesPerUpdateStart = 0;
 
     currentProcess = "Initializing world!";
 
@@ -1503,7 +1619,7 @@ async function saveGenomes() {
             const data = {
                 genomes: storedData.data.genomes,
                 stageProperties: storedData.data.stageProperties,
-                topAgent: topAgentEver,
+                topAgent: topAgentsEver,
             };
             const jsonString = JSON.stringify(data);
 
@@ -1550,7 +1666,7 @@ async function saveStateToIndexedDB(genomesToSave) {
         const data = {
             genomes: genomesToSave,
             stageProperties: stageProperties,
-            topAgent: topAgentEver,
+            topAgent: topAgentsEver,
             timestamp: new Date().toISOString()
         };
 
@@ -1584,13 +1700,15 @@ async function recoverStateFromIndexedDB() {
                 let uploadedAgentGenomePool = data.genomes;
                 let uploadedStageProperties = data.stageProperties;
                 try {
-                    let uploadedTopAgent = data.topAgent;
-                    let topScoreFromHistory = Math.max(...uploadedTopAgent.agentHistory.scoreHistory.map(score => score.score));
+                    let uploadedTopAgents = data.topAgent;
+                    let topScoreFromHistory = Math.max(...uploadedTopAgents[0].agentHistory.scoreHistory.map(score => score.score));
 
                     if (topScoreFromHistory > uploadedStageProperties.topScoreEver) {
                         uploadedStageProperties.topScoreEver = topScoreFromHistory;
-                        topAgentEver = uploadedTopAgent;
                     }
+
+                    topAgentsEver = uploadedTopAgents;
+
                 } catch (e) {
                     console.error('Error finding top agent ever:', e);
                 }
@@ -1665,13 +1783,15 @@ function uploadGenomes() {
                     let uploadedAgentGenomePool = data.genomes;
                     let uploadedstageProperties = data.stageProperties;
                     try {
-                        let uploadedTopAgent = data.topAgent;
-                        let topScoreFromHistory = Math.max(...uploadedTopAgent.agentHistory.scoreHistory.map(score => score.score));
+                        let uploadedTopAgents = data.topAgent;
+                        let topScoreFromHistory = Math.max(...uploadedTopAgents.agentHistory.scoreHistory.map(score => score.score));
 
                         if (topScoreFromHistory > uploadedStageProperties.topScoreEver) {
                             uploadedStageProperties.topScoreEver = topScoreFromHistory;
-                            topAgentEver = uploadedTopAgent;
                         }
+
+                        topAgentsEver = uploadedTopAgents;
+
                     } catch (e) {
                         console.error('Error finding top agent ever:', e);
                     }
@@ -1707,13 +1827,15 @@ function loadPreTrainedGenome(filename) {
                 let uploadedAgentGenomePool = data.genomes;
                 let uploadedstageProperties = data.stageProperties;
                 try {
-                    let uploadedTopAgent = data.topAgent;
-                    let topScoreFromHistory = Math.max(...uploadedTopAgent.agentHistory.scoreHistory.map(score => score.score));
+                    let uploadedTopAgents = data.topAgent;
+                    let topScoreFromHistory = Math.max(...uploadedTopAgents.agentHistory.scoreHistory.map(score => score.score));
 
                     if (topScoreFromHistory > uploadedStageProperties.topScoreEver) {
                         uploadedStageProperties.topScoreEver = topScoreFromHistory;
-                        topAgentEver = uploadedTopAgent;
                     }
+
+                    topAgentsEver = uploadedTopAgents;
+
                 } catch (e) {
                     console.error('Error finding top agent ever:', e);
                 }
@@ -1741,14 +1863,20 @@ function showGenomes() {
 
 // Function to skip a number of generations by disabling the rendering flag and allowing the function that automatically adjusts the sim speed to target lower frame rates.
 function skipGen(skipNo) {
+    if (!render) {
+        stageProperties.simSpeed = 60;
+        fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
+        render = true;
+        skippingToGen = undefined;
+        return;
+    }
+
     if (skipNo > 0) {
-        // stageProperties.simSpeed *= 1.5;
-        // fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
         render = false;
         let currentGen = stageProperties.genCount;
         skippingToGen = currentGen + skipNo;
         let skipGenRecursive = function () {
-            if (stageProperties.genCount < currentGen + skipNo) {
+            if (stageProperties.genCount < skippingToGen) {
                 setTimeout(skipGenRecursive, 500);
             } else {
                 stageProperties.simSpeed = 60;
@@ -1768,6 +1896,9 @@ function updateSimulationNEAT(StageProperties) {
     let tempScoreHistory = stageProperties.scoreHistory;
     let tempScoreHistoryAverage = stageProperties.scoreHistoryAverage;
     let tempMigrationRate = stageProperties.migrationRate;
+    let tempMuscleBatchLocal = stageProperties.muscleBatch;
+    let tempMuscleDelayLocal = stageProperties.muscleDelay;
+    let tempSimSpeedLocal = stageProperties.simSpeed;
 
     // Update values in stageProperties
     stageProperties = StageProperties;
@@ -1777,6 +1908,9 @@ function updateSimulationNEAT(StageProperties) {
     stageProperties.scoreHistory = tempScoreHistory;
     stageProperties.scoreHistoryAverage = tempScoreHistoryAverage;
     stageProperties.migrationRate = tempMigrationRate;
+    stageProperties.muscleBatch = tempMuscleBatchLocal;
+    stageProperties.muscleDelay = tempMuscleDelayLocal;
+    stageProperties.simSpeed = tempSimSpeedLocal;
 }
 
 // Function to initialize the agents, called alongside initializeSketchBox2DNEAT() to start the simulation
@@ -1968,6 +2102,9 @@ function AgentNEAT(agentGenome) {
 
     // Is this agent currently leading
     this.currentlyLeading = false;
+
+    // Has this agent broken the score record this round
+    this.newTopAgent = false;
 
     // Give the agent a heart
     this.heart = -1;
@@ -2218,7 +2355,7 @@ function getHighestScoreNEAT() {
 
 // Function called once the tick counter has reached the simulation length.  Ends the simulation and starts the next batch / generation
 function endSimulationNEAT(p) {
-    // p.noLoop();
+
     simulationStarted = false;
     stabilised = false;
     singleUpdateCompleted = false;
@@ -2226,7 +2363,6 @@ function endSimulationNEAT(p) {
     panningOffsetX = 0;
     panningOffsetY = 0;
     currentProcess = "Sorting agents by score!";
-    // console.log("round over");
 
     // Reduce the sim speed before restart to reduce the initial demand on the CPU
     if (stageProperties.simSpeed > 25) {
@@ -2263,41 +2399,79 @@ function endSimulationNEAT(p) {
     //for (let wall of wallBodies) {
     //    world.destroyBody(wall.body);
     //}
-    //wallBodies = []; 
+    //wallBodies = [];
 
     //for (let wall of duplicateWalls) {
     //    world.destroyBody(wall.body);
     //}
     //duplicateWalls = [];
 
-    // loop through all agents scores and log them
-    for (let i = 0; i < agents.length; i++) {
-        let thisScore = agents[i].Score;
+    const topAgentsEverLength = stageProperties.bestAgentsEverLength;
+    let topAgentCounter = 0;
 
-        agents[i].genome.agentHistory.lastScore = { score: thisScore, map: stageProperties.map, generation: stageProperties.genCount };
-
-        agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: stageProperties.map, generation: stageProperties.genCount });
-
-        agents[i].genome.agentHistory.rankInPop = (i + 1);
-
-        if (thisScore > agents[i].genome.metadata.bestScore) {
-            agents[i].genome.metadata.bestScore = thisScore;
-        }
+    while (topAgentsEver.length < topAgentsEverLength) {
+        topAgentsEver.push(_.cloneDeep(agents[topAgentCounter].genome));
+        topAgentCounter++;
     }
 
-    // loop through agents array with a for each and add each agent to tempAgentPool
-    // agents.forEach(agent => tempAgentPool.push(_.cloneDeep(agent)));
+    // loop through all agents scores and log them
+    if (specialRun === false) {
+        for (let i = 0; i < agents.length; i++) {
+            let thisScore = agents[i].Score;
 
-    // Loop through agents array and add a simplified object to tempAgentPool
-    agents.forEach(agent => {
-        const simplifiedAgent = {
-            genome: _.cloneDeep(agent.genome),
-            Score: agent.Score,
-            index: agent.index
-        };
-        tempAgentPool.push(simplifiedAgent);
-    });
+            agents[i].genome.agentHistory.lastScore = { score: thisScore, map: stageProperties.map, generation: stageProperties.genCount };
 
+            agents[i].genome.agentHistory.scoreHistory.push({ score: thisScore, map: stageProperties.map, generation: stageProperties.genCount });
+
+            agents[i].genome.agentHistory.rankInPop = (i + 1);
+
+            if (agents[i].newTopAgent) {
+                // Check if this agent is better than the ones in topAgentsEver
+                let isNewTopAgent = true;
+                for (const topAgent of topAgentsEver) {
+                    if (agents[i].genome.metadata.bestScore <= topAgent.metadata.bestScore) {
+                        isNewTopAgent = false;
+                        break;
+                    }
+                }
+
+                if (isNewTopAgent) {
+                    topAgentsEver.push(_.cloneDeep(agents[i].genome));
+                }
+            }
+        }
+
+
+        if (topAgentsEver) {
+            // Sort the topAgentsEver array in descending order of bestScore
+            topAgentsEver.sort((a, b) => b.metadata.bestScore - a.metadata.bestScore);
+        }
+
+        // Trim the topAgentsEver array to keep only the top 'x' agents
+        if (topAgentsEver.length > topAgentsEverLength) {
+            topAgentsEver.length = topAgentsEverLength;
+        }
+
+        // Loop through agents array and add a simplified object to tempAgentPool
+        agents.forEach(agent => {
+            const simplifiedAgent = {
+                genome: _.cloneDeep(agent.genome),
+                Score: agent.Score,
+                index: agent.index
+            };
+            tempAgentPool.push(simplifiedAgent);
+        });
+    }
+
+    if (specialRunStarted === true) {
+        endSpecialRun(p);
+        return;
+    }
+
+    if (specialRun && specialRunStarted === false) {
+        startSpecialRun(p, topAgentsEverLength);
+        return;
+    }
 
     // Continue to the next generation once the tempAgentPool is full
     if (tempAgentPool.length >= stageProperties.numAgents * stageProperties.totalNumAgentsMultiplier) {
@@ -2308,11 +2482,116 @@ function endSimulationNEAT(p) {
 
 }
 
+function startSpecialRun(p, topAgentsEverLength) {
+
+    for (let i = 0; i < agents.length; i++) {
+        if (agents[i].newTopAgent) {
+            // Check if this agent is better than the ones in topAgentsEver
+            let isNewTopAgent = true;
+            for (const topAgent of topAgentsEver) {
+                if (agents[i].genome.metadata.bestScore <= topAgent.metadata.bestScore) {
+                    isNewTopAgent = false;
+                    break;
+                }
+            }
+
+            if (isNewTopAgent) {
+                topAgentsEver.push(_.cloneDeep(agents[i].genome));
+            }
+        }
+    }
+
+    if (topAgentsEver) {
+        // Sort the topAgentsEver array in descending order of bestScore
+        topAgentsEver.sort((a, b) => b.metadata.bestScore - a.metadata.bestScore);
+    }
+
+    // Trim the topAgentsEver array to keep only the top 'x' agents
+    if (topAgentsEver.length > topAgentsEverLength) {
+        topAgentsEver.length = topAgentsEverLength;
+    }
+
+    specialRunStarted = true;
+    tempSimSpeed = stageProperties.simSpeed;
+    stageProperties.simSpeed = 60;
+    fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
+    currentProcess = "Starting special run!";
+    temporaryAgentsForSpecialRun = _.cloneDeep(agents);
+    tempMuscleBatch = stageProperties.muscleBatch;
+    tempMuscleDelay = stageProperties.muscleDelay;
+    tempFramesPerUpdateStart = stageProperties.framesPerUpdateStart;
+    stageProperties.muscleBatch = 1;
+    let tempMusclBatchDiff = tempMuscleBatch / stageProperties.muscleBatch;
+    let adjustedMuscleDelay = Math.round(tempMuscleDelay * tempMusclBatchDiff * (topAgentsEver.length / stageProperties.numAgents));
+    stageProperties.muscleDelay = adjustedMuscleDelay;
+    let adjustedframesPerUpdateStart = Math.round(tempFramesPerUpdateStart * (topAgentsEver.length / stageProperties.numAgents));
+    stageProperties.framesPerUpdateStart = adjustedframesPerUpdateStart;
+
+    // OTT manual disposal and destruction of all bodies and joints
+    for (let agent of agents) {
+        // Destroy the joints first
+        for (let joint of agent.joints) {
+            if (joint) { // Check if joint exists and is in the world
+                world.destroyJoint(joint);
+            }
+        }
+
+        // Destroy the limbs
+        for (let limb of agent.limbs) {
+            if (limb) { // Check if body exists and is in the world
+                world.destroyBody(limb);
+            }
+        }
+
+        // Destroy the main body
+        if (agent.mainBody) {
+            world.destroyBody(agent.mainBody);
+        }
+
+        agent.brain.dispose();
+        agent.joints = [];
+        agent.limbs = [];
+        agent.mainBody = null;
+    }
+
+    agents = [];
+    for (let genome of topAgentsEver) {
+        let agent = new AgentNEAT(genome);
+        agent.genome.metadata.agentGroup = 0;
+        agent.genome.metadata.runGroup = 0;
+        agents.push(agent);
+    }
+
+    if (agents.length >= topAgentsEver.length) {
+        isInitializationComplete = true;
+        displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / stageProperties.simSpeed);
+        stabilityCounter = 0;
+        tickCount = 0;
+        nextBatchFrame = 1;
+        currentPhysicsBatch = 0;
+        offsetX = 0;
+    }
+}
+
+function endSpecialRun(p) {
+    specialRunStarted = false;
+    specialRun = false;
+    agents = _.cloneDeep(temporaryAgentsForSpecialRun);
+    temporaryAgentsForSpecialRun = [];
+    stageProperties.simSpeed = tempSimSpeed;
+    fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
+    stageProperties.muscleBatch = tempMuscleBatch;
+    stageProperties.muscleDelay = tempMuscleDelay;
+    stageProperties.framesPerUpdateStart = tempFramesPerUpdateStart;
+
+    endSimulationNEAT(p);
+}
+
 // Function called once to start the plank world.
 function setupPlanckWorldNEAT() {
     // Create the Planck.js world
     // Could use the gravity property to add a 'current' to the world, rather than creating it with forces manually.  I assume this property is fixed once the world is created though
-    const gravity = planck.Vec2(0.0, stageProperties.gravity * 9.8);
+    // const gravity = planck.Vec2(0.0, stageProperties.gravity * 9.8);
     world = planck.World(planck.Vec2(0.0, 0.0));
 
     // Adds event listener for collisions, console logged. Will need to uncomment UserData setting for each body to use
@@ -2874,13 +3153,11 @@ function nextAgentgroupNEAT(p) {
     console.log('Restarting simulation with next set of agents!');
 
     // Reset simulation
-    // await new Promise(resolve => setTimeout(resolve, 1000));
     displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / stageProperties.simSpeed);
     stabilityCounter = 0;
     tickCount = 0;
     nextBatchFrame = 1;
     currentPhysicsBatch = 0;
-    // p.loop();
 }
 
 // Wait for all agents to be initialized before starting the next run
@@ -3496,10 +3773,10 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     let dominantParent = (TScore1 > TScore2) ? parent1 : parent2;
     let submissiveParent = (TScore1 < TScore2) ? parent1 : parent2
     let chanceForTopAgentToBeDominant = (stageProperties.chanceForTopAgentToBeDominant) ? stageProperties.chanceForTopAgentToBeDominant : 1;
-
+    let potentialTopAgentEver = topAgentsEver[0];
     // Small chance for the dominant parent to be the topAgentEver
     if (Math.random() < chanceForTopAgentToBeDominant / 1000) {
-        let mockTopAgentEver = createMockAgentFromGenome(topAgentEver, submissiveParent);
+        let mockTopAgentEver = createMockAgentFromGenome(potentialTopAgentEver, submissiveParent);
         dominantParent = mockTopAgentEver ? mockTopAgentEver : dominantParent;
         
     }
@@ -5668,9 +5945,16 @@ AgentNEAT.prototype.getScore = function (roundOver) {
         this.Score = 1;
     }
 
-    if (this.Score > stageProperties.topScoreEver) {
+    if (topAgentsEver.length > 0 && this.Score > topAgentsEver[0].metadata.bestScore && this.score > stageProperties.topScoreEver) {
         stageProperties.topScoreEver = this.Score;
-        topAgentEver = this.genome;
+    }
+
+    if (topAgentsEver.length > 0 && this.Score > topAgentsEver[topAgentsEver.length - 1].metadata.bestScore) {
+        this.newTopAgent = true;
+    }
+
+    if (this.Score > this.genome.metadata.bestScore) {
+        this.genome.metadata.bestScore = this.Score;
     }
 
     // I will also give score bonus for how unique an agent is, both brain and body.
@@ -5783,8 +6067,18 @@ AgentNEAT.prototype.render = function (p, offsetX, offsetY) {
             arrowLength - arrowBase, arrowBase / 2,
             arrowLength - arrowBase, -arrowBase / 2);
 
+
         p.pop();
         p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
+
+        // Draw the agent's name
+        p.push();
+        p.translate(mainPos.x + offsetX, mainPos.y + offsetY);  // Added offsetX
+        p.textAlign(p.CENTER, p.TOP);
+        p.textSize(18);
+        p.fill(0);
+        p.text(this.genome.metadata.agentName, 0, this.mainBodyRadius + 5);
+        p.pop();
     }
     //p.fill(0);
     //p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
