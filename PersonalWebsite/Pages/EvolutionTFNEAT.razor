@@ -51,6 +51,7 @@
                 <p>Start/Reset will respect all configurations, while Simplified Start will simplify the neural network output, remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
                 <p>Simplified Start should see much faster learning, with agents completing the maps within 100 generations or so; using full configurations will result in much more interesting behavior, but will take 1000+ generations to see much progress</p>
                 <p>Super Simplified Start will also give agents a small, fixed brain and pre-set body plan, as well as forcing symmetry in the agents body, and will see agents complete the maps in 50-100 generations</p>
+                <p>Clicking 'Run Top Agents Ever After Batch' will mean that after the current run ends, it runs the 10 top agents ever from this population on the current map.  It should then return to training after.</p>
                 <p>Use 'WASD' to pan the camera around.</p>
                 <p>Use the button bank in the top right to toggle rendering of the leading agents brain/neural network, their vision lines/ray casts, switch between the leading agent and training agent or fast-forward generations (only about twice as fast as normal currently)</p>
                 <p>You can also save the current set of agents genomes locally so you can continue training later.  This saves the current settings alongside the agents Genomes so they continue with the same setup.</p>
@@ -332,6 +333,19 @@
     </div>
 }
 
+<div id="renamePopup" class="popup-overlay" style="display: none;">
+    <div class="popup-window">
+        <div class="popup-header">
+            <span>Rename Population</span>
+            <button class="btn-close" onclick="closeRenamePopup()">✖</button>
+        </div>
+        <div class="popup-content">
+            <input class="popup-input" type="text" id="newPopulationName" placeholder="Enter new name" />
+            <button class="popup-btn" onclick="updatePopulationName()">Update Name</button>
+        </div>
+    </div>
+</div>
+
 <div class="button-container">
     <button class="floating-button start-button rightColumn" title="Start simulation with full configured settings" @onclick="ResetSimulation">Start/Reset</button>
     <button class="floating-button simpleStart-button leftColumn" title="Start simulation with no energy or extra score bonuses.  Faster, but less interesting evolution" @onclick="ResetSimulationSimple">Simplified Start</button>
@@ -504,85 +518,6 @@
             get => SelectedValueExpression?.Invoke();
             set => SelectedValueChanged?.Invoke(value);
         }
-    }
-
-    private async Task saveSettings()
-    {
-        await JSRuntime.InvokeVoidAsync("saveSettings", stageProperties);
-    }
-
-    private async Task uploadSettings()
-    {
-        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadSettings");
-    }
-
-    private async Task toggleNN()
-    {
-        stageProperties.showNN = !stageProperties.showNN;
-        await UpdateSimulation();
-    }
-
-    private async Task toggleRayCasts()
-    {
-        stageProperties.showRays = !stageProperties.showRays;
-        await UpdateSimulation();
-    }
-
-    private void ToggleAdvancedSettings()
-    {
-        showAdvancedSettings = !showAdvancedSettings;
-    }
-
-    private async Task UpdateSimulation()
-    {
-        await JSRuntime.InvokeVoidAsync("updateSimulationNEAT", stageProperties);
-    }
-
-    private async Task toggleLeader()
-    {
-        // Move to the next agent mode
-        currentAgentIndex = (currentAgentIndex + 1) % agentModes.Length;
-
-        // Update the agentInCentre with the new mode
-        stageProperties.agentInCentre = agentModes[currentAgentIndex];
-
-        // Update the simulation
-        await UpdateSimulation();
-    }
-
-    private async Task LogGenomes()
-    {
-        await JSRuntime.InvokeVoidAsync("logGenomes");
-    }
-
-    public override string ToString()
-    {
-        return JsonSerializer.Serialize(this);
-    }
-
-    private async Task RetrieveGenomes()
-    {
-        await JSRuntime.InvokeAsync<string>("saveGenomes");
-    }
-
-    private async Task UploadGenomes()
-    {
-        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadGenomes");
-    }
-
-    private async Task RecoverAutoSave()
-    {
-        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("recoverStateFromIndexedDB");
-    }
-
-    public async Task Skip10Gen()
-    {
-        await JSRuntime.InvokeVoidAsync("skipGen", 10);
-    }
-
-    public async Task Skip100Gen()
-    {
-        await JSRuntime.InvokeVoidAsync("skipGen", 1);
     }
 
     void Shuffle<T>(List<T> list, Random random)
@@ -1283,6 +1218,87 @@
     //     Swish
     // }
 
+    private async Task saveSettings()
+    {
+        await JSRuntime.InvokeVoidAsync("saveSettings", stageProperties);
+    }
+
+    private async Task uploadSettings()
+    {
+        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadSettings");
+    }
+
+    private async Task toggleNN()
+    {
+        stageProperties.showNN = !stageProperties.showNN;
+        await UpdateSimulation();
+    }
+
+    private async Task toggleRayCasts()
+    {
+        stageProperties.showRays = !stageProperties.showRays;
+        await UpdateSimulation();
+    }
+
+    private void ToggleAdvancedSettings()
+    {
+        showAdvancedSettings = !showAdvancedSettings;
+    }
+
+    private async Task UpdateSimulation()
+    {
+        await JSRuntime.InvokeVoidAsync("updateSimulationNEAT", stageProperties);
+    }
+
+    private async Task toggleLeader()
+    {
+        // Move to the next agent mode
+        currentAgentIndex = (currentAgentIndex + 1) % agentModes.Length;
+
+        // Update the agentInCentre with the new mode
+        stageProperties.agentInCentre = agentModes[currentAgentIndex];
+
+        // Update the simulation
+        await UpdateSimulation();
+    }
+
+    private async Task LogGenomes()
+    {
+        await JSRuntime.InvokeVoidAsync("logGenomes");
+    }
+
+    public override string ToString()
+    {
+        return JsonSerializer.Serialize(this);
+    }
+
+    private async Task RetrieveGenomes()
+    {
+        await JSRuntime.InvokeAsync<string>("saveGenomes");
+    }
+
+    private async Task UploadGenomes()
+    {
+        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("uploadGenomes");
+        await UpdateSimulation();
+    }
+
+    private async Task RecoverAutoSave()
+    {
+        stageProperties = await JSRuntime.InvokeAsync<StageProperties>("recoverStateFromIndexedDB");
+        await UpdateSimulation();
+    }
+
+    public async Task Skip10Gen()
+    {
+        await JSRuntime.InvokeVoidAsync("skipGen", 10);
+    }
+
+    public async Task Skip100Gen()
+    {
+        await JSRuntime.InvokeVoidAsync("skipGen", 1);
+    }
+
     private async Task ResetSimulation()
     {
         await resetLists();
@@ -1431,7 +1447,7 @@
         public int percentageOffspringFromLayerCrossover { get; set; } = 25;
         public int chanceForTopAgentToBeDominant { get; set; } = 1;
         // Advanced Training and Evolution
-        public int bestAgentsEverLength { get; set; } = 10;
+        public int bestAgentsEverLength { get; set; } = 50;
         public int tournamentSize { get; set; } = 10;
         public int angularStabilityThresholdLimb { get; set; } = 25;
         public int stabilityFrames { get; set; } = 50;
@@ -1458,13 +1474,14 @@
         public int Gravity { get; set; } = 1; // not implemented
         public double Friction { get; set; } = 0.4; // not implemented
         public int simulationLengthIncrease { get; set; } = 30;
-        public int maxSimulationLength { get; set; } = 50000;
+        public int maxSimulationLength { get; set; } = 20000;
         public int velocityIteration { get; set; } = 4;
         public int positionIteration { get; set; } = 2;
         public int physicsGranularityMultipliers { get; set; } = 10;
 
         // Visualization and UI
         public int renderedAgents { get; set; } = 1;
+        public bool showAgentNames { get; set; } = true;
         public bool showGroupLeaders { get; set; } = true;
         public bool showLeadingAgent { get; set; } = true;
         public bool showGroupTrailers { get; set; } = true;
@@ -1542,6 +1559,19 @@
                 GenCount = 77,
                 TopScore = 5187.00,
                 NumberOfAgents = 1000,
+                SwimMethod = "Simple",
+                Symmetrical = true,
+                StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Thats Cheating!",
+                Description = "Tiny population with a single group made while testing changes to algorithm and new features, hence the strange graphs.  They learned to skip the map!",
+                Filename = "Populations/EvolvedPop_Gen-472_TopScore-16563.00_Agents-50_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 472,
+                TopScore = 16563.00,
+                NumberOfAgents = 50,
                 SwimMethod = "Simple",
                 Symmetrical = true,
                 StartMethod = "Super Simple",
@@ -1826,6 +1856,7 @@
         stageProperties.updatesPerAgentStart = 2;
         stageProperties.framesPerUpdateStart = 2;
         stageProperties.renderedAgents = 1;
+        stageProperties.showAgentNames = true;
         stageProperties.showGroupLeaders = true;
         stageProperties.showLeadingAgent = true;
         stageProperties.showGroupTrailers = true;
@@ -1916,7 +1947,7 @@
         stageProperties.percentageOffspringFromRandomCrossover = 25;
         stageProperties.percentageOffspringFromLayerCrossover = 25;
         stageProperties.chanceForTopAgentToBeDominant = 1;
-        stageProperties.bestAgentsEverLength = 10;
+        stageProperties.bestAgentsEverLength = 50;
         stageProperties.tournamentSize = 10;
         // stageProperties.linearStabilityThresholdBody = 15;
         // stageProperties.angularStabilityThresholdBody = 20;
@@ -1942,7 +1973,7 @@
         stageProperties.Gravity = 1;
         stageProperties.Friction = 0.4;
         stageProperties.simulationLengthIncrease = 30;
-        stageProperties.maxSimulationLength = 50000;
+        stageProperties.maxSimulationLength = 20000;
         stageProperties.velocityIteration = 4;
         stageProperties.positionIteration = 2;
         stageProperties.physicsGranularityMultipliers = 10;
@@ -1985,6 +2016,8 @@
         stageProperties.offspringLimbMutationRate = 20;
         stageProperties.agentsRequireStablising = false;
         stageProperties.randomAgentStartAngle = false;
+        stageProperties.simulationLengthIncrease = 50;
+        stageProperties.maxSimulationLength = 15000;
     }
 
     private async Task resetSettingsSuperSimple(bool reset)
@@ -2024,6 +2057,7 @@
         stageProperties.chanceToIncludeTopPerformerInMutation = 1;
         stageProperties.hiddenActivationFunction = "relu";
         stageProperties.simulationLengthIncrease = 100;
+        stageProperties.maxSimulationLength = 10000;
     }
 
     private void InitializeTabs()
@@ -3375,7 +3409,7 @@
                         Min = 10000,
                         Max = 100000,
                         Step = 1000,
-                        Details = "Sets the maximum limit for the simulation length.  By default its about 15 minutes"
+                        Details = "Sets the maximum limit for the simulation length.  By default its about 5 minutes"
                     },
                 },
                 HasAdvanced = true
@@ -3396,6 +3430,14 @@
                         Max = 50,
                         Step = 1,
                         Details = "Controls the number of random agents rendered from each group, independent of the leaders and trailer.  This only updates between rounds."
+                    },
+                    new Setting
+                    {
+                        Name = "Show Agent Names",
+                        Type = SettingType.Checkbox,
+                        BooleanValueExpression = () => stageProperties.showAgentNames,
+                        BooleanValueChanged = val => stageProperties.showAgentNames = val,
+                        Details = "Toggle to show or hide Agent Names."
                     },
                     new Setting
                     {

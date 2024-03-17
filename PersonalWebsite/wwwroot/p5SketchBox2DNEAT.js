@@ -41,6 +41,7 @@ let tempMuscleBatch = 0;
 let tempMuscleDelay = 0;
 let tempSimSpeed = 0;
 let tempFramesPerUpdateStart = 0;
+let populationName = "Unnamed Population";
 
 const GROUP_COLORS_NAMES = [
     'Traffic purple', 'Grass green', 'Yellow orange', 'Maize yellow', 'Quartz grey', 'Salmon range', 'Pearl black berry', 'Golden yellow', 'Pearl light grey', 'Red lilac',
@@ -313,8 +314,10 @@ let sketchNEAT = function (p) {
 
         // calculateFPSNEAT(p);
         // Render the FPS, Gen No, and Time Left
-        p.fill(255);  // Black color for the text
-        p.textSize(18);  // Font size
+        p.fill(255);
+        p.textSize(24);
+        p.text(`${populationName}`, 650, 40);
+        p.textSize(18);
         p.text(`FPS: ${fps}`, 10, 20);
         if (specialRunStarted == true) {
             p.text(`Special Run`, 10, 50);
@@ -361,12 +364,23 @@ let sketchNEAT = function (p) {
         p.pop();
 
         p.mousePressed = function () {
-
             // Check if the special run button is clicked
             if (p.mouseX >= buttonX && p.mouseX <= buttonX + buttonWidth &&
                 p.mouseY >= buttonY && p.mouseY <= buttonY + buttonHeight) {
                 specialRun = true;
                 targetUpdatesPerAgent = agentUpdatesPer60Frames;
+                return;
+            }
+
+            // Check if the population name is clicked
+            let nameX = 650; // X position of the population name
+            let nameY = 40;  // Y position of the population name
+            let nameWidth = 200; // Approximate width of the name area
+            let nameHeight = 30; // Height of the name area (adjust as needed)
+
+            if (p.mouseX >= nameX && p.mouseX <= nameX + nameWidth &&
+                p.mouseY >= nameY - nameHeight && p.mouseY <= nameY) {
+                triggerNameChangePopup();
                 return;
             }
 
@@ -858,6 +872,22 @@ let sketchNEAT = function (p) {
         }
     };
 };
+
+function triggerNameChangePopup() {
+    document.getElementById('renamePopup').style.display = 'flex';
+}
+
+function closeRenamePopup() {
+    document.getElementById('renamePopup').style.display = 'none';
+}
+
+function updatePopulationName() {
+    var newName = document.getElementById('newPopulationName').value;
+    if (newName) {
+        populationName = newName;
+        closeRenamePopup();
+    }
+}
 
 // Fills in missing score values for each generation
 function getCompleteAgentScoreHistory(agentHistory, minYValue, currentGeneration) {
@@ -1525,6 +1555,8 @@ function killSim() {
     agentGenomePool = [];
     tempAgentGenomePool = [];
     tempAgentPool = [];
+
+    populationName = "Unnamed Population";
 }
 
 // Function to log the genomes of all agents, triggered in the UI
@@ -1620,11 +1652,12 @@ async function saveGenomes() {
                 genomes: storedData.data.genomes,
                 stageProperties: storedData.data.stageProperties,
                 topAgent: topAgentsEver,
+                name: populationName,
             };
             const jsonString = JSON.stringify(data);
 
             // Constructing the filename
-            let filename = `EvolvedPop_Gen-${data.stageProperties.genCount}_TopScore-${data.stageProperties.topScoreEver.toFixed(2)}_Agents-${data.stageProperties.numAgents * data.stageProperties.totalNumAgentsMultiplier}_${data.stageProperties.swimMethod}-SwimMethod_${data.stageProperties.keepAgentSymmetrical ? 'Symmetrical' : 'Asymmetrical'}-Bodies_${data.stageProperties.networkOutput}-NetworkOutput.json`;
+            let filename = `${populationName}_Gen-${data.stageProperties.genCount}_TopScore-${data.stageProperties.topScoreEver.toFixed(2)}_Agents-${data.stageProperties.numAgents * data.stageProperties.totalNumAgentsMultiplier}_${data.stageProperties.swimMethod}-SwimMethod_${data.stageProperties.keepAgentSymmetrical ? 'Symmetrical' : 'Asymmetrical'}-Bodies_${data.stageProperties.networkOutput}-NetworkOutput.json`;
 
             saveToFile(jsonString, filename);
             console.log('Saved genomes from IndexedDB to file');
@@ -1667,7 +1700,8 @@ async function saveStateToIndexedDB(genomesToSave) {
             genomes: genomesToSave,
             stageProperties: stageProperties,
             topAgent: topAgentsEver,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            name: populationName,
         };
 
         const db = await idb.openDB('EvolutionSimulationDB', 1, {
@@ -1711,6 +1745,13 @@ async function recoverStateFromIndexedDB() {
 
                 } catch (e) {
                     console.error('Error finding top agent ever:', e);
+                }
+
+                if (data.name) {
+                    let uploadedName = data.name;
+                    populationName = uploadedName;
+                } else {
+                    populationName = "Unnamed Population";
                 }
 
                 initializeSketchBox2DNEAT(uploadedStageProperties);
@@ -1781,10 +1822,10 @@ function uploadGenomes() {
                 try {
                     const data = JSON.parse(event.target.result);
                     let uploadedAgentGenomePool = data.genomes;
-                    let uploadedstageProperties = data.stageProperties;
+                    let uploadedStageProperties = data.stageProperties;
                     try {
                         let uploadedTopAgents = data.topAgent;
-                        let topScoreFromHistory = Math.max(...uploadedTopAgents.agentHistory.scoreHistory.map(score => score.score));
+                        let topScoreFromHistory = Math.max(...uploadedTopAgents[0].agentHistory.scoreHistory.map(score => score.score));
 
                         if (topScoreFromHistory > uploadedStageProperties.topScoreEver) {
                             uploadedStageProperties.topScoreEver = topScoreFromHistory;
@@ -1796,11 +1837,18 @@ function uploadGenomes() {
                         console.error('Error finding top agent ever:', e);
                     }
 
+                    if (data.name) {
+                        let uploadedName = data.name;
+                        populationName = uploadedName;
+                    } else {
+                        populationName = "Unnamed Population";
+                    }
+
                     // Initialize or update your simulation with the new data
-                    initializeSketchBox2DNEAT(uploadedstageProperties);
+                    initializeSketchBox2DNEAT(uploadedStageProperties);
                     initializeAgentsBox2DNEAT(uploadedAgentGenomePool);
 
-                    resolve(uploadedstageProperties); // Resolve the Promise with the uploaded stage properties
+                    resolve(uploadedStageProperties); // Resolve the Promise with the uploaded stage properties
                 } catch (err) {
                     console.error('Error parsing uploaded file:', err);
                     reject(err);
@@ -1825,10 +1873,10 @@ function loadPreTrainedGenome(filename) {
             })
             .then(data => {
                 let uploadedAgentGenomePool = data.genomes;
-                let uploadedstageProperties = data.stageProperties;
+                let uploadedStageProperties = data.stageProperties;
                 try {
                     let uploadedTopAgents = data.topAgent;
-                    let topScoreFromHistory = Math.max(...uploadedTopAgents.agentHistory.scoreHistory.map(score => score.score));
+                    let topScoreFromHistory = Math.max(...uploadedTopAgents[0].agentHistory.scoreHistory.map(score => score.score));
 
                     if (topScoreFromHistory > uploadedStageProperties.topScoreEver) {
                         uploadedStageProperties.topScoreEver = topScoreFromHistory;
@@ -1839,10 +1887,18 @@ function loadPreTrainedGenome(filename) {
                 } catch (e) {
                     console.error('Error finding top agent ever:', e);
                 }
-                initializeSketchBox2DNEAT(uploadedstageProperties);
+
+                if (data.name) {
+                    let uploadedName = data.name;
+                    populationName = uploadedName;
+                } else {
+                    populationName = "Unnamed Population";
+                }
+
+                initializeSketchBox2DNEAT(uploadedStageProperties);
                 initializeAgentsBox2DNEAT(uploadedAgentGenomePool);
 
-                resolve(uploadedstageProperties); // Resolve the promise with the uploaded stage properties
+                resolve(uploadedStageProperties); // Resolve the promise with the uploaded stage properties
             })
             .catch(err => {
                 console.error('Error loading pre-trained genome:', err);
@@ -2557,7 +2613,6 @@ function startSpecialRun(p, topAgentsEverLength) {
     agents = [];
     for (let genome of topAgentsEver) {
         let agent = new AgentNEAT(genome);
-        agent.genome.metadata.agentGroup = 0;
         agent.genome.metadata.runGroup = 0;
         agents.push(agent);
     }
@@ -5945,7 +6000,7 @@ AgentNEAT.prototype.getScore = function (roundOver) {
         this.Score = 1;
     }
 
-    if (topAgentsEver.length > 0 && this.Score > topAgentsEver[0].metadata.bestScore && this.score > stageProperties.topScoreEver) {
+    if (topAgentsEver.length > 0 && this.Score > topAgentsEver[0].metadata.bestScore && this.Score > stageProperties.topScoreEver) {
         stageProperties.topScoreEver = this.Score;
     }
 
@@ -6067,18 +6122,19 @@ AgentNEAT.prototype.render = function (p, offsetX, offsetY) {
             arrowLength - arrowBase, arrowBase / 2,
             arrowLength - arrowBase, -arrowBase / 2);
 
-
         p.pop();
         p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
 
-        // Draw the agent's name
-        p.push();
-        p.translate(mainPos.x + offsetX, mainPos.y + offsetY);  // Added offsetX
-        p.textAlign(p.CENTER, p.TOP);
-        p.textSize(18);
-        p.fill(0);
-        p.text(this.genome.metadata.agentName, 0, this.mainBodyRadius + 5);
-        p.pop();
+        if (stageProperties.showAgentNames === true) {
+            // Draw the agent's name
+            p.push();
+            p.translate(mainPos.x + offsetX, mainPos.y + offsetY);  // Added offsetX
+            p.textAlign(p.CENTER, p.TOP);
+            p.textSize(18);
+            p.fill(0);
+            p.text(this.genome.metadata.agentName, 0, this.mainBodyRadius + 5);
+            p.pop();
+        }
     }
     //p.fill(0);
     //p.fill(GROUP_COLORS[this.genome.metadata.agentGroup]);
