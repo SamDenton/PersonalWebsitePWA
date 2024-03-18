@@ -3828,7 +3828,25 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     let dominantParent = (TScore1 > TScore2) ? parent1 : parent2;
     let submissiveParent = (TScore1 < TScore2) ? parent1 : parent2
     let chanceForTopAgentToBeDominant = (stageProperties.chanceForTopAgentToBeDominant) ? stageProperties.chanceForTopAgentToBeDominant : 1;
-    let potentialTopAgentEver = topAgentsEver[0];
+
+    // This function might be duplicated elsewhere, I should collect my utility functions together
+    function weightedRandomSelection(arr) {
+        let totalWeight = arr.length * (arr.length + 1) / 2;
+        let randomWeight = Math.random() * totalWeight;
+        let weightSum = 0;
+
+        for (let i = 0; i < arr.length; i++) {
+            weightSum += arr.length - i;
+            if (randomWeight <= weightSum) {
+                return arr[i];
+            }
+        }
+
+        return arr[arr.length - 1]; // Fallback to the last element
+    }
+
+    let potentialTopAgentEver = weightedRandomSelection(topAgentsEver);
+
     // Small chance for the dominant parent to be the topAgentEver
     if (Math.random() < chanceForTopAgentToBeDominant / 1000) {
         let mockTopAgentEver = createMockAgentFromGenome(potentialTopAgentEver, submissiveParent);
