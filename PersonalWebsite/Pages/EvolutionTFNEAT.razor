@@ -352,7 +352,7 @@
     <button class="floating-button superSimpleStart-button rightColumn" title="Start simulation with no energy, extra score bonuses and a fixed body plan.  Much faster, but less interesting evolution" @onclick="ResetSimulationSuperSimple">Super Simplified Start</button>
     <button class="floating-button update-button leftColumn" title="You can update any settings mid simulation, but some changes will break things" @onclick="UpdateSimulation">Update</button>
     <button class="floating-button toggleNN-button rightColumn" title="Toggle rendering of Neural Network.  Can cause some lag" @onclick="toggleNN">Toggle Neural Network</button>
-    <button class="floating-button toggleLeader-button leftColumn" title="Toggle between following the leading vs trailing agents.  Switches rendered Neural Network as well" @onclick="toggleLeader">Toggle Leader vs Trailer</button>
+    <button class="floating-button toggleLeader-button leftColumn" title="Toggle between following the leading, trailing, top scoring or average agent.  Switches rendered Neural Network as well" @onclick="toggleLeader">Toggle Focused Agent</button>
     @* <button class="floating-button toggleRays-button rightColumn" title="Toggle rendering for agents vision lines" @onclick="toggleRayCasts">Toggle Ray-casts</button> *@
     <button class="floating-button logGenomes-button leftColumn" title="Post all agent genomes to console" @onclick="LogGenomes">Log Genomes</button>
     <button class="floating-button retrieveGenomes-button rightColumn" title="Save current agent genome pool to continue training later" @onclick="RetrieveGenomes">Save Genomes</button>
@@ -1404,7 +1404,7 @@
         // Score and Energy
         public int xScoreMultiplier { get; set; } = 30;
         public int yScoreMultiplier { get; set; } = 30;
-        public int movementScoreMultiplier { get; set; } = 30;
+        public int movementScoreMultiplier { get; set; } = 10;
         public int explorationScoreMultiplier { get; set; } = 200;
         public int sizeScoreMultiplier { get; set; } = 50;
         public bool massBonusIsDynamic { get; set; } = true;
@@ -1442,11 +1442,13 @@
         public int minPopGroupSize { get; set; } = 10;
         public int maxPopGroupSize { get; set; } = 25;
         public bool agentsRequireStablising { get; set; } = true;
+        public int chanceForTopAgentToBeDominant { get; set; } = 1;
+        // Advanced Training and Evolution
+        public int chanceForTournamentSelectionForParent1 { get; set; } = 50;
+        public int chanceForTournamentSelectionForParent2 { get; set; } = 50;
         public int percentageOffspringFromBiasedCrossover { get; set; } = 25;
         public int percentageOffspringFromRandomCrossover { get; set; } = 25;
         public int percentageOffspringFromLayerCrossover { get; set; } = 25;
-        public int chanceForTopAgentToBeDominant { get; set; } = 1;
-        // Advanced Training and Evolution
         public int bestAgentsEverLength { get; set; } = 50;
         public int tournamentSize { get; set; } = 10;
         public int angularStabilityThresholdLimb { get; set; } = 25;
@@ -1466,14 +1468,14 @@
         public bool timeIncrease { get; set; } = true;
         public int map { get; set; } = 1;
         public bool randomMap { get; set; } = true;
-        public int SimulationLength { get; set; } = 2000;
+        public int SimulationLength { get; set; } = 3000;
         // Advanced World Properties
         public int Width { get; set; } = 1600;
         public int Height { get; set; } = 800;
         public int GroundY { get; set; } = 700;
         public int Gravity { get; set; } = 1; // not implemented
         public double Friction { get; set; } = 0.4; // not implemented
-        public int simulationLengthIncrease { get; set; } = 30;
+        public int simulationLengthIncrease { get; set; } = 50;
         public int maxSimulationLength { get; set; } = 20000;
         public int velocityIteration { get; set; } = 4;
         public int positionIteration { get; set; } = 2;
@@ -1805,7 +1807,7 @@
         stageProperties.numAgents = 50;
         stageProperties.totalNumAgentsMultiplier = 10;
         stageProperties.muscleDelay = 2;
-        stageProperties.muscleBatch = 5;
+        stageProperties.muscleBatch = 4;
         stageProperties.totalMuscleUpdateTime = 2;
         stageProperties.maxPopGroupSize = 50;
     }
@@ -1908,7 +1910,7 @@
         stageProperties.brainDecayOverTime = false;
         stageProperties.xScoreMultiplier = 30;
         stageProperties.yScoreMultiplier = 30;
-        stageProperties.movementScoreMultiplier = 30;
+        stageProperties.movementScoreMultiplier = 10;
         stageProperties.explorationScoreMultiplier = 200;
         stageProperties.sizeScoreMultiplier = 20;
         stageProperties.massBonusIsDynamic = true;
@@ -1943,10 +1945,12 @@
         stageProperties.minPopGroupSize = 10;
         stageProperties.maxPopGroupSize = 25;
         stageProperties.agentsRequireStablising = true;
+        stageProperties.chanceForTopAgentToBeDominant = 1;
+        stageProperties.chanceForTournamentSelectionForParent1 = 50;
+        stageProperties.chanceForTournamentSelectionForParent2 = 50;
         stageProperties.percentageOffspringFromBiasedCrossover = 25;
         stageProperties.percentageOffspringFromRandomCrossover = 25;
         stageProperties.percentageOffspringFromLayerCrossover = 25;
-        stageProperties.chanceForTopAgentToBeDominant = 1;
         stageProperties.bestAgentsEverLength = 50;
         stageProperties.tournamentSize = 10;
         // stageProperties.linearStabilityThresholdBody = 15;
@@ -1966,13 +1970,13 @@
         stageProperties.timeIncrease = true;
         stageProperties.map = 1;
         stageProperties.randomMap = true;
-        stageProperties.SimulationLength = 2000;
+        stageProperties.SimulationLength = 3000;
         stageProperties.Width = 1600;
         stageProperties.Height = 800;
         stageProperties.GroundY = 700;
         stageProperties.Gravity = 1;
         stageProperties.Friction = 0.4;
-        stageProperties.simulationLengthIncrease = 30;
+        stageProperties.simulationLengthIncrease = 50;
         stageProperties.maxSimulationLength = 20000;
         stageProperties.velocityIteration = 4;
         stageProperties.positionIteration = 2;
@@ -2009,14 +2013,14 @@
         stageProperties.networkOutput = "simple";
         stageProperties.startingEnergyBodyMassMult = 0;
         stageProperties.startingEnergyLimbMassMult = 0;
-        stageProperties.movementScoreMultiplier = 15;
+        stageProperties.movementScoreMultiplier = 10;
         stageProperties.explorationScoreMultiplier = 100;
         stageProperties.sizeScoreMultiplier = 0;
         stageProperties.offspringLayerMutationRate = 5;
         stageProperties.offspringLimbMutationRate = 20;
         stageProperties.agentsRequireStablising = false;
         stageProperties.randomAgentStartAngle = false;
-        stageProperties.simulationLengthIncrease = 50;
+        stageProperties.simulationLengthIncrease = 75;
         stageProperties.maxSimulationLength = 15000;
     }
 
@@ -3095,6 +3099,42 @@
                     },
                     new Setting
                     {
+                        Name = "Chance A Top Agent is Used as Parent",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.chanceForTopAgentToBeDominant,
+                        ValueChanged = val => stageProperties.chanceForTopAgentToBeDominant = val,
+                        Min = 0,
+                        Max = 1000,
+                        Step = 1,
+                        Details = "Sets the % chance a child's dominant parent will be one of the top agents ever.  Value divided by 10 is the %"
+                    }
+                },
+                AdvancedSettings = new List<Setting>
+                {
+                    new Setting
+                    {
+                        Name = "Parent 1 Selector",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.chanceForTournamentSelectionForParent1,
+                        ValueChanged = val => stageProperties.chanceForTournamentSelectionForParent1 = val,
+                        Min = 1,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Sets the chance for tournament selection as apposed to roulette selection for parent 1."
+                    },
+                    new Setting
+                    {
+                        Name = "Parent 2 Selector",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.chanceForTournamentSelectionForParent2,
+                        ValueChanged = val => stageProperties.chanceForTournamentSelectionForParent2 = val,
+                        Min = 1,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Sets the chance for tournament selection as apposed to roulette selection for parent 2."
+                    },
+                    new Setting
+                    {
                         Name = "Percentage Offspring From Biased Crossover",
                         Type = SettingType.Slider,
                         ValueExpression = () => stageProperties.percentageOffspringFromBiasedCrossover,
@@ -3126,20 +3166,6 @@
                         Step = 1,
                         Details = "Sets the % of child agents built using the layer crossover method, similar to 'point to point' crossover, it randomly swaps whole layers between parents.  Any amount from this setting and the other Crossover % settings left from 100% will be direct clones of the dominant parent."
                     },
-                    new Setting
-                    {
-                        Name = "Percentage Chance Top Agent is Dominant",
-                        Type = SettingType.Slider,
-                        ValueExpression = () => stageProperties.chanceForTopAgentToBeDominant,
-                        ValueChanged = val => stageProperties.chanceForTopAgentToBeDominant = val,
-                        Min = 0,
-                        Max = 1000,
-                        Step = 1,
-                        Details = "Sets the % chance a child's dominant parent will be the top scoring agent ever.  Value divided by 10 is the %"
-                    }
-                },
-                AdvancedSettings = new List<Setting>
-                {
                     new Setting
                     {
                         Name = "Number Of Best Agents To Store",
@@ -3493,7 +3519,7 @@
                         Type = SettingType.Dropdown,
                         SelectedValueExpression = () => stageProperties.agentInCentre,
                         SelectedValueChanged = val => stageProperties.agentInCentre = val,
-                        Options = new List<string> { "leader", "trailer", "average" },
+                        Options = new List<string> { "leader", "trailer", "average", "topScorer" },
                         Details = "Selects the agent to focus the camera on.  Best toggled using the button bank in the top right."
                     },
                     new Setting

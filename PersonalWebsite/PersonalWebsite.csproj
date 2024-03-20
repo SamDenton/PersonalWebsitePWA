@@ -28,6 +28,10 @@
 	<ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
 </ItemGroup>
 
+<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+  <Exec Command="powershell -NoProfile -ExecutionPolicy Unrestricted -File wwwroot\prepublishScripts\update-sw-version.ps1" />
+</Target>
+
 <!--<Target Name="PostBuild" AfterTargets="PostBuildEvent">
   <Exec Command="postpublish.bat $(PublishDir)" />
 </Target>-->

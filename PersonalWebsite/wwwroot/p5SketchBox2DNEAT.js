@@ -340,28 +340,30 @@ let sketchNEAT = function (p) {
         const buttonHeight = 35;
         const circleDiameter = 20;
 
-        p.push();
-        if (specialRun == true) {
-            p.fill(0, 255, 0);
-        } else {
-            p.fill(255, 0, 0);
+        if (stabilised) {
+            p.push();
+            if (specialRun == true) {
+                p.fill(0, 255, 0);
+            } else {
+                p.fill(255, 0, 0);
+            }
+
+            p.stroke(0);
+            p.strokeWeight(3);
+            p.rect(buttonX, buttonY, buttonWidth, buttonHeight, 10); // Draw a rounded rectangle button
+
+            if (specialRun == true) {
+                p.fill(0);
+            } else {
+                p.fill(255);
+            }
+
+            p.textSize(20);
+            p.noStroke();
+            p.textAlign(p.CENTER, p.CENTER);
+            p.text('Run Top Agents Ever After Batch', buttonX + 149, buttonY + 18);
+            p.pop();
         }
-
-        p.stroke(0);
-        p.strokeWeight(3);
-        p.rect(buttonX, buttonY, buttonWidth, buttonHeight, 10); // Draw a rounded rectangle button
-
-        if (specialRun == true) {
-            p.fill(0);
-        } else {
-            p.fill(255);
-        }
-
-        p.textSize(20);
-        p.noStroke();
-        p.textAlign(p.CENTER, p.CENTER);
-        p.text('Run Top Agents Ever After Batch', buttonX + 149, buttonY + 18);
-        p.pop();
 
         p.mousePressed = function () {
             // Check if the special run button is clicked
@@ -373,25 +375,31 @@ let sketchNEAT = function (p) {
             }
 
             // Check if the population name is clicked
-            let nameX = 650; // X position of the population name
-            let nameY = 40;  // Y position of the population name
-            let nameWidth = 200; // Approximate width of the name area
-            let nameHeight = 30; // Height of the name area (adjust as needed)
+            let nameX = 650;
+            let nameY = 40;
+            let nameWidth = 200;
+            let nameHeight = 30;
 
             if (p.mouseX >= nameX && p.mouseX <= nameX + nameWidth &&
-                p.mouseY >= nameY - nameHeight && p.mouseY <= nameY) {
+                p.mouseY >= nameY - nameHeight && p.mouseY <= nameY &&
+                stabilised) {
                 triggerNameChangePopup();
                 return;
             }
 
-            // Existing code for selecting colors
-            for (let i = 0; i < numGroups + 1; i++) {
+            // Check if the color circles are clicked
+            for (let i = 0; i < numGroups + 2; i++) {
                 let x = 40 + i * (circleDiameter + 10);
                 let y = 225;
                 let d = p.dist(p.mouseX, p.mouseY, x, y);
                 if (i == numGroups) {
                     if (d < circleDiameter / 2) {
                         selectedColor = null;
+                        break;
+                    }
+                } else if(i == numGroups + 1) {
+                    if (d < circleDiameter / 2) {
+                        selectedColor = -1;
                         break;
                     }
                 } else {
@@ -407,10 +415,13 @@ let sketchNEAT = function (p) {
         if (specialRunStarted == false) {
             p.text(`Distinct Population groups: ${numGroups}`, 10, 200);
             // Render click-able circles for each group
-            for (let i = 0; i < numGroups + 1; i++) {
+            for (let i = 0; i < numGroups + 2; i++) {
                 p.push();
                 if (i == numGroups) {
                     p.fill(255);
+                    p.ellipse(40 + i * (circleDiameter + 10), 225, circleDiameter);
+                } else if (i == numGroups + 1) {
+                    p.fill(0);
                     p.ellipse(40 + i * (circleDiameter + 10), 225, circleDiameter);
                 } else {
                     p.fill(GROUP_COLORS[i]);
@@ -420,7 +431,7 @@ let sketchNEAT = function (p) {
             }
 
             p.fill(155);
-            p.text(`Select a color above to filter that group, or white to clear`, 10, 260);
+            p.text(`Click colours to filter, black to show all or white for default`, 10, 260);
             p.text(`Agents in population: ${agentGenomePool.length + tempAgentPool.length + agents.length}`, 10, 290);
             p.text(`Agents left to run: ${agentGenomePool.length}`, 10, 320);
         }
@@ -443,7 +454,7 @@ let sketchNEAT = function (p) {
             p.push();
             p.fill(255);
             if (stageProperties.agentInCentre == "leader") {
-                offsetX = p.width / 6 - leadingAgent.position.x + leadingAgent.startingX;  // Center the leading agent on the canvas, just to the left
+                offsetX = p.width / 6 - leadingAgent.position.x + leadingAgent.startingX + 150;
                 offsetY = p.height * 4 / 6 - leadingAgent.position.y + leadingAgent.startingY;
                 offsetX += panningOffsetX;
                 offsetY += panningOffsetY;
@@ -454,8 +465,8 @@ let sketchNEAT = function (p) {
                 }
                 p.text(`Showing Leading Agent`, 370, 40);
             } else if (stageProperties.agentInCentre == "trailer") {
-                offsetX = p.width / 6 - trailingAgent.position.x + trailingAgent.startingX;
-                offsetY = p.width * 4 / 6 - trailingAgent.position.y + trailingAgent.startingY - 500;
+                offsetX = p.width / 6 - trailingAgent.position.x + trailingAgent.startingX + 150;
+                offsetY = p.height * 4 / 6 - trailingAgent.position.y + trailingAgent.startingY;
                 offsetX += panningOffsetX;
                 offsetY += panningOffsetY;
                 if (stageProperties.showRays) {
@@ -471,24 +482,24 @@ let sketchNEAT = function (p) {
 
                 for (let agent of agents) {
                     let eachXScore = agent.getScore(false);
-                    totalXScore += parseFloat(eachXScore[1]);
+                    totalXScore += parseFloat(eachXScore[1]) / (stageProperties.xScoreMultiplier / 10);
                 }
 
                 for (let agent of agents) {
                     let eachYScore = agent.getScore(false);
-                    totalYScore += parseFloat(eachYScore[2]);
+                    totalYScore += parseFloat(eachYScore[2]) / (stageProperties.yScoreMultiplier / 10);
                 }
 
                 let averageXScore = totalXScore / agents.length;
                 let averageYScore = totalYScore / agents.length;
 
-                offsetX = (p.width / 6) - averageXScore + 100;
+                offsetX = (p.width / 6) - averageXScore + 150;
                 offsetY = (p.height * 4 / 6) + averageYScore;
                 offsetX += panningOffsetX;
                 offsetY += panningOffsetY;
                 p.text(`Showing Average Agent Position`, 370, 40);
             } else if (stageProperties.agentInCentre == "topScorer") {
-                offsetX = p.width / 6 - topScoreAgent.position.x + topScoreAgent.startingX;  // Center the leading agent on the canvas, just to the left
+                offsetX = p.width / 6 - topScoreAgent.position.x + topScoreAgent.startingX + 150;
                 offsetY = p.height * 4 / 6 - topScoreAgent.position.y + topScoreAgent.startingY;
                 offsetX += panningOffsetX;
                 offsetY += panningOffsetY;
@@ -590,7 +601,20 @@ let sketchNEAT = function (p) {
                 allScores = stageProperties.scoreHistory.concat(stageProperties.scoreHistoryAverage, stageProperties.scoreHistoryTop);
                 minYValue = p.min(allScores);
                 maxYValue = p.max(allScores);
-                if (selectedColor != null) {
+
+                if (selectedColor === -1) {
+                    if (leadingAgent) {
+
+                        let agentScoreHistory = leadingAgent.genome.agentHistory.scoreHistory;
+                        let agentScoreHistoryScores = getCompleteAgentScoreHistory(agentScoreHistory, minYValue, totalGenerations);
+
+                        if (agentScoreHistoryScores.length > 0) {
+                            drawGraph(p, agentScoreHistoryScores, graphX, graphY, graphW, graphH, p.color(GROUP_COLORS[leadingAgent.genome.metadata.agentGroup]), minYValue, maxYValue);
+                        }
+                        highestScoreAgent = leadingAgent;
+                    }
+                }
+                else if (selectedColor != null) {
 
                     let highestScore = 0;
                     highestScoreAgent = null;
@@ -664,7 +688,10 @@ let sketchNEAT = function (p) {
             if (specialRunStarted == true) {
                 p.text(`Agents on screen: ${agents.length}`, 10, 380);
             } else {
-                if (selectedColor === null) {
+                if (selectedColor === -1) {
+                    p.text(`Agents on screen: ${agents.length}`, 10, 380);
+                }
+                else if (selectedColor === null) {
                     p.text(`Agents on screen: ${agentsToRender.size}`, 10, 380);
                 } else {
                     p.text(`Agents on screen: ${agents.filter(agent => agent.genome.metadata.agentGroup == selectedColor).length}`, 10, 380);
@@ -724,14 +751,24 @@ let sketchNEAT = function (p) {
                 if (specialRunStarted == true) {
                     for (let agent of agents) {
                         if (agent) {
-                            // Render all agents
+                            // Render all agents from special batch
                             let agentOffsetX = offsetX - agent.startingX;
                             let agentOffsetY = offsetY - agent.startingY;
                             agent.render(p, agentOffsetX, agentOffsetY);
                         }
                     }
                 } else {
-                    if (selectedColor === null) {
+                    if (selectedColor === -1) {
+                        for (let agent of agents) {
+                            if (agent) {
+                                // Render all agents
+                                let agentOffsetX = offsetX - agent.startingX;
+                                let agentOffsetY = offsetY - agent.startingY;
+                                agent.render(p, agentOffsetX, agentOffsetY);
+                            }
+                        }
+                    }
+                    else if (selectedColor === null) {
                         for (let agent of agentsToRender) {
                             if (agent) {
                                 // Only render agents from agentsToRender list
@@ -1601,7 +1638,7 @@ function logGenomes() {
     } else {
         console.log("No Bad Agents Found.");
     }
-
+    console.log("Simulation Length: ", simulationLengthModified);
     console.log("Stage Properties: ", stageProperties);
 }
 
@@ -1694,8 +1731,6 @@ function saveToFile(data, filename) {
 // Function to save the state to IndexedDB, called regularly
 async function saveStateToIndexedDB(genomesToSave) {
     try {
-        // stageProperties.simulationLength = simulationLengthModified;
-
         const data = {
             genomes: genomesToSave,
             stageProperties: stageProperties,
@@ -1718,6 +1753,17 @@ async function saveStateToIndexedDB(genomesToSave) {
         console.log('State saved to IndexedDB');
     } catch (e) {
         console.error('Error saving state to IndexedDB:', e);
+
+        // Attempt to delete the existing database.  This normally happens if users clear browser data, it clears the stores but not the database itself, so it needs to be deleted and re-created.
+        try {
+            await idb.deleteDB('EvolutionSimulationDB');
+            console.log('Old IndexedDB deleted');
+
+            // Retry saving after deletion
+            await saveStateToIndexedDB(genomesToSave);
+        } catch (deleteError) {
+            console.error('Error deleting old IndexedDB:', deleteError);
+        }
     }
 }
 
@@ -2464,6 +2510,8 @@ function endSimulationNEAT(p) {
 
     const topAgentsEverLength = stageProperties.bestAgentsEverLength;
     let topAgentCounter = 0;
+
+    agents.sort((a, b) => b.genome.metadata.bestScore - a.genome.metadata.bestScore);
 
     while (topAgentsEver.length < topAgentsEverLength) {
         topAgentsEver.push(_.cloneDeep(agents[topAgentCounter].genome));
@@ -3664,6 +3712,11 @@ function rankAgents(groupAgents) {
 }
 
 function calculateCompositeScore(agent) {
+
+    // I should add to this:
+        // similarity heuristics, brain, body and internal map,
+        // agents brain size / weight
+
     const weights = {
         scoreHistoryWeight: stageProperties.scoreHistoryWeight / 100,
         scoreVarianceWeight: stageProperties.scoreVarianceWeight / 100,
@@ -3782,10 +3835,18 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     let parent1;
     let parent2;
     try {
-        parent1 = selectAgentTournamentNEAT(groupAgents, tempAgentPool);
+        if (Math.random() < stageProperties.chanceForTournamentSelectionForParent1 / 100) {
+            parent1 = selectAgentTournamentNEAT(groupAgents, tempAgentPool);
+        } else {
+            parent1 = selectAgentRouletteNEAT(groupAgents, tempAgentPool);
+        }
         // Loop through the roulette selection until a different parent is selected
         while (parent2 === undefined || parent2.Score === parent1.Score || parent1.genome.metadata.agentIndex === parent2.genome.metadata.agentIndex) {
-            parent2 = selectAgentRouletteNEAT(groupAgents, tempAgentPool, parent1);
+            if (Math.random() < stageProperties.chanceForTournamentSelectionForParent2 / 100) {
+                parent2 = selectAgentTournamentNEAT(groupAgents, tempAgentPool, parent1);
+            } else {
+                parent2 = selectAgentRouletteNEAT(groupAgents, tempAgentPool, parent1);
+            }
         }
     } catch (error) {
         console.error("Error selecting parents: ", error);
@@ -3865,11 +3926,12 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
     try {
 
         // Create a child genome using crossover
-        if (Math.random() < stageProperties.persentageOffspringFromBiasedCrossover / 100) {
+        let crossoverMethod = Math.random();
+        if (crossoverMethod < stageProperties.percentageOffspringFromBiasedCrossover / 100) {
             childGenome = biasedArithmeticCrossoverNEAT(dominantParent, submissiveParent);
-        } else if (Math.random() < ((stageProperties.persentageOffspringFromBiasedCrossover / 100) + (stageProperties.persentageOffspringFromRandomCrossover / 100))) {
+        } else if (crossoverMethod < ((stageProperties.percentageOffspringFromBiasedCrossover / 100) + (stageProperties.percentageOffspringFromRandomCrossover / 100))) {
             childGenome = randomSelectionCrossoverNEAT(dominantParent, submissiveParent);
-        } else if (Math.random() < ((stageProperties.persentageOffspringFromBiasedCrossover / 100) + (stageProperties.persentageOffspringFromRandomCrossover / 100) + (stageProperties.persentageOffspringFromLayerCrossover / 100))) {
+        } else if (crossoverMethod < ((stageProperties.percentageOffspringFromBiasedCrossover / 100) + (stageProperties.percentageOffspringFromRandomCrossover / 100) + (stageProperties.percentageOffspringFromLayerCrossover / 100))) {
             childGenome = layerCrossoverNEAT(dominantParent, submissiveParent);
         } else {
             childGenome = _.cloneDeep(dominantParent.genome); 
@@ -3920,7 +3982,7 @@ function createSingleAgentChild(groupAgents, groupId, agentsNeeded) {
         }
     }
 
-    // Reset any bias ids that are no longer sequential, logging the change.
+    // Reset any bias ids that are no longer sequential.
     resetNeuralNetworkIDs(childGenome);
 
     // Decay all weights in the brain by a small amount
@@ -4280,7 +4342,7 @@ function layerCrossoverNEAT(agent1, agent2) {
         return dominantGenome;
     }
 
-    // Currently I only consider a layer swappable that layer, the proceeding layer, and the preceding layer all match.  This is to ensure the number of nodes in the input layer remains the same.
+    // Currently I only consider a layer swappable if that layer, the proceeding layer, and the preceding layer all match.  This is to ensure the number of nodes in the input layer remains the same.  I should build a solution that can add or remove weights to the swapped layer and following layer as needed to generalize.
 
     if (swappableLayers.length > 0) {
         let layerIndexToSwap = swappableLayers[Math.floor(Math.random() * swappableLayers.length)];
@@ -4323,8 +4385,8 @@ function isLayerSwappable(genome1, genome2, layerIndex) {
 
 // Helper function to check if two layers are the same shape
 function layerMatches(layer1, layer2) {
-    // Check if the number of nodes matches.  (Re-added id check as I dont have a way to swap weight 'fromNodeID' in the following layer.)  Don't check that the id matches as we could be swapping different layers, and preceding layers may have different shape.
-    return layer1.biases.length === layer2.biases.length && layer1.biases[0].id === layer2.biases[0].id;
+    // Check if the number of nodes matches.
+    return layer1.biases.length === layer2.biases.length; // && layer1.biases[0].id === layer2.biases[0].id; // id match was to insure the bias ids where the same after swap, but now we reset bias ids every time a genome is modified.
 }
 
 // Crosses over the body plan of two parents to create a child genome
@@ -4347,7 +4409,7 @@ function bodyPlanCrossover(childGenome, subAgent) {
 
             let childFlattenedLimbs = flattenLimbStructure(childGenome.mainBody.arms);
 
-            addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped child limb chain starting from limb ID: " + limb.partID);
+            // addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped child limb chain starting from limb ID: " + limb.partID);
 
             // Remove the limbs, nodes, weights, and biases associated with the dominant limb to be replaced
             removeLimbChain(childGenome, limb.partID, childFlattenedLimbs);
@@ -4669,18 +4731,24 @@ function updateMutationRates(genome) {
 
     // Function to adjust mutation rates based on plateauing
     const adjustForPlateauing = (rate, increasingFactor, decreasingFactor) => {
-        if (scorePlateauingAgent || scorePlateauingPopulation) {
+        if (scorePlateauingAgent) {
+            return roundRate(rate * increasingFactor);
+        } else {
+            return roundRate(rate * decreasingFactor);
+        }
+
+        if (scorePlateauingPopulation) {
             return roundRate(rate * increasingFactor);
         } else {
             return roundRate(rate * decreasingFactor);
         }
     };
 
-    // Adjust mutation rates based on different criteria
-    hyperparams.limbMutationRate = adjustForPlateauing(hyperparams.limbMutationRate, 1.005, 0.995);
-    hyperparams.mutationRate = adjustForPlateauing(hyperparams.mutationRate, 1.01, 0.99);
-    hyperparams.layerMutationRate = adjustForPlateauing(hyperparams.layerMutationRate, 1.01, 0.99);
-    hyperparams.nodeMutationRate = adjustForPlateauing(hyperparams.nodeMutationRate, 1.01, 0.99);
+    // Adjust mutation rates based on scores
+    hyperparams.limbMutationRate = adjustForPlateauing(hyperparams.limbMutationRate, 1.001, 0.99);
+    hyperparams.mutationRate = adjustForPlateauing(hyperparams.mutationRate, 1.001, 0.99);
+    hyperparams.layerMutationRate = adjustForPlateauing(hyperparams.layerMutationRate, 1.001, 0.99);
+    hyperparams.nodeMutationRate = adjustForPlateauing(hyperparams.nodeMutationRate, 1.001, 0.99);
 
     // Other adjustments based on similarity to others
     hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.001 : hyperparams.limbMutationRate * 0.999);
@@ -5126,7 +5194,7 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
 
     // Layer mutation
     if (Math.random() < layerMutationRate) {
-        if (Math.random < 0.6) {
+        if (Math.random() < 0.6) {
             try {
                 // Add a layer
                 // Randomly select a hidden layer to duplicate
@@ -5185,7 +5253,8 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
                 // genome.agentHistory.mutations.push("type: layer, new layer after layer: " + randomLayerIndex + " mutation: add copy");
                 addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: layer, new layer after layer: " + randomLayerIndex + " mutation: add copy");
             } catch (e) {
-                console.log("Error adding layer.  genome: ", genome);
+                // console.log("Error adding layer.  genome: ", genome);
+                addMutationWithHistoryLimit(genome.agentHistory.mutations, "type: layer, failed adding layer at index: " + randomLayerIndex);
             }
 
         } else {
@@ -6076,7 +6145,7 @@ AgentNEAT.prototype.getJointMovementReward = function () {
     }
 
     // Exponential decay for the reward. You can adjust the decay factor as needed.
-    let decayFactor = 0.90;
+    let decayFactor = 0.75;
 
     // Calculate the current reward, decaying it based on the total rewards given so far.
     // Dividing totalJointMovementReward by totalChange ensures the decayFactor is applied over time.
