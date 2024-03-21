@@ -316,7 +316,7 @@ let sketchNEAT = function (p) {
         // Render the FPS, Gen No, and Time Left
         p.fill(255);
         p.textSize(24);
-        p.text(`${populationName}`, 650, 40);
+        p.text(`${populationName}`, 680, 40);
         p.textSize(18);
         p.text(`FPS: ${fps}`, 10, 20);
         if (specialRunStarted == true) {
