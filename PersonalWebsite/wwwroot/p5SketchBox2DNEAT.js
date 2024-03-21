@@ -5194,7 +5194,7 @@ function mutateGenome(genome, mutationRate, nodeMutationRate, layerMutationRate)
 
     // Layer mutation
     if (Math.random() < layerMutationRate) {
-        if (Math.random() < 0.6) {
+        if (Math.random() < 0.5) {
             try {
                 // Add a layer
                 // Randomly select a hidden layer to duplicate

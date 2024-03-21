@@ -1,4 +1,4 @@
-// Version updated at 2024-03-19T18:59:19
+// Version updated at 2024-03-20T08:23:13
 self.importScripts('./service-worker-assets.js');
 self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
@@ -43,8 +43,8 @@ async function onInstall(event) {
     // Cache all matching items from the assets manifest
     const assetsRequests = self.assetsManifest.assets
         .filter(asset => offlineAssetsInclude.some(pattern => pattern.test(asset.url)))
-        .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
         .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
+/*        .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))*/
     await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
 }
 
@@ -84,5 +84,8 @@ async function onFetch(event) {
         }
     }
 }
+
+
+
 
 
