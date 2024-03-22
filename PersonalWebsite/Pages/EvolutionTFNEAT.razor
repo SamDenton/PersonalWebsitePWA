@@ -1298,9 +1298,10 @@
     {
         await JSRuntime.InvokeVoidAsync("skipGen", 1);
     }
-
+      
     private async Task ResetSimulation()
     {
+        await killSim();
         await resetLists();
         stageProperties.topScoreEver = 0;
         stageProperties.genCount = 0;
@@ -1555,6 +1556,19 @@
     {
         preTrainedAgents.Add(new AgentSet
             {
+                Name = "Learning Well",
+                Description = "One of my oldest full setting populations. They refuse to evolve a limb on the left of their body so have an interesting method of locomotion!",
+                Filename = "Populations/Learning well_Gen-164_TopScore-2711.12_Agents-500_advanced-SwimMethod_Asymmetrical-Bodies_complex-NetworkOutput.json",
+                GenCount = 164,
+                TopScore = 2711.12,
+                NumberOfAgents = 500,
+                SwimMethod = "Advanced",
+                Symmetrical = false,
+                StartMethod = "Standard",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
                 Name = "Good Starting Point",
                 Description = "A good starting point using the super simple pre-set, skipping 77 generations.",
                 Filename = "Populations/EvolvedPop_Gen-77_TopScore-5187.00_Agents-1000_simple-SwimMethod_Symmetrical-Bodies_simple-NetworkOutput.json",
@@ -1564,6 +1578,19 @@
                 SwimMethod = "Simple",
                 Symmetrical = true,
                 StartMethod = "Super Simple",
+                Status = 1
+            });
+        preTrainedAgents.Add(new AgentSet
+            {
+                Name = "Wiggly Bois Advanced",
+                Description = "The most advanced population to date, using the simple start.  They can complete most maps already, but lack proper direction controls still.",
+                Filename = "Populations/Wiggly Bois_Gen-328_TopScore-9367.99_Agents-500_simple-SwimMethod_Asymmetrical-Bodies_simple-NetworkOutput.json",
+                GenCount = 328,
+                TopScore = 9367.99,
+                NumberOfAgents = 500,
+                SwimMethod = "Simple",
+                Symmetrical = false,
+                StartMethod = "Simple",
                 Status = 1
             });
         preTrainedAgents.Add(new AgentSet

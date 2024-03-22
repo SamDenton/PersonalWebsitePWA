@@ -31,6 +31,10 @@ let averageGroupBrain = [];
 let averageGroupBrainLayers = [];
 let averageGroupBrainNodes = [];
 let averageGroupBody = [];
+//let averageBrain = [];
+//let averageBrainLayers = [];
+//let averageBrainNodes = [];
+//let averageBody = [];
 let usedIndices = new Set();
 let topAgentsEver = [];
 let specialRun = false;
@@ -3327,7 +3331,7 @@ function nextGenerationNEAT(p) {
     //}
 
     // Probability of changing the map
-    const mapChangeProbability = 0.333; // 30% chance to change the map
+    const mapChangeProbability = 0.333;
 
     if (stageProperties.randomMap && Math.random() < mapChangeProbability) {
         stageProperties.map = Math.floor(Math.random() * 8);
@@ -4356,7 +4360,6 @@ function layerCrossoverNEAT(agent1, agent2) {
             addMutationWithHistoryLimit(childGenome.agentHistory.mutations, "Swapped Layer: " + layerIndexToSwap + " from Dominant Parent: " + dominantGenome.metadata.agentIndex + "; " + dominantGenome.metadata.agentName + " and Recessive Parent: " + subGenome.metadata.agentIndex + "; " + subGenome.metadata.agentName);
         } catch (err) {
             console.error(`Error during layer swap at index ${layerIndexToSwap}: ${err} Genome: `, childGenome);
-            throw err; // Rethrow or handle as needed
         }
     }
 
@@ -4745,10 +4748,10 @@ function updateMutationRates(genome) {
     };
 
     // Adjust mutation rates based on scores
-    hyperparams.limbMutationRate = adjustForPlateauing(hyperparams.limbMutationRate, 1.001, 0.99);
-    hyperparams.mutationRate = adjustForPlateauing(hyperparams.mutationRate, 1.001, 0.99);
-    hyperparams.layerMutationRate = adjustForPlateauing(hyperparams.layerMutationRate, 1.001, 0.99);
-    hyperparams.nodeMutationRate = adjustForPlateauing(hyperparams.nodeMutationRate, 1.001, 0.99);
+    hyperparams.limbMutationRate = adjustForPlateauing(hyperparams.limbMutationRate, 1.001, 0.9975);
+    hyperparams.mutationRate = adjustForPlateauing(hyperparams.mutationRate, 1.001, 0.9975);
+    hyperparams.layerMutationRate = adjustForPlateauing(hyperparams.layerMutationRate, 1.001, 0.9975);
+    hyperparams.nodeMutationRate = adjustForPlateauing(hyperparams.nodeMutationRate, 1.001, 0.9975);
 
     // Other adjustments based on similarity to others
     hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.001 : hyperparams.limbMutationRate * 0.999);
@@ -6042,7 +6045,7 @@ AgentNEAT.prototype.getScore = function (roundOver) {
 
     let jointMovementReward = 0;
     if ((stageProperties.movementScoreMultiplier / 10) > 0) {
-        jointMovementReward = (this.getJointMovementReward() * 15 / this.numLimbs) * (stageProperties.movementScoreMultiplier / 10); // Adjust multiplier if needed
+        jointMovementReward = (this.getJointMovementReward() * 15 / (this.numLimbs / 2)) * (stageProperties.movementScoreMultiplier / 10); // Bit of a mess, but its trying to give a slight bonus for having more limbs without overriding the score for travel.
     }
 
     if (this.limbs.length > 2) {
@@ -6115,10 +6118,9 @@ AgentNEAT.prototype.getScore = function (roundOver) {
 
 };
 
-// Function to calculate the weight of an agents brain
+// Function to calculate the weight of an agents brain.  Not in use and moving to the end of gen ranking function instead.
 AgentNEAT.prototype.getWeightPenalty = function () {
     this.weightPenaltyCounter++;
-    // Called only at end of round as expensive
     let allWeightTensors = this.brain.getWeights().filter((_, idx) => idx % 2 === 0);
     let allWeights = allWeightTensors.flatMap(tensor => Array.from(tensor.dataSync()).map(Math.abs)); // map to absolute values
     let averageAbsWeight = allWeights.reduce((sum, weight) => sum + weight, 0) / allWeights.length;
