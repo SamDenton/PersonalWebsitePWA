@@ -213,13 +213,13 @@ let sketchNEAT = function (p) {
                         agentUpdatesPer60Frames = (agentUpdatesPer60FramesCounter / 5).toFixed(2);
 
                         // Code block to adjust stageProperties.muscleDelay when specialRunStarted is true, so that agentUpdatesPer60Frames matches targetUpdatesPerAgent
-                        if (specialRunStarted == true) {
-                            if (agentUpdatesPer60Frames > targetUpdatesPerAgent + 0.5 && stageProperties.muscleDelay < 10) {
-                                stageProperties.muscleDelay++;
-                            } else if (agentUpdatesPer60Frames < targetUpdatesPerAgent - 0.5 && stageProperties.muscleDelay > 0) {
-                                stageProperties.muscleDelay--;
-                            }
-                        }
+                        //if (specialRunStarted == true) {
+                        //    if (agentUpdatesPer60Frames > targetUpdatesPerAgent + 0.5 && stageProperties.muscleDelay < 10) {
+                        //        stageProperties.muscleDelay++;
+                        //    } else if (agentUpdatesPer60Frames < targetUpdatesPerAgent - 0.5 && stageProperties.muscleDelay > 0) {
+                        //        stageProperties.muscleDelay--;
+                        //    }
+                        //}
 
                         agentUpdatesPer60FramesCounter = 0;
                     }
@@ -2512,7 +2512,7 @@ function endSimulationNEAT(p) {
     //}
     //duplicateWalls = [];
 
-    const topAgentsEverLength = stageProperties.bestAgentsEverLength;
+    const topAgentsEverLength = stageProperties.numAgents;
     let topAgentCounter = 0;
 
     agents.sort((a, b) => b.genome.metadata.bestScore - a.genome.metadata.bestScore);
@@ -2625,15 +2625,17 @@ function startSpecialRun(p, topAgentsEverLength) {
     fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
     currentProcess = "Starting special run!";
     temporaryAgentsForSpecialRun = _.cloneDeep(agents);
-    tempMuscleBatch = stageProperties.muscleBatch;
-    tempMuscleDelay = stageProperties.muscleDelay;
-    tempFramesPerUpdateStart = stageProperties.framesPerUpdateStart;
-    stageProperties.muscleBatch = 1;
-    let tempMusclBatchDiff = tempMuscleBatch / stageProperties.muscleBatch;
-    let adjustedMuscleDelay = Math.round(tempMuscleDelay * tempMusclBatchDiff * (topAgentsEver.length / stageProperties.numAgents));
-    stageProperties.muscleDelay = adjustedMuscleDelay;
-    let adjustedframesPerUpdateStart = Math.round(tempFramesPerUpdateStart * (topAgentsEver.length / stageProperties.numAgents));
-    stageProperties.framesPerUpdateStart = adjustedframesPerUpdateStart;
+
+    // In theory I can replace all this if I make the top agents ever equal to numAgents
+    //tempMuscleBatch = stageProperties.muscleBatch;
+    //tempMuscleDelay = stageProperties.muscleDelay;
+    //tempFramesPerUpdateStart = stageProperties.framesPerUpdateStart;
+    //stageProperties.muscleBatch = 1;
+    //let tempMusclBatchDiff = tempMuscleBatch / stageProperties.muscleBatch;
+    //let adjustedMuscleDelay = Math.round(tempMuscleDelay * tempMusclBatchDiff * (topAgentsEver.length / stageProperties.numAgents));
+    //stageProperties.muscleDelay = adjustedMuscleDelay;
+    //let adjustedframesPerUpdateStart = Math.round(tempFramesPerUpdateStart * (topAgentsEver.length / stageProperties.numAgents));
+    //stageProperties.framesPerUpdateStart = adjustedframesPerUpdateStart;
 
     // OTT manual disposal and destruction of all bodies and joints
     for (let agent of agents) {
@@ -2687,9 +2689,9 @@ function endSpecialRun(p) {
     temporaryAgentsForSpecialRun = [];
     stageProperties.simSpeed = tempSimSpeed;
     fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
-    stageProperties.muscleBatch = tempMuscleBatch;
-    stageProperties.muscleDelay = tempMuscleDelay;
-    stageProperties.framesPerUpdateStart = tempFramesPerUpdateStart;
+    //stageProperties.muscleBatch = tempMuscleBatch;
+    //stageProperties.muscleDelay = tempMuscleDelay;
+    //stageProperties.framesPerUpdateStart = tempFramesPerUpdateStart;
 
     endSimulationNEAT(p);
 }

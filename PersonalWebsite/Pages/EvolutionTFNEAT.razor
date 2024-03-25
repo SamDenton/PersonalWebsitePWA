@@ -1374,7 +1374,7 @@
         public string hiddenActivationFunction { get; set; } = "selu";
         public string outputActivationFunction { get; set; } = "tanh";
         // Advanced Agent
-        public int maxForceMagnitude { get; set; } = 5000;
+        public int maxForceMagnitude { get; set; } = 4500;
         public int speedThreshold { get; set; } = 100;
         public int maxTorqueMultiplier { get; set; } = 300000;
         public int limbMassForceDivider { get; set; } = 50;
@@ -1557,7 +1557,7 @@
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Learning Well",
-                Description = "One of my oldest full setting populations. They refuse to evolve a limb on the left of their body so have an interesting method of locomotion!",
+                Description = "A fairly young population thats diverse and learning well.",
                 Filename = "Populations/Learning well_Gen-164_TopScore-2711.12_Agents-500_advanced-SwimMethod_Asymmetrical-Bodies_complex-NetworkOutput.json",
                 GenCount = 164,
                 TopScore = 2711.12,
@@ -1583,7 +1583,7 @@
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Wiggly Bois Advanced",
-                Description = "The most advanced population to date, using the simple start.  They can complete most maps already, but lack proper direction controls still.",
+                Description = "The most advanced population to date, using the simple start.  They can complete most maps and are learning to avoid obstacles.",
                 Filename = "Populations/Wiggly Bois_Gen-328_TopScore-9367.99_Agents-500_simple-SwimMethod_Asymmetrical-Bodies_simple-NetworkOutput.json",
                 GenCount = 328,
                 TopScore = 9367.99,
@@ -1596,7 +1596,7 @@
         preTrainedAgents.Add(new AgentSet
             {
                 Name = "Wiggly Bois",
-                Description = "The most advanced population to date, using the simple start.  They can complete most maps already, but lack proper direction controls still.",
+                Description = "They used to be the most advanced population, using the simple start.  They can complete most maps already, but lack proper direction controls still.",
                 Filename = "Populations/Wiggly Bois_Gen-233_TopScore-7755.59_Agents-500_simple-SwimMethod_Asymmetrical-Bodies_simple-NetworkOutput.json",
                 GenCount = 233,
                 TopScore = 7755.59,
@@ -1935,7 +1935,7 @@
         stageProperties.outputActivationFunction = "tanh";
         stageProperties.keepAgentSymmetrical = false;
         stageProperties.maxJointSpeed = 10;
-        stageProperties.maxForceMagnitude = 5000;
+        stageProperties.maxForceMagnitude = 4500;
         stageProperties.maxTorqueMultiplier = 300000;
         stageProperties.limbMassForceDivider = 50;
         stageProperties.limbLengthForceDivider = 30;
