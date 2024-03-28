@@ -45,7 +45,7 @@
                 <p>I recommended refreshing without cache (CTRL + SHIFT + R) before getting started to ensure you have the latest version.  Blazor tends to cache JavaScript very aggressively.</p>
                 <p>Please select a pre-configuration from the top to get a good starting point.</p>
                 <p>You can then use the settings tabs to alter specific settings.  You can save your current settings locally and re-upload them for later use.  This includes which settings are favourited.  A lot of the example numbers below will be slightly off, as I am constantly updating the default values.</p>
-                <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
+                <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.  There is always a little lag the first time you start a population after refreshing.  I'm not completely sure why as it doesn't happen with a new population, if you don't refresh.</p>
                 <p>You can also use one of my pre-trained genome pools to skip the first generations, but you are then restricted to my settings.  The older the population, the more likely it is to have bugs</p>
                 <p>The current agent pool is auto-saved to browser storage every generation, so if you have a crash, or close without saving, hit the amber button to attempt to recover.</p>
                 <p>Start/Reset will respect all configurations, while Simplified Start will simplify the neural network output, remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
@@ -124,6 +124,7 @@
                 <h5>Future Plans</h5>
                 <p>I want to use an OpenAI API integration to pick values for starting configurations to produce better populations over time.</p>
                 <p>I want to add the agents internal map of covered ground as an input so they know where they have already explored.  I could also include the last few generations maps for that agent so it can see where it explored in previous generations.  This will require significantly more complex brains, longer training time and reduced agents per run group, as well as possibly larger populations.</p>
+                <p>A similar idea thats easy to implement is to record the agents last few x and y positions, or whole input state, at update times and give those as inputs as well, as this would show agents their last few moves</p>
                 <p>I need to re-implement the agent output selectors, and allow agents to evolve inputs and outputs list.</p>
                 <p>I would like to implement modularity in the neural network structure, so sections or modules of nodes and layers are combined to create the whole network.  These modules can then be treated individually and swapped about.</p>
                 <p>If I switch from storing the full population genome as a JS object to storing it in IndexedDB, I can achieve much greater total population numbers.  Currently, about 700 is the limit.  I can also make the agents object more efficient</p>
@@ -140,6 +141,7 @@
                 <p>Could look at implementing another idea from NEAT, where agents are given a metric based on their properties, and have a higher chance to reproduce with similar agents.  This can create species groups even within my island populations, leading to a greater variety of solutions.  This may require larger populations to work well, 100-200 agents per group, where I currently have 25 per group.</p>
                 <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge.  As a first step, creating a custom Electron implementation could help increase the available memory and give more control over resource use, but would still be very tricky to parallelize across CPU cores.  I think the easiest way would be to just have multiple instances of the program running at once, and between generations, the agent pool is transfered between the 2 and split back up.</p>
                 <p>Currently, my crossover methods both treat each neuron independently, it would be good to also allow groups of neurons to be transfered together so learned features are maintained.  I have implemented a basic version of this with my layer swapping function.</p>
+                <p>Small one, but now that populations have been training for thousands of generations, I would like to add a button that appears after the round length reaches maximum that lets you toggle on and off the first x generations of the graph.</p>
             </div>
         }
         else if (activeTab.Title == "Favourites")

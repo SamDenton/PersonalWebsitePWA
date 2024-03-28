@@ -1,4 +1,4 @@
-// Version updated at 2024-03-24T09:02:39
+// Version updated at 2024-03-27T21:09:07
 self.importScripts('./service-worker-assets.js');
 self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
@@ -84,6 +84,7 @@ async function onFetch(event) {
         }
     }
 }
+
 
 
 
