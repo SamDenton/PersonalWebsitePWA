@@ -1409,17 +1409,17 @@
         public int yScoreMultiplier { get; set; } = 30;
         public int movementScoreMultiplier { get; set; } = 10;
         public int explorationScoreMultiplier { get; set; } = 200;
-        public int sizeScoreMultiplier { get; set; } = 50;
+        public int sizeScoreMultiplier { get; set; } = 75;
         public bool massBonusIsDynamic { get; set; } = true;
         public int startingEnergyBase { get; set; } = 10;
         public int startingEnergyMassPower { get; set; } = 2;
-        public int scoreHistoryWeight { get; set; } = 75;
-        public int scoreVarianceWeight { get; set; } = 10;
-        public int ageWeight { get; set; } = 5;
-        public int environmentalAdaptationWeight { get; set; } = 10;
+        public int scoreHistoryWeight { get; set; } = 100;
+        public int scoreVarianceWeight { get; set; } = 50000;
+        public int ageWeight { get; set; } = 1;
+        public int environmentalAdaptationWeight { get; set; } = 10000;
         // Advanced Score and Energy
         public int startingEnergyBodyMassMult { get; set; } = 10;
-        public int startingEnergyLimbMassMult { get; set; } = 10;
+        public int startingEnergyLimbMassMult { get; set; } = 5;
         public int energyUseForceSizeMult { get; set; } = 10;
         public int energyUseLimbSizeMult { get; set; } = 10;
         public int energyUseBrainSizeMult { get; set; } = 10;
@@ -1479,7 +1479,7 @@
         public int Gravity { get; set; } = 1; // not implemented
         public double Friction { get; set; } = 0.4; // not implemented
         public int simulationLengthIncrease { get; set; } = 50;
-        public int maxSimulationLength { get; set; } = 20000;
+        public int maxSimulationLength { get; set; } = 50000;
         public int velocityIteration { get; set; } = 4;
         public int positionIteration { get; set; } = 2;
         public int physicsGranularityMultipliers { get; set; } = 10;
@@ -1967,14 +1967,14 @@
         stageProperties.yScoreMultiplier = 30;
         stageProperties.movementScoreMultiplier = 10;
         stageProperties.explorationScoreMultiplier = 200;
-        stageProperties.sizeScoreMultiplier = 20;
+        stageProperties.sizeScoreMultiplier = 75;
         stageProperties.massBonusIsDynamic = true;
         stageProperties.startingEnergyBase = 10;
         stageProperties.startingEnergyMassPower = 2;
-        stageProperties.scoreHistoryWeight = 75;
-        stageProperties.scoreVarianceWeight = 10;
-        stageProperties.ageWeight = 5;
-        stageProperties.environmentalAdaptationWeight = 10;
+        stageProperties.scoreHistoryWeight = 100;
+        stageProperties.scoreVarianceWeight = 50000;
+        stageProperties.ageWeight = 1;
+        stageProperties.environmentalAdaptationWeight = 10000;
         stageProperties.startingEnergyBodyMassMult = 10;
         stageProperties.startingEnergyLimbMassMult = 10;
         stageProperties.energyUseForceSizeMult = 10;
@@ -2032,7 +2032,7 @@
         stageProperties.Gravity = 1;
         stageProperties.Friction = 0.4;
         stageProperties.simulationLengthIncrease = 50;
-        stageProperties.maxSimulationLength = 20000;
+        stageProperties.maxSimulationLength = 50000;
         stageProperties.velocityIteration = 4;
         stageProperties.positionIteration = 2;
         stageProperties.physicsGranularityMultipliers = 10;
@@ -2076,7 +2076,7 @@
         stageProperties.agentsRequireStablising = false;
         stageProperties.randomAgentStartAngle = false;
         stageProperties.simulationLengthIncrease = 75;
-        stageProperties.maxSimulationLength = 15000;
+        stageProperties.maxSimulationLength = 20000;
     }
 
     private async Task resetSettingsSuperSimple(bool reset)
@@ -2116,7 +2116,7 @@
         stageProperties.chanceToIncludeTopPerformerInMutation = 1;
         stageProperties.hiddenActivationFunction = "relu";
         stageProperties.simulationLengthIncrease = 100;
-        stageProperties.maxSimulationLength = 10000;
+        stageProperties.maxSimulationLength = 15000;
     }
 
     private void InitializeTabs()
@@ -2826,7 +2826,7 @@
                         ValueExpression = () => stageProperties.scoreHistoryWeight,
                         ValueChanged = val => stageProperties.scoreHistoryWeight = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 100000,
                         Step = 1,
                         Details = "After each generation, agents are ranked based on a few factors, this value is how important the score is in that ranking.  It looks at the last 10 scores achieved, with greater weight for the latest scores."
                     },
@@ -2837,7 +2837,7 @@
                         ValueExpression = () => stageProperties.scoreVarianceWeight,
                         ValueChanged = val => stageProperties.scoreVarianceWeight = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 100000,
                         Step = 1,
                         Details = "After each generation, agents are ranked based on a few factors, this value gives a bonus if an agents scores are consistent over the last 10 rounds."
                     },
@@ -2848,7 +2848,7 @@
                         ValueExpression = () => stageProperties.ageWeight,
                         ValueChanged = val => stageProperties.ageWeight = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 100000,
                         Step = 1,
                         Details = "After each generation, agents are ranked based on a few factors, this value gives a penalty for agents that have not mutated or been crossed-over for a few rounds."
                     },
@@ -2859,7 +2859,7 @@
                         ValueExpression = () => stageProperties.environmentalAdaptationWeight,
                         ValueChanged = val => stageProperties.environmentalAdaptationWeight = val,
                         Min = 0,
-                        Max = 100,
+                        Max = 100000,
                         Step = 1,
                         Details = "After each generation, agents are ranked based on a few factors, this value gives a bonus to agents with consistent scores across different maps."
                     } 

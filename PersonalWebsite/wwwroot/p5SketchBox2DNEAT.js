@@ -40,11 +40,7 @@ let topAgentsEver = [];
 let specialRun = false;
 let specialRunStarted = false;
 let temporaryAgentsForSpecialRun = [];
-let targetUpdatesPerAgent = 0;
-let tempMuscleBatch = 0;
-let tempMuscleDelay = 0;
-let tempSimSpeed = 0;
-let tempFramesPerUpdateStart = 0;
+let averageDifference;
 let populationName = "Unnamed Population";
 
 const GROUP_COLORS_NAMES = [
@@ -330,7 +326,11 @@ let sketchNEAT = function (p) {
             p.text(`Generation: ${stageProperties.genCount + 1}`, 10, 80);
         }
         p.text(`Time Left: ${displayedTimeLeft.toFixed(0)} seconds`, 10, 110);
-        p.text(`Top Score: ${stageProperties.topScoreEver.toFixed(2)}`, 10, 140);
+        if (topAgentsEver.length > 0) {
+            p.text(`Top Score: ${stageProperties.topScoreEver.toFixed(2)} Agent: ${topAgentsEver[0].metadata.agentName}`, 10, 140);
+        } else {
+            p.text(`Top Score: ${stageProperties.topScoreEver.toFixed(2)}`, 10, 140);
+        }
 
         if (averageScore > - 10) {
             p.text(`Average Score: ${averageScore.toFixed(2)}`, 10, 170);
@@ -338,10 +338,10 @@ let sketchNEAT = function (p) {
             p.text(`Average Score: 0`, 10, 170);
         }
 
-        const buttonX = stageProperties.width - 320;
-        const buttonY = stageProperties.height - 115;
-        const buttonWidth = 300;
-        const buttonHeight = 35;
+        const buttonX = stageProperties.width - 340;
+        const buttonY = 75;
+        const buttonWidth = 280;
+        const buttonHeight = 27;
         const circleDiameter = 20;
 
         if (stabilised) {
@@ -362,19 +362,19 @@ let sketchNEAT = function (p) {
                 p.fill(255);
             }
 
-            p.textSize(20);
+            p.textSize(18);
             p.noStroke();
             p.textAlign(p.CENTER, p.CENTER);
-            p.text('Run Top Agents Ever After Batch', buttonX + 149, buttonY + 18);
+            p.text('Run Top Agents Ever After Batch', buttonX + 139, buttonY + 13);
             p.pop();
         }
 
         p.mousePressed = function () {
             // Check if the special run button is clicked
             if (p.mouseX >= buttonX && p.mouseX <= buttonX + buttonWidth &&
-                p.mouseY >= buttonY && p.mouseY <= buttonY + buttonHeight) {
-                specialRun = true;
-                targetUpdatesPerAgent = agentUpdatesPer60Frames;
+                p.mouseY >= buttonY && p.mouseY <= buttonY + buttonHeight &&
+                stabilised && !specialRunStarted) {
+                specialRun = !specialRun;
                 return;
             }
 
@@ -385,8 +385,7 @@ let sketchNEAT = function (p) {
             let nameHeight = 30;
 
             if (p.mouseX >= nameX && p.mouseX <= nameX + nameWidth &&
-                p.mouseY >= nameY - nameHeight && p.mouseY <= nameY &&
-                stabilised) {
+                p.mouseY >= nameY - nameHeight && p.mouseY <= nameY) {
                 triggerNameChangePopup();
                 return;
             }
@@ -744,11 +743,15 @@ let sketchNEAT = function (p) {
                 p.pop();
             }
 
+            let infoX = stageProperties.width - 340;
             p.push();
             p.fill(155);
-            p.text("Use WASD to pan the camera", stageProperties.width - 270, 40);
-            p.text(`Current Sim Speed Multiplier: ${(stageProperties.simSpeed / 60).toFixed(2)}`, stageProperties.width - 310, stageProperties.height - 50);
-            p.text(`Updates Per Agent Per 60 Ticks: ${agentUpdatesPer60Frames}`, stageProperties.width - 310, stageProperties.height - 20);
+            p.text("Use WASD to pan the camera", infoX, 30);
+            p.text("Click on the population name to change it", infoX, 60);
+            p.text(`Migration: ${(stageProperties.migrationRate / 100)}% - Diversity: ${(averageDifference).toFixed(2)}`, infoX, stageProperties.height - 110);
+            p.text(`Round Length: ${(simulationLengthModified)} Ticks - ${(simulationLengthModified / 60).toFixed(0)} Secs`, infoX, stageProperties.height - 80);
+            p.text(`Sim Speed: ${(stageProperties.simSpeed / 60).toFixed(2)} X`, infoX, stageProperties.height - 50);
+            p.text(`Updates Per Agent Per 60 Ticks: ${agentUpdatesPer60Frames}`, infoX, stageProperties.height - 20);
             p.pop();
 
             if (agentsToRender.size > 0 && simulationStarted) {
@@ -1523,12 +1526,8 @@ function initializeSketchBox2DNEAT(StageProperties) {
     usedIndices = new Set();
     specialRun = false;
     specialRunStarted = false;
+    averageDifference = 0;
     temporaryAgentsForSpecialRun = [];
-    targetUpdatesPerAgent = 0;
-    tempMuscleBatch = 0;
-    tempMuscleDelay = 0;
-    tempSimSpeed = 0;
-    tempFramesPerUpdateStart = 0;
 
     currentProcess = "Initializing world!";
 
@@ -1628,6 +1627,9 @@ function logGenomes() {
     allAgents = allAgents.concat(tempAgentPool.map(agent => agent.genome));
     allAgents.sort((a, b) => parseFloat(b.agentHistory.mutations.length) - parseFloat(a.agentHistory.mutations.length));
     console.log("All Agents Sorted by Mutation Count: ", allAgents);
+
+    // Log the top agents ever
+    console.log("Top Agents Ever: ", topAgentsEver);
 
     // Search through agents array for agent.limbs[x].c_position.c.x, for each limb, for any values that are NaN or negative and log them
     let badAgents = [];
@@ -2213,9 +2215,6 @@ function AgentNEAT(agentGenome) {
     // Is this agent currently leading
     this.currentlyLeading = false;
 
-    // Has this agent broken the score record this round
-    this.newTopAgent = false;
-
     // Give the agent a heart
     this.heart = -1;
     this.heartBeatCount = 0;
@@ -2537,22 +2536,10 @@ function endSimulationNEAT(p) {
 
             agents[i].genome.agentHistory.rankInPop = (i + 1);
 
-            if (agents[i].newTopAgent) {
-                // Check if this agent is better than the ones in topAgentsEver
-                let isNewTopAgent = true;
-                for (const topAgent of topAgentsEver) {
-                    if (agents[i].genome.metadata.bestScore <= topAgent.metadata.bestScore) {
-                        isNewTopAgent = false;
-                        break;
-                    }
-                }
-
-                if (isNewTopAgent) {
-                    topAgentsEver.push(_.cloneDeep(agents[i].genome));
-                }
+            if (thisScore >= topAgentsEver[topAgentsEver.length - 1].metadata.bestScore) {
+                topAgentsEver.push(_.cloneDeep(agents[i].genome));
             }
         }
-
 
         if (topAgentsEver) {
             // Sort the topAgentsEver array in descending order of bestScore
@@ -2597,19 +2584,11 @@ function endSimulationNEAT(p) {
 function startSpecialRun(p, topAgentsEverLength) {
 
     for (let i = 0; i < agents.length; i++) {
-        if (agents[i].newTopAgent) {
-            // Check if this agent is better than the ones in topAgentsEver
-            let isNewTopAgent = true;
-            for (const topAgent of topAgentsEver) {
-                if (agents[i].genome.metadata.bestScore <= topAgent.metadata.bestScore) {
-                    isNewTopAgent = false;
-                    break;
-                }
-            }
+        let thisScore = agents[i].Score;
 
-            if (isNewTopAgent) {
-                topAgentsEver.push(_.cloneDeep(agents[i].genome));
-            }
+        // Check if this agent is better than the ones in topAgentsEver
+        if (thisScore >= topAgentsEver[topAgentsEver.length - 1].metadata.bestScore) {
+            topAgentsEver.push(_.cloneDeep(agents[i].genome));
         }
     }
 
@@ -2629,17 +2608,6 @@ function startSpecialRun(p, topAgentsEverLength) {
     fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
     currentProcess = "Starting special run!";
     temporaryAgentsForSpecialRun = _.cloneDeep(agents);
-
-    // In theory I can replace all this if I make the top agents ever equal to numAgents
-    //tempMuscleBatch = stageProperties.muscleBatch;
-    //tempMuscleDelay = stageProperties.muscleDelay;
-    //tempFramesPerUpdateStart = stageProperties.framesPerUpdateStart;
-    //stageProperties.muscleBatch = 1;
-    //let tempMusclBatchDiff = tempMuscleBatch / stageProperties.muscleBatch;
-    //let adjustedMuscleDelay = Math.round(tempMuscleDelay * tempMusclBatchDiff * (topAgentsEver.length / stageProperties.numAgents));
-    //stageProperties.muscleDelay = adjustedMuscleDelay;
-    //let adjustedframesPerUpdateStart = Math.round(tempFramesPerUpdateStart * (topAgentsEver.length / stageProperties.numAgents));
-    //stageProperties.framesPerUpdateStart = adjustedframesPerUpdateStart;
 
     // OTT manual disposal and destruction of all bodies and joints
     for (let agent of agents) {
@@ -2693,9 +2661,6 @@ function endSpecialRun(p) {
     temporaryAgentsForSpecialRun = [];
     stageProperties.simSpeed = tempSimSpeed;
     fixedTimeStep = (1.0 / stageProperties.simSpeed) * 1000;
-    //stageProperties.muscleBatch = tempMuscleBatch;
-    //stageProperties.muscleDelay = tempMuscleDelay;
-    //stageProperties.framesPerUpdateStart = tempFramesPerUpdateStart;
 
     endSimulationNEAT(p);
 }
@@ -3731,19 +3696,17 @@ function calculateCompositeScore(agent) {
         // similarity heuristics, brain, body and internal map,
         // agents brain size / weight
 
-    const weights = {
-        scoreHistoryWeight: stageProperties.scoreHistoryWeight / 100,
-        scoreVarianceWeight: stageProperties.scoreVarianceWeight / 100,
-        ageWeight: stageProperties.ageWeight / 100,
-        environmentalAdaptationWeight: stageProperties.environmentalAdaptationWeight / 100
-    };
-
     let history = agent.genome.agentHistory.scoreHistory;
     let compositeScore = 0;
-    compositeScore += weightedAverageScore(history) * weights.scoreHistoryWeight;
-    compositeScore -= scoreVariance(history) * weights.scoreVarianceWeight;
-    compositeScore -= ageBasedScore(agent) * weights.ageWeight;
-    compositeScore += environmentalConsistencyScore(history) * weights.environmentalAdaptationWeight;
+    let averageScore = weightedAverageScore(history) * (stageProperties.scoreHistoryWeight / 100);
+    let varianceScore = scoreVariance(history);
+    let ageScore = ageBasedScore(agent);
+    let environmentalScore = environmentalConsistencyScore(history);
+    compositeScore = averageScore * varianceScore * environmentalScore * ageScore;
+    if (!agent.genome.agentHistory.mutations.some(mutation => mutation.includes("Gen Count: " + stageProperties.genCount))) {
+        addMutationWithHistoryLimit(agent.genome.agentHistory.mutations, "Score: " + compositeScore + " Composed of = Weighted Average Score: " + averageScore + " Score Variance: " + varianceScore + " Age Based Multiplier: " + ageScore + " Environmental Consistency Multiplier: " + environmentalScore);
+    }
+
     return compositeScore;
 }
 
@@ -3754,7 +3717,7 @@ function weightedAverageScore(history) {
 
     for (let i = 0; i < recentHistory.length; i++) {
         let weight = 2 - i / recentHistory.length; // More recent scores have higher weight
-        weightedSum += recentHistory[i].value * weight;
+        weightedSum += recentHistory[i].score * weight;
         totalWeight += weight;
     }
 
@@ -3762,13 +3725,17 @@ function weightedAverageScore(history) {
 }
 
 function scoreVariance(history) {
-    const mean = history.reduce((acc, h) => acc + h.value, 0) / history.length;
-    return history.reduce((acc, h) => acc + Math.pow(h.value - mean, 2), 0) / history.length;
+    const mean = history.reduce((acc, h) => acc + h.score, 0) / history.length;
+    const variance = history.reduce((acc, h) => acc + Math.pow(h.score - mean, 2), 0) / history.length;
+
+    // Higher variance leads to a smaller multiplier
+    return 1 + (stageProperties.scoreVarianceWeight / (1 + variance));
 }
+
 
 function ageBasedScore(agent) {
     // Higher age leads to a penalty
-    return 1 / (1 + agent.genome.agentHistory.roundsAsTopPerformer);
+    return 1 + ((stageProperties.ageWeight / 100) / (1 + agent.genome.agentHistory.roundsAsTopPerformer));
 }
 
 
@@ -3779,7 +3746,7 @@ function environmentalConsistencyScore(history) {
         if (!mapScores.has(h.map)) {
             mapScores.set(h.map, []);
         }
-        mapScores.get(h.map).push(h.value);
+        mapScores.get(h.map).push(h.score);
     });
 
     let variances = Array.from(mapScores.values()).map(scores => {
@@ -3788,7 +3755,7 @@ function environmentalConsistencyScore(history) {
     });
 
     // Lower variance across maps is better
-    return 1 / (1 + variances.reduce((acc, v) => acc + v, 0) / variances.length);
+    return  1 + (stageProperties.environmentalAdaptationWeight / (1 + variances.reduce((acc, v) => acc + v, 0) / variances.length));
 }
 
 
@@ -5020,32 +4987,30 @@ function adjustMigrationRateBasedOnGroupDifferences() {
 
     // Calculate average differences between groups
     let differences = calculateGroupDifferences();
-    console.log("Differences: ", differences);
+    // console.log("Differences: ", differences);
+
     // Assess if groups are becoming too similar or too divergent
-    let areGroupsSimilar = differences.length > 0 && differences.reduce((acc, diff) => acc + diff, 0) / differences.length < similarityThreshold;
-    let areGroupsDivergent = differences.length > 0 && differences.reduce((acc, diff) => acc + diff, 0) / differences.length > divergenceThreshold;
+    averageDifference = differences.reduce((acc, diff) => acc + diff, 0) / differences.length;
+    let areGroupsSimilar = differences.length > 0 && averageDifference < similarityThreshold;
+    let areGroupsDivergent = differences.length > 0 && averageDifference > divergenceThreshold;
 
     // Adjust migration rate accordingly
     if (areGroupsSimilar && stageProperties.migrationRate > 1 && differences.length > 0) {
         stageProperties.migrationRate -= 1; // Decrease by a small amount
         console.log("Migration rate decreased to ", stageProperties.migrationRate);
-        console.log("Average differences: ", differences.reduce((acc, diff) => acc + diff, 0) / differences.length);
+        console.log("Average differences: ", averageDifference);
     } else if (areGroupsDivergent && stageProperties.migrationRate < 1000 && differences.length > 0) {
         stageProperties.migrationRate += 1; // Increase by a small amount
         console.log("Migration rate increased to ", stageProperties.migrationRate);
-        console.log("Average differences: ", differences.reduce((acc, diff) => acc + diff, 0) / differences.length);
+        console.log("Average differences: ", averageDifference);
     } else {
         console.log("Migration rate unchanged at ", stageProperties.migrationRate);
-        console.log("Average differences: ", differences.reduce((acc, diff) => acc + diff, 0) / differences.length);
+        console.log("Average differences: ", averageDifference);
     }
 }
 
 // Helper function to calculate differences between groups
 function calculateGroupDifferences() {
-    console.log("Average Scores: ", averageGroupScores);
-    console.log("Average Brain Layers: ", averageGroupBrainLayers);
-    console.log("Average Brain Nodes: ", averageGroupBrainNodes);
-    console.log("Average Body Limbs: ", averageGroupBody);
 
     let differences = [];
     for (let i = 0; i < numGroups - 1; i++) {
@@ -5054,7 +5019,7 @@ function calculateGroupDifferences() {
             let diffBrain = Math.abs((averageGroupBrainLayers[i] * averageGroupBrainNodes[i]) - (averageGroupBrainLayers[j] * averageGroupBrainNodes[j]));
             let diffBody = Math.abs(averageGroupBody[i].averageNumberOfLimbs - averageGroupBody[j].averageNumberOfLimbs);
             let diffMass = Math.abs(averageGroupBody[i].mainBodySize - averageGroupBody[j].mainBodySize);
-            console.log("Group ", i, " vs Group ", j, " Score: ", diffScore, " Brain: ", diffBrain, " Body: ", diffBody, " Mass: ", diffMass);
+/*            console.log("Group ", i, " vs Group ", j, " Score: ", diffScore, " Brain: ", diffBrain, " Body: ", diffBody, " Mass: ", diffMass);*/
             let totalDiff;
             if (stageProperties.offspringLayerMutationRate !== 0) {
                 totalDiff = ((diffScore / 100) + (diffBrain / 10) + (diffBody * 10) + (diffMass * 2)) / 4; // Average difference across score, brain, and body
@@ -6099,7 +6064,7 @@ AgentNEAT.prototype.getScore = function (roundOver) {
             this.massBonus = this.mainBody.getMass() * (stageProperties.sizeScoreMultiplier / 100);
             // loop through limbs and add their mass to the massBonus
             for (let i = 0; i < this.limbs.length; i++) {
-                this.massBonus += this.limbs[i].getMass() * (stageProperties.sizeScoreMultiplier / 100);
+                this.massBonus += this.limbs[i].getMass() * (stageProperties.sizeScoreMultiplier / 200);
             }
         } catch (e) {
             this.massBonus = 0;
@@ -6120,10 +6085,6 @@ AgentNEAT.prototype.getScore = function (roundOver) {
 
     if (this.Score > stageProperties.topScoreEver) {
         stageProperties.topScoreEver = this.Score;
-    }
-
-    if (topAgentsEver.length > 0 && this.Score > topAgentsEver[topAgentsEver.length - 1].metadata.bestScore) {
-        this.newTopAgent = true;
     }
 
     if (this.Score > this.genome.metadata.bestScore) {
