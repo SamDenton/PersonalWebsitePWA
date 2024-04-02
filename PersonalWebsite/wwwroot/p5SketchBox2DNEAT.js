@@ -312,6 +312,9 @@ let sketchNEAT = function (p) {
             p.pop();  // Restore the drawing settings and transformations
         }
 
+        // Render memory statistics
+        renderStatistics(p);
+
         // calculateFPSNEAT(p);
         // Render the FPS, Gen No, and Time Left
         p.fill(255);
@@ -748,7 +751,7 @@ let sketchNEAT = function (p) {
             p.fill(155);
             p.text("Use WASD to pan the camera", infoX, 30);
             p.text("Click on the population name to change it", infoX, 60);
-            p.text(`Migration: ${(stageProperties.migrationRate / 100)}% - Diversity: ${(averageDifference).toFixed(2)}`, infoX, stageProperties.height - 110);
+            p.text(`Migration: ${(stageProperties.migrationRate / 100)}% - Diversity: ${(averageDifference * 10).toFixed(1)}`, infoX, stageProperties.height - 110);
             p.text(`Round Length: ${(simulationLengthModified)} Ticks - ${(simulationLengthModified / 60).toFixed(0)} Secs`, infoX, stageProperties.height - 80);
             p.text(`Sim Speed: ${(stageProperties.simSpeed / 60).toFixed(2)} X`, infoX, stageProperties.height - 50);
             p.text(`Updates Per Agent Per 60 Ticks: ${agentUpdatesPer60Frames}`, infoX, stageProperties.height - 20);
@@ -1119,7 +1122,7 @@ function drawGraphKey(p, x, y, highestScoreAgent = null) {
 // Automatically adjust the speed the simulation tries to run at based on the FPS
 function adjustPerformance(fps) {
     const standardHistorySize = 10;
-    const extendedHistorySize = Math.round(500 / stageProperties.simSpeed);
+    const extendedHistorySize = Math.round(500 / (stageProperties.simSpeed / 60));
     let dropThreshold = 15; 
     let badFps = 35;
     let goodFps = 49;
@@ -1482,7 +1485,12 @@ function applyJointDamping(agent) {
 }
 
 // Function to start the simulation and reset all global variables
-function initializeSketchBox2DNEAT(StageProperties) {
+function initializeSketchBox2DNEAT(StageProperties, newRound = false) {
+
+    if (newRound) {
+        topAgentsEver = [];
+    }
+
     stageProperties = StageProperties;
     topPerformerNo = stageProperties.topPerformerNumber / 100;
 
@@ -1650,6 +1658,54 @@ function logGenomes() {
     }
     console.log("Simulation Length: ", simulationLengthModified);
     console.log("Stage Properties: ", stageProperties);
+    logStatistics();
+}
+
+// Function to render statistics about the current simulation
+function renderStatistics(p) {
+    // Helper function to format number with thousands separator
+    const formatNumber = (num) => num.toLocaleString();
+
+    // Memory threshold for color coding
+    const memoryThresholds = {
+        green: 60,
+        amber: 80
+    };
+
+    let yPosition = 500;
+    const xPosition = stageProperties.width - 160;
+    const numberXPosition = xPosition + 80;
+    const lineHeight = 15;
+
+    p.push();
+    p.textSize(12);
+    p.fill('cyan');
+
+    // Function to draw label and number in separate columns
+    const drawStatLine = (label, number, color = 'cyan') => {
+        p.fill(color);
+        p.text(label, xPosition, yPosition);
+        p.text(formatNumber(number), numberXPosition, yPosition);
+        yPosition += lineHeight;
+    };
+
+    drawStatLine('Tensors:', tf.memory().numTensors);
+    drawStatLine('Tensor Mem:', tf.memory().numBytes);
+    drawStatLine('Bodies:', world.getBodyCount());
+    drawStatLine('Joints:', world.getJointCount());
+
+    if (window.performance && performance.memory) {
+        const usedHeapPercent = (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100;
+        let memoryColor = "green";
+        if (usedHeapPercent > memoryThresholds.amber) memoryColor = "red";
+        else if (usedHeapPercent > memoryThresholds.green) memoryColor = "orange";
+
+        drawStatLine('Max Heap:', performance.memory.jsHeapSizeLimit);
+        drawStatLine('Used Heap:', performance.memory.usedJSHeapSize);
+        drawStatLine('Remaining:', performance.memory.jsHeapSizeLimit - performance.memory.usedJSHeapSize);
+        drawStatLine('Used %:', usedHeapPercent.toFixed(2) + '%', memoryColor);
+    }
+    p.pop();
 }
 
 // Function to log statistics about the current simulation
@@ -1760,7 +1816,7 @@ async function saveStateToIndexedDB(genomesToSave) {
         const tx = db.transaction('states', 'readwrite');
         await tx.store.put({ id: 1, data: data });
         await tx.done;
-        console.log('State saved to IndexedDB');
+        // console.log('State saved to IndexedDB');
     } catch (e) {
         console.error('Error saving state to IndexedDB:', e);
 
@@ -2172,7 +2228,7 @@ function waitForFirstInitializationCompletionNEAT(populationGenomes) {
             tempPopulationGenomes.push(agent.genome);
         });
 
-        logStatistics();
+        // logStatistics();
         offsetX = 0;
 
     } else {
@@ -2556,7 +2612,8 @@ function endSimulationNEAT(p) {
             const simplifiedAgent = {
                 genome: _.cloneDeep(agent.genome),
                 Score: agent.Score,
-                index: agent.index
+                index: agent.index,
+                brainSize: agent.brainSize
             };
             tempAgentPool.push(simplifiedAgent);
         });
@@ -3228,7 +3285,7 @@ function nextAgentgroupNEAT(p) {
 
     waitForInitializationCompletionBatchNEAT();
 
-    console.log('Restarting simulation with next set of agents!');
+    // console.log('Restarting simulation with next set of agents!');
 
     // Reset simulation
     displayedTimeLeft = (simulationLengthModified - tickCount) * (1 / stageProperties.simSpeed);
@@ -3302,9 +3359,7 @@ function nextGenerationNEAT(p) {
     //}
 
     // Probability of changing the map
-    const mapChangeProbability = 0.333;
-
-    if (stageProperties.randomMap && Math.random() < mapChangeProbability) {
+    if (stageProperties.randomMap && Math.random() < stageProperties.mapChangeProbability / 100) {
         stageProperties.map = Math.floor(Math.random() * 8);
         createMaps(stageProperties.map);
     }
@@ -3454,7 +3509,7 @@ function nextGenerationNEAT(p) {
 
     waitForInitializationCompletionNEAT();
 
-    console.log('Restarting simulation with evolved agents!');
+    // console.log('Restarting simulation with evolved agents!');
 
     // Increase the time per generation up to about 15 mins
     if (stageProperties.timeIncrease && simulationLengthModified < stageProperties.maxSimulationLength) {
@@ -3602,7 +3657,7 @@ function waitForFinalInitializationCompletionNEAT() {
 
         runCount++;
         isInitializationComplete = true;
-        logStatistics();
+        // logStatistics();
         offsetX = 0;
 
     } else {
@@ -3690,21 +3745,23 @@ function rankAgents(groupAgents) {
     groupAgents.sort((a, b) => calculateCompositeScore(b) - calculateCompositeScore(a));
 }
 
+
 function calculateCompositeScore(agent) {
 
     // I should add to this:
-        // similarity heuristics, brain, body and internal map,
-        // agents brain size / weight
+    // similarity heuristics, brain, body and internal map.  Maybe brain weight
 
     let history = agent.genome.agentHistory.scoreHistory;
-    let compositeScore = 0;
     let averageScore = weightedAverageScore(history) * (stageProperties.scoreHistoryWeight / 100);
     let varianceScore = scoreVariance(history);
     let ageScore = ageBasedScore(agent);
     let environmentalScore = environmentalConsistencyScore(history);
-    compositeScore = averageScore * varianceScore * environmentalScore * ageScore;
+    let brainSizeScore = brainSizeMultiplier(agent);
+
+    let compositeScore = averageScore * varianceScore * environmentalScore * ageScore * brainSizeScore;
+
     if (!agent.genome.agentHistory.mutations.some(mutation => mutation.includes("Gen Count: " + stageProperties.genCount))) {
-        addMutationWithHistoryLimit(agent.genome.agentHistory.mutations, "Score: " + compositeScore + " Composed of = Weighted Average Score: " + averageScore + " Score Variance: " + varianceScore + " Age Based Multiplier: " + ageScore + " Environmental Consistency Multiplier: " + environmentalScore);
+        addMutationWithHistoryLimit(agent.genome.agentHistory.mutations, "Score: " + compositeScore + " = Average: " + averageScore + " * Variance: " + varianceScore + " * Age: " + ageScore + " * Environmental: " + environmentalScore + " * Brain: " + brainSizeScore);
     }
 
     return compositeScore;
@@ -3716,7 +3773,7 @@ function weightedAverageScore(history) {
     let totalWeight = 0;
 
     for (let i = 0; i < recentHistory.length; i++) {
-        let weight = 2 - i / recentHistory.length; // More recent scores have higher weight
+        let weight = 2 - (i / recentHistory.length) ** 1; // More recent scores have higher weight.  Could use a power to give greater weight to more recent scores
         weightedSum += recentHistory[i].score * weight;
         totalWeight += weight;
     }
@@ -3725,8 +3782,9 @@ function weightedAverageScore(history) {
 }
 
 function scoreVariance(history) {
-    const mean = history.reduce((acc, h) => acc + h.score, 0) / history.length;
-    const variance = history.reduce((acc, h) => acc + Math.pow(h.score - mean, 2), 0) / history.length;
+    let recentHistory = history.slice(-50);
+    const mean = recentHistory.reduce((acc, h) => acc + h.score, 0) / recentHistory.length;
+    const variance = recentHistory.reduce((acc, h) => acc + Math.pow(h.score - mean, 2), 0) / recentHistory.length;
 
     // Higher variance leads to a smaller multiplier
     return 1 + (stageProperties.scoreVarianceWeight / (1 + variance));
@@ -3740,9 +3798,10 @@ function ageBasedScore(agent) {
 
 
 function environmentalConsistencyScore(history) {
+    let recentHistory = history.slice(-50);
     let mapScores = new Map();
 
-    history.forEach(h => {
+    recentHistory.forEach(h => {
         if (!mapScores.has(h.map)) {
             mapScores.set(h.map, []);
         }
@@ -3756,6 +3815,13 @@ function environmentalConsistencyScore(history) {
 
     // Lower variance across maps is better
     return  1 + (stageProperties.environmentalAdaptationWeight / (1 + variances.reduce((acc, v) => acc + v, 0) / variances.length));
+}
+
+function brainSizeMultiplier(agent) {
+    const brainSize = agent.brainSize;
+    const multiplier = 1 + (stageProperties.brainSizeWeight / (1 + brainSize));
+
+    return multiplier;
 }
 
 
@@ -4734,15 +4800,15 @@ function updateMutationRates(genome) {
     };
 
     // Adjust mutation rates based on scores
-    hyperparams.limbMutationRate = adjustForPlateauing(hyperparams.limbMutationRate, 1.001, 0.9975);
-    hyperparams.mutationRate = adjustForPlateauing(hyperparams.mutationRate, 1.001, 0.9975);
-    hyperparams.layerMutationRate = adjustForPlateauing(hyperparams.layerMutationRate, 1.001, 0.9975);
-    hyperparams.nodeMutationRate = adjustForPlateauing(hyperparams.nodeMutationRate, 1.001, 0.9975);
+    hyperparams.limbMutationRate = adjustForPlateauing(hyperparams.limbMutationRate, stageProperties.adjustLimbMutationUpPlateau / 10000, stageProperties.adjustLimbMutationDownPlateau / 10000);
+    hyperparams.mutationRate = adjustForPlateauing(hyperparams.mutationRate, stageProperties.adjustMutationUpPlateau / 10000, stageProperties.adjustMutationDownPlateau / 10000);
+    hyperparams.layerMutationRate = adjustForPlateauing(hyperparams.layerMutationRate, stageProperties.adjustLayerMutationUpPlateau / 10000, stageProperties.adjustLayerMutationDownPlateau / 10000);
+    hyperparams.nodeMutationRate = adjustForPlateauing(hyperparams.nodeMutationRate, stageProperties.adjustNodeMutationUpPlateau / 10000, stageProperties.adjustNodeMutationDownPlateau / 10000);
 
     // Other adjustments based on similarity to others
-    hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * 1.01 : hyperparams.limbMutationRate * 0.99);
-    hyperparams.layerMutationRate = roundRate(isBrainLayersSimilarToOthers(genome) ? hyperparams.layerMutationRate * 1.01 : hyperparams.layerMutationRate * 0.99);
-    hyperparams.nodeMutationRate = roundRate(isBrainNodesSimilarToOthers(genome) ? hyperparams.nodeMutationRate * 1.01 : hyperparams.nodeMutationRate * 0.99);
+    hyperparams.limbMutationRate = roundRate(isBodySimilarToOthers(genome) ? hyperparams.limbMutationRate * (stageProperties.adjustLimbMutationUpSimilar / 10000) : hyperparams.limbMutationRate * (stageProperties.adjustLimbMutationDownSimilar / 10000));
+    hyperparams.layerMutationRate = roundRate(isBrainLayersSimilarToOthers(genome) ? hyperparams.layerMutationRate * (stageProperties.adjustLayerMutationUpSimilar / 10000) : hyperparams.layerMutationRate * (stageProperties.adjustLayerMutationDownSimilar / 10000));
+    hyperparams.nodeMutationRate = roundRate(isBrainNodesSimilarToOthers(genome) ? hyperparams.nodeMutationRate * (stageProperties.adjustNodeMutationUpSimilar / 10000) : hyperparams.nodeMutationRate * (stageProperties.adjustNodeMutationDownSimilar / 10000));
 
     return hyperparams;
 }
@@ -4981,9 +5047,9 @@ function adjustMigrationRateBasedOnGroupDifferences() {
     if (numGroups <= 1) return; // No adjustment needed for a single group
 
     // While differences is below the similarityThreshold, decrease the migration rate
-    let similarityThreshold = 2;
+    let similarityThreshold = stageProperties.similarityThresholdMigration / 10;
     // While differences is above the divergenceThreshold, increase the migration rate
-    let divergenceThreshold = 4;
+    let divergenceThreshold = stageProperties.divergenceThresholddMigration / 10;
 
     // Calculate average differences between groups
     let differences = calculateGroupDifferences();
@@ -4997,15 +5063,15 @@ function adjustMigrationRateBasedOnGroupDifferences() {
     // Adjust migration rate accordingly
     if (areGroupsSimilar && stageProperties.migrationRate > 1 && differences.length > 0) {
         stageProperties.migrationRate -= 1; // Decrease by a small amount
-        console.log("Migration rate decreased to ", stageProperties.migrationRate);
-        console.log("Average differences: ", averageDifference);
+        //console.log("Migration rate decreased to ", stageProperties.migrationRate);
+        //console.log("Average differences: ", averageDifference);
     } else if (areGroupsDivergent && stageProperties.migrationRate < 1000 && differences.length > 0) {
         stageProperties.migrationRate += 1; // Increase by a small amount
-        console.log("Migration rate increased to ", stageProperties.migrationRate);
-        console.log("Average differences: ", averageDifference);
+        //console.log("Migration rate increased to ", stageProperties.migrationRate);
+        //console.log("Average differences: ", averageDifference);
     } else {
-        console.log("Migration rate unchanged at ", stageProperties.migrationRate);
-        console.log("Average differences: ", averageDifference);
+        //console.log("Migration rate unchanged at ", stageProperties.migrationRate);
+        //console.log("Average differences: ", averageDifference);
     }
 }
 

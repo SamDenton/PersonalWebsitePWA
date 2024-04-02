@@ -1308,7 +1308,7 @@
         stageProperties.topScoreEver = 0;
         stageProperties.genCount = 0;
         await InitializePopulation(stageProperties.numAgents);
-        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties);
+        await JSRuntime.InvokeVoidAsync("initializeSketchBox2DNEAT", stageProperties, true);
         await JSRuntime.InvokeVoidAsync("initializeAgentsBox2DNEAT", population);
     }
 
@@ -1417,6 +1417,7 @@
         public int scoreVarianceWeight { get; set; } = 50000;
         public int ageWeight { get; set; } = 1;
         public int environmentalAdaptationWeight { get; set; } = 10000;
+        public int brainSizeWeight { get; set; } = 40;
         // Advanced Score and Energy
         public int startingEnergyBodyMassMult { get; set; } = 10;
         public int startingEnergyLimbMassMult { get; set; } = 5;
@@ -1440,6 +1441,8 @@
         public int offspringLimbMutationRate { get; set; } = 40;
         public bool dynamicMutationRate { get; set; } = true;
         public bool dynamicMigrationRate { get; set; } = true;
+        public int similarityThresholdMigration { get; set; } = 20;
+        public int divergenceThresholddMigration { get; set; } = 40;
         public int topPerformerNumber { get; set; } = 20;
         public int migrationRate { get; set; } = 50;
         public int minPopGroupSize { get; set; } = 10;
@@ -1465,12 +1468,27 @@
         public int bodyPlanMutationStandardDeviation { get; set; } = 10;
         public int maxPosForNormalisation { get; set; } = 5000;
         public int maxVelForNormalisation { get; set; } = 50;
+        public int adjustLimbMutationUpPlateau { get; set; } = 10010;
+        public int adjustLimbMutationDownPlateau { get; set; } = 9975;
+        public int adjustMutationUpPlateau { get; set; } = 10010;
+        public int adjustMutationDownPlateau { get; set; } = 9975;
+        public int adjustLayerMutationUpPlateau { get; set; } = 10010;
+        public int adjustLayerMutationDownPlateau { get; set; } = 9975;
+        public int adjustNodeMutationUpPlateau { get; set; } = 10010;
+        public int adjustNodeMutationDownPlateau { get; set; } = 9975;
+        public int adjustLimbMutationUpSimilar { get; set; } = 10100;
+        public int adjustLimbMutationDownSimilar { get; set; } = 9990;
+        public int adjustLayerMutationUpSimilar { get; set; } = 10100;
+        public int adjustLayerMutationDownSimilar { get; set; } = 9990;
+        public int adjustNodeMutationUpSimilar { get; set; } = 10100;
+        public int adjustNodeMutationDownSimilar { get; set; } = 9990;
 
         // World Properties
         public int liquidViscosity { get; set; } = 5;
         public bool timeIncrease { get; set; } = true;
         public int map { get; set; } = 1;
         public bool randomMap { get; set; } = true;
+        public int mapChangeProbability { get; set; } = 40;
         public int SimulationLength { get; set; } = 3000;
         // Advanced World Properties
         public int Width { get; set; } = 1600;
@@ -1975,6 +1993,7 @@
         stageProperties.scoreVarianceWeight = 50000;
         stageProperties.ageWeight = 1;
         stageProperties.environmentalAdaptationWeight = 10000;
+        stageProperties.brainSizeWeight = 40;
         stageProperties.startingEnergyBodyMassMult = 10;
         stageProperties.startingEnergyLimbMassMult = 10;
         stageProperties.energyUseForceSizeMult = 10;
@@ -1991,6 +2010,8 @@
         stageProperties.dynamicMassBonusDivider = 500;
         stageProperties.dynamicMutationRate = true;
         stageProperties.dynamicMigrationRate = true;
+        stageProperties.similarityThresholdMigration = 20;
+        stageProperties.divergenceThresholddMigration = 40;
         stageProperties.offspringMutationRate = 1000;
         stageProperties.offspringNodeMutationRate = 80;
         stageProperties.offspringLayerMutationRate = 10;
@@ -2021,10 +2042,25 @@
         stageProperties.bodyPlanMutationStandardDeviation = 10;
         stageProperties.maxPosForNormalisation = 5000;
         stageProperties.maxVelForNormalisation = 50;
+        stageProperties.adjustLimbMutationUpPlateau = 10010;
+        stageProperties.adjustLimbMutationDownPlateau = 9975;
+        stageProperties.adjustMutationUpPlateau = 10010;
+        stageProperties.adjustMutationDownPlateau = 9975;
+        stageProperties.adjustLayerMutationUpPlateau = 10010;
+        stageProperties.adjustLayerMutationDownPlateau = 9975;
+        stageProperties.adjustNodeMutationUpPlateau = 10010;
+        stageProperties.adjustNodeMutationDownPlateau = 9975;
+        stageProperties.adjustLimbMutationUpSimilar = 10100;
+        stageProperties.adjustLimbMutationDownSimilar = 9990;
+        stageProperties.adjustLayerMutationUpSimilar = 10100;
+        stageProperties.adjustLayerMutationDownSimilar = 9990;
+        stageProperties.adjustNodeMutationUpSimilar = 10100;
+        stageProperties.adjustNodeMutationDownSimilar = 9990;
         stageProperties.liquidViscosity = 5;
         stageProperties.timeIncrease = true;
         stageProperties.map = 1;
         stageProperties.randomMap = true;
+        stageProperties.mapChangeProbability = 40;
         stageProperties.SimulationLength = 3000;
         stageProperties.Width = 1600;
         stageProperties.Height = 800;
@@ -2862,7 +2898,18 @@
                         Max = 100000,
                         Step = 1,
                         Details = "After each generation, agents are ranked based on a few factors, this value gives a bonus to agents with consistent scores across different maps."
-                    } 
+                    },
+                    new Setting
+                    {
+                        Name = "Brain Size Weight",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.brainSizeWeight,
+                        ValueChanged = val => stageProperties.brainSizeWeight = val,
+                        Min = 0,
+                        Max = 100000,
+                        Step = 1,
+                        Details = "After each generation, agents are ranked based on a few factors, this value gives a bonus to agents with smaller brains."
+                    }
                 },
                 AdvancedSettings = new List<Setting>
                 {
@@ -3110,6 +3157,28 @@
                         BooleanValueExpression = () => stageProperties.dynamicMigrationRate,
                         BooleanValueChanged = val => stageProperties.dynamicMigrationRate = val,
                         Details = "Toggles whether to change the migration rate between groups based on how similar populations are getting."
+                    },
+                    new Setting
+                    {
+                        Name = "Low Diversity Score",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.similarityThresholdMigration,
+                        ValueChanged = val => stageProperties.similarityThresholdMigration = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Sets the lower bound for the dynamic migration rate function, if diversity is lower than this, the migration rate will decrease."
+                    },
+                    new Setting
+                    {
+                        Name = "High Diversity Score",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.divergenceThresholddMigration,
+                        ValueChanged = val => stageProperties.divergenceThresholddMigration = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "Sets the upper bound for the dynamic migration rate function, if diversity is high than this, the migration rate will increase."
                     },
                     new Setting
                     {
@@ -3366,6 +3435,160 @@
                         Max = 100,
                         Step = 5,
                         Details = "Maximum velocity value for normalisation for agents neural network / brain input."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Limb Plateau Up",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustLimbMutationUpPlateau,
+                        ValueChanged = val => stageProperties.adjustLimbMutationUpPlateau = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the limb mutation rate by this multiplier when the score is below line of best fit."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Limb Plateau Down",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustLimbMutationDownPlateau,
+                        ValueChanged = val => stageProperties.adjustLimbMutationDownPlateau = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the limb mutation rate by this multiplier when the score is above line of best fit."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Plateau Up",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustMutationUpPlateau,
+                        ValueChanged = val => stageProperties.adjustMutationUpPlateau = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the mutation rate by this multiplier when the score is below line of best fit."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Plateau Down",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustMutationDownPlateau,
+                        ValueChanged = val => stageProperties.adjustMutationDownPlateau = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the mutation rate by this multiplier when the score is above line of best fit."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Layer Plateau Up",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustLayerMutationUpPlateau,
+                        ValueChanged = val => stageProperties.adjustLayerMutationUpPlateau = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the layer mutation rate by this multiplier when the score is below line of best fit."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Layer Plateau Down",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustLayerMutationDownPlateau,
+                        ValueChanged = val => stageProperties.adjustLayerMutationDownPlateau = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the layer mutation rate by this multiplier when the score is above line of best fit."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Node Plateau Up",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustNodeMutationUpPlateau,
+                        ValueChanged = val => stageProperties.adjustNodeMutationUpPlateau = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the node mutation rate by this multiplier when the score is below line of best fit."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Node Plateau Up",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustNodeMutationDownPlateau,
+                        ValueChanged = val => stageProperties.adjustNodeMutationDownPlateau = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the node mutation rate by this multiplier when the score is above line of best fit."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Limb Similar Up",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustLimbMutationUpSimilar,
+                        ValueChanged = val => stageProperties.adjustLimbMutationUpSimilar = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the limb mutation rate by this multiplier when the agent is similar to others in the group."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Limb Similar Down",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustLimbMutationDownSimilar,
+                        ValueChanged = val => stageProperties.adjustLimbMutationDownSimilar = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the limb mutation rate by this multiplier when the agent is different from others in the group."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Layer Similar Up",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustLayerMutationUpSimilar,
+                        ValueChanged = val => stageProperties.adjustLayerMutationUpSimilar = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the layer mutation rate by this multiplier when the agent is similar to others in the group."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Layer Similar Down",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustLayerMutationDownSimilar,
+                        ValueChanged = val => stageProperties.adjustLayerMutationDownSimilar = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the layer mutation rate by this multiplier when the agent is different from others in the group."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Node Similar Up",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustNodeMutationUpSimilar,
+                        ValueChanged = val => stageProperties.adjustNodeMutationUpSimilar = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the node mutation rate by this multiplier when the agent is similar to others in the group."
+                    },
+                    new Setting
+                    {
+                        Name = "Multiplier Auto Mutation Node Similar Down",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.adjustNodeMutationDownSimilar,
+                        ValueChanged = val => stageProperties.adjustNodeMutationDownSimilar = val,
+                        Min = 1,
+                        Max = 10000,
+                        Step = 1,
+                        Details = "Auto adjust the node mutation rate by this multiplier when the agent is different from others in the group."
                     }
                 },
                 HasAdvanced = true
@@ -3431,6 +3654,17 @@
                         BooleanValueExpression = () => stageProperties.randomMap,
                         BooleanValueChanged = val => stageProperties.randomMap = val,
                         Details = "Toggles the use of a random map in the simulation.  Using the same map makes it easier to learn as some maps have a different start, but makes learning less general."
+                    },
+                    new Setting
+                    {
+                        Name = "Map Change Chance",
+                        Type = SettingType.Slider,
+                        ValueExpression = () => stageProperties.mapChangeProbability,
+                        ValueChanged = val => stageProperties.mapChangeProbability = val,
+                        Min = 0,
+                        Max = 100,
+                        Step = 1,
+                        Details = "The % chance that the map randomly changes between generations."
                     },
                 },
                 AdvancedSettings = new List<Setting>
