@@ -1,0 +1,26 @@
+﻿@using PersonalWebsite.Pages.CryptoManagerComponents
+
+<div class="container">
+    <h4>Crypto Details</h4>
+    @if (crypto != null)
+    {
+        <p><strong>Name:</strong> @crypto.Name</p>
+        <p><strong>Price:</strong> @crypto.Price</p>
+        <p><strong>Symbol:</strong> @crypto.Symbol</p>
+    }
+    else
+    {
+        <p>Select a cryptocurrency to see details</p>
+    }
+</div>
+
+@code {
+    private Crypto crypto;
+
+    public Task LoadData(Crypto crypto)
+    {
+        this.crypto = crypto;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+}

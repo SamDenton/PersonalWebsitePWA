@@ -1,0 +1,25 @@
+﻿@page "/cryptoManager"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@using System.Text.Json
+@using Microsoft.JSInterop
+@using PersonalWebsite.Pages.CryptoManagerComponents
+
+<div class="cryptoContainer">
+    <CryptoList OnCryptoSelected="LoadCryptoDetails" />
+    <CryptoDetails @ref="cryptoDetails" />
+    <CryptoChart @ref="cryptoChart" />
+</div>
+
+@code {
+    private CryptoDetails cryptoDetails;
+    private CryptoChart cryptoChart;
+
+    private async Task LoadCryptoDetails(string cryptoId)
+    {
+        var data = await JSRuntime.InvokeAsync<string>("fetchCryptoDetails", cryptoId);
+        var crypto = JsonSerializer.Deserialize<Crypto>(data);
+        await cryptoDetails.LoadData(crypto);
+        await cryptoChart.LoadData(cryptoId);
+    }
+}

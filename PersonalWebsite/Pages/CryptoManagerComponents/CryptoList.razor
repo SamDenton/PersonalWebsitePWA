@@ -1,0 +1,18 @@
+﻿<div class="container">
+    <h4>Crypto List</h4>
+    <ul>
+        <li @onclick='() => SelectCrypto("bitcoin")'>Bitcoin</li>
+        <li @onclick='() => SelectCrypto("ethereum")'>Ethereum</li>
+        <!-- Add more cryptocurrencies as needed -->
+    </ul>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<string> OnCryptoSelected { get; set; }
+
+    private Task SelectCrypto(string cryptoId)
+    {
+        return OnCryptoSelected.InvokeAsync(cryptoId);
+    }
+}

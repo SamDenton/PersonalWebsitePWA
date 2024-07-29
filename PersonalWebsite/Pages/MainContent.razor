@@ -838,6 +838,7 @@
     @* Detects when text changes in the search component, and triggers search methods *@
     private void SearchTermChanged(string searchPhrase)
     {
+        Console.WriteLine("Search Term Changed In Component!");
         searchTerm = searchPhrase;
         if (searchTerm!.Length > 1)
         {
@@ -864,7 +865,6 @@
             }
             else
             {
-                //add this back
                 searchResults = PerformSearch(searchTerm, contentState.Value.Contents);
             }
         }
