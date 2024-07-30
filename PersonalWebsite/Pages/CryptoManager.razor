@@ -5,21 +5,57 @@
 @using Microsoft.JSInterop
 @using PersonalWebsite.Pages.CryptoManagerComponents
 
-<div class="cryptoContainer">
-    <CryptoList OnCryptoSelected="LoadCryptoDetails" />
-    <CryptoDetails @ref="cryptoDetails" />
-    <CryptoChart @ref="cryptoChart" />
+<div class="container">
+    <div class="crypto-card-list">
+        @foreach (var crypto in cryptos)
+        {
+            <CryptoCard Crypto="crypto" OnCryptoSelected="LoadCryptoDetails" />
+        }
+    </div>
+    <div class="detail-view">
+        @foreach (var selectedCrypto in selectedCryptos)
+        {
+            <CryptoDetails Crypto="selectedCrypto" />
+        }
+    </div>
 </div>
 
 @code {
-    private CryptoDetails cryptoDetails;
-    private CryptoChart cryptoChart;
+    private List<Crypto> cryptos = new List<Crypto>();
+    private List<Crypto> selectedCryptos = new List<Crypto>();
 
-    private async Task LoadCryptoDetails(string cryptoId)
+    private JsonSerializerOptions options = new JsonSerializerOptions
+        {
+            Converters = { new DecimalConverter() }
+        };
+
+    protected override async Task OnInitializedAsync()
     {
-        var data = await JSRuntime.InvokeAsync<string>("fetchCryptoDetails", cryptoId);
-        var crypto = JsonSerializer.Deserialize<Crypto>(data);
-        await cryptoDetails.LoadData(crypto);
-        await cryptoChart.LoadData(cryptoId);
+        await JSRuntime.InvokeVoidAsync("fetchCryptoList");
+    }
+
+    [JSInvokable]
+    public void UpdateCryptoData(Crypto crypto)
+    {
+        var existingCrypto = cryptos.FirstOrDefault(c => c.Id == crypto.Id);
+        if (existingCrypto != null)
+        {
+            existingCrypto.CurrentPrice = crypto.CurrentPrice;
+            existingCrypto.PriceHistory = crypto.PriceHistory;
+        }
+        else
+        {
+            cryptos.Add(crypto);
+        }
+
+        StateHasChanged();
+    }
+
+    private void LoadCryptoDetails(Crypto crypto)
+    {
+        if (!selectedCryptos.Contains(crypto))
+        {
+            selectedCryptos.Add(crypto);
+        }
     }
 }

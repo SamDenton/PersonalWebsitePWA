@@ -1,26 +1,23 @@
-﻿@using PersonalWebsite.Pages.CryptoManagerComponents
+﻿@inject IJSRuntime JSRuntime
+@using System.Text.Json
+@using Microsoft.JSInterop
+@using PersonalWebsite.Pages.CryptoManagerComponents
 
-<div class="container">
-    <h4>Crypto Details</h4>
-    @if (crypto != null)
-    {
-        <p><strong>Name:</strong> @crypto.Name</p>
-        <p><strong>Price:</strong> @crypto.Price</p>
-        <p><strong>Symbol:</strong> @crypto.Symbol</p>
-    }
-    else
-    {
-        <p>Select a cryptocurrency to see details</p>
-    }
+<div>
+    <h4>@Crypto.Name (@Crypto.Symbol)</h4>
+    <p>Current Price: @Crypto.CurrentPrice</p>
+    <canvas id="@($"detailChart_{Crypto.Id}")"></canvas>
 </div>
 
 @code {
-    private Crypto crypto;
+    [Parameter]
+    public Crypto Crypto { get; set; }
 
-    public Task LoadData(Crypto crypto)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        this.crypto = crypto;
-        StateHasChanged();
-        return Task.CompletedTask;
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("renderDetailChart", Crypto.Id, Crypto.PriceHistory);
+        }
     }
 }
