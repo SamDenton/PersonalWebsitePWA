@@ -1,7 +1,7 @@
 ﻿.searchBar {
     z-index: 999 !important;
     text-align: center;
-    pointer-events: none;
+    /* pointer-events: none; */
     position: fixed !important;
     width: 40vw !important;
     max-width: 600px;
@@ -11,24 +11,13 @@
     left: 0;
     right: 0;
 }
-/*@media (min-width: 689.98px) {
-    .searchBar {
-    }
-}
-@media (max-width: 689.98px) {
-    .searchBar {
-        left: 0;
-        right: 0;
-    }
-}*/
+
 .form-control {
     border: hidden;
     border-radius: 10px !important;
     box-shadow: 0px 3px 15px rgba(0, 0, 0, 0.3), 0px 1px 10px rgba(0, 0, 0, 0.2);
 }
-    .form-control:hover {
-        box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.7), 0px 2px 10px rgba(0, 0, 0, 0.5);
-    }
-input:: placeholder {
-    /*text-align: center;*/
+
+.form-control:hover {
+    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.7), 0px 2px 10px rgba(0, 0, 0, 0.5);
 }

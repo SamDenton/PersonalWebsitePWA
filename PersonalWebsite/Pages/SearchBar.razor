@@ -3,49 +3,19 @@
 
 <div class="ps-1 pt-2 sticky-top searchBar" @onclick="NavigateToMainComponent">
     <div class="input-group mb-3 text-light" style="pointer-events: auto;">
-        <input id="searchBox" class="form-control bg-dark text-light" placeholder="Search Wiki" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChangedInComponent" disabled="@IsSearchDisabled">
+        <input id="searchBox" class="form-control bg-dark text-light" placeholder="Search Wiki" @bind="searchTerm" @bind:event="oninput" @onkeyup="SearchTermChangedInComponent" /*disabled="@IsSearchDisabled"*/>
     </div>
 </div>
 
 @code {
     public string? searchTerm { get; set; }
-    [Parameter] public string? type { get; set; }
+    [Parameter] public string? type { get; set; } = "No Type";
     [Parameter] public EventCallback<string> SearchTermChanged { get; set; }
     [Parameter] public bool IsSearchDisabled { get; set; } = false;
 
-    //this block is meant to focus on the search bar when its clicked from a different component, after navigation is complete.  It does not work, I suspect because after navigaiton, a new instance of the search bar component is loaded, so this cant be called
-    //protected override async Task OnAfterRenderAsync(bool firstRender)
-    //{
-    //    if (!IsSearchDisabled && firstRender)
-    //    {
-    //        //await JSRuntime.InvokeVoidAsync("setTimeout", DotNetObjectReference.Create(new ActionWrapper(() => FocusOnSearchBox())), 1000);
-    //    }
-    //}
-
-    //private async Task FocusOnSearchBox()
-    //{
-    //    await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('searchBox').focus()");
-    //}
-
-    //public class ActionWrapper
-    //{
-    //    private Action action;
-
-    //    public ActionWrapper(Action action)
-    //    {
-    //        this.action = action;
-    //    }
-
-    //    [JSInvokable]
-    //    public void InvokeAction()
-    //    {
-    //        action();
-    //    }
-    //}
-
-
     private void NavigateToMainComponent()
     {
+        Console.WriteLine("Navigating to main component");
         if (IsSearchDisabled)
         {
             Navigation.NavigateTo($"/");
@@ -54,6 +24,7 @@
 
     private void SearchTermChangedInComponent()
     {
+        Console.WriteLine("Search term changed");
         if (string.Equals(searchTerm, "CV", StringComparison.OrdinalIgnoreCase))
         {
             Navigation.NavigateTo($"/Dissertation/CV");

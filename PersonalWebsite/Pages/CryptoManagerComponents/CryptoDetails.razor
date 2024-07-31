@@ -1,0 +1,23 @@
+﻿@inject IJSRuntime JSRuntime
+@using System.Text.Json
+@using Microsoft.JSInterop
+@using PersonalWebsite.Pages.CryptoManagerComponents
+
+<div>
+    <h4>@Crypto.Name (@Crypto.Symbol)</h4>
+    <p>Current Price: @Crypto.CurrentPrice</p>
+    <canvas id="@($"detailChart_{Crypto.Id}")"></canvas>
+</div>
+
+@code {
+    [Parameter]
+    public Crypto Crypto { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("renderDetailChart", Crypto.Id, Crypto.PriceHistory);
+        }
+    }
+}

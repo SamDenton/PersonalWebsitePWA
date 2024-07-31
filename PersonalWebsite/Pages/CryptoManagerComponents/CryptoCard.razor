@@ -1,0 +1,31 @@
+﻿@inject IJSRuntime JSRuntime
+@using System.Text.Json
+@using Microsoft.JSInterop
+@using PersonalWebsite.Pages.CryptoManagerComponents
+
+<div class="crypto-card" @onclick="SelectCrypto">
+    <p><strong>@Crypto.Name</strong> (@Crypto.Symbol)</p>
+    <p>Current Price: @Crypto.CurrentPrice</p>
+    <canvas id="@($"chart_{Crypto.Id}")"></canvas>
+</div>
+
+@code {
+    [Parameter]
+    public Crypto Crypto { get; set; }
+
+    [Parameter]
+    public EventCallback<Crypto> OnCryptoSelected { get; set; }
+
+    private Task SelectCrypto()
+    {
+        return OnCryptoSelected.InvokeAsync(Crypto);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("renderSmallChart", Crypto.Id, Crypto.PriceHistory);
+        }
+    }
+}
