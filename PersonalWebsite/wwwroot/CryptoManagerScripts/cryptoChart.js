@@ -1,7 +1,11 @@
 let requestQueue = [];
 let isProcessing = false;
-const rateLimit = 1200; // Per minute
-const refreshInterval = 1000; // 1 second
+const rateLimit = 1200;
+const rateLimitInterval = 60000; // 60 seconds
+const refreshInterval = 100; // 0.1 seconds
+let numberOfTickers = 10;
+let intervalId;
+let objRef;
 
 window.renderSmallChart = function (cryptoId, priceHistory) {
     var ctx = document.getElementById('chart_' + cryptoId).getContext('2d');
@@ -10,14 +14,35 @@ window.renderSmallChart = function (cryptoId, priceHistory) {
         data: {
             labels: Array(priceHistory.length).fill(''),
             datasets: [{
-                label: cryptoId,
                 data: priceHistory,
                 borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
+                borderWidth: 1,
+                pointRadius: 0, 
             }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    display: false, 
+                },
+                y: {
+                    display: false,
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: false
+                }
+            }
         }
     });
 }
+
 
 window.renderDetailChart = function (cryptoId, priceHistory) {
     var ctx = document.getElementById('detailChart_' + cryptoId).getContext('2d');
@@ -31,21 +56,43 @@ window.renderDetailChart = function (cryptoId, priceHistory) {
                 borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 1
             }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
         }
     });
 }
 
-window.fetchCryptoList = async function () {
+window.setNumberOfTickers = function (numTickers, ObjRef) {
+    objRef = ObjRef;
+    numberOfTickers = numTickers;
+    fetchCryptoList(objRef);
+}
+
+window.fetchCryptoList = async function (dotNetHelper) {
     const topTickers = await fetchTopVolumeTickers();
     setupRequestQueue(topTickers);
-    processQueueContinuously();
+    startProcessingQueue(dotNetHelper);
+}
+
+window.initializeInterop = function (dotNetHelper) {
+    objRef = dotNetHelper;
+    window.addEventListener('focus', () => {
+        dotNetHelper.invokeMethodAsync('ResetObjectReference');
+    });
 }
 
 async function fetchTopVolumeTickers() {
     const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr`);
     const data = await response.json();
-    const sortedData = data.sort((a, b) => parseFloat(b.volume) - parseFloat(a.volume));
-    return sortedData.slice(0, 100).map(ticker => ticker.symbol);
+    const filteredData = data.filter(ticker => ticker.symbol.endsWith('BTC'));
+    const sortedData = filteredData.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
+    return sortedData.slice(0, numberOfTickers).map(ticker => ticker.symbol);
 }
 
 function setupRequestQueue(symbols) {
@@ -56,7 +103,7 @@ function setupRequestQueue(symbols) {
         requestQueue.push({
             url: `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`,
             symbol,
-            weight: 1 // Each request has a weight of 1
+            weight: 1
         });
     });
 
@@ -65,21 +112,19 @@ function setupRequestQueue(symbols) {
     }
 }
 
-async function processQueueContinuously() {
-    while (true) {
-        const startTime = Date.now();
-        await processQueue();
-        const endTime = Date.now();
-        const elapsedTime = endTime - startTime;
-
-        if (elapsedTime < refreshInterval) {
-            await new Promise(resolve => setTimeout(resolve, refreshInterval - elapsedTime));
+function startProcessingQueue(dotNetHelper) {
+    clearInterval(intervalId);
+    intervalId = setInterval(() => {
+        if (!isProcessing) {
+            processQueue(dotNetHelper);
         }
-    }
+    }, refreshInterval);
 }
 
-async function processQueue() {
+async function processQueue(dotNetHelper) {
+    isProcessing = true;
     let weightUsed = 0;
+    const startTime = Date.now();
 
     while (requestQueue.length > 0 && weightUsed < rateLimit) {
         const request = requestQueue.shift();
@@ -89,16 +134,28 @@ async function processQueue() {
 
         const cryptoData = {
             Id: request.symbol,
-            Name: request.symbol.slice(0, -4), // Extract name from symbol
+            Name: request.symbol.slice(0, -3), // Extract name from symbol
             CurrentPrice: marketData.lastPrice,
             Symbol: request.symbol,
-            PriceHistory: priceHistory
+            PriceHistory: priceHistory,
+            VolumeInBaseCurrency: marketData.volume,
+            VolumeInBTC: marketData.quoteVolume,
+            High24h: marketData.highPrice,
+            Low24h: marketData.lowPrice,
+            Change24h: marketData.priceChangePercent,
+            LastUpdate: new Date().toISOString() // Current time as ISO string
         };
 
-        updateCryptoData(cryptoData);
+        updateCryptoData(dotNetHelper, cryptoData);
 
         weightUsed += request.weight;
+
+        if (Date.now() - startTime >= rateLimitInterval) {
+            break;
+        }
     }
+
+    isProcessing = false;
 }
 
 async function fetchCryptoPriceHistory(symbol) {
@@ -107,6 +164,8 @@ async function fetchCryptoPriceHistory(symbol) {
     return data.map(candle => parseFloat(candle[4])); // Closing prices
 }
 
-function updateCryptoData(cryptoData) {
-    DotNet.invokeMethodAsync('PersonalWebsite', 'UpdateCryptoData', cryptoData);
+function updateCryptoData(dotNetHelper, cryptoData) {
+    if (dotNetHelper) {
+        dotNetHelper.invokeMethodAsync('UpdateCryptoData', cryptoData);
+    }
 }

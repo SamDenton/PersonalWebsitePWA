@@ -4,34 +4,47 @@
 @using System.Text.Json
 @using Microsoft.JSInterop
 @using PersonalWebsite.Pages.CryptoManagerComponents
+@using PersonalWebsite.Pages
 
 <div class="container">
+
     <div class="crypto-card-list">
         @foreach (var crypto in cryptos)
         {
             <CryptoCard Crypto="crypto" OnCryptoSelected="LoadCryptoDetails" />
         }
     </div>
+
     <div class="detail-view">
         @foreach (var selectedCrypto in selectedCryptos)
         {
-            <CryptoDetails Crypto="selectedCrypto" />
+            <CryptoDetails Crypto="selectedCrypto" OnClose="CloseCryptoDetail" />
         }
+    </div>
+
+    <div class="settings">
+        <label for="tickerCount">Number of Top Tickers to Display:</label>
+        <input id="tickerCount" type="number" @bind="numberOfTickers" min="1" max="100" />
+        <button @onclick="UpdateNumberOfTickers">Update</button>
     </div>
 </div>
 
 @code {
     private List<Crypto> cryptos = new List<Crypto>();
     private List<Crypto> selectedCryptos = new List<Crypto>();
+    private int numberOfTickers = 10;
 
     private JsonSerializerOptions options = new JsonSerializerOptions
         {
             Converters = { new DecimalConverter() }
         };
 
+    private DotNetObjectReference<CryptoManager> objRef;
+
     protected override async Task OnInitializedAsync()
     {
-        await JSRuntime.InvokeVoidAsync("fetchCryptoList");
+        objRef = DotNetObjectReference.Create(this);
+        await JSRuntime.InvokeVoidAsync("fetchCryptoList", objRef);
     }
 
     [JSInvokable]
@@ -42,13 +55,53 @@
         {
             existingCrypto.CurrentPrice = crypto.CurrentPrice;
             existingCrypto.PriceHistory = crypto.PriceHistory;
+            existingCrypto.VolumeInBaseCurrency = crypto.VolumeInBaseCurrency;
+            existingCrypto.VolumeInBTC = crypto.VolumeInBTC;
+            existingCrypto.High24h = crypto.High24h;
+            existingCrypto.Low24h = crypto.Low24h;
+            existingCrypto.Change24h = crypto.Change24h;
+            existingCrypto.LastUpdate = crypto.LastUpdate;
         }
         else
         {
-            cryptos.Add(crypto);
+            // Check if we need to replace a lower volume ticker
+            if (cryptos.Count >= numberOfTickers)
+            {
+                var minVolumeCrypto = cryptos.OrderBy(c => c.VolumeInBTC).First();
+                if (crypto.VolumeInBTC > minVolumeCrypto.VolumeInBTC)
+                {
+                    cryptos.Remove(minVolumeCrypto);
+                    cryptos.Add(crypto);
+                }
+            }
+            else
+            {
+                cryptos.Add(crypto);
+            }
         }
 
+        cryptos = cryptos.OrderByDescending(c => c.VolumeInBTC).ToList();
         StateHasChanged();
+    }
+
+    [JSInvokable]
+    public static Task ResetObjectReference()
+    {
+        var instance = new CryptoManager();
+        instance.objRef?.Dispose();
+        instance.objRef = DotNetObjectReference.Create(instance);
+        return Task.CompletedTask;
+    }
+
+    private async Task UpdateNumberOfTickers()
+    {
+        if (numberOfTickers < cryptos.Count)
+        {
+            cryptos = cryptos.Take(numberOfTickers).ToList();
+            StateHasChanged();
+        }
+
+        await JSRuntime.InvokeVoidAsync("setNumberOfTickers", numberOfTickers, objRef);
     }
 
     private void LoadCryptoDetails(Crypto crypto)
@@ -57,5 +110,19 @@
         {
             selectedCryptos.Add(crypto);
         }
+        else if (selectedCryptos.Contains(crypto))
+        {
+            selectedCryptos.Remove(crypto);
+        }
+    }
+
+    private void CloseCryptoDetail(Crypto crypto)
+    {
+        selectedCryptos.Remove(crypto);
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
     }
 }

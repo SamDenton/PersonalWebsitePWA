@@ -3,15 +3,52 @@
 @using Microsoft.JSInterop
 @using PersonalWebsite.Pages.CryptoManagerComponents
 
-<div>
-    <h4>@Crypto.Name (@Crypto.Symbol)</h4>
-    <p>Current Price: @Crypto.CurrentPrice</p>
+<div class="crypto-detail">
+    <button class="close-button" @onclick="CloseDetail"><span class="oi oi-x"></span></button>
+    <div class="crypto-header">
+        <h4>@Crypto.Name (@Crypto.Symbol)</h4>
+        <p class="current-price">@Crypto.CurrentPrice</p>
+    </div>
+    <div class="crypto-stats">
+        <div class="stat">
+            <p>24h Volume (BTC)</p>
+            <p>@Crypto.VolumeInBTC</p>
+        </div>
+        <div class="stat">
+            <p>24h Volume (@Crypto.Name)</p>
+            <p>@Crypto.VolumeInBaseCurrency</p>
+        </div>
+        <div class="stat">
+            <p>24h High</p>
+            <p>@Crypto.High24h</p>
+        </div>
+        <div class="stat">
+            <p>24h Low</p>
+            <p>@Crypto.Low24h</p>
+        </div>
+        <div class="stat">
+            <p>24h Change</p>
+            <p>@Crypto.Change24h%</p>
+        </div>
+        <div class="stat">
+            <p>Last Update</p>
+            <p>@Crypto.LastUpdate.ToString("yyyy-MM-dd HH:mm:ss")</p>
+        </div>
+    </div>
     <canvas id="@($"detailChart_{Crypto.Id}")"></canvas>
 </div>
 
 @code {
     [Parameter]
     public Crypto Crypto { get; set; }
+
+    [Parameter]
+    public EventCallback<Crypto> OnClose { get; set; }
+
+    private Task CloseDetail()
+    {
+        return OnClose.InvokeAsync(Crypto);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

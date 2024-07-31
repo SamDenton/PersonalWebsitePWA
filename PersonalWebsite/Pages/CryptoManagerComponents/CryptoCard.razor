@@ -3,10 +3,14 @@
 @using Microsoft.JSInterop
 @using PersonalWebsite.Pages.CryptoManagerComponents
 
-<div class="crypto-card" @onclick="SelectCrypto">
-    <p><strong>@Crypto.Name</strong> (@Crypto.Symbol)</p>
-    <p>Current Price: @Crypto.CurrentPrice</p>
-    <canvas id="@($"chart_{Crypto.Id}")"></canvas>
+<div class="crypto-card-container" @onclick="SelectCrypto">
+    <div class="crypto-card">
+        <p class="card-title"><strong>@Crypto.Name</strong> (@Crypto.Symbol) - @Crypto.CurrentPrice</p>
+        <div class="chart-container">
+            <canvas id="@($"chart_{Crypto.Id}")"></canvas>
+        </div>
+    </div>
+    <div class="card-outline"></div>
 </div>
 
 @code {
