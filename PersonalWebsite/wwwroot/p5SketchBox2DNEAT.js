@@ -1285,6 +1285,11 @@ function applySwimmingForceOld(p, agent) {
 
         let defaultBias = stageProperties.swimBias / 10;
 
+        // If swim bias network output is enabled, use it
+        if (stageProperties.outputsBias == true) {
+            defaultBias = agent.biases[i];
+        }
+
         let bias = calculateBias(agentFacingDirection, forceAngle, defaultBias);
 
         let adjustedForce = force.mul(bias);
@@ -1536,6 +1541,7 @@ function initializeSketchBox2DNEAT(StageProperties, newRound = false) {
     specialRunStarted = false;
     averageDifference = 0;
     temporaryAgentsForSpecialRun = [];
+    extendedFpsHistory = [];
 
     currentProcess = "Initializing world!";
 
@@ -2067,6 +2073,8 @@ function updateSimulationNEAT(StageProperties) {
     let tempMuscleBatchLocal = stageProperties.muscleBatch;
     let tempMuscleDelayLocal = stageProperties.muscleDelay;
     let tempSimSpeedLocal = stageProperties.simSpeed;
+    let tempNumAgents = stageProperties.numAgents;
+    let tempTotalNumAgentsMultiplier = stageProperties.totalNumAgentsMultiplier;
 
     // Update values in stageProperties
     stageProperties = StageProperties;
@@ -2079,6 +2087,8 @@ function updateSimulationNEAT(StageProperties) {
     stageProperties.muscleBatch = tempMuscleBatchLocal;
     stageProperties.muscleDelay = tempMuscleDelayLocal;
     stageProperties.simSpeed = tempSimSpeedLocal;
+    stageProperties.numAgents = tempNumAgents;
+    stageProperties.totalNumAgentsMultiplier = tempTotalNumAgentsMultiplier;
 }
 
 // Function to initialize the agents, called alongside initializeSketchBox2DNEAT() to start the simulation
@@ -2285,6 +2295,7 @@ function AgentNEAT(agentGenome) {
 
     // Initialize arrays to store the limbs and joints of the agent.  May need more to hold other limb types
     this.limbs = [];
+    this.biases = [];
     this.limbMass = [];
     this.joints = [];
     //this.biases = [];
@@ -2812,8 +2823,8 @@ function createMaps(mapNumber) {
         createWall(startX + 300, startY + 900, 10, channelLength, Math.PI / 4); // Right wall
 
         // Obstacles
-        createWall(startX + 50, startY - 80, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 330, startY - 200, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 40, startY - 90, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 335, startY - 195, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 460, startY - 490, 10, channelWidth / 2, -Math.PI / 4);
 
     } else if (mapNumber == 2) {
@@ -2882,8 +2893,8 @@ function createMaps(mapNumber) {
         createWall(startX + 300, startY - 100 + 1000, 10, channelLength, Math.PI / 4); // Right wall
 
         // Obstacles
-        createWall(startX + 120, startY + 10, 10, channelWidth / 2, -Math.PI / 4);
-        createWall(startX + 200, startY - 250, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 110, startY + 0, 10, channelWidth / 2, -Math.PI / 4);
+        createWall(startX + 250, startY - 245, 10, channelWidth / 2, -Math.PI / 4);
         createWall(startX + 560, startY - 400, 10, channelWidth / 2, -Math.PI / 4);
 
     } else if (mapNumber == 5) {
@@ -3749,7 +3760,7 @@ function rankAgents(groupAgents) {
 function calculateCompositeScore(agent) {
 
     // I should add to this:
-    // similarity heuristics, brain, body and internal map.  Maybe brain weight
+    // similarity heuristics, brain, body and internal map.
 
     let history = agent.genome.agentHistory.scoreHistory;
     let averageScore = weightedAverageScore(history) * (stageProperties.scoreHistoryWeight / 100);
@@ -3773,12 +3784,12 @@ function weightedAverageScore(history) {
     let totalWeight = 0;
 
     for (let i = 0; i < recentHistory.length; i++) {
-        let weight = 2 - (i / recentHistory.length) ** 1; // More recent scores have higher weight.  Could use a power to give greater weight to more recent scores
+        let weight = 2 - ((i / recentHistory.length) ** 2); // More recent scores have higher weight.  Could use a power to give greater weight to more recent scores
         weightedSum += recentHistory[i].score * weight;
         totalWeight += weight;
     }
 
-    return weightedSum / totalWeight;
+    return (weightedSum / totalWeight) + recentHistory[recentHistory.length - 1]; // Testing adding the most recent score to give it more weight
 }
 
 function scoreVariance(history) {
@@ -6012,6 +6023,8 @@ AgentNEAT.prototype.buildBodyFromLimbStructure = function () {
             // body segment constructor
             this.limbs.push(arm);
             this.limbMass.push(arm.getMass());
+
+            this.biases.push(1);
         }
         // else if (part.type == "Wing") {
         //      body segment constructor
@@ -6444,8 +6457,8 @@ AgentNEAT.prototype.makeDecisionNEAT = function (inputs) {
         }
 
         if (stageProperties.outputsBias) {
-            // Adjusting the bias calculation to map [-1, 1] to [1.001, 1.999]
-            let adjustment = ((output[outputIndex] + 1) * 0.499) + 1.001;
+            // Adjusting the bias calculation to map [-1, 1] to [0, 2]
+            let adjustment = output[outputIndex] + 1.01;
             this.biases[i] = adjustment;
             outputIndex++;
         }
@@ -6467,9 +6480,17 @@ AgentNEAT.prototype.makeDecisionSymmetricalNEAT = function (inputs) {
     let firstAdjustment = output[outputIndex] * (stageProperties.maxJointSpeed / 10) * Math.min(1, Math.max(0, (this.agentEnergy / this.startingEnergy)));
     this.joints[0].setMotorSpeed(firstAdjustment);
     outputIndex++;
+    if (stageProperties.outputsBias) {
+        this.biases[0] = output[this.joints.length] + 1.01;
+        outputIndex++;
+    }
 
     if (this.noFrontLimbs == 2) {
         this.joints[1].setMotorSpeed(-firstAdjustment);
+        if (stageProperties.outputsBias) {
+            this.biases[1] = output[this.joints.length + 1] + 1.01;
+            outputIndex++;
+        }
     }
 
     for (let i = this.noFrontLimbs; i < this.joints.length; i += 2) {
@@ -6487,9 +6508,10 @@ AgentNEAT.prototype.makeDecisionSymmetricalNEAT = function (inputs) {
         }
 
         if (stageProperties.outputsBias) {
-            // Adjusting the bias calculation to map [-1, 1] to [1.001, 1.999]
-            let adjustment = ((output[outputIndex] + 1) * 0.499) + 1.001;
+            // Adjusting the bias calculation to map [-1, 1] to [0, 2]
+            let adjustment = output[outputIndex] + 1.01;
             this.biases[i] = adjustment;
+            this.biases[i + 1] = adjustment;
             outputIndex++;
         }
     }
@@ -6733,7 +6755,10 @@ AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY) {
     }
 
     if (stageProperties.outputsBias) {
-        outputLabels = outputLabels.concat(Array(this.joints.length).fill(null).map((_, idx) => `Limb ${idx + 1}`));
+        outputLabels = outputLabels.concat(
+            this.joints
+                .filter(joint => !joint.duplicate)
+                .map((_, idx) => `Joint ${idx + 1}`));
     }
 
     try {
@@ -6830,27 +6855,34 @@ AgentNEAT.prototype.renderNNNEAT = function (p, offsetX, offsetY) {
                     } else if (i === hiddenLayers + 1) {
                         p.text(labels[j], x + 15, y + 4);
 
-                        while (this.joints[j].duplicate && this.joints[j + 1]) {
-                            j++;
-                        }
+                        //if (this.joints[j]) {
+                        //    while (this.joints[j].duplicate && this.joints[j + 1]) {
+                        //        j++;
+                        //    }
+                        //} else {
+                        //    while (this.joints[(j - this.joints.length)].duplicate && this.joints[(j - this.joints.length) + 1]) {
+                        //        j++;
+                        //    }
+                        //}
 
-                        if (stageProperties.outputsJointSpeed && this.joints[j]) {
+                        if (stageProperties.outputsJointSpeed && this.joints[j] && !this.joints[j].duplicate) {
                             p.fill(GROUP_COLORS[j]);
                             let currentSpeed = this.joints[j].getMotorSpeed();
                             p.text(`Speed: ${currentSpeed.toFixed(4)}`, x + 60, y + 4);
                             outputIndex++;
                         }
 
-                        if (stageProperties.outputsJointTorque && this.joints[j - outputIndex]) {
-                            p.fill(GROUP_COLORS[j - outputIndex]);
-                            p.text(`Max Torque Cant Be Polled :(`, x + 60, y + 4);
-                            outputIndex++;
-                        }
+                        //if (stageProperties.outputsJointTorque && this.joints[j - outputIndex]) {
+                        //    p.fill(GROUP_COLORS[j - outputIndex]);
+                        //    p.text(`Max Torque Cant Be Polled :(`, x + 60, y + 4);
+                        //    outputIndex++;
+                        //}
 
-                        if (stageProperties.outputsBias && this.biases[j - outputIndex]) {
+                        if (stageProperties.outputsBias && this.biases[j - outputIndex] && !this.joints[j - outputIndex].duplicate) {
                             p.fill(GROUP_COLORS[j - outputIndex]);
                             let biasI = this.biases[j - outputIndex];
-                            p.text(`Bias: ${biasI}`, x + 60, y + 4);
+                            p.text(`Bias: ${biasI.toFixed(4)}`, x + 60, y + 4);
+                            // outputIndex++;
                         }
 
                     }

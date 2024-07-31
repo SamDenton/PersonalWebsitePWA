@@ -98,7 +98,7 @@
     private string userRequest = "Tell me about Sam's 3d printing projects";
     private string prePromptSiteStructure;
     private string userRequestPrePrompt;
-    private string summaryPrePrompt = "You are a summary assistant.  You will be given a long string of data and a user request.  You will summaries the data in the way best matching the request.  You can mention any insights about the data, if relevant to the request.  The data will have all tags and punctuations stripped, so will follow the format 'page xyz section xyz subSection xyz content xyz page x section x subSection...'.  ##Start Of Data## ";
+    private string summaryPrePrompt = "You are a summary assistant.  You will be given a long string of data and a user request.  You will summarize the data in the way best matching the request.  You can mention any insights about the data, if relevant to the request.  The data will have all tags and punctuations stripped, so will follow the format 'page xyz section xyz subSection xyz content xyz page x section x subSection...'.  ##Start Of Data## ";
     private bool loading = false;
     private string producedSearchTerm = "This will be replaced by a search term";
     private string summaryOfContent;
@@ -141,9 +141,9 @@
             sb.Append("]");
         }
         string siteStructure = sb.ToString();
-        prePromptSiteStructure = "Site Structure and Headings: " + siteStructure + "End of Site Structure and Headings. ";
-        userRequestPrePrompt = "You are a search assistant.  You will be given the structure of a database and the headings within.  You will also be given a user request.  You will take the user request, and produce a short search term than will be searched on the database.  This search term will be between 1 and 5 words.  It should aim to match one of the headings in the database where applicable, but any words in the search term are fine.  The search will also look within the content of the database, which will not be presented to you.  The structure of the database will be presented to you in this form, including the leading and trailing text: Site Structure and Headings:  [page (section1: -subSection1, subSection2) (section2: -subSeciton1, -subSection2)][page2 (section1:...)...]  End of Site Structure and Headings.  You will then be given the user request" + prePromptSiteStructure + "User Request: Tell me about Sam's work experience. SearchTerm: Work Experience CV History. User Request: ";
-        loading = false;    
+        prePromptSiteStructure = "Site Structure and Headings: " + siteStructure + " End of Site Structure and Headings. ";
+        userRequestPrePrompt = "You are a search assistant. You will be given the structure of a database and the headings within. You will also be given a user request. You will take the user request, and produce a short search term that will be searched on the database. This search term will be between 1 and 5 words. It should aim to match one of the headings in the database where applicable, but any words in the search term are fine. The search will also look within the content of the database, which will not be presented to you. The structure of the database will be presented to you in this form, including the leading and trailing text: Site Structure and Headings:  [page (section1: -subSection1, subSection2) (section2: -subSeciton1, -subSection2)][page2 (section1:...)...]  End of Site Structure and Headings. You will then be given the user request. " + prePromptSiteStructure + " User Request: Tell me about Sam's work experience. SearchTerm: Work Experience CV History. User Request: ";
+        loading = false;
     }
 
     private async Task GenerateSearch()
@@ -158,11 +158,21 @@
 
             var requestBody = new
             {
-                model = "text-davinci-003",
-                prompt = userRequestPrePrompt + "" + userRequest + " SearchTerm: ",
+                model = "gpt-4o",
+                messages = new[] {
+                    new {
+                        role = "system",
+                        content = userRequestPrePrompt
+                    },
+                    new {
+                        role = "user",
+                        content = userRequest + " SearchTerm: "
+                    }
+                },
                 max_tokens = 1000,
                 temperature = 1
             };
+
             var request = new HttpRequestMessage(HttpMethod.Post, "https://samdenton.tech/OpenAIComplete-proxy.php");
             request.Content = JsonContent.Create(requestBody);
             request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
@@ -170,23 +180,24 @@
             var response = await Http.SendAsync(request);
             response.EnsureSuccessStatusCode();
 
-            var dataOut = await response.Content.ReadFromJsonAsync<OpenAIResponse>();
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine("Raw Response:", responseContent);
 
-            var outputText = dataOut.choices[0].text;
+            var dataOut = JsonConvert.DeserializeObject<OpenAIResponse>(responseContent);
+
+            var outputText = dataOut.choices[0].message.content;
             producedSearchTerm = outputText;
 
-            //Console.WriteLine("First bot output: " + outputText);
             returnedData = PerformSearch(outputText, contentState.Value.Contents);
             StateHasChanged();
             string resultsString = ConvertSearchResultsToString(returnedData);
-            //Console.WriteLine("Search results: " + resultsString);
             StateHasChanged();
             await GenerateSummary(resultsString);
         }
         catch (Exception ex)
         {
-            //Console.WriteLine($"Error: {ex.Message}");
-            //Console.WriteLine("OpenAI API unavailable or out of credits");
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine("OpenAI API unavailable or out of credits");
             loading = false;
         }
     }
@@ -319,11 +330,25 @@
         {
             var requestBody = new
             {
-                model = "text-davinci-003",
-                prompt = summaryPrePrompt + "" + wikiData + " ##End Of Data## User Request: " + userRequest + " Answer: ",
+                model = "gpt-4o",
+                messages = new[] {
+                    new {
+                        role = "system",
+                        content = summaryPrePrompt
+                    },
+                    new {
+                        role = "user",
+                        content = wikiData
+                    },
+                    new {
+                        role = "user",
+                        content = "##End Of Data## User Request: " + userRequest + " Answer: "
+                    }
+                },
                 max_tokens = 1000,
                 temperature = 1
             };
+
             var request = new HttpRequestMessage(HttpMethod.Post, "https://samdenton.tech/OpenAIComplete-proxy.php");
             request.Content = JsonContent.Create(requestBody);
             request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
@@ -331,14 +356,16 @@
             var response = await Http.SendAsync(request);
             response.EnsureSuccessStatusCode();
 
-            var dataOut = await response.Content.ReadFromJsonAsync<OpenAIResponse>();
+            var responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine("Raw Response:", responseContent);
 
-            var outputText = dataOut.choices[0].text;
+            var dataOut = JsonConvert.DeserializeObject<OpenAIResponse>(responseContent);
+
+            var outputText = dataOut.choices[0].message.content;
             summaryOfContent = outputText;
 
-            //Console.WriteLine("Summary: " + outputText);
             loading = false;
-            StateHasChanged(); ;
+            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -411,6 +438,11 @@
 
     public class Choice
     {
-        public string text { get; set; }
+        public Message message { get; set; }
+    }
+
+    public class Message
+    {
+        public string content { get; set; }
     }
 }

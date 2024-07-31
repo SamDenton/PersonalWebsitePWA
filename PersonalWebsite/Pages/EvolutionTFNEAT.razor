@@ -43,24 +43,23 @@
 
                 <h5>Quick Start Guide:</h5>
                 <p>I recommended refreshing without cache (CTRL + SHIFT + R) before getting started to ensure you have the latest version.  Blazor tends to cache JavaScript very aggressively.</p>
-                <p>Please select a pre-configuration from the top to get a good starting point.</p>
-                <p>You can then use the settings tabs to alter specific settings.  You can save your current settings locally and re-upload them for later use.  This includes which settings are favourited.  A lot of the example numbers below will be slightly off, as I am constantly updating the default values.</p>
-                <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.  There is always a little lag the first time you start a population after refreshing.  I'm not completely sure why as it doesn't happen with a new population, if you don't refresh.</p>
-                <p>You can also use one of my pre-trained genome pools to skip the first generations, but you are then restricted to my settings.  The older the population, the more likely it is to have bugs</p>
+                <p>Select a performance preset from the top to get a good starting point.</p>
+                <p>You can then use the settings tabs to alter specific settings.  You can save your current settings locally and re-upload them for later use, including which settings are favourited.</p>
+                <p>Click Start/Reset, Simplified Start or Super Simplified Start from the top right menu to begin.</p>
+                <p>Start/Reset will respect all current configurations, Simplified Start will simplify the neural network output, remove the energy system, some score bonuses, and a few other things and Super Simplified Start will also give the agents a preset body plan and force symmetry, reduce body and brain shape mutation, fix the map and some other things as well.</p>
+                <p>Using full configurations will result in more interesting behavior, but will take 500+ generations to see much progress, Simplified Start should see much faster learning, with agents completing the maps within a few hundred generations, and Super Simple can complete the maps in 50-100 generations depending on the map.</p>
+                <p>You can also use one of my pre-trained genome pools to skip the first generations, but you are then restricted to my settings.  Some of the older populations may have broken with updates over time.</p>
                 <p>The current agent pool is auto-saved to browser storage every generation, so if you have a crash, or close without saving, hit the amber button to attempt to recover.</p>
-                <p>Start/Reset will respect all configurations, while Simplified Start will simplify the neural network output, remove the energy system, some score bonuses, limb and layer number mutations, and a few other things</p>
-                <p>Simplified Start should see much faster learning, with agents completing the maps within 100 generations or so; using full configurations will result in much more interesting behavior, but will take 1000+ generations to see much progress</p>
-                <p>Super Simplified Start will also give agents a small, fixed brain and pre-set body plan, as well as forcing symmetry in the agents body, and will see agents complete the maps in 50-100 generations</p>
-                <p>Clicking 'Run Top Agents Ever After Batch' will mean that after the current run ends, it runs the 10 top agents ever from this population on the current map.  It should then return to training after.</p>
-                <p>Use 'WASD' to pan the camera around.</p>
-                <p>Use the button bank in the top right to toggle rendering of the leading agents brain/neural network, their vision lines/ray casts, switch between the leading agent and training agent or fast-forward generations (only about twice as fast as normal currently)</p>
+                <p>Clicking 'Run Top Agents Ever After Batch' will mean that after the current run ends, it runs the 10 top agents ever from this population on the current map.</p>
+                <p>Use the button bank in the top right to toggle rendering of the leading agents brain/neural network, their vision lines/ray casts, switch between different agents or fast-forward generations.</p>
                 <p>You can also save the current set of agents genomes locally so you can continue training later.  This saves the current settings alongside the agents Genomes so they continue with the same setup.</p>
-                <p>The skip x generation buttons will disable the rendering and increase the physics update rate by 4x.  If you are already running at the limit of what your computer can handle, IE. your fps is below 30-40 at normal speed, this is not going to actually speed up much.  Rendering the scene only adds about 5-10% to the processing time per frame.</p>
-                <p>This simulation can be temperamental, it is prone to running out of memory, and still sometimes errors relating to tensor disposal.  Please save genomes regularly so you can continue in those cases.</p>
-                <p>I have not tested all settings in all configurations, and I have been very generous with settings ranges, so its very easy to break things!</p>
+                <p>The simulation tries to maintain the frame-rate around 40 fps, if its significantly lower or higher than that on average, it will decrease or increase the simulation speed.</p>
+                <p>The skip x generation buttons will disable the rendering and allow a slightly lower fps.  However, rendering only adds about 5-10% to the processing time per frame, so it might only by a little faster.</p>
+                <p>Please save genomes regularly so you can recover from bugs and crashes.  Clearing your browsers data seems to break my backup system, requiring the database to be manually deleted from indexedDB.  I am looking for a way around this.</p>
+                <p>I have not tested all settings in all configurations, its very easy to break things!</p>
                 <p>You can also update any settings mid-run using the update button.  This works well for things like swim strength or world properties, but will break for most agent properties.  I have not tested this extensively.</p>
                 <p>If anything breaks, such as the population size, a settings update, a failed mutation etc, the first thing to try is to 'Stop' or reset, and then 'Recover Auto Save' which sorts it most of the time.  I recommend saving regularly in case this does not work.</p>
-                <p>Generally speaking, the simulation should be accurate if the FPS is above about 15.  Any lower than that, the physics engine starts to rely on guesses for locations rather than hard calculations.  If another windows takes priority, it will try and run some parts of the sim n the background, but at reduced accuracy.</p>
+                <p>Generally speaking, the simulation should be accurate if the FPS is above about 15.  Any lower than that, the physics engine starts to rely on guesses for locations rather than hard calculations.  If another windows takes priority, it will try and run some parts of the sim in the background, but at reduced accuracy.</p>
 
                 <h5>Settings To Play With</h5>
                 <p>Aside from performance settings and numbers of agents, there are many settings that effect training and starting conditions.  Some of the more interesting are:</p>
@@ -89,10 +88,11 @@
 
                 <h5>So whats going on?</h5>
                 <p>If you start the simulation with default settings, you will see about 10-20 agents on the screen, representing the top scorer from each group, a random agent per group, the agent that has made it furthest, and the trailing agent.  Which agents are on screen can be configured.</p>
-                <p>Default settings will produce 100-300 agents in the population, split into batches of species groups, denoted by colour.  25 agents from the run group are evaluated at a time, with a random selection of species</p>
-                <p>There are a number of settings that will effect performance.  The pre-sets should handle these, but you may want to adjust a few.  The main ones will be the 'Number Of Agents' which is the number of agents to run at a time.  This is multiplied by 'Groups Per Generation' to get the total number of agents in the population.  Also the 'Agents Per Batch of Joint Updates', which is how many agents are updated per frame.  Ideally, each agent should get a minimum of 2 updates per second, as more updates gives more control.  Having this number about 1/10th the number of agents is about right.</p>
+                <p>Default settings will produce 500 agents in the population, split into batches of species groups, denoted by colour.  10-50 agents from the run group are evaluated at a time, with a random selection of species</p>
+                <p>There are a number of settings that will effect performance.  The pre-sets should handle these, but you may want to adjust a few.  The main ones will be the 'Number Of Agents' which is the number of agents to run at a time.  This is multiplied by 'Groups Per Generation' to get the total number of agents in the population.  Also the 'Agents Per Batch of Joint Updates', which is how many agents are updated per frame.  Ideally, each agent should get a minimum of 2 updates per second, as more updates gives more control.  This is measured and displayed in the bottom right of the sim.  Having this number about 1/10th the number of agents is about right.</p>
                 <p>On my PC, using a Ryzen 7 3700X CPU about 3.5Ghz per core, I can target about 100 agents at a time, with 10 Agents Per Batch of Joint Updates.  The Number of Inter-gen Batches will not effect performance, but will increase training time, as only 1 batch can be evaluated at a time</p>
                 <p>Since i'm making use of JS, the bottleneck for most systems is going to be the speed of a single CPU core.  Some configurations may reach a browser memory limit before a CPU limit, if you have a high number of inter-gen batches.  Browsers I have tested seem ok up to about 1000 agents total</p>
+                <p>Since it's single threaded, you can run many instances of my sim at once without much performance hit!</p>
                 <p>The GPU is also utilized for any Neural Network functions, the most intense of which happen between rounds, so it doesn't really matter how long they take, but during the simulation, the actual decision making also utilities the GPU using WebGL.  I have not found a configuration where this is the bottleneck, but its possible</p>
                 <p>Each round, the agents have 2000 ticks, about 34 seconds at 60 fps with default physics speed of 60, to move as far North East as possible.</p>
                 <p>The agents are all given a randomly initialized neural network, with a random shape for a brain, the leaders brain can be rendered.  They are given a random body plan.  Both the brain and the body plan will evolve over time based on a number of crossover and mutation functions</p>
@@ -142,6 +142,7 @@
                 <p>I would love to make use of parallelization to spread some load across CPU cores, but JS makes this difficult.  Initial inquiries suggest its doable, but sharing memory states across CPU cores will be a challenge.  As a first step, creating a custom Electron implementation could help increase the available memory and give more control over resource use, but would still be very tricky to parallelize across CPU cores.  I think the easiest way would be to just have multiple instances of the program running at once, and between generations, the agent pool is transfered between the 2 and split back up.</p>
                 <p>Currently, my crossover methods both treat each neuron independently, it would be good to also allow groups of neurons to be transfered together so learned features are maintained.  I have implemented a basic version of this with my layer swapping function.</p>
                 <p>Small one, but now that populations have been training for thousands of generations, I would like to add a button that appears after the round length reaches maximum that lets you toggle on and off the first x generations of the graph.</p>
+                <p>It might be interesting to have toggle dynamic group sizes like NEAT.</p>
             </div>
         }
         else if (activeTab.Title == "Favourites")
@@ -595,6 +596,13 @@
             noInputs += 4;
         }
 
+        int outputBiasModifier = 0;
+        if (stageProperties.outputsBias == true)
+        {
+            outputBiasModifier = 2;
+            Console.WriteLine(outputBiasModifier);
+        }
+
         // Shuffle the list
         runGroups = runGroups.OrderBy(x => Guid.NewGuid()).ToList();
 
@@ -624,7 +632,7 @@
                 genome.LayerGenes.Add(InitializeLayer(0, 12));
                 genome.LayerGenes.Add(InitializeLayer(1, 7));
 
-                genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbsModified * stageProperties.startingLimbChainLength));
+                genome.OutputLayerGenes.Add(InitializeOutputLayer((numLimbsModified * stageProperties.startingLimbChainLength) + outputBiasModifier));
                 genome.MainBody = InitializeBodyPlanSimple(numLimbs);
                 // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
                 var randomName = new Random();
@@ -680,7 +688,7 @@
                     genome.LayerGenes.Add(InitializeLayer(j, randomSize));
                 }
 
-                genome.OutputLayerGenes.Add(InitializeOutputLayer(numLimbsModified * stageProperties.startingLimbChainLength));
+                genome.OutputLayerGenes.Add(InitializeOutputLayer((numLimbsModified * stageProperties.startingLimbChainLength) + outputBiasModifier));
                 genome.MainBody = InitializeBodyPlan(numLimbsModified);
                 // initialize genome.Metadata.AgentName as random string in the format cvccvc (consonant vowel consonant consonant vowel consonant)
                 var randomName = new Random();
@@ -729,7 +737,7 @@
     {
         return new OutputLayerGene
             {
-                NumberOfNeurons = numLimbs, // 3 outputs
+                NumberOfNeurons = numLimbs,
                 ActivationType = stageProperties.outputActivationFunction,
                 Outputs = Enumerable.Range(1, numLimbs).ToList() // List of outputs from 1 to 3
             };
@@ -1414,7 +1422,7 @@
         public int startingEnergyBase { get; set; } = 10;
         public int startingEnergyMassPower { get; set; } = 2;
         public int scoreHistoryWeight { get; set; } = 100;
-        public int scoreVarianceWeight { get; set; } = 50000;
+        public int scoreVarianceWeight { get; set; } = 25000;
         public int ageWeight { get; set; } = 1;
         public int environmentalAdaptationWeight { get; set; } = 10000;
         public int brainSizeWeight { get; set; } = 40;
@@ -1489,14 +1497,14 @@
         public int map { get; set; } = 1;
         public bool randomMap { get; set; } = true;
         public int mapChangeProbability { get; set; } = 40;
-        public int SimulationLength { get; set; } = 3000;
+        public int SimulationLength { get; set; } = 4000;
         // Advanced World Properties
         public int Width { get; set; } = 1600;
         public int Height { get; set; } = 800;
         public int GroundY { get; set; } = 700;
         public int Gravity { get; set; } = 1; // not implemented
         public double Friction { get; set; } = 0.4; // not implemented
-        public int simulationLengthIncrease { get; set; } = 50;
+        public int simulationLengthIncrease { get; set; } = 100;
         public int maxSimulationLength { get; set; } = 50000;
         public int velocityIteration { get; set; } = 4;
         public int positionIteration { get; set; } = 2;
@@ -2061,13 +2069,13 @@
         stageProperties.map = 1;
         stageProperties.randomMap = true;
         stageProperties.mapChangeProbability = 40;
-        stageProperties.SimulationLength = 3000;
+        stageProperties.SimulationLength = 4000;
         stageProperties.Width = 1600;
         stageProperties.Height = 800;
         stageProperties.GroundY = 700;
         stageProperties.Gravity = 1;
         stageProperties.Friction = 0.4;
-        stageProperties.simulationLengthIncrease = 50;
+        stageProperties.simulationLengthIncrease = 100;
         stageProperties.maxSimulationLength = 50000;
         stageProperties.velocityIteration = 4;
         stageProperties.positionIteration = 2;
@@ -2111,7 +2119,7 @@
         stageProperties.offspringLimbMutationRate = 20;
         stageProperties.agentsRequireStablising = false;
         stageProperties.randomAgentStartAngle = false;
-        stageProperties.simulationLengthIncrease = 75;
+        stageProperties.simulationLengthIncrease = 200;
         stageProperties.maxSimulationLength = 20000;
     }
 
@@ -2151,7 +2159,7 @@
         stageProperties.randomAgentStartAngle = false;
         stageProperties.chanceToIncludeTopPerformerInMutation = 1;
         stageProperties.hiddenActivationFunction = "relu";
-        stageProperties.simulationLengthIncrease = 100;
+        stageProperties.simulationLengthIncrease = 200;
         stageProperties.maxSimulationLength = 15000;
     }
 
