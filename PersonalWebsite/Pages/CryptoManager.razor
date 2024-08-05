@@ -24,27 +24,37 @@
 
     <div class="settings">
         <label for="tickerCount">Number of Top Tickers to Display:</label>
-        <input id="tickerCount" type="number" @bind="numberOfTickers" min="1" max="100" />
-        <button @onclick="UpdateNumberOfTickers">Update</button>
+        <input id="tickerCount" type="number" @bind="settings.NumberOfTickers" min="1" max="100" />
+
+        <label for="quoteUnit">Quote Unit:</label>
+        <select id="quoteUnit" @bind="settings.QuoteUnit">
+            <option value="USDT">USDT</option>
+            <option value="BTC">BTC</option>
+            <option value="ETH">ETH</option>
+        </select>
+
+        <button @onclick="UpdateSettings">Update</button>
     </div>
+
 </div>
 
 @code {
     private List<Crypto> cryptos = new List<Crypto>();
     private List<Crypto> selectedCryptos = new List<Crypto>();
-    private int numberOfTickers = 10;
+    private Settings settings = new Settings();
 
     private JsonSerializerOptions options = new JsonSerializerOptions
-        {
-            Converters = { new DecimalConverter() }
-        };
+    {
+        Converters = { new DecimalConverter() }
+    };
 
     private DotNetObjectReference<CryptoManager> objRef;
 
     protected override async Task OnInitializedAsync()
     {
         objRef = DotNetObjectReference.Create(this);
-        await JSRuntime.InvokeVoidAsync("fetchCryptoList", objRef);
+        await JSRuntime.InvokeVoidAsync("initializeInterop", objRef);
+        await JSRuntime.InvokeVoidAsync("fetchCryptoList", objRef, settings);
     }
 
     [JSInvokable]
@@ -65,7 +75,7 @@
         else
         {
             // Check if we need to replace a lower volume ticker
-            if (cryptos.Count >= numberOfTickers)
+            if (cryptos.Count >= settings.NumberOfTickers)
             {
                 var minVolumeCrypto = cryptos.OrderBy(c => c.VolumeInBTC).First();
                 if (crypto.VolumeInBTC > minVolumeCrypto.VolumeInBTC)
@@ -84,24 +94,24 @@
         StateHasChanged();
     }
 
+    private async Task UpdateSettings()
+    {
+        if (settings.QuoteUnit == cryptos[0].Symbol.Substring(cryptos[0].Symbol.Length - cryptos[0].Name.Length))
+        {
+            cryptos.Clear();
+        }
+
+        await JSRuntime.InvokeVoidAsync("fetchCryptoList", objRef, settings);
+    }
+
     [JSInvokable]
     public static Task ResetObjectReference()
     {
         var instance = new CryptoManager();
         instance.objRef?.Dispose();
         instance.objRef = DotNetObjectReference.Create(instance);
+
         return Task.CompletedTask;
-    }
-
-    private async Task UpdateNumberOfTickers()
-    {
-        if (numberOfTickers < cryptos.Count)
-        {
-            cryptos = cryptos.Take(numberOfTickers).ToList();
-            StateHasChanged();
-        }
-
-        await JSRuntime.InvokeVoidAsync("setNumberOfTickers", numberOfTickers, objRef);
     }
 
     private void LoadCryptoDetails(Crypto crypto)

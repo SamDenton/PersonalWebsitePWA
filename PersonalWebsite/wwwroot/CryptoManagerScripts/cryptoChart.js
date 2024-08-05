@@ -3,7 +3,7 @@ let isProcessing = false;
 const rateLimit = 1200;
 const rateLimitInterval = 60000; // 60 seconds
 const refreshInterval = 100; // 0.1 seconds
-let numberOfTickers = 10;
+let settings = { numberOfTickers: 11, quoteUnit: 'USDT' };
 let intervalId;
 let objRef;
 
@@ -68,13 +68,9 @@ window.renderDetailChart = function (cryptoId, priceHistory) {
     });
 }
 
-window.setNumberOfTickers = function (numTickers, ObjRef) {
-    objRef = ObjRef;
-    numberOfTickers = numTickers;
-    fetchCryptoList(objRef);
-}
+window.fetchCryptoList = async function (dotNetHelper, currentSettings) {
+    settings = currentSettings;
 
-window.fetchCryptoList = async function (dotNetHelper) {
     const topTickers = await fetchTopVolumeTickers();
     setupRequestQueue(topTickers);
     startProcessingQueue(dotNetHelper);
@@ -82,17 +78,20 @@ window.fetchCryptoList = async function (dotNetHelper) {
 
 window.initializeInterop = function (dotNetHelper) {
     objRef = dotNetHelper;
+
     window.addEventListener('focus', () => {
-        dotNetHelper.invokeMethodAsync('ResetObjectReference');
+        DotNet.invokeMethodAsync('PersonalWebsite', 'ResetObjectReference');
+        fetchCryptoList(objRef, settings);
     });
 }
 
 async function fetchTopVolumeTickers() {
     const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr`);
     const data = await response.json();
-    const filteredData = data.filter(ticker => ticker.symbol.endsWith('BTC'));
+    const filteredData = data.filter(ticker => ticker.symbol.endsWith(settings.quoteUnit));
     const sortedData = filteredData.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
-    return sortedData.slice(0, numberOfTickers).map(ticker => ticker.symbol);
+
+    return sortedData.slice(0, settings.numberOfTickers).map(ticker => ticker.symbol);
 }
 
 function setupRequestQueue(symbols) {
@@ -127,30 +126,35 @@ async function processQueue(dotNetHelper) {
     const startTime = Date.now();
 
     while (requestQueue.length > 0 && weightUsed < rateLimit) {
-        const request = requestQueue.shift();
-        const response = await fetch(request.url);
-        const marketData = await response.json();
-        const priceHistory = await fetchCryptoPriceHistory(request.symbol);
+        if (settings.quoteUnit && settings.quoteUnit.length > 0) {
+            const request = requestQueue.shift();
+            const response = await fetch(request.url);
+            const marketData = await response.json();
+            const priceHistory = await fetchCryptoPriceHistory(request.symbol);
 
-        const cryptoData = {
-            Id: request.symbol,
-            Name: request.symbol.slice(0, -3), // Extract name from symbol
-            CurrentPrice: marketData.lastPrice,
-            Symbol: request.symbol,
-            PriceHistory: priceHistory,
-            VolumeInBaseCurrency: marketData.volume,
-            VolumeInBTC: marketData.quoteVolume,
-            High24h: marketData.highPrice,
-            Low24h: marketData.lowPrice,
-            Change24h: marketData.priceChangePercent,
-            LastUpdate: new Date().toISOString() // Current time as ISO string
-        };
+            const cryptoData = {
+                Id: request.symbol,
+                Name: request.symbol.slice(0, -settings.quoteUnit.length), // Extract name from symbol
+                CurrentPrice: marketData.lastPrice,
+                Symbol: request.symbol,
+                PriceHistory: priceHistory,
+                VolumeInBaseCurrency: marketData.volume,
+                VolumeInBTC: marketData.quoteVolume,
+                High24h: marketData.highPrice,
+                Low24h: marketData.lowPrice,
+                Change24h: marketData.priceChangePercent,
+                LastUpdate: new Date().toISOString() // Current time as ISO string
+            };
 
-        updateCryptoData(dotNetHelper, cryptoData);
+            updateCryptoData(dotNetHelper, cryptoData);
 
-        weightUsed += request.weight;
+            weightUsed += request.weight;
 
-        if (Date.now() - startTime >= rateLimitInterval) {
+            if (Date.now() - startTime >= rateLimitInterval) {
+                break;
+            }
+        } else {
+            console.error("quoteUnit is undefined or empty.");
             break;
         }
     }
