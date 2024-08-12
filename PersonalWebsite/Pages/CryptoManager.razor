@@ -60,6 +60,7 @@
     [JSInvokable]
     public void UpdateCryptoData(Crypto crypto)
     {
+        var currentQuoteUnit = cryptos[0].Symbol.Substring(cryptos[0].Symbol.Length - cryptos[0].Name.Length);
         var existingCrypto = cryptos.FirstOrDefault(c => c.Id == crypto.Id);
         if (existingCrypto != null)
         {
@@ -99,6 +100,7 @@
         if (settings.QuoteUnit == cryptos[0].Symbol.Substring(cryptos[0].Symbol.Length - cryptos[0].Name.Length))
         {
             cryptos.Clear();
+            StateHasChanged();
         }
 
         await JSRuntime.InvokeVoidAsync("fetchCryptoList", objRef, settings);
