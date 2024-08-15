@@ -38,6 +38,12 @@
 }
 
 .settings {
+    display: flex;
+    position: absolute;
+    flex-direction: column;
+    gap: 15px;
+    align-content: end;
+    align-items: end;
     margin: 10px;
     padding: 10px;
     margin-bottom: 10px;
@@ -47,4 +53,8 @@
     position: absolute;
     top: 50px;
     right: 50px;
+}
+
+.settings button {
+    width: 100%;
 }

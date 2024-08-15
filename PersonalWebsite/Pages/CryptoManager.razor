@@ -23,15 +23,19 @@
     </div>
 
     <div class="settings">
-        <label for="tickerCount">Number of Top Tickers to Display:</label>
-        <input id="tickerCount" type="number" @bind="settings.NumberOfTickers" min="1" max="100" />
+        <div class="setting">
+            <label for="tickerCount">Tickers:</label>
+            <input id="tickerCount" type="number" @bind="settings.NumberOfTickers" min="1" max="100" />
+        </div>
 
-        <label for="quoteUnit">Quote Unit:</label>
-        <select id="quoteUnit" @bind="settings.QuoteUnit">
-            <option value="USDT">USDT</option>
-            <option value="BTC">BTC</option>
-            <option value="ETH">ETH</option>
-        </select>
+        <div class="setting">
+            <label for="quoteUnit">Quote Unit:</label>
+            <select id="quoteUnit" @bind="settings.QuoteUnit">
+                <option value="USDT">USDT</option>
+                <option value="BTC">BTC</option>
+                <option value="ETH">ETH</option>
+            </select>
+        </div>
 
         <button @onclick="UpdateSettings">Update</button>
     </div>
@@ -60,14 +64,13 @@
     [JSInvokable]
     public void UpdateCryptoData(Crypto crypto)
     {
-        var currentQuoteUnit = cryptos[0].Symbol.Substring(cryptos[0].Symbol.Length - cryptos[0].Name.Length);
         var existingCrypto = cryptos.FirstOrDefault(c => c.Id == crypto.Id);
         if (existingCrypto != null)
         {
             existingCrypto.CurrentPrice = crypto.CurrentPrice;
             existingCrypto.PriceHistory = crypto.PriceHistory;
             existingCrypto.VolumeInBaseCurrency = crypto.VolumeInBaseCurrency;
-            existingCrypto.VolumeInBTC = crypto.VolumeInBTC;
+            existingCrypto.VolumeInQuoteCurrency = crypto.VolumeInQuoteCurrency;
             existingCrypto.High24h = crypto.High24h;
             existingCrypto.Low24h = crypto.Low24h;
             existingCrypto.Change24h = crypto.Change24h;
@@ -78,32 +81,40 @@
             // Check if we need to replace a lower volume ticker
             if (cryptos.Count >= settings.NumberOfTickers)
             {
-                var minVolumeCrypto = cryptos.OrderBy(c => c.VolumeInBTC).First();
-                if (crypto.VolumeInBTC > minVolumeCrypto.VolumeInBTC)
+                var minVolumeCrypto = cryptos.OrderBy(c => c.VolumeInQuoteCurrency).First();
+                if (crypto.VolumeInQuoteCurrency > minVolumeCrypto.VolumeInQuoteCurrency)
                 {
                     cryptos.Remove(minVolumeCrypto);
-                    cryptos.Add(crypto);
+                    AddCrypto(crypto);
                 }
             }
             else
             {
-                cryptos.Add(crypto);
+                AddCrypto(crypto);
             }
         }
 
-        cryptos = cryptos.OrderByDescending(c => c.VolumeInBTC).ToList();
+        cryptos = cryptos.OrderByDescending(c => c.VolumeInQuoteCurrency).ToList();
         StateHasChanged();
+    }
+
+    public void AddCrypto(Crypto crypto)
+    {
+        if (crypto.Symbol.EndsWith(settings.QuoteUnit)) 
+        {
+            cryptos.Add(crypto);
+        }
     }
 
     private async Task UpdateSettings()
     {
-        if (settings.QuoteUnit == cryptos[0].Symbol.Substring(cryptos[0].Symbol.Length - cryptos[0].Name.Length))
-        {
+        // if (settings.QuoteUnit != cryptos[0].Symbol.Substring(cryptos[0].Symbol.Length - cryptos[0].Name.Length))
+        // {
             cryptos.Clear();
-            StateHasChanged();
-        }
+        // }
 
         await JSRuntime.InvokeVoidAsync("fetchCryptoList", objRef, settings);
+        StateHasChanged();
     }
 
     [JSInvokable]

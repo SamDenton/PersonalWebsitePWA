@@ -18,7 +18,7 @@ namespace PersonalWebsite.Pages.CryptoManagerComponents
         public decimal VolumeInBaseCurrency { get; set; } // Volume in USDT, BTC, etc.
 
         [JsonConverter(typeof(DecimalConverter))]
-        public decimal VolumeInBTC { get; set; } // Volume in BTC
+        public decimal VolumeInQuoteCurrency { get; set; } // Volume in Quote currency
 
         [JsonConverter(typeof(DecimalConverter))]
         public decimal High24h { get; set; } // 24h High

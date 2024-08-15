@@ -90,7 +90,7 @@ async function fetchTopVolumeTickers() {
     const data = await response.json();
     const filteredData = data.filter(ticker => ticker.symbol.endsWith(settings.quoteUnit));
     const sortedData = filteredData.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
-
+    console.log(sortedData[0]);
     return sortedData.slice(0, settings.numberOfTickers).map(ticker => ticker.symbol);
 }
 
@@ -135,13 +135,13 @@ async function processQueue(dotNetHelper) {
             const cryptoData = {
                 Id: request.symbol,
                 Name: request.symbol.slice(0, -settings.quoteUnit.length), // Extract name from symbol
-                CurrentPrice: marketData.lastPrice,
+                CurrentPrice: roundToSignificantFigures(marketData.lastPrice, 4),
                 Symbol: request.symbol,
                 PriceHistory: priceHistory,
-                VolumeInBaseCurrency: marketData.volume,
-                VolumeInBTC: marketData.quoteVolume,
-                High24h: marketData.highPrice,
-                Low24h: marketData.lowPrice,
+                VolumeInBaseCurrency: roundToSignificantFigures(marketData.volume, 4),
+                VolumeInQuoteCurrency: roundToSignificantFigures(marketData.quoteVolume, 4),
+                High24h: roundToSignificantFigures(marketData.highPrice, 4),
+                Low24h: roundToSignificantFigures(marketData.lowPrice, 4),
                 Change24h: marketData.priceChangePercent,
                 LastUpdate: new Date().toISOString() // Current time as ISO string
             };
@@ -160,6 +160,22 @@ async function processQueue(dotNetHelper) {
     }
 
     isProcessing = false;
+}
+
+// Function to round a number to include significant figures only
+function roundToSignificantFigures(num, n = 4) {
+    if (num === 0) {
+        return 0;
+    }
+
+    const d = Math.ceil(Math.log10(num < 0 ? -num : num));
+    const power = n - d;
+
+    const magnitude = Math.pow(10, power);
+    const shifted = Math.round(num * magnitude);
+
+    let numToXFigures = shifted / magnitude;
+    return numToXFigures;
 }
 
 async function fetchCryptoPriceHistory(symbol) {
