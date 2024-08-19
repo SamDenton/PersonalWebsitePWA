@@ -86,6 +86,7 @@ window.initializeInterop = function (dotNetHelper) {
 }
 
 async function fetchTopVolumeTickers() {
+    // This is going to need updating to use WebSockets from my new node.js server
     const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr`);
     const data = await response.json();
     const filteredData = data.filter(ticker => ticker.symbol.endsWith(settings.quoteUnit));
