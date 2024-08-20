@@ -41,46 +41,94 @@
         <div>
             <h4>Total Binding Energy: @totalBindingEnergyFormatted J</h4>
         </div>
+
+        <div>
+            <button @onclick="ShowDescriptionModal">Description</button>
+            <button @onclick="ShowChallengesModal">Creation Process & Challenges</button>
+        </div>
     </div>
 
     <div class="right-panel">
-        <canvas id="particleCanvas"></canvas>
+        <canvas id="particleCanvas" width="600" height="400"></canvas>
     </div>
 </div>
 
-<div class="details">
-    <p>Binding energy is a fundamental concept in physics and chemistry, representing the energy required to disassemble a composite system into its individual components. This energy is a direct measure of the stability of the system. For example, in the context of atomic nuclei, the binding energy is the energy needed to separate a nucleus into its constituent protons and neutrons. The greater the binding energy, the more stable the nucleus is, as it requires more energy to break the nucleus apart.</p>
+<!-- Description Modal -->
+<div class="modal" tabindex="-1" style="display:@(isDescriptionModalVisible ? "block" : "none")" @onclick="HideDescriptionModal">
+    <!-- Prevent click on modal itself from closing -->
+    <div class="modal-dialog" @onclick:stopPropagation="true">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">App Description & Lennard-Jones Potential</h5>
+                <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="HideDescriptionModal">X</button>
+            </div>
+            <div class="modal-body">
+                <div class="details">
+                    <p>In this application, the parameter <strong>r</strong> denotes the distance between two particles, while <strong>u(r)</strong> represents the binding energy between them.</p>
+                    <h3>The Lennard-Jones Potential</h3>
+                    <p>The Lennard-Jones potential is a mathematical model used to describe the interaction between a pair of neutral atoms or molecules. The potential energy function is given by the formula:</p>
+                    <p style="text-align: center;">
+                        <img src="Lennard-jones.png" alt="Lennard-Jones Potential Formula" style="max-width: 100%; height: auto;">
+                    </p>
+                    <p>Where:</p>
+                    <ul>
+                        <li><strong>u(r)</strong> is the potential energy as a function of the distance <strong>r</strong> between two particles.</li>
+                        <li><strong>ε</strong> is the depth of the potential well, representing the strength of the attraction between the particles.</li>
+                        <li><strong>σ</strong> is the finite distance at which the inter-particle potential is zero; it also corresponds to the distance where the attractive and repulsive forces balance each other.</li>
+                    </ul>
 
-    <p>In this application, the parameter <strong>R</strong> denotes the distance between two particles, while <strong>E</strong> represents the binding energy between them. The binding energy is calculated based on the distance between particles using a potential energy formula that typically follows an inverse power law, reflecting the interaction forces (such as gravitational, electrostatic, or nuclear forces) between the particles.</p>
-
-    <p>The calculation process in this application is designed to maintain high precision throughout, with minimal rounding occurring until the final result is computed.  The underlying computations are implemented in C#, utilizing the <strong>double</strong> data type, which provides a precision of approximately 15 significant figures.</p>
-
-    <p>This application serves as a useful tool for visualizing and calculating the binding energies in a system of particles, offering insights into the stability and interactions within atomic or molecular structures.</p>
-
-    <h3>The Lennard-Jones Potential</h3>
-    <p>
-        The Lennard-Jones potential is a mathematical model used to describe the interaction between a pair of neutral atoms or molecules. The potential energy function is given by the formula:
-    </p>
-    <p style="text-align: center;">
-        <img src="Lennard-jones.png" alt="Lennard-Jones Potential Formula" style="max-width: 100%; height: auto;">
-    </p>
-    <p>
-        Where:
-        <ul>
-            <li><strong>μ(r)</strong> is the potential energy as a function of the distance <strong>r</strong> between two particles.</li>
-            <li><strong>ε</strong> is the depth of the potential well, representing the strength of the attraction between the particles.</li>
-            <li><strong>σ</strong> is the finite distance at which the inter-particle potential is zero; it also corresponds to the distance where the attractive and repulsive forces balance each other.</li>
-        </ul>
-    </p>
-
-    <h4>Characteristics of the Lennard-Jones Potential</h4>
-    <p>The Lennard-Jones potential is characterized by two main components:</p>
-    <ul>
-        <li><strong>Repulsive Term (r<sup>-12</sup>):</strong> The <strong>(σ / r)<sup>12</sup></strong> term represents the short-range repulsive force, which dominates when particles are very close to each other. This repulsion is primarily due to the Pauli exclusion principle, where electron clouds overlap and resist further compression.</li>
-        <li><strong>Attractive Term (r<sup>-6</sup>):</strong> The <strong>(σ / r)<sup>6</sup></strong> term represents the long-range attractive force, typically van der Waals forces (dispersion forces), which are responsible for the attraction between particles at longer distances.</li>
-        <li><strong>Balance of Forces:</strong> The potential reaches a minimum at a distance <strong>r = σ × 2<sup>1/6</sup></strong>, which represents the equilibrium distance where the attractive and repulsive forces are balanced. At this point, the system is in its most stable configuration.</li>
-    </ul>
+                    <h4>Characteristics of the Lennard-Jones Potential</h4>
+                    <p>The Lennard-Jones potential is characterized by two main components:</p>
+                    <ul>
+                        <li><strong>Repulsive Term (r<sup>-12</sup>):</strong> The <strong>(σ / r)<sup>12</sup></strong> term represents the short-range repulsive force, which dominates when particles are very close to each other. This repulsion is primarily due to the Pauli exclusion principle, where electron clouds overlap and resist further compression.</li>
+                        <li><strong>Attractive Term (r<sup>-6</sup>):</strong> The <strong>(σ / r)<sup>6</sup></strong> term represents the long-range attractive force, typically van der Waals forces (dispersion forces), which are responsible for the attraction between particles at longer distances.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="HideDescriptionModal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
+
+
+<!-- Challenges Modal -->
+<div class="modal" tabindex="-1" style="display:@(isChallengesModalVisible ? "block" : "none")" @onclick="HideChallengesModal">
+    <div class="modal-dialog" @onclick:stopPropagation="true">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Creation Process & Challenges</h5>
+                <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="HideChallengesModal">X</button>
+            </div>
+            <div class="modal-body">
+                <p>The task was to implement a solution for a scientist to calculate the resultant binding energy in a system of particles.</p>
+                <p>The equation used describes the interaction between a pair of neutral atoms or molecules using the Lennard-Jones Potential Model.</p>
+                <ul>
+                    <li><strong>What did you do?</strong> I built this app within my existing Blazor WASM portfolio, using mostly C# with some JavaScript for the visualizations.</li>
+                    <li><strong>Why did you do it that way?</strong> I chose to use C# and JavaScript because I am very familiar with both, and together they create a seamless interactive user experience. This also allowed me to share my solution more easily. C# is suitable for calculations of this nature, being accurate to more significant figures than required.</li>
+                    <li><strong>Who should be involved in developing the final solution?</strong> Aside from the developer(s), it is important to keep the end user in mind— in this case, the scientist who made the request, as well as anyone else who might use the tool. Constant feedback should be maintained to ensure the tool is suitable for the task, easy to use, efficient, and accurate.</li>
+                    <li><strong>How has what you didn’t know about the problem impacted your solution?</strong> Having only a basic grasp of particle physics, I was unfamiliar with the equation presented, which made it harder to visualize the end solution. For example, I had to research whether the constants provided were actually constant, or if the solution would benefit from making those values user-adjustable.</li>
+                    <li><strong>How might you do it differently in a team or production context?</strong> Instead of trying to work out the requirements myself using Google or ChatGPT, I would ask the relevant party for more information about the requirements before starting the task.</li>
+                    <li><strong>What things might you need to consider if this was the start of a larger project?</strong> When starting a larger project, I find it best to put together a robust plan before getting started. This usually involves working through the known factors in the project from start to end and writing a list of requirements, then assessing how to meet them. This normally involves significant research into the technologies and packages available. Recently, I have found it really useful to work through a problem with ChatGPT and use it to produce a list of tasks from start to end before getting started.</li>
+                </ul>
+                <p>Challenges faced:</p>
+                <ul>
+                    <li>One issue currently is that the visualization is 2D, so it's impossible to properly represent the distances. For an even number of particles, one of the labels may overlap. Implementing a 3D solution could resolve this but may be outside the scope of the task.</li>
+                    <li>I had some confusion working out the precision of different types in C#, as it allows values with hundreds of decimals but is only accurate to 15-17 significant figures. This made perfect sense once I remembered the difference between significant figures and decimals.</li>
+                    <li>Two-way data binding can get a little complex in Blazor. I was hoping to have it be responsive and update all values as they were typed, but I couldn't figure out the required mix of bindings in a reasonable amount of time.</li>
+                    <li>It seems that standard scientific notation uses a capital 'E' for an exponent, but JavaScript appears to default to lowercase 'e'. I couldn't find a way to adjust this without implementing my own exponent-handling function.</li>
+                    <li>Reminding myself how to use Latex notation after at least 7-8 years was good fun!</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="HideChallengesModal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 
 
 @code {
@@ -90,6 +138,8 @@
     private string totalBindingEnergyFormatted;
     private int significantFigures = 5; // Default to 5 significant figures
     private bool firstRender = true;
+    private bool isDescriptionModalVisible = false;
+    private bool isChallengesModalVisible = false;
 
     protected override void OnAfterRender(bool firstRender)
     {
@@ -97,6 +147,7 @@
         {
             UpdateParticlePairs();
             this.firstRender = false;
+            CalculateBindingEnergy();
             StateHasChanged(); // Ensures UI updates after the first render
         }
     }
@@ -188,6 +239,13 @@
     {
         await JSRuntime.InvokeVoidAsync("drawParticles", particlePairs, particleCount);
     }
+
+    // Show and hide methods for the modals
+    private void ShowDescriptionModal() => isDescriptionModalVisible = true;
+    private void HideDescriptionModal() => isDescriptionModalVisible = false;
+
+    private void ShowChallengesModal() => isChallengesModalVisible = true;
+    private void HideChallengesModal() => isChallengesModalVisible = false;
 
     public class ParticlePair
     {

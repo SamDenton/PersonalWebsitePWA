@@ -6,7 +6,7 @@
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const radius = Math.min(centerX, centerY) - 10;
-    const particleRadius = 1;
+    const particleRadius = 12;
     const angleStep = (2 * Math.PI) / particleCount;
     const particlePositions = [];
 
@@ -34,22 +34,11 @@
 
         ctx.fillStyle = "white"; // White labels for distances and binding energies
         ctx.font = "10px Arial";
-        const midX = (particleA.x + particleB.x) / 2;
-        const midY = (particleA.y + particleB.y) / 2;
+        let midX = (particleA.x + particleB.x) / 2;
+        let midY = (particleA.y + particleB.y) / 2;
 
-        // Adjust text position if particle count is even to avoid overlap
-        let offsetX = 0;
-        let offsetY = 0;
-        if (particleCount % 2 === 0) {
-            const dx = particleB.x - particleA.x;
-            const dy = particleB.y - particleA.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            offsetX = (dy / distance) * 10; // Move 10 units perpendicular to the line
-            offsetY = -(dx / distance) * 10; // Adjust to avoid overlap
-        }
-
-        ctx.fillText(`R: ${distanceText} m`, midX + offsetX - 20, midY + offsetY - 20);
-        ctx.fillText(`E: ${energyText} J`, midX + offsetX - 20, midY + offsetY - 5);
+        ctx.fillText(`r: ${distanceText} m`, midX - 20, midY + offsetY - 5);
+        ctx.fillText(`u(r): ${energyText} J`, midX - 20, midY + offsetY + 10);
     });
 
     // Draw particles
@@ -59,7 +48,7 @@
         ctx.fillStyle = "blue";
         ctx.fill();
         ctx.fillStyle = "white"; // White labels
-        ctx.font = "14px Arial";
+        ctx.font = "12px Arial";
         ctx.fillText(`P${index + 1}`, particle.x - particleRadius / 2, particle.y + particleRadius / 2);
     });
 }
