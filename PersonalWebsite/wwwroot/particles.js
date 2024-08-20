@@ -29,11 +29,11 @@
         ctx.stroke();
 
         // Convert distance and binding energy to scientific notation (E notation)
-        const distanceText = pair.distance.toExponential(2);
-        const energyText = pair.bindingEnergy.toExponential(2);
+        const distanceText = pair.distance.toExponential(2).replace('e', 'E');
+        const energyText = pair.bindingEnergy.toExponential(2).replace('e', 'E');
 
         ctx.fillStyle = "white"; // White labels for distances and binding energies
-        ctx.font = "10px Arial";
+        ctx.font = "12px Arial";
         let midX = (particleA.x + particleB.x) / 2;
         let midY = (particleA.y + particleB.y) / 2;
 

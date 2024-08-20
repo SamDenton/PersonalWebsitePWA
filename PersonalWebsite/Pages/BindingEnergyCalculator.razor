@@ -109,16 +109,17 @@
                     <li><strong>Why did you do it that way?</strong> I chose to use C# and JavaScript because I am very familiar with both, and together they create a seamless interactive user experience. This also allowed me to share my solution more easily. C# is suitable for calculations of this nature, being accurate to more significant figures than required.</li>
                     <li><strong>Who should be involved in developing the final solution?</strong> Aside from the developer(s), it is important to keep the end user in mind— in this case, the scientist who made the request, as well as anyone else who might use the tool. Constant feedback should be maintained to ensure the tool is suitable for the task, easy to use, efficient, and accurate.</li>
                     <li><strong>How has what you didn’t know about the problem impacted your solution?</strong> Having only a basic grasp of particle physics, I was unfamiliar with the equation presented, which made it harder to visualize the end solution. For example, I had to research whether the constants provided were actually constant, or if the solution would benefit from making those values user-adjustable.</li>
-                    <li><strong>How might you do it differently in a team or production context?</strong> Instead of trying to work out the requirements myself using Google or ChatGPT, I would ask the relevant party for more information about the requirements before starting the task.</li>
+                    <li><strong>How might you do it differently in a team or production context?</strong> Instead of trying to work out the requirements myself using Google or ChatGPT, I would ask the relevant party for more information about the requirements before starting the task.  I think R or C++ might be better suited to this task, especially if the project grew in scope.</li>
                     <li><strong>What things might you need to consider if this was the start of a larger project?</strong> When starting a larger project, I find it best to put together a robust plan before getting started. This usually involves working through the known factors in the project from start to end and writing a list of requirements, then assessing how to meet them. This normally involves significant research into the technologies and packages available. Recently, I have found it really useful to work through a problem with ChatGPT and use it to produce a list of tasks from start to end before getting started.</li>
                 </ul>
-                <p>Challenges faced:</p>
+                <p>Challenges faced / Notes:</p>
                 <ul>
                     <li>One issue currently is that the visualization is 2D, so it's impossible to properly represent the distances. For an even number of particles, one of the labels may overlap. Implementing a 3D solution could resolve this but may be outside the scope of the task.</li>
                     <li>I had some confusion working out the precision of different types in C#, as it allows values with hundreds of decimals but is only accurate to 15-17 significant figures. This made perfect sense once I remembered the difference between significant figures and decimals.</li>
                     <li>Two-way data binding can get a little complex in Blazor. I was hoping to have it be responsive and update all values as they were typed, but I couldn't figure out the required mix of bindings in a reasonable amount of time.</li>
-                    <li>It seems that standard scientific notation uses a capital 'E' for an exponent, but JavaScript appears to default to lowercase 'e'. I couldn't find a way to adjust this without implementing my own exponent-handling function.</li>
-                    <li>Reminding myself how to use Latex notation after at least 7-8 years was good fun!</li>
+                    <li>I am not yet that familiar with scientific notation, so spent a lot of time questioning my UI decisions.  It seems that the standard is to use a capital 'E' for an exponent, but JavaScript appears to default to lowercase 'e'. I found a way to use .replace('e', 'E') which works well.</li>
+                    <li>Reminding myself how to use LaTeX notation after at least 5-6 years was good fun!</li>
+                    <li>If I continue this project, I might add some functionality for finding stable configurations, making use of machine learning.  I suspect a regression function exists for this problem, but it would be a fun challenge to train a neural network for this.</li>
                 </ul>
             </div>
             <div class="modal-footer">
@@ -136,7 +137,7 @@
     private List<ParticlePair> particlePairs = new List<ParticlePair>();
     private double totalBindingEnergy;
     private string totalBindingEnergyFormatted;
-    private int significantFigures = 5; // Default to 5 significant figures
+    private int significantFigures = 3; // Default to 5 significant figures
     private bool firstRender = true;
     private bool isDescriptionModalVisible = false;
     private bool isChallengesModalVisible = false;
@@ -185,7 +186,7 @@
                 }
                 else
                 {
-                    particlePairs.Add(new ParticlePair { ParticleA = i, ParticleB = j, Coefficient = 1.0, Exponent = 10 });
+                    particlePairs.Add(new ParticlePair { ParticleA = i, ParticleB = j, Coefficient = 3.41, Exponent = 10 });
                 }
             }
         }
@@ -212,19 +213,46 @@
     {
         if (value == 0) return "0";
 
-        var format = "0." + new string('#', sigFigs - 1) + "E+0";
-        string formatted = value.ToString(format);
+        // Determine the number of digits before the decimal point
+        int exponent = (int)Math.Floor(Math.Log10(Math.Abs(value)));
 
-        // Manually remove any leading zeros in the exponent
-        int eIndex = formatted.IndexOf('E');
-        if (eIndex != -1)
+        // Normalize the value to be in the range [1, 10)
+        double mantissa = value / Math.Pow(10, exponent);
+
+        // Format the mantissa to the desired number of significant figures
+        string mantissaFormatted = mantissa.ToString("F" + (sigFigs - 1));
+
+        // Create a superscript representation of the exponent
+        string superscriptExponent = ConvertToSuperscript(exponent);
+
+        return $"{mantissaFormatted} × 10{superscriptExponent}";
+    }
+
+    private string ConvertToSuperscript(int exponent)
+    {
+        string superscript = "";
+        string exponentStr = exponent.ToString();
+
+        foreach (char c in exponentStr)
         {
-            string exponent = formatted[(eIndex + 1)..]; // Get the exponent part
-            int exponentValue = int.Parse(exponent); // Parse the exponent as an integer
-            return $"{formatted.Substring(0, eIndex)} E{exponentValue:+#; -#;0}";
+            superscript += c switch
+            {
+                '0' => '⁰',
+                '1' => '¹',
+                '2' => '²',
+                '3' => '³',
+                '4' => '⁴',
+                '5' => '⁵',
+                '6' => '⁶',
+                '7' => '⁷',
+                '8' => '⁸',
+                '9' => '⁹',
+                '-' => '⁻',
+                _ => c
+            };
         }
 
-        return formatted;
+        return superscript;
     }
 
     private double PlaceholderCalculateBindingEnergy(double distance)
