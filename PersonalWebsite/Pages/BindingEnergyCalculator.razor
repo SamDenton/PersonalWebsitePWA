@@ -1,0 +1,202 @@
+﻿@page "/bindingEnergyCalculator"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<h3>Binding Energy Calculator</h3>
+
+<div class="energy-container">
+    <div class="left-panel">
+        <div>
+            <label>Number of Particles: </label>
+            <button @onclick="DecreaseParticleCount">-</button>
+            <span>@particleCount</span>
+            <button @onclick="IncreaseParticleCount">+</button>
+        </div>
+
+        <div>
+            @if (particlePairs != null && particlePairs.Count > 0)
+            {
+                <h4>Distances between particles:</h4>
+                @foreach (var pair in particlePairs)
+                {
+                    <div>
+                        <label>Distance(m) between Particle @pair.ParticleA and @pair.ParticleB: </label>
+                        <input type="number" @bind="pair.Coefficient" step="0.01" />
+                        <span>X 10 ^ -</span>
+                        <input type="number" @bind="pair.Exponent" step="1" min="0" max="25" />
+                    </div>
+                }
+            }
+        </div>
+
+        <div>
+            <label>Significant Figures: </label>
+            <input type="number" @bind="significantFigures" step="1" min="1" max="10" />
+        </div>
+
+        <div>
+            <button @onclick="CalculateBindingEnergy">Calculate Binding Energy</button>
+        </div>
+
+        <div>
+            <h4>Total Binding Energy: @totalBindingEnergyFormatted J</h4>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <canvas id="particleCanvas"></canvas>
+    </div>
+</div>
+
+<div class="details">
+    <p>Binding energy is a fundamental concept in physics and chemistry, representing the energy required to disassemble a composite system into its individual components. This energy is a direct measure of the stability of the system. For example, in the context of atomic nuclei, the binding energy is the energy needed to separate a nucleus into its constituent protons and neutrons. The greater the binding energy, the more stable the nucleus is, as it requires more energy to break the nucleus apart.</p>
+
+    <p>In this application, the parameter <strong>R</strong> denotes the distance between two particles, while <strong>E</strong> represents the binding energy between them. The binding energy is calculated based on the distance between particles using a potential energy formula that typically follows an inverse power law, reflecting the interaction forces (such as gravitational, electrostatic, or nuclear forces) between the particles.</p>
+
+    <p>The calculation process in this application is designed to maintain high precision throughout, with minimal rounding occurring until the final result is computed.  The underlying computations are implemented in C#, utilizing the <strong>double</strong> data type, which provides a precision of approximately 15 significant figures.</p>
+
+    <p>This application serves as a useful tool for visualizing and calculating the binding energies in a system of particles, offering insights into the stability and interactions within atomic or molecular structures.</p>
+
+    <h3>The Lennard-Jones Potential</h3>
+    <p>
+        The Lennard-Jones potential is a mathematical model used to describe the interaction between a pair of neutral atoms or molecules. The potential energy function is given by the formula:
+    </p>
+    <p style="text-align: center;">
+        <img src="Lennard-jones.png" alt="Lennard-Jones Potential Formula" style="max-width: 100%; height: auto;">
+    </p>
+    <p>
+        Where:
+        <ul>
+            <li><strong>μ(r)</strong> is the potential energy as a function of the distance <strong>r</strong> between two particles.</li>
+            <li><strong>ε</strong> is the depth of the potential well, representing the strength of the attraction between the particles.</li>
+            <li><strong>σ</strong> is the finite distance at which the inter-particle potential is zero; it also corresponds to the distance where the attractive and repulsive forces balance each other.</li>
+        </ul>
+    </p>
+
+    <h4>Characteristics of the Lennard-Jones Potential</h4>
+    <p>The Lennard-Jones potential is characterized by two main components:</p>
+    <ul>
+        <li><strong>Repulsive Term (r<sup>-12</sup>):</strong> The <strong>(σ / r)<sup>12</sup></strong> term represents the short-range repulsive force, which dominates when particles are very close to each other. This repulsion is primarily due to the Pauli exclusion principle, where electron clouds overlap and resist further compression.</li>
+        <li><strong>Attractive Term (r<sup>-6</sup>):</strong> The <strong>(σ / r)<sup>6</sup></strong> term represents the long-range attractive force, typically van der Waals forces (dispersion forces), which are responsible for the attraction between particles at longer distances.</li>
+        <li><strong>Balance of Forces:</strong> The potential reaches a minimum at a distance <strong>r = σ × 2<sup>1/6</sup></strong>, which represents the equilibrium distance where the attractive and repulsive forces are balanced. At this point, the system is in its most stable configuration.</li>
+    </ul>
+</div>
+
+
+@code {
+    private int particleCount = 2; // Default to 2 particles
+    private List<ParticlePair> particlePairs = new List<ParticlePair>();
+    private double totalBindingEnergy;
+    private string totalBindingEnergyFormatted;
+    private int significantFigures = 5; // Default to 5 significant figures
+    private bool firstRender = true;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            UpdateParticlePairs();
+            this.firstRender = false;
+            StateHasChanged(); // Ensures UI updates after the first render
+        }
+    }
+
+    private void IncreaseParticleCount()
+    {
+        particleCount++;
+        UpdateParticlePairs();
+    }
+
+    private void DecreaseParticleCount()
+    {
+        if (particleCount > 2) // Ensure we don't go below 2 particles
+        {
+            particleCount--;
+            UpdateParticlePairs();
+        }
+    }
+
+    private void UpdateParticlePairs()
+    {
+        var existingPairs = new List<ParticlePair>(particlePairs);
+
+        particlePairs.Clear();
+
+        for (int i = 1; i <= particleCount; i++)
+        {
+            for (int j = i + 1; j <= particleCount; j++)
+            {
+                var existingPair = existingPairs.FirstOrDefault(p => p.ParticleA == i && p.ParticleB == j);
+
+                if (existingPair != null)
+                {
+                    particlePairs.Add(existingPair);
+                }
+                else
+                {
+                    particlePairs.Add(new ParticlePair { ParticleA = i, ParticleB = j, Coefficient = 1.0, Exponent = 10 });
+                }
+            }
+        }
+
+        DrawParticles();
+    }
+
+    private void CalculateBindingEnergy()
+    {
+        totalBindingEnergy = 0;
+        foreach (var pair in particlePairs)
+        {
+            pair.BindingEnergy = PlaceholderCalculateBindingEnergy(pair.Distance);
+            totalBindingEnergy += pair.BindingEnergy;
+        }
+
+        // Format the total binding energy with the specified significant figures
+        totalBindingEnergyFormatted = FormatScientific(totalBindingEnergy, significantFigures);
+
+        DrawParticles();
+    }
+
+    private string FormatScientific(double value, int sigFigs)
+    {
+        if (value == 0) return "0";
+
+        var format = "0." + new string('#', sigFigs - 1) + "E+0";
+        string formatted = value.ToString(format);
+
+        // Manually remove any leading zeros in the exponent
+        int eIndex = formatted.IndexOf('E');
+        if (eIndex != -1)
+        {
+            string exponent = formatted[(eIndex + 1)..]; // Get the exponent part
+            int exponentValue = int.Parse(exponent); // Parse the exponent as an integer
+            return $"{formatted.Substring(0, eIndex)} E{exponentValue:+#; -#;0}";
+        }
+
+        return formatted;
+    }
+
+    private double PlaceholderCalculateBindingEnergy(double distance)
+    {
+        double var1 = 3.41E-10;
+        double var2 = 1.65E-21;
+        double energy = 4 * var2 * (Math.Pow(var1 / distance, 12) - Math.Pow(var1 / distance, 6));
+        return energy;
+    }
+
+    private async void DrawParticles()
+    {
+        await JSRuntime.InvokeVoidAsync("drawParticles", particlePairs, particleCount);
+    }
+
+    public class ParticlePair
+    {
+        public int ParticleA { get; set; }
+        public int ParticleB { get; set; }
+        public double Coefficient { get; set; }
+        public int Exponent { get; set; }
+        public double Distance => Coefficient * Math.Pow(10, -Exponent);
+        public double BindingEnergy { get; set; } // Store the binding energy for this pair
+    }
+}
+
