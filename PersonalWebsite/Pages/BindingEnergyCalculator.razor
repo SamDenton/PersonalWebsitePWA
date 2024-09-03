@@ -68,7 +68,7 @@
                     <h3>The Lennard-Jones Potential</h3>
                     <p>The Lennard-Jones potential is a mathematical model used to describe the interaction between a pair of neutral atoms or molecules. The potential energy function is given by the formula:</p>
                     <p style="text-align: center;">
-                        <img src="Lennard-jones.png" alt="Lennard-Jones Potential Formula" style="max-width: 100%; height: auto;">
+                        <img src="Lennard-Jones.png" alt="Lennard-Jones Potential Formula" style="max-width: 100%; height: auto;">
                     </p>
                     <p>Where:</p>
                     <ul>
@@ -199,7 +199,7 @@
         totalBindingEnergy = 0;
         foreach (var pair in particlePairs)
         {
-            pair.BindingEnergy = PlaceholderCalculateBindingEnergy(pair.Distance);
+            pair.BindingEnergy = CalculateBindingEnergyPerPair(pair.Distance);
             totalBindingEnergy += pair.BindingEnergy;
         }
 
@@ -255,11 +255,13 @@
         return superscript;
     }
 
-    private double PlaceholderCalculateBindingEnergy(double distance)
+    private double CalculateBindingEnergyPerPair(double distance)
     {
         double var1 = 3.41E-10;
         double var2 = 1.65E-21;
+
         double energy = 4 * var2 * (Math.Pow(var1 / distance, 12) - Math.Pow(var1 / distance, 6));
+
         return energy;
     }
 
