@@ -2,9 +2,6 @@
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 
-
-<h3>Minimum Overnight Temperature</h3>
-
 <div class="calculator-container">
     <div class="input-section">
         <div class="input-group">
@@ -52,7 +49,6 @@
     </div>
 
     <div class="table-section">
-        <h4>Lookup Table for K</h4>
         <table class="lookup-table">
             <thead>
                 <tr>
@@ -81,23 +77,25 @@
                 }
             </tbody>
         </table>
+
+        <div class="result-section">
+            <p>
+                Minimum Overnight Temperature (Tmin):
+                <strong>@(IsUnknownValue ? $"{ConvertedTmin} {ResultUnit}*" : $"{ConvertedTmin} {ResultUnit}")</strong>
+            </p>
+            @if (IsUnknownValue)
+            {
+                <p class="warning-text">* The answer may be inaccurate as the variables picked are outside of the known ranges.</p>
+            }
+        </div>
     </div> 
 </div>
 
-<div class="result-section">
-    <p>
-        Calculated Minimum Overnight Temperature (Tmin):
-        <strong>@(IsUnknownValue ? $"{ConvertedTmin} {ResultUnit}*" : $"{ConvertedTmin} {ResultUnit}")</strong>
-    </p>
-    @if (IsUnknownValue)
-    {
-        <p class="warning-text">* The answer may be inaccurate as the variables picked are outside of the known ranges.</p>
-    }
-</div>
 
 <div class="modelButtons">
     <button @onclick="ShowDescriptionModal">Description</button>
     <button @onclick="ShowInterviewModal">Interview Questions</button>
+    <button @onclick="ShowChallengesModal">Challenges</button>
 </div>
 
 <!-- Description Modal -->
@@ -106,7 +104,7 @@
     <div class="modal-dialog" @onclick:stopPropagation="true">
         <div class="modal-content bg-dark text-light">
             <div class="modal-header">
-                <h5 class="modal-title">Application Description</h5>
+                <h5 class="modal-title">Overnight Minimum Temperature Calculator</h5>
                 <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="HideDescriptionModal">X</button>
             </div>
             <div class="modal-body">
@@ -123,20 +121,6 @@
                         <li><strong>T<sub>d12</sub></strong> is the dew point temperature at 12:00</li>
                         <li><strong>K</strong> is a variable derived from a lookup table</li>
                     </ul>
-
-                    <h4>Challenges Developing this App</h4>
-                    <p>There were a few points of note during development.  During a normal development cycle, I would ask for clarity on these points.</p>
-                    <ul>
-                        <li><strong>Scope:</strong> The headings for cloud cover have overlapping ranges, so some integer values are ambiguous.  For example, a cloud cover value of 4 Oktas could fall into the second or third range.
-                            I approached this by assuming an ambiguous value should fall into the previous range.  The wind speed had the opposite issue with values unaccounted for, such as 12.5.  I chose to include unaccounted values in the following range and have changed the lookup table headers to match.</li>
-                        <li><strong>Accuracy:</strong> It looks like different numbers of significant figures have been used, the example has just 1 significant figure, while the measured values in the table are to 4 significant figures.
-                            My understanding is that the significant figures in the constants are irrelevant, and the measured values should be used to determine this.  I decided on 3 sig figs as a default, but allowed a user to select this.</li>
-                        <li><strong>Responsiveness:</strong> I wanted to have a system where the result is responsive to changes in the user input.  This has always been a challenge with Blazor as 'bind' and 'onchange' conflict, preventing a method call on a value change.
-                            The solution I've started using recently is to add our method call to the variables getter/setter, allowing the value to have 2 way data binding, but still trigger a method call.</li>
-                        <li><strong>Notation:</strong> Having not working on scientific projects before, my knowledge of scientific notation is based just on reading published papers and watching documentaries, and as such, I am unsure about standard syntax.
-                            Because of this, I had to research what would be appropriate </li>
-                        <li><strong>Range:</strong> I had not used oktas before to denote cloud cover, so I researched what an okta represents and found that it is a measure of cloud cover on a scale from 0 to 8, where each okta represents one-eighth of the sky covered by clouds.</li>
-                    </ul>
                 </div>
             </div>
             <div class="modal-footer">
@@ -152,7 +136,7 @@
     <div class="modal-dialog" @onclick:stopPropagation="true">
         <div class="modal-content bg-dark text-light">
             <div class="modal-header">
-                <h5 class="modal-title">Application Description</h5>
+                <h5 class="modal-title">Overnight Minimum Temperature Calculator</h5>
                 <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="HideInterviewModal">X</button>
             </div>
             <div class="modal-body">
@@ -176,6 +160,47 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @onclick="HideInterviewModal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Description Modal -->
+<div class="modal" tabindex="-1" style="display:@(isChallengesModalVisible ? "block" : "none")" @onclick="HideChallengesModal">
+    <!-- Prevent click on modal itself from closing -->
+    <div class="modal-dialog" @onclick:stopPropagation="true">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Overnight Minimum Temperature Calculator</h5>
+                <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="HideChallengesModal">X</button>
+            </div>
+            <div class="modal-body">
+                <div class="details">
+                    <h4>Challenges Developing this App</h4>
+                    <p>There were a few points of note during development.  During a normal development cycle, I would ask for clarity on these points.</p>
+                    <ul>
+                        <li>
+                            <strong>Scope:</strong> The headings for cloud cover have overlapping ranges, so some integer values are ambiguous.  For example, a cloud cover value of 4 Oktas could fall into the second or third range.
+                            I approached this by assuming an ambiguous value should fall into the previous range.  The wind speed had the opposite issue with values unaccounted for, such as 12.5.  I chose to include unaccounted values in the following range and have changed the lookup table headers to match.
+                        </li>
+                        <li>
+                            <strong>Accuracy:</strong> It looks like different numbers of significant figures have been used, the example has just 1 significant figure, while the measured values in the table are to 4 significant figures.
+                            My understanding is that the significant figures in the constants are irrelevant, and the measured values should be used to determine this.  I decided on 3 sig figs as a default, but allowed a user to select this.
+                        </li>
+                        <li>
+                            <strong>Responsiveness:</strong> I wanted to have a system where the result is responsive to changes in the user input.  This has always been a challenge with Blazor as 'bind' and 'onchange' conflict, preventing a method call on a value change.
+                            The solution I've started using recently is to add our method call to the variables getter/setter, allowing the value to have 2 way data binding, but still trigger a method call.
+                        </li>
+                        <li>
+                            <strong>Notation:</strong> Having not working on scientific projects before, my knowledge of scientific notation is based just on reading published papers and watching documentaries, and as such, I am unsure about standard syntax.
+                            Because of this, I had to research what would be appropriate
+                        </li>
+                        <li><strong>Range:</strong> I had not used oktas before to denote cloud cover, so I researched what an okta represents and found that it is a measure of cloud cover on a scale from 0 to 8, where each okta represents one-eighth of the sky covered by clouds.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="HideChallengesModal">Close</button>
             </div>
         </div>
     </div>
@@ -240,6 +265,7 @@
                                                       
     private bool isDescriptionModalVisible = false;
     private bool isInterviewModalVisible = false;
+    private bool isChallengesModalVisible = false;
 
     // Result of the calculation
     private double Tmin { get; set; } = 0.0;
@@ -275,6 +301,9 @@
 
     private void ShowInterviewModal() => isInterviewModalVisible = true;
     private void HideInterviewModal() => isInterviewModalVisible = false;
+
+    private void ShowChallengesModal() => isChallengesModalVisible = true;
+    private void HideChallengesModal() => isChallengesModalVisible = false;
 
     // Method to determine K value from lookup table
     private double GetKValue(double windSpeed, double cloudCover)
