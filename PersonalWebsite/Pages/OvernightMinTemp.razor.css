@@ -22,7 +22,11 @@
     padding: 5px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    width: 250px;
+    width: 260px;
+}
+
+input[type="range"] {
+    width: 260px;
 }
 
 .calculate-button {
@@ -93,4 +97,8 @@ button {
 
 img {
     background: white;
+}
+
+.warning-text {
+    font-size: 16px;
 }

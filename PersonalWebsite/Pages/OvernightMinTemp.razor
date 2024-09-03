@@ -3,28 +3,32 @@
 @inject IJSRuntime JSRuntime
 
 
-<h3>Calculate Minimum Overnight Temperature</h3>
+<h3>Minimum Overnight Temperature</h3>
 
 <div class="calculator-container">
     <div class="input-section">
         <div class="input-group">
             <label for="tempInput">Temp (°C) at 12:00 (T<sub>12</sub>)</label>
-            <input type="number" @bind="Temperature" @bind:event="oninput" id="tempInput" class="input-field" min="0" step="0.01" />
+            <input type="number" @bind="Temperature" @bind:event="oninput" id="tempInput" class="input-field" min="-50" max="50" step="0.01" />
+            <input type="range" @bind="Temperature" @bind:event="oninput" min="-20" max="50" step="0.01" class="slider" />
         </div>
 
         <div class="input-group">
             <label for="dewPointInput">Dew Point Temp (°C) at 12:00 (T<sub>d12</sub>)</label>
-            <input type="number" @bind="DewPointTemperature" @bind:event="oninput" id="dewPointInput" class="input-field" min="0" step="0.01" />
+            <input type="number" @bind="DewPointTemperature" @bind:event="oninput" id="dewPointInput" class="input-field" min="-50" max="50" step="0.01" />
+            <input type="range" @bind="DewPointTemperature" @bind:event="oninput" min="-20" max="50" step="0.01" class="slider" />
         </div>
 
         <div class="input-group">
             <label for="windSpeedInput">Wind Speed (knots):</label>
-            <input type="number" @bind="WindSpeed" @bind:event="oninput" id="windSpeedInput" class="input-field" min="0" step="0.01" />
+            <input type="number" @bind="WindSpeed" @bind:event="oninput" id="windSpeedInput" class="input-field" min="0" max="100" step="0.01" />
+            <input type="range" @bind="WindSpeed" @bind:event="oninput" min="0" max="80" step="0.01" class="slider" />
         </div>
 
         <div class="input-group">
             <label for="cloudCoverInput">Cloud Cover (oktas):</label>
-            <input type="number" @bind="CloudCover" @bind:event="oninput" id="cloudCoverInput" class="input-field" min="0" step="0.01" />
+            <input type="number" @bind="CloudCover" @bind:event="oninput" id="cloudCoverInput" class="input-field" min="0" max="8" step="0.01" />
+            <input type="range" @bind="CloudCover" @bind:event="oninput" min="0" max="8" step="0.01" class="slider" />
         </div>
 
         <div class="input-group">
@@ -34,6 +38,15 @@
                 {
                     <option value="@i">@i</option>
                 }
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="unitSelect">Result Unit:</label>
+            <select @bind="ResultUnit" id="unitSelect" class="input-field">
+                <option value="C">Celsius (°C)</option>
+                <option value="K">Kelvin (K)</option>
+                <option value="F">Fahrenheit (°F)</option>
             </select>
         </div>
     </div>
@@ -73,12 +86,12 @@
 
 <div class="result-section">
     <p>
-        Minimum Overnight Temperature (Tmin):
-        <strong>@(IsUnknownValue ? $"{RoundedTmin}°C *" : $"{RoundedTmin}°C")</strong>
+        Calculated Minimum Overnight Temperature (Tmin):
+        <strong>@(IsUnknownValue ? $"{ConvertedTmin} {ResultUnit}*" : $"{ConvertedTmin} {ResultUnit}")</strong>
     </p>
     @if (IsUnknownValue)
     {
-        <p class="warning-text"><sub>* The answer may be inaccurate as the variables picked are outside he range of the lookup table.</sub></p>
+        <p class="warning-text">* The answer may be inaccurate as the variables picked are outside of the known ranges.</p>
     }
 </div>
 
@@ -115,13 +128,14 @@
                     <p>There were a few points of note during development.  During a normal development cycle, I would ask for clarity on these points.</p>
                     <ul>
                         <li><strong>Scope:</strong> The headings for cloud cover have overlapping ranges, so some integer values are ambiguous.  For example, a cloud cover value of 4 Oktas could fall into the second or third range.
-                            I approached this by assuming an ambiguous value should fall into the previous range.</li>
+                            I approached this by assuming an ambiguous value should fall into the previous range.  The wind speed had the opposite issue with values unaccounted for, such as 12.5.  I chose to include unaccounted values in the following range and have changed the lookup table headers to match.</li>
                         <li><strong>Accuracy:</strong> It looks like different numbers of significant figures have been used, the example has just 1 significant figure, while the measured values in the table are to 4 significant figures.
                             My understanding is that the significant figures in the constants are irrelevant, and the measured values should be used to determine this.  I decided on 3 sig figs as a default, but allowed a user to select this.</li>
                         <li><strong>Responsiveness:</strong> I wanted to have a system where the result is responsive to changes in the user input.  This has always been a challenge with Blazor as 'bind' and 'onchange' conflict, preventing a method call on a value change.
                             The solution I've started using recently is to add our method call to the variables getter/setter, allowing the value to have 2 way data binding, but still trigger a method call.</li>
                         <li><strong>Notation:</strong> Having not working on scientific projects before, my knowledge of scientific notation is based just on reading published papers and watching documentaries, and as such, I am unsure about standard syntax.
                             Because of this, I had to research what would be appropriate </li>
+                        <li><strong>Range:</strong> I had not used oktas before to denote cloud cover, so I researched what an okta represents and found that it is a measure of cloud cover on a scale from 0 to 8, where each okta represents one-eighth of the sky covered by clouds.</li>
                     </ul>
                 </div>
             </div>
@@ -152,7 +166,7 @@
                         <li><strong>Who should be involved in developing the final solution?</strong></li>
                         <sub>If I were developing this application in a production or scientific environment, I would insure relevant parties have input in each stage of development.  Decisions I made myself should normally be put to the project lead or scientist requesting the solution.  That might include accuracy / sig figs, it might include which variables need what allowed ranges and steps.  Depending on the scope of the project and intended audience, it may also include feedback on visual representations or presentation</sub>
                         <li><strong>How has what you don’t know about the problem impacted your solution?</strong></li>
-                        <sub>Since I don't have context for this problem, its hard to know what ranges the variables might need, or what level of accuracy the result needs.  I am unsure as well about what the standard would be for handling overlapping ranges for the cloud cover.  Because of this, I had to make a few assumptions, while trying to make my choices clear.</sub>
+                        <sub>Since I don't have context for this problem, its hard to know what ranges the variables might need, or what level of accuracy the result needs.  I am unsure as well about what the standard would be for handling overlapping ranges for the cloud cover.  Because of this, I had to make a few assumptions, while trying to make my choices clear.  Instead of implementing selectors for the accuracy and units, I would just find out what format is required.</sub>
                         <li><strong>How might you do it differently in a team or production context?</strong></li>
                         <sub>If this where a production environment, or being developed are part of a team, different tools and languages might be appropriate.  For this specific application, in a production environment, Blazor would not be a suitable pick.  It's quite bloated with features unlikely to be useful for this application.  Something like R, Python, or C++ might be more suitable and efficient.  Developing as a team, I would need to take more case with my commenting, and make efforts to keep my code clean and readable.  I already use github for version control, but this would be more important as part of a team.</sub>
                         <li><strong>What things might you need to consider if this was the start of a larger project?</strong></li>
@@ -229,6 +243,8 @@
 
     // Result of the calculation
     private double Tmin { get; set; } = 0.0;
+    private string ResultUnit { get; set; } = "C";
+
 
     // Flag to indicate if the K value is unknown
     private bool IsUnknownValue { get; set; } = false;
@@ -243,15 +259,15 @@
     }
 
     // Correctly rounded result for display with significant figures
-    private string RoundedTmin => FormatWithSignificantFigures(Tmin, SignificantFigures);
+    private string ConvertedTmin => ConvertTemperature(Tmin, ResultUnit, SignificantFigures);
 
     // Lookup table for K values
     private Dictionary<string, Dictionary<string, double>> KValues = new Dictionary<string, Dictionary<string, double>>
     {
         { "0-12", new Dictionary<string, double> { { "0-2", -2.2 }, { "2.01-4", -1.7 }, { "4.01-6", -0.6 }, { "6.01-8", 0 } } },
-        { "13-25", new Dictionary<string, double> { { "0-2", -1.1 }, { "2.01-4", 0 }, { "4.01-6", 0.6 }, { "6.01-8", 1.1 } } },
-        { "26-38", new Dictionary<string, double> { { "0-2", -0.6 }, { "2.01-4", 0 }, { "4.01-6", 0.6 }, { "6.01-8", 1.1 } } },
-        { "39-51", new Dictionary<string, double> { { "0-2", 1.1 }, { "2.01-4", 1.7 }, { "4.01-6", 2.8 } } }
+        { "12.01-25", new Dictionary<string, double> { { "0-2", -1.1 }, { "2.01-4", 0 }, { "4.01-6", 0.6 }, { "6.01-8", 1.1 } } },
+        { "25.01-38", new Dictionary<string, double> { { "0-2", -0.6 }, { "2.01-4", 0 }, { "4.01-6", 0.6 }, { "6.01-8", 1.1 } } },
+        { "38.01-51", new Dictionary<string, double> { { "0-2", 1.1 }, { "2.01-4", 1.7 }, { "4.01-6", 2.8 } } }
     };
 
     private void ShowDescriptionModal() => isDescriptionModalVisible = true;
@@ -280,7 +296,7 @@
     private void CalculateTmin()
     {
         double K = GetKValue(WindSpeed, CloudCover);
-        Tmin = 0.316 * Temperature + 0.548 * DewPointTemperature - 1.24 + K;
+        Tmin = (0.316 * Temperature) + (0.548 * DewPointTemperature) - 1.24 + K;
     }
 
     // Method to format numbers with the correct significant figures
@@ -291,27 +307,39 @@
 
         // Determine the scale (order of magnitude) of the value
         int scale = (int)Math.Floor(Math.Log10(Math.Abs(value)));
-        double roundedValue = Math.Round(value / Math.Pow(10, scale), significantFigures - 1) * Math.Pow(10, scale);
+        double roundedValue = Math.Round(Math.Round(value / Math.Pow(10, scale), significantFigures - 1) * Math.Pow(10, scale), significantFigures + 1);
 
-        // Use standard notation if the scale is within a reasonable range
-        if (scale >= -3 && scale <= 5)
+        return roundedValue.ToString();
+    }
+
+    // Method to convert temperature based on the selected unit
+    private string ConvertTemperature(double value, string unit, int significantFigures)
+    {
+        double convertedValue = value;
+
+        switch (unit)
         {
-            return roundedValue.ToString();
+            case "K": // Convert to Kelvin
+                convertedValue = value + 273.15;
+                break;
+            case "F": // Convert to Fahrenheit
+                convertedValue = value * 9 / 5 + 32;
+                break;
+            default: // Celsius by default, no conversion needed
+                break;
         }
-        else
-        {
-            // Use scientific notation if the number is very large or very small
-            return roundedValue.ToString("E" + (significantFigures - 1));
-        }
+
+        // Format the converted value with the correct significant figures
+        return FormatWithSignificantFigures(convertedValue, significantFigures);
     }
 
     // Method to determine the wind speed range
     private string GetWindSpeedRange(double windSpeed)
     {
         if (windSpeed >= 0 && windSpeed <= 12) return "0-12";
-        else if (windSpeed > 12 && windSpeed <= 25) return "13-25";
-        else if (windSpeed > 25 && windSpeed <= 38) return "26-38";
-        else if (windSpeed > 38 && windSpeed <= 51) return "39-51";
+        else if (windSpeed > 12 && windSpeed <= 25) return "12.01-25";
+        else if (windSpeed > 25 && windSpeed <= 38) return "25.01-38";
+        else if (windSpeed > 38 && windSpeed <= 51) return "38.01-51";
         return "";
     }
 
