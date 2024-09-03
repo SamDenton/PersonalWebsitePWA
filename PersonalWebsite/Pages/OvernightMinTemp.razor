@@ -1,0 +1,338 @@
+﻿@page "/overnightMinTemp"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+
+<h3>Calculate Minimum Overnight Temperature</h3>
+
+<div class="calculator-container">
+    <div class="input-section">
+        <div class="input-group">
+            <label for="tempInput">Temp (°C) at 12:00 (T<sub>12</sub>)</label>
+            <input type="number" @bind="Temperature" @bind:event="oninput" id="tempInput" class="input-field" min="0" step="0.01" />
+        </div>
+
+        <div class="input-group">
+            <label for="dewPointInput">Dew Point Temp (°C) at 12:00 (T<sub>d12</sub>)</label>
+            <input type="number" @bind="DewPointTemperature" @bind:event="oninput" id="dewPointInput" class="input-field" min="0" step="0.01" />
+        </div>
+
+        <div class="input-group">
+            <label for="windSpeedInput">Wind Speed (knots):</label>
+            <input type="number" @bind="WindSpeed" @bind:event="oninput" id="windSpeedInput" class="input-field" min="0" step="0.01" />
+        </div>
+
+        <div class="input-group">
+            <label for="cloudCoverInput">Cloud Cover (oktas):</label>
+            <input type="number" @bind="CloudCover" @bind:event="oninput" id="cloudCoverInput" class="input-field" min="0" step="0.01" />
+        </div>
+
+        <div class="input-group">
+            <label for="sigFigsInput">Significant Figures:</label>
+            <select @bind="SignificantFigures" id="sigFigsInput" class="input-field">
+                @for (int i = 1; i <= 5; i++)
+                {
+                    <option value="@i">@i</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="table-section">
+        <h4>Lookup Table for K</h4>
+        <table class="lookup-table">
+            <thead>
+                <tr>
+                    <th rowspan="2">Wind Speed (knots)</th>
+                    <th colspan="4">Cloud Cover (oktas)</th>
+                </tr>
+                <tr>
+                    <th>0 - 2</th>
+                    <th>2.01 - 4</th>
+                    <th>4.01 - 6</th>
+                    <th>6.01 - 8</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var windSpeedRange in KValues.Keys)
+                {
+                    <tr>
+                        <td class="wind-speed @(GetWindSpeedClass(windSpeedRange))">@windSpeedRange</td>
+                        @foreach (var cloudCoverRange in KValues[windSpeedRange].Keys)
+                        {
+                            <td class="k-value @(GetCellHighlightClass(windSpeedRange, cloudCoverRange))">
+                                @KValues[windSpeedRange][cloudCoverRange]
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div> 
+</div>
+
+<div class="result-section">
+    <p>
+        Minimum Overnight Temperature (Tmin):
+        <strong>@(IsUnknownValue ? $"{RoundedTmin}°C *" : $"{RoundedTmin}°C")</strong>
+    </p>
+    @if (IsUnknownValue)
+    {
+        <p class="warning-text"><sub>* The answer may be inaccurate as the variables picked are outside he range of the lookup table.</sub></p>
+    }
+</div>
+
+<div class="modelButtons">
+    <button @onclick="ShowDescriptionModal">Description</button>
+    <button @onclick="ShowInterviewModal">Interview Questions</button>
+</div>
+
+<!-- Description Modal -->
+<div class="modal" tabindex="-1" style="display:@(isDescriptionModalVisible ? "block" : "none")" @onclick="HideDescriptionModal">
+    <!-- Prevent click on modal itself from closing -->
+    <div class="modal-dialog" @onclick:stopPropagation="true">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Application Description</h5>
+                <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="HideDescriptionModal">X</button>
+            </div>
+            <div class="modal-body">
+                <div class="details">
+                    <p>This calculator is designed to test the accuracy of a method for calculating the overnight minimum temperature of a system given known starting conditions.</p>
+                    <h3>The Equation Used:</h3>
+                    <p style="text-align: center;">
+                        <img src="OvernightMinForcast.png" alt="Overnight Minimum Equation" style="max-width: 100%; height: auto;">
+                    </p>
+                    <p>Where:</p>
+                    <ul>
+                        <li><strong>T<sub>min</sub></strong> is the minimum temperature to find</li>
+                        <li><strong>T<sub>12</sub></strong> is the temperature at 12:00</li>
+                        <li><strong>T<sub>d12</sub></strong> is the dew point temperature at 12:00</li>
+                        <li><strong>K</strong> is a variable derived from a lookup table</li>
+                    </ul>
+
+                    <h4>Challenges Developing this App</h4>
+                    <p>There were a few points of note during development.  During a normal development cycle, I would ask for clarity on these points.</p>
+                    <ul>
+                        <li><strong>Scope:</strong> The headings for cloud cover have overlapping ranges, so some integer values are ambiguous.  For example, a cloud cover value of 4 Oktas could fall into the second or third range.
+                            I approached this by assuming an ambiguous value should fall into the previous range.</li>
+                        <li><strong>Accuracy:</strong> It looks like different numbers of significant figures have been used, the example has just 1 significant figure, while the measured values in the table are to 4 significant figures.
+                            My understanding is that the significant figures in the constants are irrelevant, and the measured values should be used to determine this.  I decided on 3 sig figs as a default, but allowed a user to select this.</li>
+                        <li><strong>Responsiveness:</strong> I wanted to have a system where the result is responsive to changes in the user input.  This has always been a challenge with Blazor as 'bind' and 'onchange' conflict, preventing a method call on a value change.
+                            The solution I've started using recently is to add our method call to the variables getter/setter, allowing the value to have 2 way data binding, but still trigger a method call.</li>
+                        <li><strong>Notation:</strong> Having not working on scientific projects before, my knowledge of scientific notation is based just on reading published papers and watching documentaries, and as such, I am unsure about standard syntax.
+                            Because of this, I had to research what would be appropriate </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="HideDescriptionModal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Interview Modal -->
+<div class="modal" tabindex="-1" style="display:@(isInterviewModalVisible ? "block" : "none")" @onclick="HideInterviewModal">
+    <!-- Prevent click on modal itself from closing -->
+    <div class="modal-dialog" @onclick:stopPropagation="true">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Application Description</h5>
+                <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="HideInterviewModal">X</button>
+            </div>
+            <div class="modal-body">
+                <div class="details">
+                    <h4>Interview Questions:</h4>
+                    <ul>
+                        <li><strong>What did you do?</strong></li>
+                        <sub>I chose to build this application within my existing Blazor wasm project. My calculations therefor are handled by C#, using the double type, which have more than enough accuracy for this use case.  I implemented the lookup table using nested dictionaries, with a pre-processing method to select ranges correctly.</sub>
+                        <li><strong>Why did you do it that way?</strong></li>
+                        <sub>I used Blazor as it allowed me to share my solution easily, and I am very familiar with C# and the .net ecosystem.  It allows me to create an application that is both powerful and aesthetically pleasing.  It wasn't really needed for this application, but .net has lots of useful packages for scientific calculations and visualizations, and being able to make use of JavaScript gives a lot of versatility to Blazor.</sub>
+                        <li><strong>Who should be involved in developing the final solution?</strong></li>
+                        <sub>If I were developing this application in a production or scientific environment, I would insure relevant parties have input in each stage of development.  Decisions I made myself should normally be put to the project lead or scientist requesting the solution.  That might include accuracy / sig figs, it might include which variables need what allowed ranges and steps.  Depending on the scope of the project and intended audience, it may also include feedback on visual representations or presentation</sub>
+                        <li><strong>How has what you don’t know about the problem impacted your solution?</strong></li>
+                        <sub>Since I don't have context for this problem, its hard to know what ranges the variables might need, or what level of accuracy the result needs.  I am unsure as well about what the standard would be for handling overlapping ranges for the cloud cover.  Because of this, I had to make a few assumptions, while trying to make my choices clear.</sub>
+                        <li><strong>How might you do it differently in a team or production context?</strong></li>
+                        <sub>If this where a production environment, or being developed are part of a team, different tools and languages might be appropriate.  For this specific application, in a production environment, Blazor would not be a suitable pick.  It's quite bloated with features unlikely to be useful for this application.  Something like R, Python, or C++ might be more suitable and efficient.  Developing as a team, I would need to take more case with my commenting, and make efforts to keep my code clean and readable.  I already use github for version control, but this would be more important as part of a team.</sub>
+                        <li><strong>What things might you need to consider if this was the start of a larger project?</strong></li>
+                        <sub>If this where a larger project, I would spend significantly more time researching the requirements and finding suitable languages, packages and tools before getting started.  Historically, when working on personal projects, I like to dive straight in and start coding, expecting to have to refactoring as I run into issues that require a different environment.  For example, in my NeuroEvolution project, I switched physics engines 3 times, requiring large re-factors!  In my more recent projects, and especially projects in a professional environment, I make an effort to plan the project to completion, insuring the tools I pick at the start will be suitable throughout.  I actually find charGPT to be invaluable in scoping a project before getting started, as it can simulate the development process quickly and often has insights into issues before they arise.</sub>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="HideInterviewModal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Variables for user input
+    private double _temperature = 18;
+    private double Temperature
+    {
+        get => _temperature;
+        set
+        {
+            _temperature = value;
+            CalculateTmin();
+        }
+    }
+
+    private double _dewPointTemperature = 10;
+    private double DewPointTemperature
+    {
+        get => _dewPointTemperature;
+        set
+        {
+            _dewPointTemperature = value;
+            CalculateTmin();
+        }
+    }
+
+    private double _windSpeed = 30;
+    private double WindSpeed
+    {
+        get => _windSpeed;
+        set
+        {
+            _windSpeed = value;
+            CalculateTmin();
+        }
+    }
+
+    private double _cloudCover = 3;
+    private double CloudCover
+    {
+        get => _cloudCover;
+        set
+        {
+            _cloudCover = value;
+            CalculateTmin();
+        }
+    }
+
+    private int _significantFigures = 3; // Default significant figures
+    private int SignificantFigures
+    {
+        get => _significantFigures;
+        set
+        {
+            _significantFigures = value;
+            CalculateTmin();
+        }
+    }
+                                                      
+    private bool isDescriptionModalVisible = false;
+    private bool isInterviewModalVisible = false;
+
+    // Result of the calculation
+    private double Tmin { get; set; } = 0.0;
+
+    // Flag to indicate if the K value is unknown
+    private bool IsUnknownValue { get; set; } = false;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            CalculateTmin();
+            StateHasChanged();
+        }
+    }
+
+    // Correctly rounded result for display with significant figures
+    private string RoundedTmin => FormatWithSignificantFigures(Tmin, SignificantFigures);
+
+    // Lookup table for K values
+    private Dictionary<string, Dictionary<string, double>> KValues = new Dictionary<string, Dictionary<string, double>>
+    {
+        { "0-12", new Dictionary<string, double> { { "0-2", -2.2 }, { "2.01-4", -1.7 }, { "4.01-6", -0.6 }, { "6.01-8", 0 } } },
+        { "13-25", new Dictionary<string, double> { { "0-2", -1.1 }, { "2.01-4", 0 }, { "4.01-6", 0.6 }, { "6.01-8", 1.1 } } },
+        { "26-38", new Dictionary<string, double> { { "0-2", -0.6 }, { "2.01-4", 0 }, { "4.01-6", 0.6 }, { "6.01-8", 1.1 } } },
+        { "39-51", new Dictionary<string, double> { { "0-2", 1.1 }, { "2.01-4", 1.7 }, { "4.01-6", 2.8 } } }
+    };
+
+    private void ShowDescriptionModal() => isDescriptionModalVisible = true;
+    private void HideDescriptionModal() => isDescriptionModalVisible = false;
+
+    private void ShowInterviewModal() => isInterviewModalVisible = true;
+    private void HideInterviewModal() => isInterviewModalVisible = false;
+
+    // Method to determine K value from lookup table
+    private double GetKValue(double windSpeed, double cloudCover)
+    {
+        string windSpeedRange = GetWindSpeedRange(windSpeed);
+        string cloudCoverRange = GetCloudCoverRange(cloudCover);
+
+        if (KValues.ContainsKey(windSpeedRange) && KValues[windSpeedRange].ContainsKey(cloudCoverRange))
+        {
+            IsUnknownValue = false; // Known value
+            return KValues[windSpeedRange][cloudCoverRange];
+        }
+
+        IsUnknownValue = true; // Unknown value
+        return 0; // Default to 0 if no match is found
+    }
+
+    // Method to calculate Tmin
+    private void CalculateTmin()
+    {
+        double K = GetKValue(WindSpeed, CloudCover);
+        Tmin = 0.316 * Temperature + 0.548 * DewPointTemperature - 1.24 + K;
+    }
+
+    // Method to format numbers with the correct significant figures
+    private string FormatWithSignificantFigures(double value, int significantFigures)
+    {
+        if (value == 0)
+            return "0"; // Handle zero separately
+
+        // Determine the scale (order of magnitude) of the value
+        int scale = (int)Math.Floor(Math.Log10(Math.Abs(value)));
+        double roundedValue = Math.Round(value / Math.Pow(10, scale), significantFigures - 1) * Math.Pow(10, scale);
+
+        // Use standard notation if the scale is within a reasonable range
+        if (scale >= -3 && scale <= 5)
+        {
+            return roundedValue.ToString();
+        }
+        else
+        {
+            // Use scientific notation if the number is very large or very small
+            return roundedValue.ToString("E" + (significantFigures - 1));
+        }
+    }
+
+    // Method to determine the wind speed range
+    private string GetWindSpeedRange(double windSpeed)
+    {
+        if (windSpeed >= 0 && windSpeed <= 12) return "0-12";
+        else if (windSpeed > 12 && windSpeed <= 25) return "13-25";
+        else if (windSpeed > 25 && windSpeed <= 38) return "26-38";
+        else if (windSpeed > 38 && windSpeed <= 51) return "39-51";
+        return "";
+    }
+
+    // Method to determine the cloud cover range
+    private string GetCloudCoverRange(double cloudCover)
+    {
+        if (cloudCover >= 0 && cloudCover <= 2) return "0-2";
+        else if (cloudCover > 2 && cloudCover <= 4) return "2.01-4";
+        else if (cloudCover > 4 && cloudCover <= 6) return "4.01-6";
+        else if (cloudCover > 6 && cloudCover <= 8) return "6.01-8";
+        return "";
+    }
+
+    // Helper methods to get CSS classes for highlighting
+    private string GetCellHighlightClass(string windSpeedRange, string cloudCoverRange)
+    {
+        return (windSpeedRange == GetWindSpeedRange(WindSpeed) && cloudCoverRange == GetCloudCoverRange(CloudCover)) ? "highlight" : "";
+    }
+
+    private string GetWindSpeedClass(string windSpeedRange)
+    {
+        return windSpeedRange == GetWindSpeedRange(WindSpeed) ? "highlight-row" : "";
+    }
+}

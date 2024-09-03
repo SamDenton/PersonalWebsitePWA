@@ -1,0 +1,96 @@
+﻿.calculator-container {
+    display: flex;
+    gap: 5px;
+    padding: 20px;
+}
+
+.input-section {
+    flex: 1;
+    display: flex;
+    max-width: 350px;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.input-field {
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 250px;
+}
+
+.calculate-button {
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 220px;
+}
+
+    .calculate-button:hover {
+        background-color: #0056b3;
+    }
+
+.result-section {
+    margin-top: 15px;
+    font-size: 24px;
+}
+
+.lookup-table {
+    width: 50vw;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+    .lookup-table th, .lookup-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+    }
+
+    .lookup-table th {
+        background-color: #c7c7c7;
+    }
+
+.highlight {
+    background-color: #ffd700; /* Highlighted cell */
+}
+
+.highlight-row {
+    background-color: #ffe680; /* Highlighted row */
+}
+
+.modal-dialog {
+    max-width: 75vw;
+}
+
+.modal {
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+button {
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 10px;
+}
+
+    button:hover {
+        background-color: #0056b3;
+    }
+
+img {
+    background: white;
+}
