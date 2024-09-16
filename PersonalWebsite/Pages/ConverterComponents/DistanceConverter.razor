@@ -1,0 +1,110 @@
+﻿@inherits ConverterBase
+
+<div class="converter-container">
+    <button class="close-button" @onclick="Close">X</button>
+    <h4>@Name</h4>
+
+    <div>
+        <label>Value: </label>
+        <input type="number" step="any" @bind="InputValue" @bind:event="oninput" />
+        <input type="range" @bind="InputValue" @bind:event="oninput" min="0" max="1e10" step="0.01" class="slider" />
+    </div>
+    <div>
+        <label>From: </label>
+        <select @bind="FromUnit">
+            @foreach (var unit in UnitFactors.Keys)
+            {
+                <option value="@unit">@unit</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label>To: </label>
+        <select @bind="ToUnit">
+            @foreach (var unit in UnitFactors.Keys)
+            {
+                <option value="@unit">@unit</option>
+            }
+        </select>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Result))
+    {
+        <p>@Result</p>
+    }
+</div>
+
+@code {
+    public override string Name => "Distance Converter";
+
+    private double inputValue;
+    public double InputValue
+    {
+        get => inputValue;
+        set
+        {
+            if (inputValue != value)
+            {
+                inputValue = value;
+                Calculate();
+            }
+        }
+    }
+
+    private string fromUnit = "Meters";
+    public string FromUnit
+    {
+        get => fromUnit;
+        set
+        {
+            if (fromUnit != value)
+            {
+                fromUnit = value;
+                Calculate();
+            }
+        }
+    }
+
+    private string toUnit = "Kilometers";
+    public string ToUnit
+    {
+        get => toUnit;
+        set
+        {
+            if (toUnit != value)
+            {
+                toUnit = value;
+                Calculate();
+            }
+        }
+    }
+
+    private readonly Dictionary<string, double> UnitFactors = new()
+    {
+        { "Meters", 1 },
+        { "Kilometers", 1000 },
+        { "Miles", 1609.34 },
+        { "Feet", 0.3048 },
+        { "Inches", 0.0254 }
+    };
+
+    protected override void OnInitialized()
+    {
+        Calculate(); // Initial calculation
+    }
+
+    private void Calculate()
+    {
+        if (UnitFactors.TryGetValue(FromUnit, out var fromFactor) && UnitFactors.TryGetValue(ToUnit, out var toFactor))
+        {
+            double valueInMeters = InputValue * fromFactor;
+            double result = valueInMeters / toFactor;
+
+            Result = $"{InputValue} {FromUnit} = {result:F4} {ToUnit}";
+        }
+        else
+        {
+            Result = "Invalid unit selection.";
+        }
+    }
+}

@@ -1,0 +1,56 @@
+﻿@inherits ConverterBase
+
+<div class="converter-container">
+    <button class="close-button" @onclick="Close">X</button>
+    <h4>@Name</h4>
+
+    <div>
+        <label>Mass (kg): </label>
+        <input type="number" step="any" min="0" @bind="Mass" @bind:event="oninput" />
+        <input type="range" @bind="Mass" @bind:event="oninput" min="0" max="1e17" step="1" class="slider" />
+    </div>
+
+    @if (!string.IsNullOrEmpty(Result))
+    {
+        <p>@Result</p>
+    }
+</div>
+
+@code {
+    public override string Name => "Schwarzschild Radius Calculator";
+
+    private double mass;
+    public double Mass
+    {
+        get => mass;
+        set
+        {
+            if (mass != value)
+            {
+                mass = value;
+                Calculate();
+            }
+        }
+    }
+
+    private const double G = 6.67430e-11; // Gravitational constant
+    private const double c = 299792458;   // Speed of light
+
+    protected override void OnInitialized()
+    {
+        Calculate(); // Initial calculation
+    }
+
+    private void Calculate()
+    {
+        if (Mass <= 0)
+        {
+            Result = "Please enter a positive mass value.";
+        }
+        else
+        {
+            double radius = 2 * G * Mass / (c * c);
+            Result = $"Schwarzschild Radius: {radius:E2} meters";
+        }
+    }
+}

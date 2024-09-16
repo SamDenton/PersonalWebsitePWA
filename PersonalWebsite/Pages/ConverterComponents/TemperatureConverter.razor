@@ -1,0 +1,124 @@
+﻿@inherits ConverterBase
+
+<div class="converter-container">
+    <button class="close-button" @onclick="Close">X</button>
+    <h4>@Name</h4>
+
+    <div>
+        <label>Value: </label>
+        <input type="number" step="any" @bind="InputValue" @bind:event="oninput" />
+        <input type="range" @bind="InputValue" @bind:event="oninput" min="-300" max="500" step="0.01" class="slider" />
+    </div>
+    <div>
+        <label>From: </label>
+        <select @bind="FromUnit">
+            @foreach (var unit in Units)
+            {
+                <option value="@unit">@unit</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label>To: </label>
+        <select @bind="ToUnit">
+            @foreach (var unit in Units)
+            {
+                <option value="@unit">@unit</option>
+            }
+        </select>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Result))
+    {
+        <p>@Result</p>
+    }
+</div>
+
+@code {
+    public override string Name => "Temperature Converter";
+
+    private double inputValue;
+    public double InputValue
+    {
+        get => inputValue;
+        set
+        {
+            if (inputValue != value)
+            {
+                inputValue = value;
+                Calculate();
+            }
+        }
+    }
+
+    private string fromUnit = "Celsius";
+    public string FromUnit
+    {
+        get => fromUnit;
+        set
+        {
+            if (fromUnit != value)
+            {
+                fromUnit = value;
+                Calculate();
+            }
+        }
+    }
+
+    private string toUnit = "Fahrenheit";
+    public string ToUnit
+    {
+        get => toUnit;
+        set
+        {
+            if (toUnit != value)
+            {
+                toUnit = value;
+                Calculate();
+            }
+        }
+    }
+
+    private readonly string[] Units = { "Celsius", "Fahrenheit", "Kelvin" };
+
+    protected override void OnInitialized()
+    {
+        Calculate(); // Initial calculation
+    }
+
+    private void Calculate()
+    {
+        double tempInKelvin = InputValue;
+
+        // Convert input to Kelvin
+        switch (FromUnit)
+        {
+            case "Celsius":
+                tempInKelvin = InputValue + 273.15;
+                break;
+            case "Fahrenheit":
+                tempInKelvin = (InputValue + 459.67) * 5 / 9;
+                break;
+            case "Kelvin":
+                tempInKelvin = InputValue;
+                break;
+        }
+
+        // Convert Kelvin to target unit
+        double result = tempInKelvin;
+        switch (ToUnit)
+        {
+            case "Celsius":
+                result = tempInKelvin - 273.15;
+                break;
+            case "Fahrenheit":
+                result = tempInKelvin * 9 / 5 - 459.67;
+                break;
+            case "Kelvin":
+                result = tempInKelvin;
+                break;
+        }
+
+        Result = $"{InputValue} {FromUnit} = {result:F2} {ToUnit}";
+    }
+}

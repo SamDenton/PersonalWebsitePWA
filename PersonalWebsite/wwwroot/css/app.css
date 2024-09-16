@@ -158,31 +158,53 @@ a, .btn-link {
         content: "An error has occurred."
     }
 
-/*Old scroll bars*/
-/* width */
-/*::-webkit-scrollbar {
-    height: 100%;
-    width: 5px;
-    border-radius: 0px;
-}*/
+.converter-container {
+    background-color: #a9a9a9;
+    padding: 20px 30px;
+    margin: 20px auto;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
 
-/* Track */
-/*::-webkit-scrollbar-track {*/
-   /* margin-top: 56px;*/
-   /*margin: 5px;
-   border-radius: 0px;
-}*/
+    .converter-container div {
+        margin-bottom: 15px;
+    }
 
-/* Handle */
-/*::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 5px;
-}*/
+    .converter-container input[type="number"],
+    .converter-container select {
+        width: calc(100% - 110px);
+        padding: 8px;
+        margin-left: 10px;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
 
-    /* Handle on hover */
-    /*::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }*/
+        .converter-container input[type="number"]:focus,
+        .converter-container select:focus {
+            border-color: #0078d7;
+            outline: none;
+        }
+
+    .converter-container input[type="range"] {
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    .converter-container .close-button {
+        float: right;
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        font-weight: bolder;
+        cursor: pointer;
+        color: #0d385b;
+    }
+
+        .converter-container .close-button:hover {
+            color: #333;
+        }
 
 /*making all scrollbars hidden*/
 ::-webkit-scrollbar {
@@ -197,36 +219,3 @@ a, .btn-link {
 ::-webkit-scrollbar-thumb {
     background: transparent; /* make scrollbar thumb transparent */
 }
-
-/*
-::-webkit-scrollbar {
-    background: #212529;
-    width: 5px;
-    border-radius: 0px;
-    margin-top: 0px !important;
-    margin-bottom: -50px !important;
-    padding: 0px !important;
-    height: 100%;
-    z-index: 999;
-}
-
-
-::-webkit-scrollbar-track {
-    margin-top: 0px !important;
-    margin-bottom: 0px !important; 
-    padding: 0px !important;
-    height: 100%;
-    background: #212529;
-    border-radius: 0px;
-    z-index: 999;
-}
-
-
-::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 5px;
-}
-
-    ::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }*/

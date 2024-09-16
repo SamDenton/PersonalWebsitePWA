@@ -1,0 +1,247 @@
+﻿@page "/generalCalc"
+@using PersonalWebsite.Pages.ConverterComponents
+
+
+<button class="toggle-navbar" @onclick="ToggleNavbarVisibility">
+    @if (IsNavbarVisible)
+    {
+        <span>Hide Menu</span>
+    }
+    else
+    {
+        <span>Show Menu</span>
+    }
+</button>
+
+@if (IsNavbarVisible)
+{
+    <nav class="navbarConverter">
+        <ul class="outerMenuList">
+            @foreach (var category in CalculatorCategories)
+            {
+                <li class="dropdown">
+                    <div class="catTitleNav">@category.Key</div>
+                    <ul class="dropdown-content">
+                        <li>
+                            <div class="calcNameNavTop">
+                                @category.Key
+                            </div>
+                        </li>
+                        @foreach (var calculator in category.Value)
+                        {
+                            <li>
+                                <div class="calcNameNav" @onclick="() => OnCalculatorSelected(calculator)">
+                                    @calculator.Name
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+<div class="calculators-container">
+    @foreach (var calculatorInstance in OpenCalculators)
+    {
+        <div class="calculator-wrapper">
+            <DynamicComponent Type="calculatorInstance.ComponentType" Parameters="calculatorInstance.Parameters" />
+        </div>
+    }
+</div>
+
+@code {
+    private Dictionary<string, List<CalculatorInfo>> CalculatorCategories;
+    private List<OpenCalculatorInstance> OpenCalculators = new List<OpenCalculatorInstance>();
+    private bool IsNavbarVisible = true;
+
+    protected override void OnInitialized()
+    {
+        CalculatorCategories = new Dictionary<string, List<CalculatorInfo>>
+        {
+            // Mathematics Calculators
+            {
+                "Mathematics",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Base Conversion Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Complex Number Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Matrix Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Equation Solver", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Trigonometric Functions Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Factorial and Combinatorics Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Statistics Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Calculus Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                }
+            },
+            // Physics Calculators
+            {
+                "Physics",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Force Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Energy Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Ohm's Law Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Projectile Motion Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Wave Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "RC Circuit Time Constant Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Magnetic Field Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Heat Transfer Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Schwarzschild Radius Calculator", ComponentType = typeof(SchwarzschildRadiusCalculator) },
+                }
+            },
+            // Chemistry Calculators
+            {
+                "Chemistry",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Molar Mass Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Ideal Gas Law Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Solution Concentration Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "pH and pOH Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Dilution Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                }
+            },
+            // Electronics Calculators
+            {
+                "Electronics",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Resistor Color Code Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "LED Resistor Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Capacitor Charge/Discharge Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Voltage Divider Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Inductor Reactance Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                }
+            },
+            // Computer Science Calculators
+            {
+                "Computer Science",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Binary Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Bitwise Operation Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Simple Encryption/Decryption", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Hash Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Base Conversion Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                }
+            },
+            // Finance Calculators
+            {
+                "Finance",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Loan Repayment Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Compound Interest Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Currency Converter", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Retirement Savings Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Inflation Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                }
+            },
+            // Astronomy Calculators
+            {
+                "Astronomy",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Orbital Period Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Escape Velocity Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Luminosity Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Planetary Weight Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Redshift Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                }
+            },
+            // General Converters
+            {
+                "General",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Unit Converter", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Pressure Converter", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Speed Converter", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Angle Converter", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Data Storage Converter", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Temperature Converter", ComponentType = typeof(TemperatureConverter) }, 
+                    new CalculatorInfo { Name = "Distance Converter", ComponentType = typeof(DistanceConverter) },
+                }
+            },
+            // Image and Video Calculators
+            {
+                "Image and Video",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Aspect Ratio Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "DPI/PPI Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Video Bitrate Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Frame Rate Converter", ComponentType = typeof(PlaceholderCalculator) },
+                }
+            },
+            // Heat and Thermodynamics Calculators
+            {
+                "Thermodynamics",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Heat Capacity Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Thermal Efficiency Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Carnot Efficiency Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Entropy Change Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                }
+            },
+            // Magnetism and Electromagnetism Calculators
+            {
+                "Magnetism",
+                new List<CalculatorInfo>
+                {
+                    new CalculatorInfo { Name = "Magnetic Flux Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Inductance Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "Faraday's Law Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                    new CalculatorInfo { Name = "LC Circuit Resonance Calculator", ComponentType = typeof(PlaceholderCalculator) },
+                }
+            },
+            // Additional categories can be added here following the same structure
+        };
+    }
+
+    private void OnCalculatorSelected(CalculatorInfo calculatorInfo)
+    {
+        AddCalculatorInstance(calculatorInfo.ComponentType);
+        IsNavbarVisible = false; // Hide navbar after selection
+    }
+
+    private void AddCalculatorInstance(Type componentType)
+    {
+        var instanceId = Guid.NewGuid();
+        var instance = new OpenCalculatorInstance
+            {
+                Id = instanceId,
+                ComponentType = componentType,
+                Parameters = new Dictionary<string, object>
+            {
+                { "InstanceId", instanceId },
+                { "OnClose", EventCallback.Factory.Create<Guid>(this, OnCalculatorClosed) }
+            }
+            };
+        OpenCalculators.Add(instance);
+        StateHasChanged();
+    }
+
+    private void OnCalculatorClosed(Guid instanceId)
+    {
+        var instance = OpenCalculators.FirstOrDefault(c => c.Id == instanceId);
+        if (instance != null)
+        {
+            OpenCalculators.Remove(instance);
+            StateHasChanged();
+        }
+
+        if (!OpenCalculators.Any())
+        {
+            IsNavbarVisible = true; // Show navbar if no calculators are open
+        }
+    }
+
+    private void ToggleNavbarVisibility()
+    {
+        IsNavbarVisible = !IsNavbarVisible;
+    }
+}

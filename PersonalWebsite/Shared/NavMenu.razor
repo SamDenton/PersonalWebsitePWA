@@ -16,21 +16,6 @@
 <div class="nav-container" id="nav-container">
     <nav class="d-flex flex-column text-light navbar-expand-lg nav-menu" @ref="navMenu" id="nav">
         <div class="nav-items-container">
-            <div class="p-1 item-fader px-2 font-weight-bold">
-                <NavLink class="p-1 nav-link text-muted">
-                    <h2 class="text-muted text-truncate titleTextMenu hackerAnimation" data-value="Met Office Demo!" data-id="5" aria-hidden="true">Met Office Demo!</h2>
-                </NavLink>
-            </div>
-            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                <NavLink class="p-1 nav-link text-muted lastLink" href="/overnightMinTemp" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    &nbsp<span class="oi oi-puzzle-piece"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> Min Temp Calculator!</h2>
-                </NavLink>
-            </div>
-            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
-                <NavLink class="p-1 nav-link text-muted lastLink" href="/bindingEnergyCalculator" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
-                    &nbsp<span class="oi oi-puzzle-piece"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> Binding Energy!</h2>
-                </NavLink>
-            </div>
             <div class="item-fader dropdown-divider divider"></div>
             <div class="p-1 item-fader px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted">
@@ -81,6 +66,21 @@
             <div class="p-1 item-fader nav-item px-2 font-weight-bold">
                 <NavLink class="p-1 nav-link text-muted lastLink" href="/navBot" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
                     &nbsp<span class="oi oi-chat"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> AI Assistant</h2>
+                </NavLink>
+            </div>
+            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/generalCalc" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    &nbsp<span class="oi oi-calculator"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> General Converter!</h2>
+                </NavLink>
+            </div>
+            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/overnightMinTemp" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    &nbsp<span class="oi oi-calculator"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> Min Temp Calculator!</h2>
+                </NavLink>
+            </div>
+            <div class="p-1 item-fader nav-item px-2 font-weight-bold">
+                <NavLink class="p-1 nav-link text-muted lastLink" href="/bindingEnergyCalculator" @onclick="(() => { Array.Fill(showSubSections!, false); StateHasChanged(); })">
+                    &nbsp<span class="oi oi-calculator"></span><h2 class="text-muted text-truncate titleText" aria-hidden="true" style="width:100%;"> Binding Energy!</h2>
                 </NavLink>
             </div>
             <div class="item-fader dropdown-divider divider"></div>
