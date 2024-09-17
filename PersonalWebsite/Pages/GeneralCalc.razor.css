@@ -10,6 +10,7 @@
 }
 
     .navbarConverter .outerMenuList {
+        flex: 1;
         display: flex;
     }
 

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace PersonalWebsite.Pages.ConverterComponents
 {
@@ -9,6 +10,18 @@ namespace PersonalWebsite.Pages.ConverterComponents
 
         public abstract string Name { get; }
         public string Result { get; protected set; }
+
+        [Inject] protected IJSRuntime JSRuntime { get; set; }
+
+        protected ElementReference CalculatorElement;
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (firstRender)
+            {
+                await JSRuntime.InvokeVoidAsync("interop.makeDraggableResizable", $"calculator-{InstanceId}");
+            }
+        }
 
         protected void Close()
         {
